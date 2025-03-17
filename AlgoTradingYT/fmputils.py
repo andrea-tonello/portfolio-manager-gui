@@ -17,6 +17,9 @@ def batch_company_profile(symbols: list):
     return requests.get(url).json()
 
 
+
+
+
 # Financial ratings (snapshot)
 def ratings_snap(symbol=SYMBOL):
     url = f'{BASE_URL}/ratings-snapshot?symbol={symbol}&apikey={API_TOKEN}'
@@ -28,6 +31,13 @@ def ratings_hist(symbol=SYMBOL):
     url = f'{BASE_URL}/ratings-historical?symbol={symbol}&apikey={API_TOKEN}'
     return requests.get(url).json()
 
+
+
+
+# Stock price change (%) over multiple periods of time
+def stock_price_change(symbol=SYMBOL):
+    url = f'{BASE_URL}/stock-price-change?symbol={symbol}&apikey={API_TOKEN}'
+    return requests.get(url).json()
 
 # IPOs calendar
 def ipos():
