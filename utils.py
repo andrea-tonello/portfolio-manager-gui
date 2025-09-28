@@ -1,26 +1,7 @@
 import pandas as pd
 import numpy as np
-import requests
-import re
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-}
-
-def get_ter_requests(isin):
-    url = f"https://www.justetf.com/en/etf-profile.html?isin={isin}"
-    r = requests.get(url, headers=HEADERS, timeout=15)
-    r.raise_for_status()
-    html = r.text
-
-    # regex
-    m = re.search(r"(\d+(?:\.\d+)?%\s*p\.a\.?)", html)
-    if m:
-        return m.group(1), None
-
-    return None, "TER not found with selectors"
 
 
 def broker_fee(choice: int, product: str):
@@ -34,7 +15,7 @@ def broker_fee(choice: int, product: str):
 
 
 def get_date(df):
-    dt = input('Enter date DD-MM-YYYY ("t" for today): ')
+    dt = input('Inserisci data GG-MM-AAAA ("t" per data odierna): ')
     if dt == "t":
         td = date.today()
         dt = td.strftime("%d-%m-%Y")
@@ -44,7 +25,7 @@ def get_date(df):
     num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
 
     if num_date < num_lastdt:
-        raise ValueError("Dates must be sequential")
+        raise ValueError("La data inserita è precedente all'ultima registrata")
     
     return dt
 
@@ -113,11 +94,11 @@ def add_solar_years(data_generazione):
 
 def compute_backpack(df, data_operazione, as_of_index=None):
     """
-    Calcola lo zainetto disponibile **alla data_operazione** considerando
+    Calcola lo zainetto disponibile alla data_operazione considerando
     l'ordine reale delle operazioni (se più operazioni nello stesso giorno
     si rispetta l'ordine di indice).
     - df: dataframe completo
-    - data_operazione: datetime (oggetto) della data di riferimento
+    - data_operazione: datetime della data di riferimento
     - as_of_index: se fornito, considera solo le righe con index < as_of_index
       (utile se il dataframe contiene già la riga corrente e si vuole considerare
        solo la cronologia precedente).
@@ -171,7 +152,6 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-
 def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     
     if asset_rows.empty:
@@ -179,7 +159,6 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     
     date = datetime.strptime(date_str, "%d-%m-%Y")
     
-
     last_pmpc = asset_rows["PMPC Asset"].iloc[-1]
     last_remaining_qt = asset_rows["QT. Attuale Asset"].iloc[-1]
     
@@ -210,7 +189,6 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     else:
         minusvalenza_generata = abs(plusvalenza_lorda)
         fiscal_credit_aggiornato += minusvalenza_generata
-        # Usa la nuova funzione per calcolare la scadenza esatta
         end_date = add_solar_years(date)
 
     plusvalenza_netta = plusvalenza_lorda - imposta
@@ -221,10 +199,6 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - imposta
     asset_value = price * current_qt
-    
-    # In questa versione, il valore 'Zainetto Fiscale' nella riga rappresenta il totale
-    # DOPO l'operazione, ma il calcolo per la riga SUCCESSIVA sarà sempre corretto
-    # perché ricalcolerà tutto da capo.
 
     return {
         "Operazione": "sell",
@@ -243,72 +217,3 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
         "Valore Titoli": asset_value,
         "NAV": current_liq + asset_value,
     }
-
-
-"""
-def add_solar_years(start_date_str, years=4):
-
-    start_date = datetime.strptime(start_date_str, "%d-%m-%Y")
-    target_date = start_date + relativedelta(years=years)
-    year_end = datetime(target_date.year, 12, 31)
-    
-    return year_end.strftime("%d-%m-%Y")
-
-
-
-def sell_asset(df, asset_rows, quantity, price, fee, date, tax_rate=0.26):
-    
-    if asset_rows.empty:
-        raise ValueError("Nessun titolo da vendere: portafoglio vuoto")
-    
-    last_pmpc = asset_rows["PMPC Asset"].iloc[-1]
-    last_remaining_qt = asset_rows["QT. Attuale Asset"].iloc[-1]
-    
-    if quantity > last_remaining_qt:
-        raise ValueError("Quantità venduta superiore a quella disponibile")
-    
-
-    importo_effettivo = quantity * price - fee
-    costo_rilasciato = quantity * last_pmpc
-    
-    # Plusvalenze
-    plusvalenza_lorda = importo_effettivo - costo_rilasciato
-
-    end_date = np.nan
-
-    if plusvalenza_lorda < 0:
-        minus = plusvalenza_lorda
-        end_date = add_solar_years(date, years=4)
-
-    
-    # Tassa (solo se plusvalenza positiva)
-    tax = max(0, plusvalenza_lorda * tax_rate)
-    plusvalenza_netto = plusvalenza_lorda - tax
-    
-    # Nuovo stato portafoglio
-    current_qt = last_remaining_qt - quantity
-    importo_residuo = last_pmpc * current_qt
-    pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
-                                        # Equivalentemente: (costo_rilasciato + plusvalenza_netto)
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (importo_effettivo - tax)
-    asset_value = price * current_qt
-
-
-    return {
-        "op_type": "sell",
-        "current_qt": current_qt,
-        "residual_cost": importo_residuo,
-        "pmpc": pmpc_residuo,
-        "released_cost": costo_rilasciato,
-        "plusv": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
-        "tax": tax,
-        "end_date": end_date,
-        "minusv": plusvalenza_lorda if plusvalenza_lorda <= 0 else np.nan,
-        "fiscal_credit": float(df["Zainetto Fiscale"].iloc[-1]),
-        "net": plusvalenza_netto,
-        "current_liq": current_liq,
-        "asset_value": asset_value,
-        "nav": current_liq + asset_value
-    }
-
-"""
