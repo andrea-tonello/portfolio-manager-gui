@@ -1,6 +1,6 @@
 # Rendicontazione Portafoglio Finanziario
 
-Questo progetto è uno script/software per la **rendicontazione di portafogli finanziari** (azionario ed ETF), pensato per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello "zainetto fiscale" secondo la normativa italiana.
+Questo progetto è uno script/software per la **rendicontazione di portafogli finanziari** (azionario ed ETF), pensato per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
 ## Funzionalità principali
 
@@ -20,8 +20,7 @@ Questo progetto è uno script/software per la **rendicontazione di portafogli fi
 - `main.ipynb`: notebook principale per l'esecuzione e l'interazione con il portafoglio.
 - `newrow.py`: funzioni per aggiungere nuove righe/operazioni al portafoglio.
 - `utils.py`: funzioni di utilità per calcoli fiscali, gestione delle date, recupero dati, ecc.
-- `openfigi.py`: integrazione con l'API OpenFIGI per recuperare informazioni sugli strumenti tramite ISIN.
-- `rend.csv`: file CSV principale che contiene la cronologia delle operazioni.
+- `fetch_data.py`: scraping e integrazione con l'API OpenFIGI per recuperare informazioni sugli strumenti tramite ISIN.
 
 ## Requisiti
 
@@ -39,10 +38,10 @@ pip install pandas numpy requests python-dateutil
 
 ## Utilizzo
 
-1. **Prepara il file `rend.csv`** con la struttura delle colonne prevista (vedi esempio incluso).
+1. **Prepara il file `report.csv`** con la struttura delle colonne prevista (vedi esempio incluso).
 2. **Avvia il notebook** `main.ipynb` in Jupyter o Visual Studio Code.
 3. **Segui il menu interattivo** per inserire nuove operazioni (liquidità, ETF, azioni).
-4. **Salva le modifiche**: il file `rend.csv` verrà aggiornato automaticamente.
+4. **Salva le modifiche** su sul file o creane uno nuovo.
 
 ## Note
 
@@ -51,8 +50,4 @@ pip install pandas numpy requests python-dateutil
 
 ## Esempio di struttura CSV
 
-Vedi il file `rend.csv` per un esempio di struttura e dati.
-
----
-
-Per domande o suggerimenti, apri una issue o contatta lo sviluppatore.
+Vedi il file `report.csv` per un esempio di struttura e dati. Il file `report-template.csv` contiene un template per iniziare "da zero".
