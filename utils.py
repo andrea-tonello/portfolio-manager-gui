@@ -2,20 +2,42 @@ import pandas as pd
 import numpy as np
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal, ROUND_HALF_UP
+
+def round_half_up(valore, decimal = "0.01"):
+    if pd.isna(valore):
+        return np.nan
+    return float(Decimal(str(valore)).quantize(Decimal(decimal), rounding=ROUND_HALF_UP))
 
 
-def broker_fee(choice: int, product: str):
+def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: float = 0.0):
+
+    # if EUR
+    bg_etf_stock = 2.0
+    
+    upper_bound_fineco = min(19.0, round_half_up(trade_value * 0.0019))
+    fineco = max(2.95, upper_bound_fineco)
+
+    # if USD (BG Saxo-only)
+    if conv_rate != 1.0:
+        # Il controvalore è convertito con il tasso totale (quindi maggiorato di 0.25%),
+        # Mentre la fee è convertita con il tasso "reale"
+        conv_rate = conv_rate - conv_rate * 0.0025
+        bg_etf_stock = round_half_up(1.0 * conv_rate, decimal="0.000001")
+
     fees = {
-        "ETF":   {1: ("Fineco", 2.95), 2: ("BG Saxo", 5)},
-        "Stock": {1: ("Fineco", 2.95), 2: ("BG Saxo", 5)},
-        "Bond":  {1: ("Fineco", 2.95), 2: ("BG Saxo", 7)},
+        "ETF":   {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
+        "Stock": {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
+        "Bond":  {1: ("Fineco", fineco), 2: ("BG Saxo", 7.0)},
     }
 
-    return fees.get(product, {}).get(choice, ("SIM non riconosciuto", 0))
+    broker_name, fee = fees.get(product, {}).get(broker, ("SIM non riconosciuto", 0))
+    return broker_name, fee
 
 
 def get_date(df):
-    dt = input('Inserisci data GG-MM-AAAA ("t" per data odierna): ')
+    print("\nPer uscire (force exit): CTRL+C (l'operazione corrente non verrà aggiunta al report).")
+    dt = input('\nInserisci data operazione GG-MM-AAAA ("t" per data odierna): ')
     if dt == "t":
         td = date.today()
         dt = td.strftime("%d-%m-%Y")
@@ -30,8 +52,9 @@ def get_date(df):
     return dt
 
 
-def buy_asset(df, asset_rows, quantity, price, fee):
+def buy_asset(df, asset_rows, quantity, price, fee, date_str, product):
     
+    date = datetime.strptime(date_str, "%d-%m-%Y")
     price_raw = price
     price_abs = abs(price)
 
@@ -54,20 +77,33 @@ def buy_asset(df, asset_rows, quantity, price, fee):
         pmpc = ((old_cost + new_cost) / current_qt)
 
     importo_residuo = pmpc * current_qt
+
+    fiscal_credit_iniziale = compute_backpack(df, date, as_of_index=len(df))
+    fiscal_credit_aggiornato = fiscal_credit_iniziale
+
+    # Minusvalenze da commissione ETF
+    minusvalenza_comm = np.nan
+    end_date = np.nan
+
+    if product == "ETF":
+        minusvalenza_comm = fee
+        end_date = add_solar_years(date)
+        fiscal_credit_aggiornato += minusvalenza_comm
+        
     
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (quantity * price_raw - fee)
-    asset_value = price_abs * current_qt
+    asset_value = float(df["Valore Titoli"].iloc[-1]) + (price_abs * current_qt)
 
     return {
         "Operazione": "buy",
         "QT. Attuale Asset": current_qt,
-        "Imp. Residuo Asset": importo_residuo,
         "PMPC Asset": pmpc,
+        "Imp. Residuo Asset": importo_residuo,
         "Costo Rilasciato": np.nan,
         "Plusv. Lorda": np.nan,
-        "Minusv. Generata": np.nan,
-        "Scadenza": np.nan,
-        "Zainetto Fiscale": float(df["Zainetto Fiscale"].iloc[-1]),
+        "Minusv. Generata": minusvalenza_comm,
+        "Scadenza": end_date,
+        "Zainetto Fiscale": fiscal_credit_aggiornato,
         "Plusv. Imponibile": np.nan,
         "Imposta": np.nan,
         "Netto": np.nan,
@@ -152,7 +188,7 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
+def sell_asset(df, asset_rows, quantity, price, fee, date_str, product, tax_rate=0.26):
     
     if asset_rows.empty:
         raise ValueError("Nessun titolo da vendere: portafoglio vuoto")
@@ -174,12 +210,13 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     fiscal_credit_aggiornato = fiscal_credit_iniziale
     plusvalenza_imponibile = 0
     minusvalenza_generata = 0
+    minusvalenza_comm = np.nan
     imposta = 0
     end_date = np.nan
 
     if plusvalenza_lorda > 0:
         plusvalenza_da_compensare = plusvalenza_lorda
-        if fiscal_credit_iniziale > 0:
+        if fiscal_credit_iniziale > 0 and product != "ETF":
             credito_utilizzato = min(plusvalenza_da_compensare, fiscal_credit_iniziale)
             plusvalenza_da_compensare -= credito_utilizzato
             fiscal_credit_aggiornato -= credito_utilizzato
@@ -196,24 +233,33 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, tax_rate=0.26):
     current_qt = last_remaining_qt - quantity
     importo_residuo = last_pmpc * current_qt
     pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
-    
+
+    # Minusvalenze da commissione ETF
+    if product == "ETF":
+        minusvalenza_comm = fee
+        fiscal_credit_aggiornato += minusvalenza_comm
+        end_date = add_solar_years(date)
+        minusvalenza_generata += minusvalenza_comm
+
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - imposta
-    asset_value = price * current_qt
+    asset_value = float(df["Valore Titoli"].iloc[-1]) - (costo_rilasciato)
 
     return {
         "Operazione": "sell",
         "QT. Attuale Asset": current_qt,
-        "Imp. Residuo Asset": importo_residuo,
         "PMPC Asset": pmpc_residuo,
+        "Imp. Residuo Asset": importo_residuo,
         "Costo Rilasciato": costo_rilasciato,
         "Plusv. Lorda": plusvalenza_lorda if plusvalenza_lorda > 0 else 0,
-        "Minusv. Generata": minusvalenza_generata if plusvalenza_lorda < 0 else 0,
+        "Minusv. Generata": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
         "Scadenza": end_date,
         "Zainetto Fiscale": fiscal_credit_aggiornato,
-        "Plusv. Imponibile": plusvalenza_imponibile if plusvalenza_lorda > 0 else 0,
+        "Plusv. Imponibile": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
         "Imposta": imposta,
         "Netto": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
         "Liquidita Attuale": current_liq,
         "Valore Titoli": asset_value,
-        "NAV": current_liq + asset_value,
+        "NAV": current_liq + asset_value
     }
+
+

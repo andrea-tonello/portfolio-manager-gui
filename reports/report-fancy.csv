@@ -1,0 +1,8 @@
+Data,Operazione,SIM,Prodotto,ISIN,Asset Name,TER,Valuta,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale Asset,PMPC Asset,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,Netto,Liquidita Attuale,Valore Titoli,NAV,Liq. Storica Immessa
+30-05-2025,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0,0.0,0.0,0.0
+30-05-2025,deposit,BG Saxo,,,,,EUR,,,,200.0,,,,,200.0,,,,,0.0,,,,200.0,0.0,200.0,200.0
+30-05-2025,buy,BG Saxo,Stock,US46222L1089,IONQ INC,,USD,4.0,-41.0,-36.2829,-145.13,0.88,4.0,36.5,146.01,-146.01,,,,,0.0,,,,53.99,145.13,199.12,200.0
+10-06-2025,deposit,BG Saxo,,,,,EUR,,,,100.0,,,,,100.0,,,,,0.0,,,,153.99,145.13,299.12,300.0
+10-06-2025,buy,BG Saxo,Stock,US74766W1080,QUANTUM COMPUTING INC,,USD,9.0,-15.8779,-13.9365,-125.43,0.88,9.0,14.03,126.3,-126.3,,,,,0.0,,,,27.68,270.56,298.24,300.0
+16-06-2025,sell,BG Saxo,Stock,US74766W1080,QUANTUM COMPUTING INC,,USD,-9.0,19.132,16.4671,148.2,0.86,0.0,0.0,0.0,147.35,126.3,21.04,,,0.0,21.04,5.47,15.57,169.56,144.26,313.81,300.0
+17-06-2025,buy,BG Saxo,Stock,US74766W1080,QUANTUM COMPUTING INC,,USD,8.0,-20.2862,-17.6187,-140.95,0.87,8.0,17.73,141.82,-141.82,,,,,0.0,,,,27.74,285.21,312.95,300.0
