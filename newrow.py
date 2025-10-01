@@ -1,14 +1,16 @@
 import pandas as pd
 import numpy as np
 import fetch_data as figi
-from utils import buy_asset, sell_asset, round_half_up
+import yfinance as yf
+from utils import buy_asset, sell_asset, round_half_up, get_asset_value
+from datetime import datetime
 
 def fancy_df(df):
 
     df_fancy = df.copy()
     exclude_cols = ["Data", "Operazione", "SIM", "Prodotto",
-                    "ISIN", "Asset Name", "TER", "Valuta",
-                    "QT. Scambio", "Prezzo", "Prezzo EUR"]
+                    "Ticker", "Asset Name", "TER", "Valuta",
+                    "QT. Scambio", "Prezzo", "Prezzo EUR", "Scadenza"]
     
     cols_to_round = df_fancy.columns.difference(exclude_cols)
     df_fancy[cols_to_round] = df_fancy[cols_to_round].apply(lambda col: col.map(round_half_up))
@@ -19,12 +21,18 @@ def fancy_df(df):
 def newrow_cash(df, date, cash, broker):
     op_type = "deposit" if cash > 0 else "withdrawal"
 
+    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
+
+    yahoo_date = datetime.strptime(date, "%d-%m-%Y").strftime("%Y-%m-%d")
+    positions = get_asset_value(df, ref_date=yahoo_date)
+    asset_value = sum(pos["value"] for pos in positions)
+
     new_row = pd.DataFrame({
         "Data": [date],
         "Operazione": [op_type],
         "SIM": [broker],
         "Prodotto": [np.nan],
-        "ISIN": [np.nan],
+        "Ticker": [np.nan],
         "Asset Name": [np.nan],
         "TER": [np.nan],
         "Valuta": ["EUR"],
@@ -45,9 +53,9 @@ def newrow_cash(df, date, cash, broker):
         "Plusv. Imponibile": [np.nan],
         "Imposta": [np.nan],
         "Netto": [np.nan],
-        "Liquidita Attuale": [ float(df["Liquidita Attuale"].iloc[-1]) + cash ],
-        "Valore Titoli": [float(df["Valore Titoli"].iloc[-1])],
-        "NAV": [ float(df["NAV"].iloc[-1]) + cash ],
+        "Liquidita Attuale": [current_liq],
+        "Valore Titoli": [asset_value],
+        "NAV": [asset_value + current_liq],
         "Liq. Storica Immessa": [ float(df["Liq. Storica Immessa"].iloc[-1]) + cash ]
     })
 
@@ -56,26 +64,26 @@ def newrow_cash(df, date, cash, broker):
     return df
 
 
-def newrow_etf_stock(df, date, currency, product, isin, quantity, price_og, price, ter, broker, fee, buy):
+def newrow_etf_stock(df, date, currency, product, ticker, quantity, price_og, price, ter, broker, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
 
-    response = figi.lookup_by_isin(isin)
-    name = figi.parse_response(response)["name"]
-    asset_rows = df[df["ISIN"] == isin]
+    t = yf.Ticker(ticker)
+    name = t.info["longName"]
+    asset_rows = df[df["Ticker"] == ticker]
 
     if buy:
-        results = buy_asset(df, asset_rows, quantity, price, fee, date, product)
+        results = buy_asset(df, asset_rows, quantity, price, fee, date, product, ticker)
     else:
-        results = sell_asset(df, asset_rows, quantity, price, fee, date, product)
+        results = sell_asset(df, asset_rows, quantity, price, fee, date, product, ticker)
 
     new_row = pd.DataFrame({
         "Data": [date],
         "Operazione": [results["Operazione"]],
         "SIM": [broker],
         "Prodotto": [product],
-        "ISIN": [isin],
+        "Ticker": [ticker],
         "Asset Name": [name],
         "TER": [ter],
         "Valuta": [currency],

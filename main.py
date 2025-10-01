@@ -1,11 +1,9 @@
 import numpy as np
 import pandas as pd
 import os
-import sys
 
 from newrow import newrow_cash, newrow_etf_stock, fancy_df
 from utils import broker_fee, get_date, round_half_up
-from fetch_data import fetch_ter
 
 pd.set_option('display.max_columns', None)
 
@@ -19,7 +17,7 @@ def choice_etf_stock(df, choice="ETF"):
     if currency == 2:
         conv_rate = float(input("Inserisci tasso di conversione: "))
 
-    isin = input("Inserisci ISIN: ")
+    ticker = input("Inserisci Ticker completo: ")
 
     qt = input("Inserisci quantità (intero positivo): ")
     if not (qt.isdigit() and int(qt) > 0):
@@ -47,16 +45,24 @@ def choice_etf_stock(df, choice="ETF"):
     
     ter = np.nan
     if choice == "ETF":
-        ter, err = fetch_ter(isin)
-        if not ter:
-            print(err)
-            ter = input("Inserisci TER manualmente: ")
+        ter = input("Inserisci TER: ")
 
-    return newrow_etf_stock(df, date, "EUR" if currency==1 else "USD", choice, isin, quantity, price_og, price, ter, broker, fee, buy)
+    return newrow_etf_stock(df, date, "EUR" if currency==1 else "USD", choice, ticker, quantity, price_og, price, ter, broker, fee, buy)
 
-def main_menu(file, df):
+def main_menu(file, len_df, len_df_init, edited_flag):
     print("\n\n===== MENU PRINCIPALE =====")
-    print(f"File selezionato: {file} con {len(df)} righe.")
+    print(f"File selezionato: {file} con {len_df_init} righe.")
+
+    if edited_flag:
+        diff = len_df - len_df_init
+        print("Sono presenti modifiche non salvate.")
+        if diff == 0:
+            print(f"Righe totali aggiunte o rimosse: {diff} (il numero di righe è invariato, ma il contenuto è stato modificato).")
+        else:
+            print(f"Righe totali aggiunte o rimosse: {diff}")
+    else:
+        print("Nessuna modifica eseguita.")
+    
     print("\n1. Liquidità")
     print("2. ETF")
     print("3. Azioni")
@@ -82,10 +88,15 @@ if __name__ == "__main__":
         path = os.path.join(save_folder, file)
 
     df = pd.read_csv(path)
+    len_df_init = len(df)
+    edited_flag = False
 
     while True:
 
-        main_menu(file, df)
+        if len(df) != len_df_init:
+            edited_flag = True
+
+        main_menu(file, len(df), len_df_init, edited_flag)
         choice = input("\nSeleziona operazione (1 2 3 4 5 6 r 0): ")
         print("\n" + "="*28)
 
@@ -124,6 +135,16 @@ if __name__ == "__main__":
             df = choice_etf_stock(df, choice="Stock")
             print(fancy_df(df.tail(10)))
 
+
+        # DIVIDENDI:
+        #   div_EUR = div_USD * conv_rate
+        #  First apply the US tax, then the Italian tax
+        #   div_EUR *= (1-0.15)     US TAX
+        #   div_EUR *= (1-0.26)     IT TAX
+        #   div_EUR = round(div_EUR)
+
+
+
         elif choice == '4':
             os.system("cls" if os.name == "nt" else "clear")
             print("\n--- 4. OBBLIGAZIONI ---")
@@ -138,6 +159,7 @@ if __name__ == "__main__":
             pl = df["Netto"].sum()
             print("\n\n--- Statistiche ---")
             print(f"\n\tP&L Totale: {round_half_up(pl)}€")
+            print(f"\tNAV Aggiornato al [IMPLEMENTA]")
             
         elif choice == '6':
             os.system("cls" if os.name == "nt" else "clear")
@@ -151,6 +173,7 @@ if __name__ == "__main__":
             df_fancy.to_csv(path_fancy, index=False)
 
             print(f"\nEsportati {file} e {file_fancy} in {path}")
+
 
         elif choice == 'r':
             os.system("cls" if os.name == "nt" else "clear")
