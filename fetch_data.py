@@ -1,13 +1,24 @@
 import requests
 import re
 import yfinance as yf
-from datetime import date, datetime
-from secret import API_KEY
+from datetime import date, datetime, timedelta
+from secret import OXCR_KEY
 
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 }
+
+def fetch_name(ticker):
+    try:
+        t = yf.Ticker(ticker)
+        name = t.info.get("longName")
+        if not name:
+            raise KeyError("longName not found")
+        return name
+    except (KeyError, AttributeError, ValueError) as e:
+        print(f"Errore nel recupero del nome: {e}")
+        return input("Servizio non raggiungibile. Inserire nome asset manualmente: ")
 
 
 
@@ -15,12 +26,15 @@ def fetch_exchange_rate(currency, ref_date=None):
     """
     Gather EOD exchange rate.
     """
-    url = f"https://openexchangerates.org/api/historical/{ref_date}.json?app_id={API_KEY}"
+    if datetime.strptime(ref_date, "%Y-%m-%d").date() == date.today():
+        url = f"https://openexchangerates.org/api/latest.json?app_id={OXCR_KEY}"
+    else:
+        url = f"https://openexchangerates.org/api/historical/{ref_date}.json?app_id={OXCR_KEY}"
 
     response = requests.get(url)
     data = response.json()
+    eur_rate = data["rates"][currency]    
 
-    eur_rate = data["rates"][currency]
     return eur_rate
 
 

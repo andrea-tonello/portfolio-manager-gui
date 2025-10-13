@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 import yfinance as yf
 from fetch_data import fetch_exchange_rate
 import warnings
@@ -20,6 +20,9 @@ def round_half_up(valore, decimal="0.01"):
     except Exception:
         print(f"Warning: unable to round value {valore}")
         return valore
+    
+def round_down(value, decimal="0.01"):
+    return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
 
 
 
@@ -33,53 +36,64 @@ def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: f
 
     # if USD (BG Saxo-only)
     if conv_rate != 1.0:
-        # Il controvalore è convertito con il tasso totale (quindi maggiorato di 0.25%),
-        # Mentre la fee è convertita con il tasso "reale"
-        conv_rate = conv_rate - conv_rate * 0.0025
-        bg_etf_stock = round_half_up(1.0 * conv_rate, decimal="0.000001")
+        bg_etf_stock = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
     fees = {
         "ETF":   {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
-        "Stock": {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
-        "Bond":  {1: ("Fineco", fineco), 2: ("BG Saxo", 7.0)},
+        "Azioni": {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
+        "Obbligazioni":  {1: ("Fineco", fineco), 2: ("BG Saxo", 7.0)},
     }
 
     broker_name, fee = fees.get(product, {}).get(broker, ("SIM non riconosciuto", 0))
     return broker_name, fee
 
 
-def get_date(df):
-    print("\nPer uscire (force exit): CTRL+C (l'operazione corrente non verrà aggiunta al report).")
-    dt = input('\nInserisci data operazione GG-MM-AAAA ("t" per data odierna): ')
-    if dt == "t":
+def get_date(df, sequential_only=True):
+    try:
+        dt = input('    Data operazione GG-MM-AAAA ("t" per data odierna) > ')
         td = date.today()
-        dt = td.strftime("%d-%m-%Y")
 
-    lastdt = df["Data"].iloc[-1]
-    num_date = datetime.strptime(dt, "%d-%m-%Y")
-    num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
+        if dt == "t":
+            dt = td.strftime("%d-%m-%Y")
 
-    if num_date < num_lastdt:
-        raise ValueError("La data inserita è precedente all'ultima registrata")
+        lastdt = df["Data"].iloc[-1]
+        num_date = datetime.strptime(dt, "%d-%m-%Y")
+        num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
+
+        if num_date.date() > td:
+            raise ValueError("Impossibile inserire date future.")
+
+        if sequential_only and num_date < num_lastdt:
+            raise ValueError("La data inserita è precedente all'ultima registrata")
+        
+        return dt
     
-    return dt
-
-
-
-
+    except ValueError as e:
+        print("\nERRORE NELLA DATA:")
+        print(f"{e}\n")
+        input("Premi Invio per tornare al Menu Principale...")
+        raise KeyboardInterrupt
 
 
 def get_asset_value(df, current_ticker=None, ref_date=None):
+
+    df_copy = df.copy()
+    df_copy["Data"] = pd.to_datetime(df_copy["Data"], format="%d-%m-%Y")
+    df_filtered = df_copy[df_copy["Data"] <= ref_date]
+
     # Rimuove le righe dove la colonna Ticker non ha un valore ed il Ticker corrente
-    df_filtered = df.copy().dropna(subset=['Ticker'])
+    df_filtered = df_filtered.dropna(subset=['Ticker'])
     if current_ticker:
         df_filtered = df_filtered[df_filtered["Ticker"] != current_ticker]
 
+    # Tieni solo le righe con buy e sell (per evitare ticker su dividendi)
+    df_filtered = df_filtered[df_filtered["Operazione"].isin(["Acquisto", "Vendita"])]
+
     # Prendi l'ultima riga per ogni asset unico
-    total_assets = df_filtered.groupby('Ticker').last().reset_index()
+    total_assets = df_filtered.groupby("Ticker").last().reset_index()
 
     # Filtra solo quelli con quantità > 0
-    total_assets = total_assets.loc[total_assets["QT. Attuale Asset"] > 0, ["Ticker", "QT. Attuale Asset", "Valuta"]]
+    total_assets = total_assets.loc[total_assets["QT. Attuale"] > 0, ["Ticker", "QT. Attuale", "Valuta"]]
 
     if total_assets.empty:
         return []
@@ -90,14 +104,13 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
     for _, row in total_assets.iterrows():
         positions.append({
             "ticker": row["Ticker"],
-            "quantity": row["QT. Attuale Asset"],
-            "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate("EUR", ref_date),
+            "quantity": row["QT. Attuale"],
+            "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate("EUR", ref_date.strftime("%Y-%m-%d")),
             "price": np.nan,
             "value": np.nan
         })
         tickers.append(row["Ticker"])
 
-    
     # Scarica dati da qualche giorno prima per gestire weekend/festività
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
@@ -117,11 +130,11 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
 
 
 
-def buy_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker):
+def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product, ticker):
     
     date = datetime.strptime(date_str, "%d-%m-%Y")
-    price_raw = price
-    price_abs = abs(price)
+    price_raw = price / conv_rate
+    price_abs = abs(price) / conv_rate
 
     pmpc = 0
     current_qt = quantity
@@ -132,8 +145,8 @@ def buy_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker):
 
     # Ticker already logged
     else:         
-        last_pmpc = asset_rows["PMPC Asset"].iloc[-1]
-        last_remaining_qt = asset_rows["QT. Attuale Asset"].iloc[-1]
+        last_pmpc = asset_rows["PMC"].iloc[-1]
+        last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
 
         old_cost = last_pmpc * last_remaining_qt
         new_cost = price_abs * quantity + fee
@@ -154,17 +167,17 @@ def buy_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker):
         minusvalenza_comm = fee
         end_date = add_solar_years(date)
         fiscal_credit_aggiornato += minusvalenza_comm
-        
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (quantity * price_raw - fee)
+                                                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (round_half_up((round_half_up(quantity * price) / conv_rate)) - fee)
 
-    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y").strftime("%Y-%m-%d")
+    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
     positions = get_asset_value(df, current_ticker=ticker, ref_date=yahoo_date)
-    asset_value = sum(pos["value"] for pos in positions) + (current_qt * abs(price))
+    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
 
     return {
-        "Operazione": "buy",
-        "QT. Attuale Asset": current_qt,
-        "PMPC Asset": pmpc,
+        "Operazione": "Acquisto",
+        "QT. Attuale": current_qt,
+        "PMC": pmpc,
         "Imp. Residuo Asset": importo_residuo,
         "Costo Rilasciato": np.nan,
         "Plusv. Lorda": np.nan,
@@ -173,7 +186,7 @@ def buy_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker):
         "Zainetto Fiscale": fiscal_credit_aggiornato,
         "Plusv. Imponibile": np.nan,
         "Imposta": np.nan,
-        "Netto": np.nan,
+        "P&L": np.nan,
         "Liquidita Attuale": current_liq,
         "Valore Titoli": asset_value,
         "NAV": current_liq + asset_value
@@ -255,20 +268,22 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker, tax_rate=0.26):
+def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product, ticker, tax_rate=0.26):
     
     if asset_rows.empty:
         raise ValueError("Nessun titolo da vendere: portafoglio vuoto")
     
     date = datetime.strptime(date_str, "%d-%m-%Y")
     
-    last_pmpc = asset_rows["PMPC Asset"].iloc[-1]
-    last_remaining_qt = asset_rows["QT. Attuale Asset"].iloc[-1]
+    last_pmpc = asset_rows["PMC"].iloc[-1]
+    last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
     
     if quantity > last_remaining_qt:
         raise ValueError("Quantità venduta superiore a quella disponibile")
 
-    importo_effettivo = quantity * price - fee
+                        # !!!!!!!!!!!!!!!!!!!!!!!!!!! #
+    importo_effettivo = ((quantity * price) / conv_rate) - fee                                          # per calcolo interno
+    importo_effettivo_arrotondato = round_half_up((quantity * price) / conv_rate - round_half_up(fee))  # per calcolo liquidità
     costo_rilasciato = quantity * last_pmpc
     
     plusvalenza_lorda = importo_effettivo - costo_rilasciato
@@ -308,25 +323,26 @@ def sell_asset(df, asset_rows, quantity, price, fee, date_str, product, ticker, 
         end_date = add_solar_years(date)
         minusvalenza_generata += minusvalenza_comm
 
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - imposta
+    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo_arrotondato - imposta
 
-    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y").strftime("%Y-%m-%d")
+    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
     positions = get_asset_value(df, current_ticker=ticker, ref_date=yahoo_date)
+
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price)
 
     return {
-        "Operazione": "sell",
-        "QT. Attuale Asset": current_qt,
-        "PMPC Asset": pmpc_residuo,
+        "Operazione": "Vendita",
+        "QT. Attuale": current_qt,
+        "PMC": pmpc_residuo,
         "Imp. Residuo Asset": importo_residuo,
         "Costo Rilasciato": costo_rilasciato,
-        "Plusv. Lorda": plusvalenza_lorda if plusvalenza_lorda > 0 else 0,
+        "Plusv. Lorda": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
         "Minusv. Generata": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
         "Scadenza": end_date,
         "Zainetto Fiscale": fiscal_credit_aggiornato,
         "Plusv. Imponibile": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
         "Imposta": imposta,
-        "Netto": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
+        "P&L": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
         "Liquidita Attuale": current_liq,
         "Valore Titoli": asset_value,
         "NAV": current_liq + asset_value

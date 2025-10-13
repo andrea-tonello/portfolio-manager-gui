@@ -1,48 +1,41 @@
 import pandas as pd
 import numpy as np
-import fetch_data as figi
+from fetch_data import fetch_name
 import yfinance as yf
 from utils import buy_asset, sell_asset, round_half_up, get_asset_value
 from datetime import datetime
 
-def fancy_df(df):
 
-    df_fancy = df.copy()
-    exclude_cols = ["Data", "Operazione", "SIM", "Prodotto",
-                    "Ticker", "Asset Name", "TER", "Valuta",
-                    "QT. Scambio", "Prezzo", "Prezzo EUR", "Scadenza"]
-    
-    cols_to_round = df_fancy.columns.difference(exclude_cols)
-    df_fancy[cols_to_round] = df_fancy[cols_to_round].apply(lambda col: col.map(round_half_up))
-    
-    return df_fancy
-
-
-def newrow_cash(df, date, cash, broker):
-    op_type = "deposit" if cash > 0 else "withdrawal"
+def newrow_cash(df, date, cash, broker, op_type, product, ticker, name):
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
-    yahoo_date = datetime.strptime(date, "%d-%m-%Y").strftime("%Y-%m-%d")
+    if op_type in ["Deposito", "Prelievo"]:
+        historic_liq = float(df["Liq. Storica Immessa"].iloc[-1]) + cash
+    else:
+        historic_liq = float(df["Liq. Storica Immessa"].iloc[-1])
+
+    yahoo_date = datetime.strptime(date, "%d-%m-%Y")
     positions = get_asset_value(df, ref_date=yahoo_date)
     asset_value = sum(pos["value"] for pos in positions)
 
     new_row = pd.DataFrame({
         "Data": [date],
-        "Operazione": [op_type],
         "SIM": [broker],
-        "Prodotto": [np.nan],
-        "Ticker": [np.nan],
-        "Asset Name": [np.nan],
+        "Operazione": [op_type],
+        "Prodotto": [product],
+        "Ticker": [ticker],
+        "Nome Asset": [name],
         "TER": [np.nan],
         "Valuta": ["EUR"],
+        "Tasso di Conv.": [np.nan],
         "QT. Scambio": [np.nan],
         "Prezzo": [np.nan],
         "Prezzo EUR": [np.nan],
         "Imp. Nominale Operaz.": [cash],
         "Commissioni": [np.nan],
-        "QT. Attuale Asset": [np.nan],
-        "PMPC Asset": [np.nan],
+        "QT. Attuale": [np.nan],
+        "PMC": [np.nan],
         "Imp. Residuo Asset": [np.nan],
         "Imp. Effettivo Operaz.": [cash],
         "Costo Rilasciato": [np.nan],
@@ -52,11 +45,11 @@ def newrow_cash(df, date, cash, broker):
         "Zainetto Fiscale": [float(df["Zainetto Fiscale"].iloc[-1])],
         "Plusv. Imponibile": [np.nan],
         "Imposta": [np.nan],
-        "Netto": [np.nan],
-        "Liquidita Attuale": [current_liq],
-        "Valore Titoli": [asset_value],
-        "NAV": [asset_value + current_liq],
-        "Liq. Storica Immessa": [ float(df["Liq. Storica Immessa"].iloc[-1]) + cash ]
+        "P&L": [np.nan],
+        "Liquidita Attuale": [round_half_up(current_liq)],
+        "Valore Titoli": [round_half_up(asset_value)],
+        "NAV": [round_half_up(asset_value + current_liq)],
+        "Liq. Storica Immessa": [ round_half_up(historic_liq) ]
     })
 
     df = pd.concat([df, new_row], ignore_index=True)
@@ -64,50 +57,53 @@ def newrow_cash(df, date, cash, broker):
     return df
 
 
-def newrow_etf_stock(df, date, currency, product, ticker, quantity, price_og, price, ter, broker, fee, buy):
+def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_rate, ter, broker, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
 
-    t = yf.Ticker(ticker)
-    name = t.info["longName"]
+    name = fetch_name(ticker)
     asset_rows = df[df["Ticker"] == ticker]
+    asset_rows = asset_rows[asset_rows["Operazione"].isin(["Acquisto", "Vendita"])]     # non passare righe con dividendi
 
     if buy:
-        results = buy_asset(df, asset_rows, quantity, price, fee, date, product, ticker)
+        results = buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
     else:
-        results = sell_asset(df, asset_rows, quantity, price, fee, date, product, ticker)
+        results = sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
+
+    price_eur = price / conv_rate
 
     new_row = pd.DataFrame({
         "Data": [date],
-        "Operazione": [results["Operazione"]],
         "SIM": [broker],
+        "Operazione": [results["Operazione"]],
         "Prodotto": [product],
         "Ticker": [ticker],
-        "Asset Name": [name],
+        "Nome Asset": [name],
         "TER": [ter],
         "Valuta": [currency],
+        "Tasso di Conv.": [f"{conv_rate:.6f}"],
         "QT. Scambio": [f"+{quantity}" if buy else f"-{quantity}"],
-        "Prezzo": [round_half_up(price_og, decimal="0.0001")],
-        "Prezzo EUR": [round_half_up(price, decimal="0.0001")],
-        "Imp. Nominale Operaz.": [quantity * price],
-        "Commissioni": [fee],
-        "QT. Attuale Asset": [results["QT. Attuale Asset"]],
-        "PMPC Asset": [results["PMPC Asset"]],
-        "Imp. Residuo Asset": [results["Imp. Residuo Asset"]],
-        "Imp. Effettivo Operaz.": [quantity * price - fee],
-        "Costo Rilasciato": [results["Costo Rilasciato"]],
-        "Plusv. Lorda": [results["Plusv. Lorda"]],
-        "Minusv. Generata": [results["Minusv. Generata"]],
+        "Prezzo": [round_half_up(price, decimal="0.0001")],
+        "Prezzo EUR": [round_half_up(price_eur, decimal="0.0001")],
+        "Imp. Nominale Operaz.": [round_half_up(round_half_up(quantity * price) / conv_rate)],
+        "Commissioni": [round_half_up(fee)],
+        "QT. Attuale": [results["QT. Attuale"]],
+        "PMC": [round_half_up(results["PMC"], decimal="0.0001")],
+        "Imp. Residuo Asset": [round_half_up(results["Imp. Residuo Asset"])],
+        "Imp. Effettivo Operaz.": [round_half_up((quantity * price) / conv_rate - round_half_up(fee))],
+        "Costo Rilasciato": [round_half_up(results["Costo Rilasciato"])],
+        "Plusv. Lorda": [round_half_up(results["Plusv. Lorda"])],
+        "Minusv. Generata": [round_half_up(results["Minusv. Generata"])],
         "Scadenza": [results["Scadenza"]],
-        "Zainetto Fiscale": [results["Zainetto Fiscale"]],
-        "Plusv. Imponibile": [results["Plusv. Imponibile"]],
-        "Imposta": [results["Imposta"]],
-        "Netto": [results["Netto"]],
-        "Liquidita Attuale": [results["Liquidita Attuale"]],
-        "Valore Titoli": [results["Valore Titoli"]],
-        "NAV": [results["NAV"]],
-        "Liq. Storica Immessa": [ float(df["Liq. Storica Immessa"].iloc[-1])],
+        "Zainetto Fiscale": [round_half_up(results["Zainetto Fiscale"])],
+        "Plusv. Imponibile": [round_half_up(results["Plusv. Imponibile"])],
+        "Imposta": [round_half_up(results["Imposta"])],
+        "P&L": [round_half_up(results["P&L"])],
+        "Liquidita Attuale": [round_half_up(results["Liquidita Attuale"])],
+        "Valore Titoli": [round_half_up(results["Valore Titoli"])],
+        "NAV": [round_half_up(results["NAV"])],
+        "Liq. Storica Immessa": [ round_half_up(float(df["Liq. Storica Immessa"].iloc[-1]))],
     })
 
     df = pd.concat([df, new_row], ignore_index=True)

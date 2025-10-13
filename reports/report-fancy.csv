@@ -1,12 +1,4 @@
-Data,Operazione,SIM,Prodotto,Ticker,Asset Name,TER,Valuta,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale Asset,PMPC Asset,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,Netto,Liquidita Attuale,Valore Titoli,NAV,Liq. Storica Immessa
-30-05-2025,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0,0.0,0.0,0.0
-30-05-2025,deposit,BG Saxo,,,,,EUR,,,,200.0,,,,,200.0,,,,,0.0,,,,200.0,0.0,200.0,200.0
-30-05-2025,buy,BG Saxo,Stock,IONQ,"IonQ, Inc.",,USD,+4,-41.0,-36.2829,-145.13,0.88,4.0,36.5,146.01,-146.01,,,,,0.0,,,,53.99,145.13,199.12,200.0
-10-06-2025,deposit,BG Saxo,,,,,EUR,,,,100.0,,,,,100.0,,,,,0.0,,,,153.99,138.98,292.97,300.0
-10-06-2025,buy,BG Saxo,Stock,QUBT,Quantum Computing Inc.,,USD,+9,-15.8779,-13.9365,-125.43,0.88,9.0,14.03,126.3,-126.3,,,,,0.0,,,,27.68,264.41,292.09,300.0
-16-06-2025,sell,BG Saxo,Stock,QUBT,Quantum Computing Inc.,,USD,-9,19.132,16.4671,148.2,0.86,0.0,0.0,0.0,147.35,126.3,21.04,,,0.0,21.04,5.47,15.57,169.56,133.05,302.6,300.0
-17-06-2025,deposit,BG Saxo,,,,,EUR,,,,300.0,,,,,300.0,,,,,0.0,,,,469.56,132.52,602.07,600.0
-17-06-2025,buy,BG Saxo,Stock,QUBT,Quantum Computing Inc.,,USD,+8,-20.2862,-17.6187,-140.95,0.87,8.0,17.73,141.82,-141.82,,,,,0.0,,,,327.74,273.47,601.21,600.0
-17-06-2025,buy,BG Saxo,Stock,QBTS,D-Wave Quantum Inc.,,USD,+5,-15.83,-13.7475,-68.74,0.87,5.0,13.92,69.6,-69.6,,,,,0.0,,,,258.14,339.14,597.27,600.0
-17-06-2025,buy,BG Saxo,Stock,AVGO,Broadcom Inc.,,USD,+1,-252.59,-219.3143,-219.31,0.87,1.0,220.18,220.18,-220.18,,,,,0.0,,,,37.96,557.43,595.38,600.0
-17-06-2025,buy,BG Saxo,Stock,IONQ,"IonQ, Inc.",,USD,+1,-37.9,-32.9445,-32.94,0.87,5.0,35.97,179.83,-33.81,,,,,0.0,,,,4.15,586.62,590.76,600.0
+Data,Operazione,SIM,Prodotto,Ticker,Asset Name,TER,Valuta,Tasso di Conv.,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale Asset,PMPC Asset,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,Netto,Liquidita Attuale,Valore Titoli,NAV,Liq. Storica Immessa
+30-05-2025,,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0,0.0,0.0,0.0
+30-05-2025,Deposito,BG Saxo,Contanti,,,,EUR,,,,,200.0,,,,,200.0,,,,,0.0,,,,200.0,0.0,200.0,200.0
+30-05-2025,Acquisto,BG Saxo,Azioni,IONQ,"IonQ, Inc.",,USD,1.1300,+4,-41.0,-36.2832,-145.13,0.88,4.0,36.5,146.01,-146.01,,,,,0.0,,,,53.99,145.13,199.12,200.0
