@@ -1,4 +1,8 @@
 # Rendicontazione Portafoglio Finanziario
+### TODO in ordine di priorità
+- [ ] Opzione fee manuale
+- [ ] Selezione degli Intermediari
+- [ ] Calcolo separato NAV
 
 Questo progetto è uno script/software per la **rendicontazione di portafogli finanziari** (azionario ed ETF), pensato per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
