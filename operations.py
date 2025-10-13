@@ -54,41 +54,50 @@ def charge(df, dt, broker):
 def etf_stock(df, choice="ETF"):
     
     dt = get_date(df)
-    brk = int(input("    Intermediario/SIM (1. Fineco, 2. BG Saxo) > "))
-    currency = int(input("    Valuta (1. EUR, 2. USD) > "))
+    print('  - Intermediario/SIM (1. Fineco, 2. BG Saxo)')
+
+    brk = input('    "m" per inserire manualmente i dati (esempio: commissione gratuita per promo) > ')
+
+    try:
+        brk = int(brk)
+        if brk not in [1, 2]:   # cambia [1, 2] con [range(len(intermediari))]
+            raise ValueError
+    except ValueError:
+        if brk != "m":
+            print("\nI dati inseriti non sono corretti.")
+            input("\nPremi Invio per tornare al Menu Principale...")
+            raise KeyboardInterrupt
+        broker = input("    Inserisci nome Intermediario/SIM > ")
+        fee = float(input("    Inserisci commissione in EUR > "))
+    
+    currency = int(input("  - Valuta (1. EUR, 2. USD) > "))
     
     conv_rate = 1.0
     if currency == 2:
-        conv_rate = float(input("    Tasso di conversione > "))
+        conv_rate = float(input("  - Tasso di conversione > "))
     
-    # 0.8849 --> 1.1300
     conv_rate = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
-    ticker = input("    Ticker completo (standard Yahoo Finance) > ")
+    ticker = input("  - Ticker completo (standard Yahoo Finance) > ")
 
-    qt = input("    Quantità (intero positivo) > ")
+    qt = input("  - Quantità (intero positivo) > ")
     if not (qt.isdigit() and int(qt) > 0):
         raise ValueError("Quantità non valida. Deve essere un intero positivo.")
     else:
         quantity = int(qt)
 
-    price = float(input("    Prezzo unitario (negativo se acquisto) > "))
+    price = float(input("  - Prezzo unitario (negativo se acquisto) > "))
     if price == 0:
         raise ValueError("Il prezzo non può essere 0€.\nNegativo se acquisto, positivo se vendita.")
 
-    broker, fee = broker_fee(brk, choice, conv_rate, trade_value=quantity * abs(price/conv_rate))
+    if brk != "m":
+        broker, fee = broker_fee(brk, choice, conv_rate, trade_value=quantity * abs(price/conv_rate))
 
-    if price < 0:   # buy
-        buy = True
-        #difference = df["Liquidita Attuale"].iloc[-1] + (quantity * price - fee)
-        #if difference < 0:
-        #    raise ValueError(f"Liquidità insufficiente: {df["Liquidita Attuale"].iloc[-1]}€ {quantity * price - fee}€ = {difference}€")
-    else:           # sell
-        buy = False
+    buy = True if price < 0 else buy = False
     
     ter = np.nan
     if choice == "ETF":
-        ter = input("    Total Expense Ratio > ")
+        ter = input("  - Total Expense Ratio > ")
         ter += "%"
 
     df = newrow_etf_stock(df, dt, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, broker, fee, buy)

@@ -1,6 +1,6 @@
 # Rendicontazione Portafoglio Finanziario
 ### TODO in ordine di priorità
-- [ ] Opzione fee manuale
+- [x] Opzione fee manuale
 - [ ] Selezione degli Intermediari
 - [ ] Calcolo separato NAV
 

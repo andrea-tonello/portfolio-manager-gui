@@ -50,7 +50,7 @@ def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: f
 
 def get_date(df, sequential_only=True):
     try:
-        dt = input('    Data operazione GG-MM-AAAA ("t" per data odierna) > ')
+        dt = input('  - Data operazione GG-MM-AAAA ("t" per data odierna) > ')
         td = date.today()
 
         if dt == "t":
