@@ -7,8 +7,13 @@ import operations as op
 from newrow import newrow_cash, newrow_etf_stock
 from utils import broker_fee, get_date, round_half_up, get_asset_value
 from fetch_data import fetch_name
+import json
 
 pd.set_option('display.max_columns', None)
+BROKERS_PATH = "reports/brokers.json"
+file = "report.csv"
+save_folder = os.path.join(os.getcwd(), "reports")
+os.makedirs(save_folder, exist_ok=True)
 
 
 def main_menu(file, len_df, len_df_init, edited_flag):
@@ -31,20 +36,27 @@ def main_menu(file, len_df, len_df_init, edited_flag):
     print("    3. Azioni")
     print("    4. Obbligazioni")
     print("    5. Visualizza resoconto...")
-    print("    6. Esporta in CSV")
+    print("    6. Inizializza intermediari\n")
+    print("    s. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
     print("    q. Esci dal programma")
 
 
 if __name__ == "__main__":
 
-    save_folder = os.path.join(os.getcwd(), "reports")
-    os.makedirs(save_folder, exist_ok=True)
-    file = "report.csv"
+    try:
+        with open(BROKERS_PATH, 'r', encoding='utf-8') as f:
+            brokers = json.load(f)
+    except FileNotFoundError:
+        print("\nSembra che sia la prima volta che si utilizzi questo programma.")
+        print("Si prega di aggiungere un alias rappresentativo per ciascuno dei propri account.")
+        print('Ad esempio, "Fineco" o "Conto Intesa 1".\n')
+        brokers = op.initialize_brokers(BROKERS_PATH)
+        os.system("cls" if os.name == "nt" else "clear")
+
+
     path = os.path.join(save_folder, file)
-
     rep = input(f"\nImportato {file} di default. Cambiare report? (y/N): ")
-
     if rep == "y":
         print("Assurati che il tuo file segua il formato di report-template.csv\n e che sia all'interno della cartella reports.")
         file = input('Inserisci nome del file (es. "report-template.csv"): ')
@@ -64,7 +76,6 @@ if __name__ == "__main__":
             print("\n" + "="*41)
             choice = input("\n> ")
 
-            # CASH
             if choice == '1':
                 os.system("cls" if os.name == "nt" else "clear")
                 print("\n--- OPERAZIONI SU LIQUIDITA' ---\n")
@@ -89,34 +100,37 @@ if __name__ == "__main__":
                     df = op.charge(df, dt, broker)
                 os.system("cls" if os.name == "nt" else "clear")
 
-
-            
-            # ETF
             elif choice == '2':
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- 2. ETF ---\n\nCTRL+C per tornare al Menu Principale.\n")
+                print("\n--- ETF ---\n\nCTRL+C per tornare al Menu Principale.\n")
                 df = op.etf_stock(df, choice="ETF")
                 os.system("cls" if os.name == "nt" else "clear")
             
             elif choice == '3':
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- 3. AZIONI ---\n\nCTRL+C per tornare al Menu Principale.\n")
+                print("\n--- AZIONI ---\n\nCTRL+C per tornare al Menu Principale.\n")
                 df = op.etf_stock(df, choice="Azioni")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '4':
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- 4. OBBLIGAZIONI ---\n\nCTRL+C per tornare al Menu Principale.\n")
+                print("\n--- OBBLIGAZIONI ---\n\nCTRL+C per tornare al Menu Principale.\n")
                 input("Obbligazioni non ancora implementate. Premi Invio per continuare...")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '5':
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- 5. RESOCONTO ---\n")
+                print("\n--- RESOCONTO ---\n")
                 op.summary(df)
                 os.system("cls" if os.name == "nt" else "clear")
-                
+
             elif choice == '6':
+                os.system("cls" if os.name == "nt" else "clear")
+                print("\n--- INIZIALIZZAZIONE INTERMEDIARI ---\n\nCTRL+C per annullare e tornare al Menu Principale.")
+                brokers = op.initialize_brokers(BROKERS_PATH)
+                os.system("cls" if os.name == "nt" else "clear")
+                
+            elif choice == 's':
                 os.system("cls" if os.name == "nt" else "clear")
                 df.to_csv(path, index=False)
                 print(f"\nEsportato {file} in {path}")

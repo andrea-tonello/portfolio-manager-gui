@@ -4,6 +4,8 @@ from datetime import datetime
 from newrow import newrow_cash, newrow_etf_stock
 from utils import broker_fee, get_date, round_half_up, round_down, get_asset_value
 from fetch_data import fetch_name
+import json
+
 
 # 1 - LIQUIDITA
 
@@ -93,7 +95,7 @@ def etf_stock(df, choice="ETF"):
     if brk != "m":
         broker, fee = broker_fee(brk, choice, conv_rate, trade_value=quantity * abs(price/conv_rate))
 
-    buy = True if price < 0 else buy = False
+    buy = price < 0
     
     ter = np.nan
     if choice == "ETF":
@@ -149,3 +151,28 @@ def summary(df):
         print(pos)
 
     input("\nPremi Invio per continuare...")
+
+
+
+# 6 - INIZIALIZZA BROKERS
+
+def initialize_brokers(path):
+    print('    Digitare "q" per terminare.\n')
+    brokers = {}
+    idx = 1
+    while True:
+        new_broker = input("    Inserisci nuovo intermediario > ")
+        if new_broker == "q":
+            if len(brokers) == 0:
+                print("\tÈ necessario aggiungere almeno un account.\n")
+                continue
+            else:        
+                break
+        brokers[idx] = new_broker
+        print(f"\t{idx}. {new_broker}\n")
+        idx += 1
+
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(brokers, f, indent=4)
+    input("\n    Salvataggio completato. Premi Invio per continuare...")
+    return brokers
