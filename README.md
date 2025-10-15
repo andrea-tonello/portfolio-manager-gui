@@ -5,9 +5,10 @@
   - [ ] Fee SOLO manuale
 - [x] Usa yfinance per exchange rates
 - [ ] Sistema il check delle modifiche
+- [ ] Calcolo separato NAV
 
 ### TODO avanzati
-- [ ] Calcolo separato NAV (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)
+- [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)
 
 Questo progetto è uno script/software per la **rendicontazione di portafogli finanziari** (azionario ed ETF), pensato per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
