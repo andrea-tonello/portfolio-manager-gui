@@ -2,7 +2,7 @@ import requests
 import re
 import yfinance as yf
 from datetime import date, datetime, timedelta
-from secret import OXCR_KEY
+from utils import round_half_up
 
 
 HEADERS = {
@@ -27,15 +27,12 @@ def fetch_exchange_rate(currency, ref_date=None):
     Gather EOD exchange rate.
     """
     if datetime.strptime(ref_date, "%Y-%m-%d").date() == date.today():
-        url = f"https://openexchangerates.org/api/latest.json?app_id={OXCR_KEY}"
+        rate = yf.download("USDEUR=X", period="2d", interval="1m", progress=False)
     else:
-        url = f"https://openexchangerates.org/api/historical/{ref_date}.json?app_id={OXCR_KEY}"
-
-    response = requests.get(url)
-    data = response.json()
-    eur_rate = data["rates"][currency]    
-
-    return eur_rate
+        next_day = datetime.strptime(ref_date, "%Y-%m-%d") + timedelta(days=1)
+        next_ref_date = next_day.strftime("%Y-%m-%d")
+        rate = yf.download("USDEUR=X",start=ref_date, end=next_ref_date, progress=False) 
+    return round_half_up(rate[0], decimal="0.000001")
 
 
 
