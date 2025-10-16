@@ -1,13 +1,11 @@
 import numpy as np
 import pandas as pd
 import os
-from datetime import date, datetime
-
-import operations as op
-from newrow import newrow_cash, newrow_etf_stock
-from utils import broker_fee, get_date, round_half_up, get_asset_value
-from fetch_data import fetch_name
 import json
+
+import utils.operations as op
+from utils.date_utils import get_date
+from utils.other_utils import wrong_input, select_broker
 
 pd.set_option('display.max_columns', None)
 BROKERS_PATH = "reports/brokers.json"
@@ -17,14 +15,14 @@ os.makedirs(save_folder, exist_ok=True)
 
 
 def main_menu(file, len_df, len_df_init, edited_flag):
-    print("\n\n============ MENU PRINCIPALE ============\n")
+    print("\n\n=================== MENU PRINCIPALE ===================\n")
     print(f"File selezionato: {file} con {len_df_init} righe.")
 
     if edited_flag:
         diff = len_df - len_df_init
         print("Sono presenti modifiche non salvate.")
         if diff == 0:
-            print(f"Righe totali aggiunte o rimosse: {diff} (il numero di righe è invariato, ma il contenuto è stato modificato).")
+            print(f"Righe totali aggiunte o rimosse: {diff} (il numero di righe è invariato, ma il contenuto potrebbe essere stato modificato).")
         else:
             print(f"Righe totali aggiunte o rimosse: {diff}")
     else:
@@ -35,7 +33,7 @@ def main_menu(file, len_df, len_df_init, edited_flag):
     print("    2. ETF")
     print("    3. Azioni")
     print("    4. Obbligazioni")
-    print("    5. Visualizza resoconto...")
+    print("    5. Visualizza resoconto")
     print("    6. Inizializza intermediari\n")
     print("    s. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
@@ -52,17 +50,23 @@ if __name__ == "__main__":
         print("Si prega di aggiungere un alias rappresentativo per ciascuno dei propri account.")
         print('Ad esempio, "Fineco" o "Conto Intesa 1".\n')
         brokers = op.initialize_brokers(BROKERS_PATH)
-        os.system("cls" if os.name == "nt" else "clear")
+        os.system("cls" if os.name == "nt" else "clear")    
+    # Convert keys back to ints (json saves everything as str)
+    brokers = {int(k): v for k, v in brokers.items()}
 
 
     path = os.path.join(save_folder, file)
     rep = input(f"\nImportato {file} di default. Cambiare report? (y/N): ")
     if rep == "y":
-        print("Assurati che il tuo file segua il formato di report-template.csv\n e che sia all'interno della cartella reports.")
-        file = input('Inserisci nome del file (es. "report-template.csv"): ')
+        print("\nAssurati che il tuo file segua il formato di report-template.csv\ne che sia all'interno della cartella reports.")
+        file = input('\n  - Inserisci nome del file (es. "nuovo-report.csv") > ')
         path = os.path.join(save_folder, file)
 
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError:
+        print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di report-template.csv')
+        exit()
     len_df_init = len(df)
     edited_flag = False
 
@@ -73,7 +77,7 @@ if __name__ == "__main__":
                 edited_flag = True
 
             main_menu(file, len(df), len_df_init, edited_flag)
-            print("\n" + "="*41)
+            print("\n" + "="*55)
             choice = input("\n> ")
 
             if choice == '1':
@@ -81,16 +85,18 @@ if __name__ == "__main__":
                 print("\n--- OPERAZIONI SU LIQUIDITA' ---\n")
                 print("> Seleziona operazione. CTRL+C per tornare al Menu Principale.\n")
                 print("    1. Depositi e Prelievi\n    2. Dividendi\n    3. Imposta di Bollo / Altre imposte")
-                operation = int(input("\n> "))
-                print()
-                if operation not in [1, 2, 3]:
-                    raise KeyError("Seleziona tra 1, 2, 3.")
+                operation = input("\n> ")
+                try:
+                    operation = int(operation)
+                    if operation not in [1, 2, 3]:
+                        raise ValueError
+                except:
+                    wrong_input()
+                print()            
 
                 dt = get_date(df)
 
-                brk = int(input("    Intermediario/SIM (1. Fineco, 2. BG Saxo) > "))
-                brokers = {1: "Fineco", 2: "BG Saxo"}
-                broker = brokers.get(brk, "SIM non riconosciuto")
+                broker = select_broker(brokers)
 
                 if operation == 1:
                     df = op.cashop(df, dt, broker)
@@ -103,13 +109,13 @@ if __name__ == "__main__":
             elif choice == '2':
                 os.system("cls" if os.name == "nt" else "clear")
                 print("\n--- ETF ---\n\nCTRL+C per tornare al Menu Principale.\n")
-                df = op.etf_stock(df, choice="ETF")
+                df = op.etf_stock(df, brokers, choice="ETF")
                 os.system("cls" if os.name == "nt" else "clear")
             
             elif choice == '3':
                 os.system("cls" if os.name == "nt" else "clear")
                 print("\n--- AZIONI ---\n\nCTRL+C per tornare al Menu Principale.\n")
-                df = op.etf_stock(df, choice="Azioni")
+                df = op.etf_stock(df, brokers, choice="Azioni")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '4':
@@ -133,6 +139,8 @@ if __name__ == "__main__":
             elif choice == 's':
                 os.system("cls" if os.name == "nt" else "clear")
                 df.to_csv(path, index=False)
+                len_df_init = len(df)
+                edited_flag = False
                 print(f"\nEsportato {file} in {path}")
                 input("\nPremi Invio per continuare...")
                 os.system("cls" if os.name == "nt" else "clear")

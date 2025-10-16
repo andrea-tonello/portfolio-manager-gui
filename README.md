@@ -1,10 +1,9 @@
 # Rendicontazione Portafoglio Finanziario
 ### TODO in ordine di priorità
-- [x] Opzione fee manuale
-- [x] Selezione degli Intermediari
-  - [ ] Fee SOLO manuale
+- [x] Obbligo fee manuale
+- [x] Selezione degli intermediari
 - [x] Usa yfinance per exchange rates
-- [ ] Sistema il check delle modifiche
+- [x] Sistema il check delle modifiche
 - [ ] Calcolo separato NAV
 
 ### TODO avanzati

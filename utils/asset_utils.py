@@ -1,29 +1,14 @@
 import pandas as pd
 import numpy as np
-from datetime import date, datetime
-from dateutil.relativedelta import relativedelta
-from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
+from datetime import datetime
 import yfinance as yf
-from fetch_data import fetch_exchange_rate
 import warnings
 
+from utils.other_utils import round_half_up
+from utils.date_utils import add_solar_years
+from utils.fetch_utils import fetch_exchange_rate
+
 warnings.simplefilter(action='ignore', category=Warning)
-
-
-def round_half_up(valore, decimal="0.01"):
-    # Handle NaN or None
-    if pd.isna(valore):
-        return np.nan
-    
-    try:
-        return float(Decimal(str(valore)).quantize(Decimal(decimal), rounding=ROUND_HALF_UP))
-    except Exception:
-        print(f"Warning: unable to round value {valore}")
-        return valore
-    
-def round_down(value, decimal="0.01"):
-    return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
-
 
 
 def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: float = 0.0):
@@ -46,33 +31,6 @@ def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: f
 
     broker_name, fee = fees.get(product, {}).get(broker, ("SIM non riconosciuto", 0))
     return broker_name, fee
-
-
-def get_date(df, sequential_only=True):
-    try:
-        dt = input('  - Data operazione GG-MM-AAAA ("t" per data odierna) > ')
-        td = date.today()
-
-        if dt == "t":
-            dt = td.strftime("%d-%m-%Y")
-
-        lastdt = df["Data"].iloc[-1]
-        num_date = datetime.strptime(dt, "%d-%m-%Y")
-        num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
-
-        if num_date.date() > td:
-            raise ValueError("Impossibile inserire date future.")
-
-        if sequential_only and num_date < num_lastdt:
-            raise ValueError("La data inserita è precedente all'ultima registrata")
-        
-        return dt
-    
-    except ValueError as e:
-        print("\nERRORE NELLA DATA:")
-        print(f"{e}\n")
-        input("Premi Invio per tornare al Menu Principale...")
-        raise KeyboardInterrupt
 
 
 def get_asset_value(df, current_ticker=None, ref_date=None):
@@ -105,7 +63,7 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
         positions.append({
             "ticker": row["Ticker"],
             "quantity": row["QT. Attuale"],
-            "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate("EUR", ref_date.strftime("%Y-%m-%d")),
+            "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate(ref_date.strftime("%Y-%m-%d")),
             "price": np.nan,
             "value": np.nan
         })
@@ -115,10 +73,16 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
     
+    print("\nAggiornamento del valore dei titoli in possesso da Yahoo Finance...")
     data = yf.download(tickers, start=start_date, end=end_date)["Close"]
     
-    # Prendi l'ultima riga disponibile fino a ref_date
-    data_ref = data.loc[data.index <= pd.to_datetime(ref_date)].iloc[-1]
+    # Prendi l'ultima riga disponibile fino a ref_date. 
+    # Se però questa riga contiene una cella nan, scartala
+    data_ref = (
+        data.loc[data.index <= pd.to_datetime(ref_date)]  # fino a ref_date
+            .dropna(how="any")                            # elimina righe con almeno un NaN
+            .iloc[-1]                                     # prendi l’ultima riga valida
+    )
 
     for item in positions:
         ticker = item["ticker"]
@@ -167,7 +131,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product
         minusvalenza_comm = fee
         end_date = add_solar_years(date)
         fiscal_credit_aggiornato += minusvalenza_comm
-                                                            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (round_half_up((round_half_up(quantity * price) / conv_rate)) - fee)
 
     yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
@@ -200,12 +164,6 @@ Idea per gestire le scadenze delle minus:
    - somma tutte le minusvalenze non ancora scadute e 
    - sottrae tutte le plusvalenze che le hanno già utilizzate.
 """
-
-def add_solar_years(data_generazione):
-
-    data_scadenza = data_generazione + relativedelta(years=4)
-    end_date = datetime(data_scadenza.year, 12, 31)
-    return end_date.strftime("%d-%m-%Y")
 
 
 def compute_backpack(df, data_operazione, as_of_index=None):

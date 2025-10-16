@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-from fetch_data import fetch_name
+from utils.fetch_utils import fetch_name
 import yfinance as yf
-from utils import buy_asset, sell_asset, round_half_up, get_asset_value
+from utils.asset_utils import buy_asset, sell_asset, round_half_up, get_asset_value
 from datetime import datetime
 
 

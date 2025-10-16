@@ -1,4 +1,0 @@
-Data,Operazione,SIM,Prodotto,Ticker,Asset Name,TER,Valuta,Tasso di Conv.,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale Asset,PMPC Asset,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,Netto,Liquidita Attuale,Valore Titoli,NAV,Liq. Storica Immessa
-30-05-2025,,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0,0.0,0.0,0.0
-30-05-2025,Deposito,BG Saxo,Contanti,,,,EUR,,,,,200.0,,,,,200.0,,,,,0.0,,,,200.0,0.0,200.0,200.0
-30-05-2025,Acquisto,BG Saxo,Azioni,IONQ,"IonQ, Inc.",,USD,1.1300,+4,-41.0,-36.2832,-145.13,0.88,4.0,36.5,146.01,-146.01,,,,,0.0,,,,53.99,145.13,199.12,200.0

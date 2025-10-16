@@ -1,16 +1,19 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from newrow import newrow_cash, newrow_etf_stock
-from utils import broker_fee, get_date, round_half_up, round_down, get_asset_value
-from fetch_data import fetch_name
 import json
 
+from newrow import newrow_cash, newrow_etf_stock
+from utils.asset_utils import broker_fee, get_asset_value
+from utils.date_utils import get_date
+from utils.fetch_utils import fetch_name
+from utils.other_utils import round_half_up, wrong_input, select_broker
 
-# 1 - LIQUIDITA
+
+# 1 - LIQUIDITÀ
 
 def cashop(df, dt, broker):
-    cash = float(input("    Ammontare operazione in EUR (negativo se prelievo) > "))
+    cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo) > "))
     if cash == 0:
         raise ValueError("Il contante inserito non può essere 0€.\nPositivo se depositato, negativo se prelevato.")
 
@@ -23,10 +26,10 @@ def cashop(df, dt, broker):
     return df
 
 def dividend(df, dt, broker):
-    cash = float(input("    Dividendo in EUR al netto di tasse > "))
+    cash = float(input("  - Dividendo in EUR al netto di tasse > "))
     if cash <= 0.0:
         raise ValueError("Il dividendo non può essere <= 0€")
-    ticker = input("    Ticker completo dell'emittente dividendo > ")
+    ticker = input("  - Ticker completo dell'emittente dividendo > ")
     name = fetch_name(ticker)
 
     df = newrow_cash(df, dt, cash, broker, "Dividendo", "Dividendo", ticker, name)
@@ -36,10 +39,10 @@ def dividend(df, dt, broker):
     return df
 
 def charge(df, dt, broker):
-    cash = float(input("    Ammontare imposta in EUR > "))
+    cash = float(input("  - Ammontare imposta in EUR > "))
     if cash <= 0.0:
         raise ValueError("L'imposta è da intendersi > 0.")
-    descr = str(input('    Descrizione imposta (es. "Bollo Q2 2025") > '))
+    descr = str(input('  - Descrizione imposta (es. "Bollo Q2 2025") > '))
 
     df = newrow_cash(df, dt, -cash, broker, "Imposta", descr, np.nan, np.nan)
     print()
@@ -53,31 +56,24 @@ def charge(df, dt, broker):
 
 # 2,3 - ETF, STOCK
 
-def etf_stock(df, choice="ETF"):
+def etf_stock(df, brokers, choice="ETF"):
     
     dt = get_date(df)
-    print('  - Intermediario/SIM (1. Fineco, 2. BG Saxo)')
 
-    brk = input('    "m" per inserire manualmente i dati (esempio: commissione gratuita per promo) > ')
+    broker = select_broker(brokers)
 
+    print("  - Valuta\n\t1. EUR\n\t2. USD")
+    currency = input("    > ")
     try:
-        brk = int(brk)
-        if brk not in [1, 2]:   # cambia [1, 2] con [range(len(intermediari))]
+        currency = int(currency)
+        if currency not in [1, 2]:
             raise ValueError
     except ValueError:
-        if brk != "m":
-            print("\nI dati inseriti non sono corretti.")
-            input("\nPremi Invio per tornare al Menu Principale...")
-            raise KeyboardInterrupt
-        broker = input("    Inserisci nome Intermediario/SIM > ")
-        fee = float(input("    Inserisci commissione in EUR > "))
-    
-    currency = int(input("  - Valuta (1. EUR, 2. USD) > "))
+        wrong_input()
     
     conv_rate = 1.0
     if currency == 2:
-        conv_rate = float(input("  - Tasso di conversione > "))
-    
+        conv_rate = float(input("  - Tasso di conversione EUR-USD > "))
     conv_rate = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
     ticker = input("  - Ticker completo (standard Yahoo Finance) > ")
@@ -92,8 +88,8 @@ def etf_stock(df, choice="ETF"):
     if price == 0:
         raise ValueError("Il prezzo non può essere 0€.\nNegativo se acquisto, positivo se vendita.")
 
-    if brk != "m":
-        broker, fee = broker_fee(brk, choice, conv_rate, trade_value=quantity * abs(price/conv_rate))
+    fee = float(input("  - Commissione (in valuta originale) > "))
+    fee = round_half_up(fee / conv_rate, decimal="0.000001")
 
     buy = price < 0
     
@@ -144,11 +140,12 @@ def summary(df):
     print(f"\n    NAV (al {dt}): {round_half_up(nav)}€")
     print(f"\t- Liquidità: {round_half_up(current_liq)}€")
     print(f"\t- Valore Titoli: {round_half_up(asset_value)}€")
-    print(f"    Liquidità Storica Immessa: {historic_liq}")
+    print(f"    Liquidità Storica Immessa: {historic_liq}€")
     print(f"    P&L Totale: {round_half_up(pl)}€\n")
 
+    print(f"\nTitoli detenuti in data {dt}:\n")
     for pos in positions:
-        print(pos)
+        print(f"    {pos["ticker"]}    QT: {pos["quantity"]}    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001")}€    Controvalore: {round_half_up(pos["value"])}€")
 
     input("\nPremi Invio per continuare...")
 
@@ -157,7 +154,7 @@ def summary(df):
 # 6 - INIZIALIZZA BROKERS
 
 def initialize_brokers(path):
-    print('    Digitare "q" per terminare.\n')
+    print('\n    Digitare "q" per terminare.\n')
     brokers = {}
     idx = 1
     while True:

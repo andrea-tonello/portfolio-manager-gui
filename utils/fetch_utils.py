@@ -2,8 +2,8 @@ import requests
 import re
 import yfinance as yf
 from datetime import date, datetime, timedelta
-from utils import round_half_up
 
+from utils.other_utils import round_half_up
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
@@ -21,8 +21,7 @@ def fetch_name(ticker):
         return input("Servizio non raggiungibile. Inserire nome asset manualmente: ")
 
 
-
-def fetch_exchange_rate(currency, ref_date=None):
+def fetch_exchange_rate(ref_date=None):
     """
     Gather EOD exchange rate.
     """
@@ -31,8 +30,13 @@ def fetch_exchange_rate(currency, ref_date=None):
     else:
         next_day = datetime.strptime(ref_date, "%Y-%m-%d") + timedelta(days=1)
         next_ref_date = next_day.strftime("%Y-%m-%d")
-        rate = yf.download("USDEUR=X",start=ref_date, end=next_ref_date, progress=False) 
-    return round_half_up(rate[0], decimal="0.000001")
+        rate = yf.download("USDEUR=X",start=ref_date, end=next_ref_date, progress=False)
+
+    return round_half_up(rate["Close"].iloc[-1][0], decimal="0.000001")
+
+
+
+
 
 
 
@@ -40,11 +44,6 @@ def fetch_exchange_rate(currency, ref_date=None):
 
 def fetch_isin(ticker):
     pass
-
-
-
-
-
 
 
 def name_by_ticker(ticker):
@@ -66,9 +65,6 @@ def price_by_ticker(ticker, date_str):
     except:
         raise ValueError(f"Non è stato possibile recuperare il nome per il ticker {ticker}")
 """
-
-
-
 
 
 # Per prendere il TER: dal ticker, prendi l'ISIN con OpenFIGI, 
