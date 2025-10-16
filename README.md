@@ -4,7 +4,9 @@
 - [x] Selezione degli intermediari
 - [x] Usa yfinance per exchange rates
 - [x] Sistema il check delle modifiche
-- [ ] Calcolo separato NAV
+- [ ] Crea la cartella reports se non presente, con report.csv e report-template.csv (uguali)
+- [ ] Calcolo separato NAV (readme)
+- [ ] Sezione "Informazioni" dove si descrivono le colonne (readme)
 
 ### TODO avanzati
 - [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)
@@ -24,39 +26,57 @@ Questo progetto è uno script/software per la **rendicontazione di portafogli fi
 - **Recupero automatico** delle informazioni sugli strumenti tramite ISIN (nome, TER, ecc.).
 - **Interfaccia testuale** per l'inserimento guidato di nuove operazioni.
 
-## Struttura del progetto
+## Struttura
 
 - `main.ipynb`: notebook principale per l'esecuzione e l'interazione con il portafoglio.
 - `newrow.py`: funzioni per aggiungere nuove righe/operazioni al portafoglio.
 - `utils.py`: funzioni di utilità per calcoli fiscali, gestione delle date, recupero dati, ecc.
 - `fetch_data.py`: scraping e integrazione con l'API OpenFIGI per recuperare informazioni sugli strumenti tramite ISIN.
 
-## Requisiti
-
-- Python 3.8+
-- [pandas](https://pandas.pydata.org/)
-- [numpy](https://numpy.org/)
-- [requests](https://requests.readthedocs.io/)
-- [python-dateutil](https://dateutil.readthedocs.io/)
-
-Installa i pacchetti necessari con:
-
+## Download / Installazione
+#### Download diretto
+1. Su questa pagina, clicca su "Release" e scarica il programma per il tuo sistema operativo in una cartella dedicata.
+#### Installazione manuale
+1. Clona la repository
+2. Installa i pacchetti (Python 3.8+):
+    - [pandas](https://pandas.pydata.org/)
+    - [numpy](https://numpy.org/)
+    - [python-dateutil](https://dateutil.readthedocs.io/)
+    - [yfinance](https://ranaroussi.github.io/yfinance/)
 ```sh
-pip install pandas numpy requests python-dateutil
+pip install pandas numpy python-dateutil yfinance
 ```
+3. Runna `python main.py`
+
 
 ## Utilizzo
+All'avvio del programma verrà sempre richiesto se caricare il file di default "report.csv", oppure caricare un report secondario/con un altro nome. ***Si consiglia di usare direttamente questo file se si intende avere solo una tabella unica***.
 
-1. **Prepara il file `report.csv`** con la struttura delle colonne prevista (vedi esempio incluso).
-2. **Avvia il notebook** `main.ipynb` in Jupyter o Visual Studio Code.
-3. **Segui il menu interattivo** per inserire nuove operazioni (liquidità, ETF, azioni).
-4. **Salva le modifiche** su sul file o creane uno nuovo.
+Nel caso si volesse comunque usare un altro report, magari secondario, bisognerà specificare il nome del file. Il file ***deve essere già presente nella cartella*** "reports" e deve seguire il formato delle colonne di report.csv. A tal proposito, viene
+fornito un file report-template.csv da copia-incollare già pronto.
+
+Al primo avvio è richiesto il setup dei propri intermediari. Scegliere gli alias che si preferiscono.
+Ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere cambiati successivamente, 
+ma è da tenere a mente che le modifiche non saranno retroattive
+(se sul report caricato sono già presenti transazioni su "Fineco 2", rinominarlo in "Fineco Secondario" non aggiornerà i dati già presenti).
+
+Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
+1. Operazioni su liquidità: Depositi, Prelievi, Dividendi, Imposte varie (es. Imposta di Bollo)
+2. Operazioni su ETF: Acquisto, Vendita
+3. Operazioni su Azioni: Acquisto, Vendita
+4. Operazioni su Obbligazioni: ***non ancora implementate***.
+5. Resoconto in data gg-mm-yyyy: ultime dieci righe del report, P&L totale, Liquidità storica del conto; Valore titoli, Net Asset Value e Posizioni al giorno gg-mm-yyyy.
+6. (Re)inizializzazione degli intermediari (come spiegato precedentemente)
+7. Esporta in csv: salva le modifiche eseguite fino a quel momento.
+8. Rimuovi ultima riga del report
+9. Esci dal programma
+
+Da qualsiasi schermata, è possibile annullare l'operazione corrente e tornare al Menu Principale con CTRL+C / CMD+C.
+Come già specificato, le modifiche (comprese la rimozione di righe) sono confermate (salvate) solo manualmente con l'opzione apposita.
+
+
 
 ## Note
 
 - Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria.
 - La logica fiscale implementata segue la normativa italiana vigente al 2024, ma si consiglia di verificare sempre con un consulente.
-
-## Esempio di struttura CSV
-
-Vedi il file `report.csv` per un esempio di struttura e dati. Il file `report-template.csv` contiene un template per iniziare "da zero".
