@@ -13,9 +13,8 @@ file = "report.csv"
 save_folder = os.path.join(os.getcwd(), "reports")
 os.makedirs(save_folder, exist_ok=True)
 
-if not os.listdir(save_folder):
-    create_defaults(save_folder)
-
+# Check where the reports folder and report.csv, report-template.csv are present
+create_defaults(save_folder)
 
 def main_menu(file, len_df, len_df_init, edited_flag):
     print("\n\n=================== MENU PRINCIPALE ===================\n")
@@ -38,9 +37,9 @@ def main_menu(file, len_df, len_df_init, edited_flag):
     print("    4. Obbligazioni")
     print("    5. Visualizza resoconto")
     print("    6. Inizializza intermediari\n")
-    print("    i. Informazioni/Glossario")
     print("    s. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
+    print("    i. Informazioni/Glossario")
     print("    q. Esci dal programma")
 
 
@@ -151,7 +150,7 @@ if __name__ == "__main__":
                 len_df_init = len(df)
                 edited_flag = False
                 print(f"\nEsportato {file} in {path}")
-                input("\nPremi Invio per continuare...")
+                input("\nPremi Invio per tornare al Menu Principale...")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == 'r':

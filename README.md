@@ -6,7 +6,7 @@
 - [x] Sistema il check delle modifiche
 - [x] Crea la cartella reports se non presente, con report.csv e report-template.csv (uguali)
 - [ ] Calcolo separato NAV (readme)
-- [ ] Sezione "Informazioni" dove si descrivono le colonne (readme)
+- [x] Sezione "Informazioni" dove si descrivono le colonne
 
 ### TODO avanzati
 - [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)
@@ -69,7 +69,8 @@ Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
 6. (Re)inizializzazione degli intermediari (come spiegato precedentemente)
 7. Esporta in csv: salva le modifiche eseguite fino a quel momento.
 8. Rimuovi ultima riga del report
-9. Esci dal programma
+9. Glossario con le descrizioni delle entries dei report
+10. Esci dal programma
 
 Da qualsiasi schermata, è possibile annullare l'operazione corrente e tornare al Menu Principale con CTRL+C / CMD+C.
 Come già specificato, le modifiche (comprese la rimozione di righe) sono confermate (salvate) solo manualmente con l'opzione apposita.

@@ -239,7 +239,6 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, produc
     if quantity > last_remaining_qt:
         raise ValueError("Quantità venduta superiore a quella disponibile")
 
-                        # !!!!!!!!!!!!!!!!!!!!!!!!!!! #
     importo_effettivo = ((quantity * price) / conv_rate) - fee                                          # per calcolo interno
     importo_effettivo_arrotondato = round_half_up((quantity * price) / conv_rate - round_half_up(fee))  # per calcolo liquidità
     costo_rilasciato = quantity * last_pmpc
