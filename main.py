@@ -5,13 +5,16 @@ import json
 
 import utils.operations as op
 from utils.date_utils import get_date
-from utils.other_utils import wrong_input, select_broker
+from utils.other_utils import wrong_input, select_broker, create_defaults, display_information
 
 pd.set_option('display.max_columns', None)
 BROKERS_PATH = "reports/brokers.json"
 file = "report.csv"
 save_folder = os.path.join(os.getcwd(), "reports")
 os.makedirs(save_folder, exist_ok=True)
+
+if not os.listdir(save_folder):
+    create_defaults(save_folder)
 
 
 def main_menu(file, len_df, len_df_init, edited_flag):
@@ -35,6 +38,7 @@ def main_menu(file, len_df, len_df_init, edited_flag):
     print("    4. Obbligazioni")
     print("    5. Visualizza resoconto")
     print("    6. Inizializza intermediari\n")
+    print("    i. Informazioni/Glossario")
     print("    s. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
     print("    q. Esci dal programma")
@@ -135,7 +139,12 @@ if __name__ == "__main__":
                 print("\n--- INIZIALIZZAZIONE INTERMEDIARI ---\n\nCTRL+C per annullare e tornare al Menu Principale.")
                 brokers = op.initialize_brokers(BROKERS_PATH)
                 os.system("cls" if os.name == "nt" else "clear")
-                
+            
+            elif choice == 'i':
+                os.system("cls" if os.name == "nt" else "clear")
+                display_information()
+                os.system("cls" if os.name == "nt" else "clear")
+
             elif choice == 's':
                 os.system("cls" if os.name == "nt" else "clear")
                 df.to_csv(path, index=False)
@@ -145,7 +154,6 @@ if __name__ == "__main__":
                 input("\nPremi Invio per continuare...")
                 os.system("cls" if os.name == "nt" else "clear")
 
-
             elif choice == 'r':
                 os.system("cls" if os.name == "nt" else "clear")
                 if len(df) > 1:
@@ -153,7 +161,6 @@ if __name__ == "__main__":
                     print("\nUltima riga rimossa.")
                 else:
                     print("\nLa riga template non può essere rimossa.")
-
 
             elif choice == 'q':
                 os.system("cls" if os.name == "nt" else "clear")

@@ -4,7 +4,7 @@
 - [x] Selezione degli intermediari
 - [x] Usa yfinance per exchange rates
 - [x] Sistema il check delle modifiche
-- [ ] Crea la cartella reports se non presente, con report.csv e report-template.csv (uguali)
+- [x] Crea la cartella reports se non presente, con report.csv e report-template.csv (uguali)
 - [ ] Calcolo separato NAV (readme)
 - [ ] Sezione "Informazioni" dove si descrivono le colonne (readme)
 
