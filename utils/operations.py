@@ -2,49 +2,49 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import json
+import os
 
 from newrow import newrow_cash, newrow_etf_stock
-from utils.asset_utils import broker_fee, get_asset_value
+from utils.asset_utils import get_asset_value
 from utils.date_utils import get_date
 from utils.fetch_utils import fetch_name
-from utils.other_utils import round_half_up, wrong_input, select_broker
+from utils.other_utils import round_half_up, wrong_input, create_defaults
 
 
 # 1 - LIQUIDITÀ
 
-def cashop(df, dt, broker):
+def cashop(df, dt):
     cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo) > "))
     if cash == 0:
         raise ValueError("Il contante inserito non può essere 0€.\nPositivo se depositato, negativo se prelevato.")
-
     op_type = "Deposito" if cash > 0 else "Prelievo"
 
-    df = newrow_cash(df, dt, cash, broker, op_type, "Contanti", np.nan, np.nan)
+    df = newrow_cash(df, dt, cash, op_type, "Contanti", np.nan, np.nan)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
     return df
 
-def dividend(df, dt, broker):
+def dividend(df, dt):
     cash = float(input("  - Dividendo in EUR al netto di tasse > "))
     if cash <= 0.0:
         raise ValueError("Il dividendo non può essere <= 0€")
     ticker = input("  - Ticker completo dell'emittente dividendo > ")
     name = fetch_name(ticker)
 
-    df = newrow_cash(df, dt, cash, broker, "Dividendo", "Dividendo", ticker, name)
+    df = newrow_cash(df, dt, cash, "Dividendo", "Dividendo", ticker, name)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
     return df
 
-def charge(df, dt, broker):
+def charge(df, dt):
     cash = float(input("  - Ammontare imposta in EUR > "))
     if cash <= 0.0:
         raise ValueError("L'imposta è da intendersi > 0.")
     descr = str(input('  - Descrizione imposta (es. "Bollo Q2 2025") > '))
 
-    df = newrow_cash(df, dt, -cash, broker, "Imposta", descr, np.nan, np.nan)
+    df = newrow_cash(df, dt, -cash, "Imposta", descr, np.nan, np.nan)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
@@ -56,11 +56,9 @@ def charge(df, dt, broker):
 
 # 2,3 - ETF, STOCK
 
-def etf_stock(df, brokers, choice="ETF"):
+def etf_stock(df, choice="ETF"):
     
     dt = get_date(df)
-
-    broker = select_broker(brokers)
 
     print("  - Valuta\n\t1. EUR\n\t2. USD")
     currency = input("    > ")
@@ -98,7 +96,7 @@ def etf_stock(df, brokers, choice="ETF"):
         ter = input("  - Total Expense Ratio > ")
         ter += "%"
 
-    df = newrow_etf_stock(df, dt, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, broker, fee, buy)
+    df = newrow_etf_stock(df, dt, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, fee, buy)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
@@ -151,25 +149,33 @@ def summary(df):
 
 
 
+
+
+
+
 # 6 - INIZIALIZZA BROKERS
 
-def initialize_brokers(path):
-    print('\n    Digitare "q" per terminare.\n')
+def initialize_brokers(save_folder):
+    path = os.path.join(save_folder, "brokers.json")
     brokers = {}
     idx = 1
+    print('    Inserisci alias conto. Digitare "q" per terminare.')
     while True:
-        new_broker = input("    Inserisci nuovo intermediario > ")
+        new_broker = input("\n     > ")
         if new_broker == "q":
             if len(brokers) == 0:
-                print("\tÈ necessario aggiungere almeno un account.\n")
+                print("    Operazione negata. È necessario aggiungere almeno un conto.")
                 continue
-            else:        
+            else:
+                print("\nSalvataggio completato. Conti aggiunti:\n")
+                for key, value in brokers.items():
+                    print(f"{key}. {value}") 
                 break
         brokers[idx] = new_broker
-        print(f"\t{idx}. {new_broker}\n")
         idx += 1
 
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(brokers, f, indent=4)
-    input("\n    Salvataggio completato. Premi Invio per continuare...")
+    
+    input("\n    Premi Invio per continuare...")
     return brokers

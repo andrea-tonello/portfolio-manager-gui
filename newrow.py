@@ -6,7 +6,7 @@ from utils.asset_utils import buy_asset, sell_asset, round_half_up, get_asset_va
 from datetime import datetime
 
 
-def newrow_cash(df, date, cash, broker, op_type, product, ticker, name):
+def newrow_cash(df, date, cash, op_type, product, ticker, name):
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
@@ -21,7 +21,6 @@ def newrow_cash(df, date, cash, broker, op_type, product, ticker, name):
 
     new_row = pd.DataFrame({
         "Data": [date],
-        "SIM": [broker],
         "Operazione": [op_type],
         "Prodotto": [product],
         "Ticker": [ticker],
@@ -57,7 +56,7 @@ def newrow_cash(df, date, cash, broker, op_type, product, ticker, name):
     return df
 
 
-def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_rate, ter, broker, fee, buy):
+def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -75,7 +74,6 @@ def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_
 
     new_row = pd.DataFrame({
         "Data": [date],
-        "SIM": [broker],
         "Operazione": [results["Operazione"]],
         "Prodotto": [product],
         "Ticker": [ticker],

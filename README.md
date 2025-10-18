@@ -1,12 +1,20 @@
 # Rendicontazione Portafoglio Finanziario
 ### TODO in ordine di priorità
 - [x] Obbligo fee manuale
-- [x] Selezione degli intermediari
+- [ ] Gestione conti (README):
+  - [x] Selezione degli intermediari
+  - [ ] brokers.json in cartella config (tenerla "dentro" su pyinstaller)
+  - [x] Separazione degli intermediari
+  - [x] Crea i defaults se non presenti
+  - [ ] Calcolo separato NAV
 - [x] Usa yfinance per exchange rates
 - [x] Sistema il check delle modifiche
-- [x] Crea la cartella reports se non presente, con report.csv e report-template.csv (uguali)
-- [ ] Calcolo separato NAV (readme)
-- [x] Sezione "Informazioni" dove si descrivono le colonne
+- [ ] Sezione "Informazioni" (README):
+  - [x] Descrizione colonne
+  - [ ] Descrizione statistiche/altro
+- [ ] Statistiche aggiuntive: drawdown, correlazione, sharpe
+- [ ] Split nel calcolo del resoconto
+- [ ] Fetch del TER
 
 ### TODO avanzati
 - [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)

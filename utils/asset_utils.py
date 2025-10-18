@@ -11,28 +11,6 @@ from utils.fetch_utils import fetch_exchange_rate
 warnings.simplefilter(action='ignore', category=Warning)
 
 
-def broker_fee(broker: int, product: str, conv_rate: float = 1.0, trade_value: float = 0.0):
-
-    # if EUR
-    bg_etf_stock = 2.0
-    
-    upper_bound_fineco = min(19.0, round_half_up(trade_value * 0.0019))
-    fineco = max(2.95, upper_bound_fineco)
-
-    # if USD (BG Saxo-only)
-    if conv_rate != 1.0:
-        bg_etf_stock = round_half_up(1.0 / conv_rate, decimal="0.000001")
-
-    fees = {
-        "ETF":   {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
-        "Azioni": {1: ("Fineco", fineco), 2: ("BG Saxo", bg_etf_stock)},
-        "Obbligazioni":  {1: ("Fineco", fineco), 2: ("BG Saxo", 7.0)},
-    }
-
-    broker_name, fee = fees.get(product, {}).get(broker, ("SIM non riconosciuto", 0))
-    return broker_name, fee
-
-
 def get_asset_value(df, current_ticker=None, ref_date=None):
 
     df_copy = df.copy()

@@ -3,6 +3,33 @@ import numpy as np
 import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 
+def load_account(brokers, save_folder, report_default):
+    print("\nSelezionare il conto su cui operare.\n")
+    for key, value in brokers.items():
+        print(f"    {key}. {value}")
+    account = input(f"\n > ")
+    try:
+        account = int(account)
+        if account not in list( range( 1, len(brokers)+1 ) ):
+            raise ValueError
+    except ValueError:
+        wrong_input()
+    
+    file = report_default + brokers[account] + ".csv"
+    path = os.path.join(save_folder, file)
+
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError:
+        print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
+        exit()
+
+    len_df_init = len(df)
+    edited_flag = False
+
+    return df, len_df_init, edited_flag, file, path, account
+
+
 def round_half_up(valore, decimal="0.01"):
     # Handle NaN or None
     if pd.isna(valore):
@@ -23,74 +50,80 @@ def wrong_input():
     input("\nPremi Invio per tornare al Menu Principale...")
     raise KeyboardInterrupt
 
-
+"""
 def select_broker(brokers):
-    print("  - Seleziona intermediario/SIM")
+    print("  - Seleziona conto")
     list_all_brokers = "\n".join(f"\t{key}. {value}" for key, value in brokers.items())
     print(list_all_brokers)
     brk = input("    > ")
     try:
         brk = int(brk)
-        if brk not in list( range( 1, int(list(brokers.keys())[-1]) +1 ) ):
+        if brk not in list( range( 1, len(brokers)+1 ) ):
             raise ValueError
     except ValueError:
         wrong_input()
     return brokers[brk]
+"""
 
 
-def create_defaults(save_folder):
+def create_defaults(save_folder, broker_name):
 
-    path1 = os.path.join(save_folder, "report.csv")
-    path2 = os.path.join(save_folder, "report-template.csv")
+    path1 = os.path.join(save_folder, "Report " + broker_name + ".csv")
+    path2 = os.path.join(save_folder, "Template.csv")
     check1 = os.path.isfile(path1)
     check2 = os.path.isfile(path2)
 
+    df_template = pd.DataFrame({
+        "Data": ["01-01-2000"],
+        "Operazione": [np.nan],
+        "Prodotto": [np.nan],
+        "Ticker": [np.nan],
+        "Nome Asset": [np.nan],
+        "TER": [np.nan],
+        "Valuta": [np.nan],
+        "Tasso di Conv.": [np.nan],
+        "QT. Scambio": [np.nan],
+        "Prezzo": [np.nan],
+        "Prezzo EUR": [np.nan],
+        "Imp. Nominale Operaz.": [np.nan],
+        "Commissioni": [np.nan],
+        "QT. Attuale": [np.nan],
+        "PMC": [np.nan],
+        "Imp. Residuo Asset": [np.nan],
+        "Imp. Effettivo Operaz.": [np.nan],
+        "Costo Rilasciato": [np.nan],
+        "Plusv. Lorda": [np.nan],
+        "Minusv. Generata": [np.nan],
+        "Scadenza": [np.nan],
+        "Zainetto Fiscale": [0.0],
+        "Plusv. Imponibile": [np.nan],
+        "Imposta": [np.nan],
+        "P&L": [np.nan],
+        "Liquidita Attuale": [0],
+        "Valore Titoli": [0],
+        "NAV": [0.0],
+        "Liq. Storica Immessa": [0.0]
+    })
+
     # if the reports folder is missing entirely OR 
-    # if the reports folder is there, but report.csv and report-template.csv are missing:
+    # if the reports folder is there, but Report.csv and Report-template.csv are missing:
     if (not os.listdir(save_folder)) or (not (check1 and check2)):
+        # Se c'è già un report "riempito" ma manca il template, inizializza solo il template (sennò sovrascrivi il report)
+        if check1 == True and check2 == False:
+            df_template.to_csv(path2, index=False)
+        else:
+            df_template.to_csv(path1, index=False)
+            df_template.to_csv(path2, index=False)
+            
 
-        df_template = pd.DataFrame({
-            "Data": ["01-01-2000"],
-            "SIM": [np.nan],
-            "Operazione": [np.nan],
-            "Prodotto": [np.nan],
-            "Ticker": [np.nan],
-            "Nome Asset": [np.nan],
-            "TER": [np.nan],
-            "Valuta": [np.nan],
-            "Tasso di Conv.": [np.nan],
-            "QT. Scambio": [np.nan],
-            "Prezzo": [np.nan],
-            "Prezzo EUR": [np.nan],
-            "Imp. Nominale Operaz.": [np.nan],
-            "Commissioni": [np.nan],
-            "QT. Attuale": [np.nan],
-            "PMC": [np.nan],
-            "Imp. Residuo Asset": [np.nan],
-            "Imp. Effettivo Operaz.": [np.nan],
-            "Costo Rilasciato": [np.nan],
-            "Plusv. Lorda": [np.nan],
-            "Minusv. Generata": [np.nan],
-            "Scadenza": [np.nan],
-            "Zainetto Fiscale": [0.0],
-            "Plusv. Imponibile": [np.nan],
-            "Imposta": [np.nan],
-            "P&L": [np.nan],
-            "Liquidita Attuale": [0],
-            "Valore Titoli": [0],
-            "NAV": [0.0],
-            "Liq. Storica Immessa": [0.0]
-        })
 
-        df_template.to_csv(path1, index=False)
-        df_template.to_csv(path2, index=False)
+
 
 
 def display_information():
     print("--- INFORMAZIONI / LEGENDA ---")
     print("\nQuesta pagina funge da glossario relativo alle colonne della tabella.\n")
     print("- Data\n    Data dell'esecuzione dell'operazione.\n")
-    print("- SIM\n    Intermediario finanziario / SIM presso il quale è avvenuta l'operazione.\n")
     print("- Operazione\n    Tipo di operazione (Acquisto, Vendita, Deposito...)\n")
     print("- Prodotto\n    Tipo di prodotto (Azione, ETF, Contanti...)\n")
     print("- Ticker\n    Ticker della security nel caso fosse specificata. Segue lo standard di Yahoo Finance.\n")
