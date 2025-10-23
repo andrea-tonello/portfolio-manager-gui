@@ -5,7 +5,7 @@ import json
 
 import utils.operations as op
 from utils.date_utils import get_date
-from utils.other_utils import load_account, wrong_input, create_defaults, display_information
+from utils.other_utils import load_account, wrong_input, create_defaults, display_information, format_accounts
 
 pd.set_option('display.max_columns', None)
 REP_DEF = "Report "
@@ -14,7 +14,7 @@ os.makedirs(save_folder, exist_ok=True)
 
 
 def main_menu(file, account_name, len_df, len_df_init, edited_flag):
-    print("\n\n=================== MENU PRINCIPALE ===================\n")
+    print("\n=================== MENU PRINCIPALE ===================\n")
     print(f"Si sta operando sul conto: {account_name}\nFile caricato: {file}, con {len_df_init} righe.")
 
     if edited_flag:
@@ -33,8 +33,9 @@ def main_menu(file, account_name, len_df, len_df_init, edited_flag):
     print("    2. ETF")
     print("    3. Azioni")
     print("    4. Obbligazioni")
-    print("    5. Visualizza resoconto")
-    print("    6. Inizializza intermediari\n")
+    print("    5. Ultimi Movimenti")
+    print("    6. Analisi portafoglio")
+    print("    7. Inizializza intermediari\n")
     print("    s. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
     print("    i. Informazioni/Glossario")
@@ -58,7 +59,13 @@ if __name__ == "__main__":
     # Convert keys back to ints (json saves everything as str)
     brokers = {int(k): v for k, v in brokers.items()}
 
-    df, len_df_init, edited_flag, file, path, account = load_account(brokers, save_folder, REP_DEF)
+    account = load_account(brokers, save_folder, REP_DEF)
+    df = account[0]["df"] 
+    len_df_init = account[0]["len_df_init"]
+    edited_flag = account[0]["edited_flag"] 
+    file = account[0]["file"]
+    path = account[0]["path"]
+    acc_idx = account[0]["acc_idx"]
     os.system("cls" if os.name == "nt" else "clear")
 
     while True:
@@ -67,12 +74,19 @@ if __name__ == "__main__":
             if len(df) != len_df_init:
                 edited_flag = True
 
-            main_menu(file, brokers[account], len(df), len_df_init, edited_flag)
+            main_menu(file, brokers[acc_idx], len(df), len_df_init, edited_flag)
             print("\n" + "="*55)
             choice = input("\n> ")
 
             if choice == 'a':
-                df, len_df_init, edited_flag, file, path, account = load_account(brokers, save_folder, REP_DEF)
+                account = load_account(brokers, save_folder, REP_DEF)
+                df = account[0]["df"] 
+                len_df_init = account[0]["len_df_init"]
+                edited_flag = account[0]["edited_flag"] 
+                file = account[0]["file"]
+                path = account[0]["path"]
+                acc_idx = account[0]["acc_idx"]
+
                 os.system("cls" if os.name == "nt" else "clear")
                 continue
 
@@ -120,11 +134,38 @@ if __name__ == "__main__":
 
             elif choice == '5':
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- RESOCONTO ---\n")
-                op.summary(df)
+                print("\n--- ULTIMI MOVIMENTI (MAX 10) ---\n\n")
+                print(df.tail(10))
+                input("\nPremi Invio per tornare al Menu Principale...")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '6':
+
+                os.system("cls" if os.name == "nt" else "clear")
+                print("\n--- ANALISI PORTAFOGLIO ---\n")
+                print("> Seleziona operazione. CTRL+C per tornare al Menu Principale.\n")
+                print("    1. Statistiche generali\n    2. Analisi correlazione\n    3. Drawdown")
+                all_accounts = load_account(brokers, save_folder, REP_DEF, select_one=False)
+                accounts_formatted = format_accounts(df, acc_idx, all_accounts)
+
+                operation = input("\n> ")
+                try:
+                    operation = int(operation)
+                    if operation not in [1, 2, 3]:
+                        raise ValueError
+                except:
+                    wrong_input()
+                print()            
+
+                if operation == 1:
+                    op.summary(df, brokers, accounts_formatted)
+                elif operation == 2:
+                    op.correlation(df, accounts_formatted)
+                else:
+                    input("\nPremi Invio per tornare al Menu Principale...")
+                os.system("cls" if os.name == "nt" else "clear")
+
+            elif choice == '7':
                 os.system("cls" if os.name == "nt" else "clear")
                 print("\n--- INIZIALIZZAZIONE INTERMEDIARI ---\n\nCTRL+C per annullare e tornare al Menu Principale.")
                 brokers = op.initialize_brokers(save_folder)

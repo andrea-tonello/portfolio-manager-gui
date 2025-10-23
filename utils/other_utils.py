@@ -3,31 +3,75 @@ import numpy as np
 import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 
-def load_account(brokers, save_folder, report_default):
-    print("\nSelezionare il conto su cui operare.\n")
-    for key, value in brokers.items():
-        print(f"    {key}. {value}")
-    account = input(f"\n > ")
-    try:
-        account = int(account)
-        if account not in list( range( 1, len(brokers)+1 ) ):
-            raise ValueError
-    except ValueError:
-        wrong_input()
-    
-    file = report_default + brokers[account] + ".csv"
-    path = os.path.join(save_folder, file)
+def load_account(brokers, save_folder, report_default, select_one=True):
 
-    try:
-        df = pd.read_csv(path)
-    except FileNotFoundError:
-        print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
-        exit()
+    accounts_selected = []
 
-    len_df_init = len(df)
-    edited_flag = False
+    if select_one:
+        print("\nSelezionare il conto su cui operare.\n")
+        for key, value in brokers.items():
+            print(f"    {key}. {value}")
+        account = input(f"\n > ")
+        try:
+            account = int(account)
+            if account not in list( range(1, len(brokers)+1) ):
+                raise ValueError
+        except ValueError:
+            wrong_input()
 
-    return df, len_df_init, edited_flag, file, path, account
+        file = report_default + brokers[account] + ".csv"
+        path = os.path.join(save_folder, file)
+        try:
+            df = pd.read_csv(path)
+        except FileNotFoundError:
+            print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
+            exit()
+
+        len_df_init = len(df)
+        edited_flag = False
+        accounts_selected.append({
+            "acc_idx": account,
+            "df": df,
+            "file": file,
+            "path": path,
+            "len_df_init": len_df_init,
+            "edited_flag": edited_flag
+        })
+        
+    else:
+        for account in list( range(1, len(brokers)+1) ):
+            file = report_default + brokers[account] + ".csv"
+            path = os.path.join(save_folder, file)
+            try:
+                df = pd.read_csv(path)
+            except FileNotFoundError:
+                print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
+                exit()
+
+            len_df_init = len(df)
+            edited_flag = False
+            accounts_selected.append({
+                "acc_idx": account,
+                "df": df,
+                "file": file,
+                "path": path,
+                "len_df_init": len_df_init,
+                "edited_flag": edited_flag
+            })
+
+    return accounts_selected
+
+
+def format_accounts(df, acc_idx, all_accounts):
+    # Remove active account (since we have real-time data from df. 
+    # Otherwise we would be working with the previously saved report)
+    non_active_accounts = [acc for acc in all_accounts if acc["acc_idx"] != acc_idx]
+
+    # [(1, df1), (2, df2),...]
+    data = [(acc["acc_idx"], acc["df"]) for acc in non_active_accounts]
+    data.append((acc_idx, df))
+    data = sorted(data, key=lambda x: x[0])
+    return data
 
 
 def round_half_up(valore, decimal="0.01"):

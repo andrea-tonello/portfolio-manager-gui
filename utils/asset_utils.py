@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime
 import yfinance as yf
 import warnings
+import time
 
 from utils.other_utils import round_half_up
 from utils.date_utils import add_solar_years
@@ -11,14 +12,15 @@ from utils.fetch_utils import fetch_exchange_rate
 warnings.simplefilter(action='ignore', category=Warning)
 
 
-def get_asset_value(df, current_ticker=None, ref_date=None):
+def get_asset_value(df, current_ticker=None, ref_date=None, just_active_assets=False):
 
     df_copy = df.copy()
     df_copy["Data"] = pd.to_datetime(df_copy["Data"], format="%d-%m-%Y")
-    df_filtered = df_copy[df_copy["Data"] <= ref_date]
+    if ref_date:
+        df_copy = df_copy[df_copy["Data"] <= ref_date]
 
     # Rimuove le righe dove la colonna Ticker non ha un valore ed il Ticker corrente
-    df_filtered = df_filtered.dropna(subset=['Ticker'])
+    df_filtered = df_copy.dropna(subset=["Ticker"])
     if current_ticker:
         df_filtered = df_filtered[df_filtered["Ticker"] != current_ticker]
 
@@ -31,10 +33,14 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
     # Filtra solo quelli con quantità > 0
     total_assets = total_assets.loc[total_assets["QT. Attuale"] > 0, ["Ticker", "QT. Attuale", "Valuta"]]
 
+    if just_active_assets:
+        return total_assets
+
     if total_assets.empty:
         return []
 
-    # Converte in lista di dict
+    print("\n    Aggiornamento dei titoli in possesso da Yahoo Finance...")
+
     positions = []
     tickers = []
     for _, row in total_assets.iterrows():
@@ -50,10 +56,9 @@ def get_asset_value(df, current_ticker=None, ref_date=None):
     # Scarica dati da qualche giorno prima per gestire weekend/festività
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
-    
-    print("\nAggiornamento del valore dei titoli in possesso da Yahoo Finance...")
-    data = yf.download(tickers, start=start_date, end=end_date)["Close"]
-    
+
+    data = yf.download(tickers, start=start_date, end=end_date, progress=False)["Close"]
+
     # Prendi l'ultima riga disponibile fino a ref_date. 
     # Se però questa riga contiene una cella nan, scartala
     data_ref = (
@@ -110,12 +115,12 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product
         end_date = add_solar_years(date)
         fiscal_credit_aggiornato += minusvalenza_comm
 
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + (round_half_up((round_half_up(quantity * price) / conv_rate)) - fee)
+    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + round_half_up( ((quantity * price) / conv_rate) - fee )
 
     yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
     positions = get_asset_value(df, current_ticker=ticker, ref_date=yahoo_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
-
+    
     return {
         "Operazione": "Acquisto",
         "QT. Attuale": current_qt,
