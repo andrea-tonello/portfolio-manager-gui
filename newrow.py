@@ -1,12 +1,13 @@
 import pandas as pd
 import numpy as np
-from utils.fetch_utils import fetch_name
-import yfinance as yf
-from utils.asset_utils import buy_asset, sell_asset, round_half_up, get_asset_value
 from datetime import datetime
 
+import utils.operations_account as aop
+from utils.other_utils import round_half_up
+from utils.fetch_utils import fetch_name
 
-def newrow_cash(df, date, cash, op_type, product, ticker, name):
+
+def newrow_cash(df, date, broker, cash, op_type, product, ticker, name):
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
@@ -16,11 +17,12 @@ def newrow_cash(df, date, cash, op_type, product, ticker, name):
         historic_liq = float(df["Liq. Storica Immessa"].iloc[-1])
 
     yahoo_date = datetime.strptime(date, "%d-%m-%Y")
-    positions = get_asset_value(df, ref_date=yahoo_date)
+    positions = aop.get_asset_value(df, ref_date=yahoo_date)
     asset_value = sum(pos["value"] for pos in positions)
 
     new_row = pd.DataFrame({
         "Data": [date],
+        "Conto": [broker],
         "Operazione": [op_type],
         "Prodotto": [product],
         "Ticker": [ticker],
@@ -56,7 +58,7 @@ def newrow_cash(df, date, cash, op_type, product, ticker, name):
     return df
 
 
-def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
+def newrow_etf_stock(df, date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -66,14 +68,16 @@ def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_
     asset_rows = asset_rows[asset_rows["Operazione"].isin(["Acquisto", "Vendita"])]     # non passare righe con dividendi
 
     if buy:
-        results = buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
+        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
+
     else:
-        results = sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
+        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
 
     price_eur = price / conv_rate
 
     new_row = pd.DataFrame({
         "Data": [date],
+        "Conto": [broker],
         "Operazione": [results["Operazione"]],
         "Prodotto": [product],
         "Ticker": [ticker],
@@ -89,7 +93,7 @@ def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_
         "QT. Attuale": [results["QT. Attuale"]],
         "PMC": [round_half_up(results["PMC"], decimal="0.0001")],
         "Imp. Residuo Asset": [round_half_up(results["Imp. Residuo Asset"])],
-        "Imp. Effettivo Operaz.": [round_half_up((quantity * price) / conv_rate - round_half_up(fee))],
+        "Imp. Effettivo Operaz.": [round_half_up(round_half_up(quantity * price) / conv_rate) - round_half_up(fee)],
         "Costo Rilasciato": [round_half_up(results["Costo Rilasciato"])],
         "Plusv. Lorda": [round_half_up(results["Plusv. Lorda"])],
         "Minusv. Generata": [round_half_up(results["Minusv. Generata"])],
@@ -107,32 +111,3 @@ def newrow_etf_stock(df, date, currency, product, ticker, quantity, price, conv_
     df = pd.concat([df, new_row], ignore_index=True)
 
     return df
-
-"""
-Esempio su plusvalenza e fee:
-  Acquisto 100 azioni a 10 € = 1.000 €
-  fee acquisto = 5 €
-  -> Costo totale di carico = 1.005 €
-  Rivendo a 12 € = 1.200 €
-  fee vendita = 5 €
-  Incasso netto = 1.195 €
-
-Plusvalenza imponibile = 1.195 - 1.005 = 190 €
-L'imposta sostitutiva del 26% si applica quindi su 190 €, non sui 200 € “lordi”.
-
-Calcolo della Minusvalenza
-  Acquisto 100 azioni a 10 € = 1.000 €
-  fee acquisto = 5 €
-  -> Costo totale di carico = 1.005 €
-  Rivendo a 8 € = 800 €
-  fee vendita = 5 €
-  Incasso netto = 795 €
-
-Minusvalenza = Incasso netto - Costo totale di carico
-Minusvalenza = 795 € - 1.005 € = -210 €
-
-
-La normativa italiana prevede che il prezzo medio ponderato di carico (PMPC) 
-si calcoli comprensivo delle fee di acquisto e che anche il ricavo di vendita 
-si consideri al netto delle fee di vendita.
-"""

@@ -1,9 +1,9 @@
 # Rendicontazione Portafoglio Finanziario
 ### TODO
 - [x] Obbligo fee manuale
-- [ ] Gestione conti (README):
+- [x] Gestione conti (README):
   - [x] Selezione degli intermediari
-  - [ ] brokers.json in cartella config (tenerla "dentro" su pyinstaller)
+  - [x] brokers.json in cartella config (tenerla "dentro" su pyinstaller)
   - [x] Separazione degli intermediari
   - [x] Crea i defaults se non presenti
 - [x] Usa yfinance per exchange rates
@@ -15,9 +15,11 @@
   - [x] Statistiche separate tra conti + totale
   - [ ] Utile / Rendimento
   - [x] Correlazione 
-  - [ ] Drawdown, 
+  - [x] Drawdown
+  - [x] VaR
   - [ ] Sharpe
 - [ ] Fetch del TER
+- [ ] Casistiche di errore
 
 ### TODO avanzati
 - [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)

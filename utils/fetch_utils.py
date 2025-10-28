@@ -1,5 +1,6 @@
 import requests
 import re
+import pandas as pd
 import yfinance as yf
 from datetime import date, datetime, timedelta
 
@@ -33,8 +34,6 @@ def fetch_exchange_rate(ref_date=None):
         rate = yf.download("USDEUR=X",start=ref_date, end=next_ref_date, progress=False)
 
     return round_half_up(rate["Close"].iloc[-1][0], decimal="0.000001")
-
-
 
 
 
