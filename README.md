@@ -11,13 +11,13 @@
 - [ ] Sezione "Informazioni" (README):
   - [x] Descrizione colonne
   - [ ] Descrizione statistiche/altro
-- [ ] Analisi portafoglio: (README)
+- [x] Analisi portafoglio: (README)
   - [x] Statistiche separate tra conti + totale
-  - [ ] Utile / Rendimento
+  - [x] Utile / Rendimento
   - [x] Correlazione 
   - [x] Drawdown
   - [x] VaR
-  - [ ] Sharpe
+  - [x] Sharpe
 - [ ] Fetch del TER
 - [ ] Casistiche di errore
 

@@ -46,7 +46,7 @@ def newrow_cash(df, date, broker, cash, op_type, product, ticker, name):
         "Zainetto Fiscale": [float(df["Zainetto Fiscale"].iloc[-1])],
         "Plusv. Imponibile": [np.nan],
         "Imposta": [np.nan],
-        "P&L": [np.nan],
+        "P&L": [cash if op_type in ["Dividendo", "Imposta"] else np.nan],
         "Liquidita Attuale": [round_half_up(current_liq)],
         "Valore Titoli": [round_half_up(asset_value)],
         "NAV": [round_half_up(asset_value + current_liq)],

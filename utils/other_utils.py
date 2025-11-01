@@ -21,7 +21,7 @@ def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
 
 
-def calcola_xirr(flussi_di_cassa, date_flussi, guess=0.1):
+def xirr(flussi_di_cassa, date_flussi, guess=0.1, annualization=365):
     """
     Calcola lo XIRR (Extended Internal Rate of Return).
 
@@ -34,7 +34,7 @@ def calcola_xirr(flussi_di_cassa, date_flussi, guess=0.1):
     # 1. Calcola gli anni che intercorrono tra le date e la data iniziale
     # (Per convenzione si usa un anno di 365 giorni)
     giorni = [(data - date_flussi[0]).days for data in date_flussi]
-    anni = np.array(giorni) / 151.1
+    anni = np.array(giorni) / annualization
 
     # Funzione NPV (Net Present Value)
     # L'obiettivo è trovare il "rate" che rende questa funzione uguale a zero.

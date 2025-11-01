@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 print()            
 
                 if operation == 1:
-                    mop.summary(df, brokers, accounts_formatted)
+                    mop.summary(df, brokers, accounts_formatted, save_folder)
                 elif operation == 2:
                     mop.correlation(df, accounts_formatted)
                 elif operation == 3:

@@ -316,12 +316,21 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             
             portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * quantities_for_calc).sum(axis=1)
             portfolio_history_df['NAV'] = portfolio_history_df['Valore Titoli'] + portfolio_history_df['Liquidita']
+            portfolio_history_df["Cash Flow"] = portfolio_history_df["Liquidita Impegnata"].diff()
+
+            previous_nav = portfolio_history_df['NAV'].shift(1)
+            portfolio_history_df["TWR Giornalieri"] = (
+                portfolio_history_df['NAV'] - previous_nav - portfolio_history_df['Cash Flow']
+            ) / previous_nav
+
+            portfolio_history_df = portfolio_history_df.iloc[1:]
+            portfolio_history_df["TWR Cumulativi"] = (1 + portfolio_history_df["TWR Giornalieri"]).cumprod() - 1
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
             print("\nImpossibile creare il DataFrame finale perché l'indice di 'prices_df' è vuoto.")
             # Crea un dataframe vuoto con le colonne corrette
-            final_columns_complete = ["Date"] + total_tickers + ['Liquidita', "Liquidita Impegnata", 'Valore Titoli', 'NAV']
+            final_columns_complete = ["Date"] + total_tickers + ['Liquidita', "Liquidita Impegnata", 'Valore Titoli', 'NAV', "TWR Giornalieri", "TWR Cumulativi"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
         
@@ -368,7 +377,7 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
     # Prendi l'ultima riga per ogni asset unico
     total_assets = df_filtered.groupby("Ticker").last().reset_index()
     # Filtra solo quelli con quantità > 0
-    total_active_assets = total_assets.loc[total_assets["QT. Attuale"] > 0, ["Ticker", "QT. Attuale", "Valuta"]]
+    total_active_assets = total_assets.loc[total_assets["QT. Attuale"] > 0, ["Ticker", "QT. Attuale", "Valuta", "PMC"]]
 
     if just_assets:
         return total_assets, total_active_assets
@@ -387,7 +396,8 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
             "quantity": row["QT. Attuale"],
             "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate(ref_date.strftime("%Y-%m-%d")),
             "price": np.nan,
-            "value": np.nan
+            "value": np.nan,
+            "pmc": row["PMC"]
         })
         tickers.append(row["Ticker"])
 

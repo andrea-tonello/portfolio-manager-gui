@@ -6,13 +6,14 @@ import os
 import yfinance as yf
 import seaborn as sns
 import matplotlib.pyplot as plt
+from itertools import chain
 #from scipy.stats import norm
 
 from newrow import newrow_cash, newrow_etf_stock
 from utils.operations_account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.date_utils import get_date, get_pf_date
 from utils.fetch_utils import fetch_name    
-from utils.other_utils import round_half_up, wrong_input
+from utils.other_utils import round_half_up, wrong_input, xirr
 
 
 # 1 - LIQUIDITÀ
@@ -118,7 +119,7 @@ def etf_stock(df, broker, choice="ETF"):
 
 # 6 - ANALISI PORTAFOGLIO
 #    6.1 - Resoconto
-def summary(df, brokers, data):
+def summary(df, brokers, data, save_folder):
 
     dt = get_date(df, sequential_only=False)
     ref_date= datetime.strptime(dt, "%d-%m-%Y")
@@ -128,6 +129,9 @@ def summary(df, brokers, data):
     total_nav = []
     total_historic_liq = []
     total_pl = []
+    total_pl_unrealized = []
+    total_flussi = []
+    total_date_flussi = []
     first_dates = []
 
     for account in data:
@@ -142,19 +146,35 @@ def summary(df, brokers, data):
         asset_value = round_half_up(sum(pos["value"] for pos in positions))
         nav = round_half_up(current_liq + asset_value)
         historic_liq = df_valid["Liq. Storica Immessa"].iloc[-1]
-        pl = round_half_up(nav - historic_liq)
+        pl = df_valid["P&L"].sum()
+        pl_unrealized = pl + sum([pos["value"] - pos["pmc"] * pos["quantity"] for pos in positions])
+
+        # flussi di cassa (devono avere valore swappato)
+        cashflow_df = df_valid[df_valid["Operazione"].isin(["Deposito", "Prelievo"])]
+        flussi = (cashflow_df["Imp. Effettivo Operaz."] * -1).tolist()
+        flussi.append(nav)
+        date_flussi = cashflow_df["Data"].tolist()
+        date_flussi.append(ref_date)
+        xirr_full = xirr(flussi, date_flussi, annualization=(ref_date-date_flussi[0]).days)
+        xirr_ann = xirr(flussi, date_flussi)
 
         print(f"\n    NAV (al {dt}): {nav}€")
         print(f"\t- Liquidità: {current_liq}€")
         print(f"\t- Valore Titoli: {asset_value}€")
-        print(f"    Liquidità Storica Immessa: {historic_liq}€")
-        print(f"    P&L Totale: {pl}€\n")
+        print(f"    Liquidità Impegnata: {historic_liq}€")
+        print(f"    P&L: {round_half_up(pl)}€")
+        print(f"    P&L comprendente il non realizzato: {round_half_up(pl_unrealized)}€")
+        print(f"    Rendimento totale (XIRR): {xirr_full:.2%}")
+        print(f"    Rendimento annualizzato (XIRR): {xirr_ann:.2%}\n")
 
         total_current_liq.append(current_liq)
         total_asset_value.append(asset_value)
         total_nav.append(nav)
         total_historic_liq.append(historic_liq)
         total_pl.append(pl)
+        total_pl_unrealized.append(pl_unrealized)
+        total_flussi.append(flussi)
+        total_date_flussi.append(date_flussi)
         first_dates.append(first_date)
 
         print(f"    Titoli detenuti in data {dt}:\n")
@@ -162,20 +182,63 @@ def summary(df, brokers, data):
             print("\t ---")
         else:
             for pos in positions:
-                print(f"\t- {pos["ticker"]}    QT: {pos["quantity"]}    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001")}€    Controvalore: {round_half_up(pos["value"])}€")
+                print(f"\t- {pos["ticker"]}    PMC: {pos["pmc"]}€    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001")}€    QT: {pos["quantity"]}    Controvalore: {round_half_up(pos["value"])}€")
 
-    print("\n\n\nTotale Portafoglio" + "="*70)
+# XIRR ========================================================================
+    combined_flussi = list(
+        chain.from_iterable(
+            zip(dates, flussi) for dates, flussi in zip(total_date_flussi, total_flussi)
+        )
+    )
+    # Sort by date
+    combined_flussi.sort(key=lambda x: x[0])
+    all_dates, all_flussi = zip(*combined_flussi)
+    # Convert to lists (optional)
+    all_dates = list(all_dates)
+    all_flussi = list(all_flussi)
+    days_xirr = (ref_date-all_dates[0]).days
+    xirr_total_full = xirr(all_flussi, all_dates, annualization=days_xirr)
+    xirr_total_ann = xirr(all_flussi, all_dates)
+
+# TWR ========================================================================
+    print("\n\n\nTotale Portafoglio " + "="*70)
+    min_date = min(first_dates)
+    pf_history = portfolio_history(min_date, ref_date, data)
+    trading_days = 252
+
+    days_twr = len(pf_history)
+    twr_total = pf_history["TWR Cumulativi"].iloc[-1]
+    twr_ann = (1 + twr_total)**(trading_days / days_twr) - 1
+
+# Sharpe ratio (with TWR) ====================================================
+    risk_free_rate = 0.02
+    risk_free_daily = (1 + risk_free_rate)**(1/trading_days) - 1          # Convert annual risk-free rate to daily
+    excess_returns = pf_history["TWR Giornalieri"] - risk_free_daily
+    sharpe_ratio = np.sqrt(trading_days) * (excess_returns.mean() / excess_returns.std())
+
+    # Note: this is the volatility of the returns. The denominator of the sharpe ratio is instead the volatility of excess return (i.e. returns - risk free rate)
+    volatility = pf_history["TWR Giornalieri"].std() * np.sqrt(trading_days)    
+
+# Display results ============================================================
+    pf_history = pf_history.dropna()
     print(f"\n    NAV (al {dt}): {round_half_up(sum(total_nav))}€")
     print(f"\t- Liquidità: {round_half_up(sum(total_current_liq))}€")
     print(f"\t- Valore Titoli: {round_half_up(sum(total_asset_value))}€")
-    print(f"    Liquidità Storica Immessa: {round_half_up(sum(total_historic_liq))}€")
-    print(f"    P&L Totale: {round_half_up(sum(total_pl))}€\n")
+    print(f"    Liquidità Impegnata: {round_half_up(sum(total_historic_liq))}€\n")
+    print(f"    P&L: {round_half_up(sum(total_pl))}€")
+    print(f"    P&L comprendente il non realizzato: {round_half_up(sum(total_pl_unrealized))}€\n")
+    print(f"    Rendimento")
+    print(f"\t- XIRR totale: {xirr_total_full:.2%}")
+    print(f"\t- XIRR annualizzato: {xirr_total_ann:.2%}")
+    print(f"\t- TWR totale: {twr_total:.2%}")
+    print(f"\t- TWR annualizzato: {twr_ann:.2%}\n")
+    print(f"    Volatilità annualizzata: {volatility:.2%}")
+    print(f"    Sharpe Ratio: {sharpe_ratio:.2f}\n")
 
-    min_date = min(first_dates)
-    pf_history = portfolio_history(min_date, ref_date, data)
-    pf_history.to_csv("/home/atonello/Downloads/cacca.csv")
-    pf_history = pf_history.dropna()
-
+    filename = "Storico Portafoglio.csv"
+    save_path = os.path.join(save_folder, filename)
+    pf_history.to_csv(save_path)
+    print(f"\nEsportato {filename} in {save_path}\n")
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.plot(pf_history["Date"], pf_history["NAV"], label="Valore portafoglio", color="blue", linestyle="-")
@@ -191,8 +254,6 @@ def summary(df, brokers, data):
     fig.tight_layout()
     fig.canvas.manager.set_window_title(f"Valore Portafoglio | Dal: {min_date.strftime("%d-%m-%Y")} | Al: {dt}")
     plt.show()
-
-
     input("\nPremi Invio per continuare...")
 
 #    6.2 - Correlazione
@@ -206,6 +267,7 @@ def correlation(df, data):
     end_ref_date = datetime.strptime(end_dt, "%d-%m-%Y")
 
     _, active_tickers = get_tickers(data)
+    active_tickers = [t[0] for t in active_tickers]
 
     # Simple correlation between owned assets.
     active_tickers = list(set(active_tickers))
@@ -264,7 +326,7 @@ def drawdown(df, data):
     running_max = pf_history["NAV"].expanding().max()
     drawdown = (pf_history["NAV"] - running_max) / running_max
     mdd = drawdown.min()
-    print(f"\n    Maximum Drawdown portafoglio tra il {start_dt} ed il {end_dt}: {mdd * 100:.2f}%")
+    print(f"\n    Maximum Drawdown del portafoglio tra il {start_dt} ed il {end_dt}: {mdd * 100:.2f}%")
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.plot(pf_history["Date"], (drawdown * 100), color="red", linestyle="-")
@@ -279,7 +341,6 @@ def drawdown(df, data):
     fig.tight_layout()
     fig.canvas.manager.set_window_title(f"Drawdown Portafoglio | Dal: {start_dt} | Al: {end_dt}")
     plt.show()
-
     input("\nPremi Invio per continuare...")
 
 
@@ -356,9 +417,6 @@ def var_mc(df, data):
         return np.sqrt(variance)
     
     cov_matrix = log_returns.cov()
-    
-
-
     portfolio_expected_return = expected_return(asset_tickers, log_returns, weights)
     portfolio_std_dev = standard_deviation (cov_matrix, weights)
 
@@ -387,8 +445,6 @@ def var_mc(df, data):
     fig.tight_layout()
     fig.canvas.manager.set_window_title(f"Distribuzione del Portfolio Gain/Loss su {projected_days} giorni")
     plt.show()
-
-
     input("\nPremi Invio per continuare...")
 
 
