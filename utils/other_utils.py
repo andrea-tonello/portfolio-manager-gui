@@ -21,35 +21,32 @@ def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
 
 
-def xirr(flussi_di_cassa, date_flussi, guess=0.1, annualization=365):
+def xirr(cash_flows, flows_dates, annualization=365, guess=0.1):
     """
-    Calcola lo XIRR (Extended Internal Rate of Return).
+    **Given**:
+    - *list* of float `cash_flows`: list of ordered cash flows (deposits (-), withdrawals (+)). The first transaction is the initial investment (-); 
+    the final transaction corresponds to total liquidation (+)
+    - *list* of dates `flows_dates`: list of ordered date objects relative to the cash flows. 
+    - *int* `annualization = 365`: time period of interest; default is 365 since we often want annualized returns
+    - *float* `guess = 0.1`: initial guess for the Newton method
 
-    :param flussi_di_cassa: Lista dei flussi di cassa (il primo è l'investimento iniziale, negativo).
-    :param date_flussi: Lista delle date corrispondenti ai flussi di cassa.
-    :param guess: Stima iniziale del tasso.
-    :return: Il tasso XIRR (come decimale).
+    **Returns**:
+    - *float* `xirr_rate`: XIRR value if convergence is reached, else NaN
     """
+    days = [(data - flows_dates[0]).days for data in flows_dates]
+    years = np.array(days) / annualization
 
-    # 1. Calcola gli anni che intercorrono tra le date e la data iniziale
-    # (Per convenzione si usa un anno di 365 giorni)
-    giorni = [(data - date_flussi[0]).days for data in date_flussi]
-    anni = np.array(giorni) / annualization
-
-    # Funzione NPV (Net Present Value)
-    # L'obiettivo è trovare il "rate" che rende questa funzione uguale a zero.
-    def van_formula(rate):
+    # The goal is to find the rate which brings this function (Net Present Value) to 0 using Newton method.
+    def npv_formula(rate):
         return sum(
             cf / (1 + rate)**t
-            for cf, t in zip(flussi_di_cassa, anni)
+            for cf, t in zip(cash_flows, years)
         )
-
     try:
-        # Tenta di trovare il tasso che annulla NPV
-        tasso_xirr = newton(van_formula, guess)
-        return tasso_xirr
+        xirr_rate = newton(npv_formula, guess)
+        return xirr_rate
     except RuntimeError:
-        print("Attenzione: La convergenza per il calcolo dell'XIRR non è stata raggiunta.")
+        print("Warning: XIRR convergence wasn't reached.")
         return np.nan
 
 
@@ -61,10 +58,10 @@ def wrong_input():
 
 def create_defaults(save_folder, broker_name):
 
-    path1 = os.path.join(save_folder, "Report " + broker_name + ".csv")
-    path2 = os.path.join(save_folder, "Template.csv")
-    check1 = os.path.isfile(path1)
-    check2 = os.path.isfile(path2)
+    path_rep = os.path.join(save_folder, "Report " + broker_name + ".csv")
+    path_temp = os.path.join(save_folder, "Template.csv")
+    check_rep = os.path.isfile(path_rep)
+    check_temp = os.path.isfile(path_temp)
 
     df_template = pd.DataFrame({
         "Data": ["01-01-2000"],
@@ -101,13 +98,13 @@ def create_defaults(save_folder, broker_name):
 
     # if the reports folder is missing entirely OR 
     # if the reports folder is there, but Report.csv and Report-template.csv are missing:
-    if (not os.listdir(save_folder)) or (not (check1 and check2)):
-        # Se c'è già un report "riempito" ma manca il template, inizializza solo il template (sennò sovrascrivi il report)
-        if check1 == True and check2 == False:
-            df_template.to_csv(path2, index=False)
+    if (not os.listdir(save_folder)) or (not (check_rep and check_temp)):
+        # If somehow there's a filled report but no template, initialize JUST the template (otherwise the report will be overwritten)
+        if check_rep == True and check_temp == False:
+            df_template.to_csv(path_temp, index=False)
         else:
-            df_template.to_csv(path1, index=False)
-            df_template.to_csv(path2, index=False)
+            df_template.to_csv(path_rep, index=False)
+            df_template.to_csv(path_temp, index=False)
             
 
 def display_information(page):
@@ -115,7 +112,7 @@ def display_information(page):
     if page == 1:
         print("\nPagina 1.\nQuesta pagina funge da glossario relativo alle colonne della tabella.\n")
         print("- Data\n    Data dell'esecuzione dell'operazione.\n")
-        print("- Conto\n    Conto sul quale è stata svolta l'operazione.")
+        print("- Conto\n    Conto sul quale è stata svolta l'operazione.\n")
         print("- Operazione\n    Tipo di operazione (Acquisto, Vendita, Deposito...)\n")
         print("- Prodotto\n    Tipo di prodotto (Azione, ETF, Contanti...)\n")
         print("- Ticker\n    Ticker della security nel caso fosse specificata. Segue lo standard di Yahoo Finance.\n")
@@ -143,10 +140,25 @@ def display_information(page):
         print("- Liquidità Attuale\n    Liquidità disponibile nel conto dopo l'operazione.\n")
         print("- Valore Titoli\n    Valore dei titoli detenuti nel conto dopo l'operazione.\n")
         print("- NAV\n    Net Asset Value dopo l'operazione. Calcolato come Liquidità Attuale + Valore Titoli.\n")
-        print("- Liq. Storica Immessa\n    Liquidità totale immessa nel conto. Tiene conto esclusivamente di depositi e prelievi.\n")
+        print("- Liq. Impegnata\n    Liquidità totale immessa nel conto. Tiene conto esclusivamente di depositi e prelievi.\n\n")
 
     else:
         print("\nPagina 2.\nQuesta pagina fornisce informazioni sugli strumenti statistici usati nell'analisi di portafoglio.\n")
+
+        print("- Tipologie di rendimento")
+        print("    XIRR (Extended Internal Rate of Return).")
+        print("\tL'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante")
+        print("\tutilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.")
+        print("\tUtile a misurare il proprio rendimento personale, tenendo conto delle scelte di investimento e disinvestimento.")
+        
+        print("    TWRR (Time-Weighted Rate of Return).")
+        print("\tSi concentra sul rendimento degli asset e non sul rendimento effettivo dell'investitore (in pratica, escludendo i flussi di cassa).")
+        print("\tIl calcolo si basa sulla media geometrica dei rendimenti di tutti i sottoperiodi in cui è suddiviso l'investimento (es. giornaliero, mensile).")
+        print("\tUtile nel confronto di performance con benchmark/indici o nella misurazione di statistiche, quali lo Sharpe Ratio.\n")
+        
+        print("- Volatilità\n    Deviazione standard dei rendimenti per un determinato periodo di tempo.\n")
+        print("- Sharpe Ratio\n    Misura la performance di un investimento confrontato con un asset 'risk-free' (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).")
+        print("    Si calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata excess returns, diviso la deviazione standard degli excess returns.\n")
 
         print("- Correlazione semplice\n    Misura, tramite un coefficiente compreso tra -1 ed 1, quanto due asset siano correlati tra loro in un dato momento.")
         print("    +1: i due asset sono positivamente correlati: all'aumentare del primo, aumenta il secondo (e viceversa).")
@@ -155,7 +167,8 @@ def display_information(page):
         print("- Correlazione scorrevole (rolling)\n    È calcolata in maniera analoga alla prima, ma lungo un intervallo di tempo prestabilito (es. 5 anni); inoltre, viene applicata")
         print("    una media mobile con intervallo specificato (in giorni). Offre una misura di cambiamento della correlazione tra due asset nel tempo.\n")
         print("- Drawdown\n    Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\n    Il Maximum Drawdown, in particolare, riporta la differenza maggiore.\n")
-        print("- Value at Risk (VaR)\n    The maximum expected loss over a specified time horizon at a given confidence level, under normal market conditions.")
+        print("- Value at Risk (VaR)\n    Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.\n\n")
+
 
     input("Premi Invio per tornare al Menu Principale...")
 

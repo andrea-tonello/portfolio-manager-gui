@@ -319,18 +319,18 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             portfolio_history_df["Cash Flow"] = portfolio_history_df["Liquidita Impegnata"].diff()
 
             previous_nav = portfolio_history_df['NAV'].shift(1)
-            portfolio_history_df["TWR Giornalieri"] = (
+            portfolio_history_df["TWRR Giornaliero"] = (
                 portfolio_history_df['NAV'] - previous_nav - portfolio_history_df['Cash Flow']
             ) / previous_nav
 
             portfolio_history_df = portfolio_history_df.iloc[1:]
-            portfolio_history_df["TWR Cumulativi"] = (1 + portfolio_history_df["TWR Giornalieri"]).cumprod() - 1
+            portfolio_history_df["TWRR Cumulativo"] = (1 + portfolio_history_df["TWRR Giornaliero"]).cumprod() - 1
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
             print("\nImpossibile creare il DataFrame finale perché l'indice di 'prices_df' è vuoto.")
             # Crea un dataframe vuoto con le colonne corrette
-            final_columns_complete = ["Date"] + total_tickers + ['Liquidita', "Liquidita Impegnata", 'Valore Titoli', 'NAV', "TWR Giornalieri", "TWR Cumulativi"]
+            final_columns_complete = ["Date"] + total_tickers + ['Liquidita', "Liquidita Impegnata", 'Valore Titoli', 'NAV', "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
         

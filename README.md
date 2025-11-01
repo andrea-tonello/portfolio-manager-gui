@@ -8,9 +8,9 @@
   - [x] Crea i defaults se non presenti
 - [x] Usa yfinance per exchange rates
 - [x] Sistema il check delle modifiche
-- [ ] Sezione "Informazioni" (README):
+- [x] Sezione "Informazioni" (README):
   - [x] Descrizione colonne
-  - [ ] Descrizione statistiche/altro
+  - [x] Descrizione statistiche/altro
 - [x] Analisi portafoglio: (README)
   - [x] Statistiche separate tra conti + totale
   - [x] Utile / Rendimento

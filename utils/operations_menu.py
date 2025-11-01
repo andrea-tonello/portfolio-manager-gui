@@ -206,18 +206,18 @@ def summary(df, brokers, data, save_folder):
     pf_history = portfolio_history(min_date, ref_date, data)
     trading_days = 252
 
-    days_twr = len(pf_history)
-    twr_total = pf_history["TWR Cumulativi"].iloc[-1]
-    twr_ann = (1 + twr_total)**(trading_days / days_twr) - 1
+    days_twrr = len(pf_history)
+    twrr_total = pf_history["TWRR Cumulativo"].iloc[-1]
+    twrr_ann = (1 + twrr_total)**(trading_days / days_twrr) - 1
 
-# Sharpe ratio (with TWR) ====================================================
+# Sharpe ratio (with TWRR) ====================================================
     risk_free_rate = 0.02
     risk_free_daily = (1 + risk_free_rate)**(1/trading_days) - 1          # Convert annual risk-free rate to daily
-    excess_returns = pf_history["TWR Giornalieri"] - risk_free_daily
+    excess_returns = pf_history["TWRR Giornaliero"] - risk_free_daily
     sharpe_ratio = np.sqrt(trading_days) * (excess_returns.mean() / excess_returns.std())
 
     # Note: this is the volatility of the returns. The denominator of the sharpe ratio is instead the volatility of excess return (i.e. returns - risk free rate)
-    volatility = pf_history["TWR Giornalieri"].std() * np.sqrt(trading_days)    
+    volatility = pf_history["TWRR Giornaliero"].std() * np.sqrt(trading_days)    
 
 # Display results ============================================================
     pf_history = pf_history.dropna()
@@ -230,8 +230,8 @@ def summary(df, brokers, data, save_folder):
     print(f"    Rendimento")
     print(f"\t- XIRR totale: {xirr_total_full:.2%}")
     print(f"\t- XIRR annualizzato: {xirr_total_ann:.2%}")
-    print(f"\t- TWR totale: {twr_total:.2%}")
-    print(f"\t- TWR annualizzato: {twr_ann:.2%}\n")
+    print(f"\t- TWRR totale: {twrr_total:.2%}")
+    print(f"\t- TWRR annualizzato: {twrr_ann:.2%}\n")
     print(f"    Volatilità annualizzata: {volatility:.2%}")
     print(f"    Sharpe Ratio: {sharpe_ratio:.2f}\n")
 
