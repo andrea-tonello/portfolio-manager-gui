@@ -110,16 +110,16 @@ if __name__ == "__main__":
                         raise ValueError
                 except:
                     wrong_input()
-                print()            
-
-                dt = get_date(df)
+                
+                print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')            
+                dt, ref_date = get_date(df)
 
                 if operation == 1:
-                    df = mop.cashop(df, dt, brokers[acc_idx])
+                    df = mop.cashop(df, dt, ref_date, brokers[acc_idx])
                 elif operation == 2:
-                    df = mop.dividend(df, dt, brokers[acc_idx])
+                    df = mop.dividend(df, dt, ref_date, brokers[acc_idx])
                 else:
-                    df = mop.charge(df, dt, brokers[acc_idx])
+                    df = mop.charge(df, dt, ref_date, brokers[acc_idx])
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '2':
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 print()            
 
                 if operation == 1:
-                    mop.summary(df, brokers, accounts_formatted, save_folder)
+                    mop.summary(brokers, accounts_formatted, save_folder)
                 elif operation == 2:
                     mop.correlation(df, accounts_formatted)
                 elif operation == 3:

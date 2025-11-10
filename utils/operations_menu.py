@@ -17,38 +17,38 @@ from utils.other_utils import round_half_up, wrong_input, xirr
 
 
 # 1 - LIQUIDITÀ
-def cashop(df, dt, broker):
-    cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo) > "))
+def cashop(df, dt, ref_date, broker):
+    cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo)\n    > "))
     if cash == 0:
         raise ValueError("Il contante inserito non può essere 0€.\nPositivo se depositato, negativo se prelevato.")
     op_type = "Deposito" if cash > 0 else "Prelievo"
 
-    df = newrow_cash(df, dt, broker, cash, op_type, "Contanti", np.nan, np.nan)
+    df = newrow_cash(df, dt, ref_date, broker, cash, op_type, "Contanti", np.nan, np.nan)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
     return df
 
-def dividend(df, dt, broker):
-    cash = float(input("  - Dividendo in EUR al netto di tasse > "))
+def dividend(df, dt, ref_date, broker):
+    cash = float(input("  - Dividendo in EUR al netto di tasse\n    > "))
     if cash <= 0.0:
         raise ValueError("Il dividendo non può essere <= 0€")
-    ticker = input("  - Ticker completo dell'emittente dividendo > ")
+    ticker = input("  - Ticker completo dell'emittente dividendo\n    > ")
     name = fetch_name(ticker)
 
-    df = newrow_cash(df, dt, broker, cash, "Dividendo", "Dividendo", ticker, name)
+    df = newrow_cash(df, dt, ref_date, broker, cash, "Dividendo", "Dividendo", ticker, name)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
     return df
 
-def charge(df, dt, broker):
-    cash = float(input("  - Ammontare imposta in EUR > "))
+def charge(df, dt, ref_date, broker):
+    cash = float(input("  - Ammontare imposta in EUR\n    > "))
     if cash <= 0.0:
-        raise ValueError("L'imposta è da intendersi > 0.")
-    descr = str(input('  - Descrizione imposta (es. "Bollo Q2 2025") > '))
+        raise ValueError("L'imposta è da intendersi > 0€.")
+    descr = str(input('  - Descrizione imposta (es. "Bollo Q2 2025")\n    > '))
 
-    df = newrow_cash(df, dt, broker, -cash, "Imposta", descr, np.nan, np.nan)
+    df = newrow_cash(df, dt, ref_date, broker, -cash, "Imposta", descr, np.nan, np.nan)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
@@ -59,7 +59,8 @@ def charge(df, dt, broker):
 # 2,3 - ETF, STOCK
 def etf_stock(df, broker, choice="ETF"):
     
-    dt = get_date(df)
+    print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')
+    dt, ref_date = get_date(df)
 
     print("  - Valuta\n\t1. EUR\n\t2. USD")
     currency = input("    > ")
@@ -72,33 +73,35 @@ def etf_stock(df, broker, choice="ETF"):
     
     conv_rate = 1.0
     if currency == 2:
-        conv_rate = float(input("  - Tasso di conversione EUR-USD > "))
+        conv_rate = float(input("  - Tasso di conversione EUR-USD\n    > "))
     conv_rate = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
-    ticker = input("  - Ticker completo (standard Yahoo Finance) > ")
+    ticker = input("  - Ticker completo (standard Yahoo Finance)\n    > ")
 
-    qt = input("  - Quantità (intero positivo) > ")
+    qt = input("  - Quantità (intero positivo)\n    > ")
     if not (qt.isdigit() and int(qt) > 0):
         raise ValueError("Quantità non valida. Deve essere un intero positivo.")
     else:
         quantity = int(qt)
 
-    price = float(input("  - Prezzo unitario (negativo se acquisto) > "))
+    price = float(input("  - Prezzo unitario (negativo se acquisto)\n    > "))
     if price == 0:
         raise ValueError("Il prezzo non può essere 0€.\nNegativo se acquisto, positivo se vendita.")
 
-    print("  - Valuta commissione")
-    print("    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.")
-    print("\t1. EUR\n\t2. USD")
-    currency_fee = input("    > ")
-    try:
-        currency_fee = int(currency_fee)
-        if currency_fee not in [1, 2]:
-            raise ValueError
-    except ValueError:
-        wrong_input()
+    currency_fee = 1
+    if currency == 2:
+        print("  - Valuta commissione")
+        print("    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.")
+        print("\t1. EUR\n\t2. USD")
+        currency_fee = input("    > ")
+        try:
+            currency_fee = int(currency_fee)
+            if currency_fee not in [1, 2]:
+                raise ValueError
+        except ValueError:
+            wrong_input()
 
-    fee = float(input("  - Commissione > "))
+    fee = float(input("  - Commissione\n    > "))
     if currency_fee == 2:
         fee = round_half_up(fee / conv_rate, decimal="0.000001")
 
@@ -106,10 +109,10 @@ def etf_stock(df, broker, choice="ETF"):
     
     ter = np.nan
     if choice == "ETF":
-        ter = input("  - Total Expense Ratio > ")
+        ter = input("  - Total Expense Ratio\n    > ")
         ter += "%"
 
-    df = newrow_etf_stock(df, dt, broker, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, fee, buy)
+    df = newrow_etf_stock(df, dt, ref_date, broker, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, fee, buy)
     print()
     print(df.tail(10))
     input("\nPremi Invio per continuare...")
@@ -119,10 +122,10 @@ def etf_stock(df, broker, choice="ETF"):
 
 # 6 - ANALISI PORTAFOGLIO
 #    6.1 - Resoconto
-def summary(df, brokers, data, save_folder):
+def summary(brokers, data, save_folder):
 
-    dt = get_date(df, sequential_only=False)
-    ref_date= datetime.strptime(dt, "%d-%m-%Y")
+    print('\n  - Data di interesse GG-MM-AAAA ("t" per data odierna)')
+    dt, ref_date = get_date()
 
     total_current_liq = []
     total_asset_value = []
@@ -257,14 +260,13 @@ def summary(df, brokers, data, save_folder):
     input("\nPremi Invio per continuare...")
 
 #    6.2 - Correlazione
-def correlation(df, data):
+def correlation(data):
 
-    print("  Data inizio analisi:")
-    start_dt = get_date(df, sequential_only=False)
-    start_ref_date = datetime.strptime(start_dt, "%d-%m-%Y")
-    print("  Data fine analisi:")
-    end_dt = get_date(df, sequential_only=False)
-    end_ref_date = datetime.strptime(end_dt, "%d-%m-%Y")
+    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi\n  Formato: GG-MM-AAAA, "t" per data odierna')
+    print("  - Data inizio analisi:")
+    start_dt, start_ref_date = get_date()
+    print("  - Data fine analisi:")
+    end_dt, end_ref_date = get_date()
 
     _, active_tickers = get_tickers(data)
     active_tickers = [t[0] for t in active_tickers]
@@ -312,14 +314,13 @@ def correlation(df, data):
     input("\nPremi Invio per continuare...")
 
 #    6.3 - Drawdown
-def drawdown(df, data):
+def drawdown(data):
 
-    print("  Data inizio analisi:")
-    start_dt = get_date(df, sequential_only=False)
-    start_ref_date = datetime.strptime(start_dt, "%d-%m-%Y")
-    print("  Data fine analisi:")
-    end_dt = get_date(df, sequential_only=False)
-    end_ref_date = datetime.strptime(end_dt, "%d-%m-%Y")
+    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi\n  Formato: GG-MM-AAAA, "t" per data odierna')
+    print("  - Data inizio analisi:")
+    start_dt, start_ref_date = get_date()
+    print("  - Data fine analisi:")
+    end_dt, end_ref_date = get_date()
 
     pf_history = portfolio_history(start_ref_date, end_ref_date, data)
     pf_history = pf_history.dropna()
@@ -344,13 +345,13 @@ def drawdown(df, data):
     input("\nPremi Invio per continuare...")
 
 
-def var_mc(df, data):
+def var_mc(data):
 
     # SEE IF YOU CAN OPTIMIZE ACTIVE POSITION FETCHING LOGIC
     
     start_ref_date = "2010-01-01"
-    confidence_interval = float(input("  - Intervallo di Confidenza (es. 0.99) > "))    # type check
-    projected_days = int(input("  - Numero di giorni interessati > "))    # type check, maybe < n
+    confidence_interval = float(input("  - Intervallo di Confidenza (es. 0.99)\n    > "))    # type check
+    projected_days = int(input("  - Numero di giorni interessati\n    > "))    # type check, maybe < n
     end_dt = datetime.now()
 
     _, total_tickers = get_tickers(data)
@@ -402,7 +403,6 @@ def var_mc(df, data):
 
     # strong assumption: expected returns are based on historical data
     def expected_return(tickers, log_returns, weights):
-
         means = []
         for ticker, weight in zip(tickers, weights):
             ticker_df = log_returns[ticker].copy()

@@ -2,25 +2,26 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 
-def get_date(df, sequential_only=True):
+def get_date(df=None):
+    
     try:
-        dt = input('  - Data operazione GG-MM-AAAA ("t" per data odierna) > ')
+        dt = input('    > ')
         td = date.today()
 
         if dt in ["t", "T"]:
             dt = td.strftime("%d-%m-%Y")
 
-        lastdt = df["Data"].iloc[-1]
-        num_date = datetime.strptime(dt, "%d-%m-%Y")
-        num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
-
-        if num_date.date() > td:
+        ref_date = datetime.strptime(dt, "%d-%m-%Y")
+        if ref_date.date() > td:
             raise ValueError("Impossibile inserire date future.")
 
-        if sequential_only and num_date < num_lastdt:
-            raise ValueError("La data inserita è precedente all'ultima registrata")
+        if df is not None and not df.empty:
+            lastdt = df["Data"].iloc[-1]
+            num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
+            if ref_date < num_lastdt:
+                raise ValueError("La data inserita è precedente all'ultima registrata")
         
-        return dt
+        return dt, ref_date
     
     except ValueError as e:
         print("\nERRORE NELLA DATA:")

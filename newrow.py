@@ -7,7 +7,7 @@ from utils.other_utils import round_half_up
 from utils.fetch_utils import fetch_name
 
 
-def newrow_cash(df, date, broker, cash, op_type, product, ticker, name):
+def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name):
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
@@ -16,8 +16,7 @@ def newrow_cash(df, date, broker, cash, op_type, product, ticker, name):
     else:
         historic_liq = float(df["Liq. Storica Immessa"].iloc[-1])
 
-    yahoo_date = datetime.strptime(date, "%d-%m-%Y")
-    positions = aop.get_asset_value(df, ref_date=yahoo_date)
+    positions = aop.get_asset_value(df, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions)
 
     new_row = pd.DataFrame({
@@ -58,7 +57,7 @@ def newrow_cash(df, date, broker, cash, op_type, product, ticker, name):
     return df
 
 
-def newrow_etf_stock(df, date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
+def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -68,10 +67,9 @@ def newrow_etf_stock(df, date, broker, currency, product, ticker, quantity, pric
     asset_rows = asset_rows[asset_rows["Operazione"].isin(["Acquisto", "Vendita"])]     # non passare righe con dividendi
 
     if buy:
-        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
-
+        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
     else:
-        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date, product, ticker)
+        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
 
     price_eur = price / conv_rate
 

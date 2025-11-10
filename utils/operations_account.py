@@ -424,9 +424,8 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
     return positions
 
 
-def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product, ticker):
+def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
     
-    date = datetime.strptime(date_str, "%d-%m-%Y")
     price_raw = price / conv_rate
     price_abs = abs(price) / conv_rate
 
@@ -451,7 +450,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product
 
     importo_residuo = pmpc * current_qt
 
-    fiscal_credit_iniziale = compute_backpack(df, date, as_of_index=len(df))
+    fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
     fiscal_credit_aggiornato = fiscal_credit_iniziale
 
     # Minusvalenze da commissione ETF
@@ -460,13 +459,11 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product
 
     if product == "ETF":
         minusvalenza_comm = fee
-        end_date = add_solar_years(date)
+        end_date = add_solar_years(ref_date)
         fiscal_credit_aggiornato += minusvalenza_comm
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + round_half_up(round_half_up(quantity * price) / conv_rate) - fee
-
-    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
-    positions = get_asset_value(df, current_ticker=ticker, ref_date=yahoo_date)
+    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
     
     return {
@@ -548,12 +545,10 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, product, ticker, tax_rate=0.26):
+def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
     
     if asset_rows.empty:
         raise ValueError("Nessun titolo da vendere: portafoglio vuoto")
-    
-    date = datetime.strptime(date_str, "%d-%m-%Y")
     
     fee = round_half_up(fee)
     last_pmpc = asset_rows["PMC"].iloc[-1]
@@ -567,7 +562,7 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, produc
     
     plusvalenza_lorda = importo_effettivo - costo_rilasciato        
     
-    fiscal_credit_iniziale = compute_backpack(df, date, as_of_index=len(df))
+    fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
     fiscal_credit_aggiornato = fiscal_credit_iniziale
     plusvalenza_imponibile = 0
     minusvalenza_generata = 0
@@ -590,7 +585,7 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, produc
         
         minusvalenza_generata = abs(plusvalenza_lorda)
         fiscal_credit_aggiornato += minusvalenza_generata
-        end_date = add_solar_years(date)
+        end_date = add_solar_years(ref_date)
 
     plusvalenza_netta = plusvalenza_lorda - imposta
 
@@ -602,14 +597,11 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, date_str, produc
     if product == "ETF":
         minusvalenza_comm = fee
         fiscal_credit_aggiornato += minusvalenza_comm
-        end_date = add_solar_years(date)
+        end_date = add_solar_years(ref_date)
         minusvalenza_generata += minusvalenza_comm
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
-
-    yahoo_date = datetime.strptime(date_str, "%d-%m-%Y")
-    positions = get_asset_value(df, current_ticker=ticker, ref_date=yahoo_date)
-
+    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price)
 
     return {
