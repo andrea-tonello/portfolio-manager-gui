@@ -34,7 +34,7 @@ def main_menu(file, account_name, len_df, len_df_init, edited_flag):
         print("Nessuna modifica eseguita.")
     
     print("\n> Seleziona operazione.\n")
-    print("    a. Cambia conto\n")
+    print("    c. Cambia conto\n")
     print("    1. Liquidità")
     print("    2. ETF")
     print("    3. Azioni")
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             print("\n" + "="*55)
             choice = input("\n> ")
 
-            if choice in ('a', 'A'):
+            if choice in ('c', 'C'):
                 account = aop.load_account(brokers, save_folder, REP_DEF)
                 df = account[0]["df"] 
                 len_df_init = account[0]["len_df_init"]
@@ -166,11 +166,11 @@ if __name__ == "__main__":
                 if operation == 1:
                     mop.summary(brokers, accounts_formatted, save_folder)
                 elif operation == 2:
-                    mop.correlation(df, accounts_formatted)
+                    mop.correlation(accounts_formatted)
                 elif operation == 3:
-                    mop.drawdown(df, accounts_formatted)
+                    mop.drawdown(accounts_formatted)
                 else:
-                    mop.var_mc(df, accounts_formatted)
+                    mop.var_mc(accounts_formatted)
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '7':

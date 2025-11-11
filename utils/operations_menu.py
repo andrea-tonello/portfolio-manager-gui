@@ -262,7 +262,7 @@ def summary(brokers, data, save_folder):
 #    6.2 - Correlazione
 def correlation(data):
 
-    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi\n  Formato: GG-MM-AAAA, "t" per data odierna')
+    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna')
     print("  - Data inizio analisi:")
     start_dt, start_ref_date = get_date()
     print("  - Data fine analisi:")
@@ -316,7 +316,7 @@ def correlation(data):
 #    6.3 - Drawdown
 def drawdown(data):
 
-    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi\n  Formato: GG-MM-AAAA, "t" per data odierna')
+    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna')
     print("  - Data inizio analisi:")
     start_dt, start_ref_date = get_date()
     print("  - Data fine analisi:")

@@ -1,96 +1,73 @@
-# Rendicontazione Portafoglio Finanziario
-### TODO
-- [x] Obbligo fee manuale
-- [x] Gestione conti (README):
-  - [x] Selezione degli intermediari
-  - [x] brokers.json in cartella config (tenerla "dentro" su pyinstaller)
-  - [x] Separazione degli intermediari
-  - [x] Crea i defaults se non presenti
-- [x] Usa yfinance per exchange rates
-- [x] Sistema il check delle modifiche
-- [x] Sezione "Informazioni" (README):
-  - [x] Descrizione colonne
-  - [x] Descrizione statistiche/altro
-- [x] Analisi portafoglio: (README)
-  - [x] Statistiche separate tra conti + totale
-  - [x] Utile / Rendimento
-  - [x] Correlazione 
-  - [x] Drawdown
-  - [x] VaR
-  - [x] Sharpe
-- [ ] Fetch del TER
-- [ ] Casistiche di errore
+# Portfolio Manager
 
-### TODO avanzati
-- [ ] Inserimento non sequenziale (per limitare le chiamate a yfinance, prova a prendere tutto in bulk e poi calcolare riga per riga)
+Questo progetto è un software pensato per la **gestione ed analisi di portafogli finanziari** (azionario ed ETF), per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
-Questo progetto è uno script/software per la **rendicontazione di portafogli finanziari** (azionario ed ETF), pensato per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
+Sono inoltre disponibili numerosi strumenti di analisi di rischio: VaR con metodo Monte Carlo, Sharpe ratio, analisi della correlazione, Drawdown.
 
 ## Funzionalità principali
 
-- **Importazione automatica** delle operazioni da file CSV.
-- **Gestione di operazioni** di acquisto, vendita, deposito e prelievo di liquidità.
-- **Calcolo automatico** di:
-  - Prezzo Medio Ponderato di Carico (PMPC)
+- **Interfaccia testuale** per l'inserimento guidato di nuove operazioni: acquisto, vendita, deposito e prelievo di liquidità, dividendi, imposte
+- **Calcolo** di:
+  - Prezzo Medio Carico
   - Plusvalenze e minusvalenze
-  - Zainetto fiscale (credito fiscale da minusvalenze)
+  - Zainetto fiscale
   - Scadenza delle minusvalenze secondo la normativa italiana
   - NAV, liquidità attuale e storica
-- **Recupero automatico** delle informazioni sugli strumenti tramite ISIN (nome, TER, ecc.).
-- **Interfaccia testuale** per l'inserimento guidato di nuove operazioni.
+- **Salvataggio in tabelle CSV** di transazioni e storico del portafoglio
+- **Tools per analisi di portafoglio**, con statistiche e grafici
 
-## Struttura
 
-- `main.ipynb`: notebook principale per l'esecuzione e l'interazione con il portafoglio.
-- `newrow.py`: funzioni per aggiungere nuove righe/operazioni al portafoglio.
-- `utils.py`: funzioni di utilità per calcoli fiscali, gestione delle date, recupero dati, ecc.
-- `fetch_data.py`: scraping e integrazione con l'API OpenFIGI per recuperare informazioni sugli strumenti tramite ISIN.
+## Utilizzo
+***Primo avvio***
+
+Al primo avvio è richiesto il setup dei propri intermediari. Scegliere gli alias che si preferiscono.
+Ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere aggiunti o rimossi successivamente, 
+ma è da tenere a mente che le modifiche non saranno retroattive (non si possono "rinominare" degli account già salvati; in quel caso, sarà necessario inserire nuovamente tutte le transazioni).
+
+***Utilizzo***
+
+All'avvio del programma verrà sempre richiesto il conto su cui operare. Ad ogni conto è associato un report, ovvero una tabella CSV con le operazioni effettuate. I report sono salvati nella cartella "reports", assieme un report di Template.
+
+Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
+
+0. Cambia conto: ri-seleziona il conto su cui operare
+1. Operazioni su liquidità: Depositi, Prelievi, Dividendi, Imposte varie (es. Imposta di Bollo)
+2. Operazioni su ETF: Acquisto, Vendita
+3. Operazioni su Azioni: Acquisto, Vendita
+4. Operazioni su Obbligazioni: ***non ancora implementate***
+5. Ultimi movimenti: visualizzazione delle ultime dieci righe del report
+6. Analisi portafoglio:
+    - Statistiche generali (NAV, P&L, rendimento, volatilità...)
+    - Analisi correlazione
+    - Analisi Drawdown
+    - VaR
+7. (Re)inizializzazione degli intermediari (come spiegato precedentemente)
+8. Esporta in csv: salva le modifiche eseguite fino a quel momento.
+9. Rimuovi ultima riga del report
+10. Glossario con le descrizioni delle entries dei report e significato delle statistiche
+11. Esci dal programma
+
+Le opzioni di analisi producono grafici da poter salvare su disco. L'opzione 6.1 produce inoltre, nella cartella "reports", uno storico del valore di tutto il portafoglio.
+
+Da qualsiasi schermata, è possibile annullare l'operazione corrente e tornare al Menu Principale con CTRL+C / CMD+C.
+Come già specificato, le modifiche (comprese la rimozione di righe) sono confermate (salvate) solo manualmente con l'opzione apposita.
+
 
 ## Download / Installazione
 #### Download diretto
 1. Su questa pagina, clicca su "Release" e scarica il programma per il tuo sistema operativo in una cartella dedicata.
 #### Installazione manuale
 1. Clona la repository
-2. Installa i pacchetti (Python 3.8+):
-    - [pandas](https://pandas.pydata.org/)
-    - [numpy](https://numpy.org/)
-    - [python-dateutil](https://dateutil.readthedocs.io/)
-    - [yfinance](https://ranaroussi.github.io/yfinance/)
+2. Installa i pacchetti (testato con Python 3.13)
+  - `uv`: esegui semplicemente `uv sync` per creare l'enviroment specificato in `pyproject.toml`
+  - `pip`: in un environment, installa
 ```sh
-pip install pandas numpy python-dateutil yfinance
+pip install pandas numpy python-dateutil yfinance seaborn matplotlib scipy
 ```
-3. Runna `python main.py`
-
-
-## Utilizzo
-All'avvio del programma verrà sempre richiesto se caricare il file di default "report.csv", oppure caricare un report secondario/con un altro nome. ***Si consiglia di usare direttamente questo file se si intende avere solo una tabella unica***.
-
-Nel caso si volesse comunque usare un altro report, magari secondario, bisognerà specificare il nome del file. Il file ***deve essere già presente nella cartella*** "reports" e deve seguire il formato delle colonne di report.csv. A tal proposito, viene
-fornito un file report-template.csv da copia-incollare già pronto.
-
-Al primo avvio è richiesto il setup dei propri intermediari. Scegliere gli alias che si preferiscono.
-Ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere cambiati successivamente, 
-ma è da tenere a mente che le modifiche non saranno retroattive
-(se sul report caricato sono già presenti transazioni su "Fineco 2", rinominarlo in "Fineco Secondario" non aggiornerà i dati già presenti).
-
-Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
-1. Operazioni su liquidità: Depositi, Prelievi, Dividendi, Imposte varie (es. Imposta di Bollo)
-2. Operazioni su ETF: Acquisto, Vendita
-3. Operazioni su Azioni: Acquisto, Vendita
-4. Operazioni su Obbligazioni: ***non ancora implementate***.
-5. Resoconto in data gg-mm-yyyy: ultime dieci righe del report, P&L totale, Liquidità storica del conto; Valore titoli, Net Asset Value e Posizioni al giorno gg-mm-yyyy.
-6. (Re)inizializzazione degli intermediari (come spiegato precedentemente)
-7. Esporta in csv: salva le modifiche eseguite fino a quel momento.
-8. Rimuovi ultima riga del report
-9. Glossario con le descrizioni delle entries dei report
-10. Esci dal programma
-
-Da qualsiasi schermata, è possibile annullare l'operazione corrente e tornare al Menu Principale con CTRL+C / CMD+C.
-Come già specificato, le modifiche (comprese la rimozione di righe) sono confermate (salvate) solo manualmente con l'opzione apposita.
-
+3. Esegui `main.py`
 
 
 ## Note
 
 - Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria.
-- La logica fiscale implementata segue la normativa italiana vigente al 2024, ma si consiglia di verificare sempre con un consulente.
+- La logica fiscale implementata segue la normativa italiana vigente al 2025, ma si consiglia di verificare sempre con un consulente.
