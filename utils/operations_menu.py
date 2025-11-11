@@ -148,7 +148,7 @@ def summary(brokers, data, save_folder):
         current_liq = round_half_up(float(df_valid.iloc[-1]["Liquidita Attuale"]))
         asset_value = round_half_up(sum(pos["value"] for pos in positions))
         nav = round_half_up(current_liq + asset_value)
-        historic_liq = df_valid["Liq. Storica Immessa"].iloc[-1]
+        historic_liq = df_valid["Liq. Impegnata"].iloc[-1]
         pl = df_valid["P&L"].sum()
         pl_unrealized = pl + sum([pos["value"] - pos["pmc"] * pos["quantity"] for pos in positions])
 
@@ -238,11 +238,6 @@ def summary(brokers, data, save_folder):
     print(f"    Volatilità annualizzata: {volatility:.2%}")
     print(f"    Sharpe Ratio: {sharpe_ratio:.2f}\n")
 
-    filename = "Storico Portafoglio.csv"
-    save_path = os.path.join(save_folder, filename)
-    pf_history.to_csv(save_path)
-    print(f"\nEsportato {filename} in {save_path}\n")
-
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.plot(pf_history["Date"], pf_history["NAV"], label="Valore portafoglio", color="blue", linestyle="-")
     ax.plot(pf_history["Date"], pf_history["Valore Titoli"], label='Valore titoli', color='red', linestyle='--')
@@ -257,6 +252,13 @@ def summary(brokers, data, save_folder):
     fig.tight_layout()
     fig.canvas.manager.set_window_title(f"Valore Portafoglio | Dal: {min_date.strftime("%d-%m-%Y")} | Al: {dt}")
     plt.show()
+
+    filename = "Storico Portafoglio.csv"
+    save_path = os.path.join(save_folder, filename)
+    pf_history = pf_history.set_index("Date")
+    pf_history.to_csv(save_path, date_format='%Y-%m-%d')
+    print(f"\nEsportato {filename} in {save_path}\n")
+
     input("\nPremi Invio per continuare...")
 
 #    6.2 - Correlazione

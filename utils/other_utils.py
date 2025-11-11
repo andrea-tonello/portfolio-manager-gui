@@ -93,7 +93,7 @@ def create_defaults(save_folder, broker_name):
         "Liquidita Attuale": [0],
         "Valore Titoli": [0],
         "NAV": [0.0],
-        "Liq. Storica Immessa": [0.0]
+        "Liq. Impegnata": [0.0]
     })
 
     # if the reports folder is missing entirely OR 

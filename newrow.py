@@ -12,9 +12,9 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
     if op_type in ["Deposito", "Prelievo"]:
-        historic_liq = float(df["Liq. Storica Immessa"].iloc[-1]) + cash
+        historic_liq = float(df["Liq. Impegnata"].iloc[-1]) + cash
     else:
-        historic_liq = float(df["Liq. Storica Immessa"].iloc[-1])
+        historic_liq = float(df["Liq. Impegnata"].iloc[-1])
 
     positions = aop.get_asset_value(df, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions)
@@ -49,7 +49,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
         "Liquidita Attuale": [round_half_up(current_liq)],
         "Valore Titoli": [round_half_up(asset_value)],
         "NAV": [round_half_up(asset_value + current_liq)],
-        "Liq. Storica Immessa": [ round_half_up(historic_liq) ]
+        "Liq. Impegnata": [ round_half_up(historic_liq) ]
     })
 
     df = pd.concat([df, new_row], ignore_index=True)
@@ -103,7 +103,7 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
         "Liquidita Attuale": [round_half_up(results["Liquidita Attuale"])],
         "Valore Titoli": [round_half_up(results["Valore Titoli"])],
         "NAV": [round_half_up(results["NAV"])],
-        "Liq. Storica Immessa": [ round_half_up(float(df["Liq. Storica Immessa"].iloc[-1]))],
+        "Liq. Impegnata": [ round_half_up(float(df["Liq. Impegnata"].iloc[-1]))],
     })
 
     df = pd.concat([df, new_row], ignore_index=True)

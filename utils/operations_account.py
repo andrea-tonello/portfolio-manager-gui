@@ -139,7 +139,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
     for account in data:
         df_copy = account[1].copy()
         df_copy["Data"] = pd.to_datetime(df_copy["Data"], dayfirst=True, errors="coerce")
-        df_copy = df_copy[["Data", "Conto", "Ticker", "Valuta", "QT. Attuale", "Liquidita Attuale", "Liq. Storica Immessa"]]
+        df_copy = df_copy[["Data", "Conto", "Ticker", "Valuta", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"]]
         all_dfs.append(df_copy)
 
 # 1)
@@ -158,7 +158,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
 
         final_df[col_name] = final_df.where(final_df["Conto"] == acc)["Liquidita Attuale"]
         final_df[col_name] = final_df[col_name].ffill()
-        final_df[col_name_hist] = final_df.where(final_df["Conto"] == acc)["Liq. Storica Immessa"]
+        final_df[col_name_hist] = final_df.where(final_df["Conto"] == acc)["Liq. Impegnata"]
         final_df[col_name_hist] = final_df[col_name_hist].ffill()
 
         liq_cols.append(col_name)
@@ -167,7 +167,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
     final_df[liq_cols] = final_df[liq_cols].fillna(0)
     final_df['Liquidita Totale'] = final_df[liq_cols].sum(axis=1)
     final_df[liq_hist_cols] = final_df[liq_hist_cols].fillna(0)
-    final_df['Liq. Immessa Totale'] = final_df[liq_hist_cols].sum(axis=1)
+    final_df['Liq. Impegnata Totale'] = final_df[liq_hist_cols].sum(axis=1)
     final_df = final_df.drop(columns=liq_cols+liq_hist_cols)
 
   # 1.2) Total quantities (assets) across accounts
@@ -199,7 +199,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
         final_df.loc[ticker_rows_mask, 'QT. Totale'] = final_df[cols_to_sum].sum(axis=1)
     final_df = final_df.drop(columns=state_cols)
 
-    final_df = final_df.drop(columns=["Conto", "QT. Attuale", "Liquidita Attuale", "Liq. Storica Immessa"])
+    final_df = final_df.drop(columns=["Conto", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"])
     final_df.to_csv("/home/atonello/Downloads/final_df.csv")
 
 # 2)
@@ -250,10 +250,10 @@ def portfolio_history(start_ref_date, end_ref_date, data):
         liquidity_sparse = liquidity_sparse.set_index('Data')[['Liquidita Totale']]
         liquidity_sparse = liquidity_sparse.rename(columns={'Liquidita Totale': 'Liquidita'})
 
-        immessa_sparse = portfolio_data.dropna(subset=['Liq. Immessa Totale'])
+        immessa_sparse = portfolio_data.dropna(subset=['Liq. Impegnata Totale'])
         immessa_sparse = immessa_sparse.drop_duplicates(subset=['Data'], keep='last')
-        immessa_sparse = immessa_sparse.set_index('Data')[['Liq. Immessa Totale']]
-        immessa_sparse = immessa_sparse.rename(columns={'Liq. Immessa Totale': 'Liquidita Impegnata'})
+        immessa_sparse = immessa_sparse.set_index('Data')[['Liq. Impegnata Totale']]
+        immessa_sparse = immessa_sparse.rename(columns={'Liq. Impegnata Totale': 'Liquidita Impegnata'})
 
         # Isola i dati delle quantità dei ticker
         quantities_sparse = portfolio_data.dropna(subset=['Ticker', 'QT. Totale'])
@@ -330,7 +330,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
         else:
             print("\nImpossibile creare il DataFrame finale perché l'indice di 'prices_df' è vuoto.")
             # Crea un dataframe vuoto con le colonne corrette
-            final_columns_complete = ["Date"] + total_tickers + ['Liquidita', "Liquidita Impegnata", 'Valore Titoli', 'NAV', "TWRR Giornaliero", "TWRR Cumulativo"]
+            final_columns_complete = ["Date"] + total_tickers + ["Liquidita", "Liquidita Impegnata", "Valore Titoli", "NAV", "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
         
