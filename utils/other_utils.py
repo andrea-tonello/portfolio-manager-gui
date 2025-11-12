@@ -164,11 +164,11 @@ def display_information(page):
         print("    +1: i due asset sono positivamente correlati: all'aumentare del primo, aumenta il secondo (e viceversa).")
         print("     0: i due asset sono perfettamente decorrelati: il cambiamento del primo non influisce in alcun modo sul secondo (e viceversa).")
         print("    -1: i due asset sono negativamente correlati: all'aumentare del primo, diminuisce il secondo (e viceversa).\n")
-        print("- Correlazione scorrevole (rolling)\n    È calcolata in maniera analoga alla prima, ma lungo un intervallo di tempo prestabilito (es. 5 anni); inoltre, viene applicata")
+        print("- Correlazione scorrevole (rolling)\n    È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni); inoltre, viene applicata")
         print("    una media mobile con intervallo specificato (in giorni). Offre una misura di cambiamento della correlazione tra due asset nel tempo.\n")
         print("- Drawdown\n    Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\n    Il Maximum Drawdown, in particolare, riporta la differenza maggiore.\n")
-        print("- Value at Risk (VaR)\n    Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.\n\n")
-
+        print("- Value at Risk (VaR)\n    Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.")
+        print("    L'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni.\n\n")
 
     input("Premi Invio per tornare al Menu Principale...")
 

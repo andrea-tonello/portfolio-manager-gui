@@ -1,4 +1,5 @@
 import time
+import sys
 
 # these imports take ~0.20 seconds
 import numpy as np
@@ -225,7 +226,7 @@ if __name__ == "__main__":
 
             elif choice in ('q', 'Q'):
                 os.system("cls" if os.name == "nt" else "clear")
-                exit("\nEsco dal programma...\n")
+                sys.exit("\nEsco dal programma...\n")
             
             else:
                 os.system("cls" if os.name == "nt" else "clear")
