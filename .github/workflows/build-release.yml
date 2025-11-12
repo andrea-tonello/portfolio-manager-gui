@@ -21,12 +21,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install uv pyinstaller
+          pip install uv
           uv sync
+          uv pip install pyinstaller
 
-      - name: Run PyInstaller (with dependency collection)
+      - name: Run PyInstaller (from within uv env)
         run: |
-          pyinstaller --onefile --name portfolio-manager \
+          uv run pyinstaller --onefile --name portfolio-manager \
             --add-data "utils:utils" \
             --add-data "newrow.py:." \
             --collect-all numpy \
@@ -41,6 +42,13 @@ jobs:
             --collect-all platformdirs \
             --collect-all websockets \
             --collect-all soupsieve \
+            --hidden-import numpy \
+            --hidden-import pandas \
+            --hidden-import scipy \
+            --hidden-import seaborn \
+            --hidden-import matplotlib \
+            --hidden-import yfinance \
+            --hidden-import peewee \
             main.py
 
       - name: Archive Linux executable
@@ -70,12 +78,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install uv pyinstaller
+          pip install uv
           uv sync
+          uv pip install pyinstaller
 
-      - name: Run PyInstaller (with dependency collection)
+      - name: Run PyInstaller (from within uv env)
         run: |
-          pyinstaller --onefile --name portfolio-manager `
+          uv run pyinstaller --onefile --name portfolio-manager `
             --add-data "utils:utils" `
             --add-data "newrow.py:." `
             --collect-all numpy `
@@ -90,6 +99,13 @@ jobs:
             --collect-all platformdirs `
             --collect-all websockets `
             --collect-all soupsieve `
+            --hidden-import numpy `
+            --hidden-import pandas `
+            --hidden-import scipy `
+            --hidden-import seaborn `
+            --hidden-import matplotlib `
+            --hidden-import yfinance `
+            --hidden-import peewee `
             main.py
 
       - name: Archive Windows executable
@@ -119,12 +135,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install uv pyinstaller
+          pip install uv
           uv sync
+          uv pip install pyinstaller
 
-      - name: Run PyInstaller (with dependency collection)
+      - name: Run PyInstaller (from within uv env)
         run: |
-          pyinstaller --onefile --name portfolio-manager \
+          uv run pyinstaller --onefile --name portfolio-manager \
             --add-data "utils:utils" \
             --add-data "newrow.py:." \
             --collect-all numpy \
@@ -139,6 +156,13 @@ jobs:
             --collect-all platformdirs \
             --collect-all websockets \
             --collect-all soupsieve \
+            --hidden-import numpy \
+            --hidden-import pandas \
+            --hidden-import scipy \
+            --hidden-import seaborn \
+            --hidden-import matplotlib \
+            --hidden-import yfinance \
+            --hidden-import peewee \
             main.py
 
       - name: Archive macOS executable
@@ -177,3 +201,5 @@ jobs:
           release_name: "Release ${{ github.event.inputs.version }}"
           body: |
             Automated release of portfolio-manager executables.
+
+            **Note:** After downloading and unzipping, you must create a `config` folder in the same directory as the executable. You can copy the `config` folder from the repository.
