@@ -89,5 +89,8 @@ pip install pandas numpy python-dateutil yfinance seaborn matplotlib scipy
 
 ## Note
 
+- Attenzione: attualmente, gli split azionari ***NON*** sono gestiti
+- Attenzione: attualmente, l'inserimento di transazioni è esclusivamente sequenziale
+
 - Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria.
 - La logica fiscale implementata segue la normativa italiana vigente al 2025, ma si consiglia di verificare sempre con un consulente.

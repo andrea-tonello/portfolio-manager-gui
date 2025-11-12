@@ -16,8 +16,9 @@ pd.set_option('display.max_columns', None)
 REP_DEF = "Report "
 user_folder = os.path.join(os.getcwd(), "reports")
 config_folder = os.path.join(os.getcwd(), "config")
+config_res_folder = os.path.join(config_folder, "resources")
 os.makedirs(user_folder, exist_ok=True)
-os.makedirs(config_folder, exist_ok=True)
+os.makedirs(config_res_folder, exist_ok=True)
 
 def main_menu(file, account_name, len_df, len_df_init, edited_flag):
     print("\n=================== MENU PRINCIPALE ===================\n")
@@ -61,11 +62,11 @@ if __name__ == "__main__":
         os.system("cls" if os.name == "nt" else "clear")    
 
     for broker_name in list(brokers.values()):
-        create_defaults(config_folder, broker_name)
+        create_defaults(config_res_folder, broker_name)
     # Convert keys back to ints (json saves everything as str)
     brokers = {int(k): v for k, v in brokers.items()}
 
-    account = aop.load_account(brokers, config_folder, REP_DEF)
+    account = aop.load_account(brokers, config_res_folder, REP_DEF)
     df = account[0]["df"] 
     len_df_init = account[0]["len_df_init"]
     edited_flag = account[0]["edited_flag"] 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     path = account[0]["path"]
     acc_idx = account[0]["acc_idx"]
 
-    all_accounts = aop.load_account(brokers, config_folder, REP_DEF, active_only=False)
+    all_accounts = aop.load_account(brokers, config_res_folder, REP_DEF, active_only=False)
     os.system("cls" if os.name == "nt" else "clear")
 
     while True:
@@ -87,7 +88,7 @@ if __name__ == "__main__":
             choice = input("\n> ")
 
             if choice in ('c', 'C'):
-                account = aop.load_account(brokers, config_folder, REP_DEF)
+                account = aop.load_account(brokers, config_res_folder, REP_DEF)
                 df = account[0]["df"] 
                 len_df_init = account[0]["len_df_init"]
                 edited_flag = account[0]["edited_flag"] 
