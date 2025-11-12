@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
-from scipy.optimize import newton
 
 
 def round_half_up(valore, decimal="0.01"):
@@ -20,34 +19,6 @@ def round_half_up(valore, decimal="0.01"):
 def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
 
-
-def xirr(cash_flows, flows_dates, annualization=365, guess=0.1):
-    """
-    **Given**:
-    - *list* of float `cash_flows`: list of ordered cash flows (deposits (-), withdrawals (+)). The first transaction is the initial investment (-); 
-    the final transaction corresponds to total liquidation (+)
-    - *list* of dates `flows_dates`: list of ordered date objects relative to the cash flows. 
-    - *int* `annualization = 365`: time period of interest; default is 365 since we often want annualized returns
-    - *float* `guess = 0.1`: initial guess for the Newton method
-
-    **Returns**:
-    - *float* `xirr_rate`: XIRR value if convergence is reached, else NaN
-    """
-    days = [(data - flows_dates[0]).days for data in flows_dates]
-    years = np.array(days) / annualization
-
-    # The goal is to find the rate which brings this function (Net Present Value) to 0 using Newton method.
-    def npv_formula(rate):
-        return sum(
-            cf / (1 + rate)**t
-            for cf, t in zip(cash_flows, years)
-        )
-    try:
-        xirr_rate = newton(npv_formula, guess)
-        return xirr_rate
-    except RuntimeError:
-        print("Warning: XIRR convergence wasn't reached.")
-        return np.nan
 
 
 def wrong_input():

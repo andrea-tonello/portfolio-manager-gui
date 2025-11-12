@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-from datetime import datetime
 import yfinance as yf
 import warnings
 
@@ -200,7 +199,6 @@ def portfolio_history(start_ref_date, end_ref_date, data):
     final_df = final_df.drop(columns=state_cols)
 
     final_df = final_df.drop(columns=["Conto", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"])
-    final_df.to_csv("/home/atonello/Downloads/final_df.csv")
 
 # 2)
     try:
@@ -209,7 +207,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
 
         only_tickers = [t[0] for t in total_tickers]
         print("\nScaricamento dei dati storici dei titoli da Yahoo Finance...")
-        prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date)
+        prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date, progress=False)
         exch_df = yf.download("USDEUR=X",start=start_ref_date, end=end_ref_date, progress=False)
         
         if not prices_df_raw.empty:

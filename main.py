@@ -7,11 +7,13 @@ import pandas as pd
 import os
 import json
 
+
+
 # these imports take 0.80-0.83 seconds
 import utils.operations_menu as mop
 import utils.operations_account as aop
 from utils.date_utils import get_date
-from utils.other_utils import wrong_input, create_defaults, display_information
+from utils.other_utils import wrong_input, create_defaults
 
 pd.set_option('display.max_columns', None)
 REP_DEF = "Report "
@@ -150,7 +152,6 @@ if __name__ == "__main__":
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '6':
-
                 os.system("cls" if os.name == "nt" else "clear")
                 print("\n--- ANALISI PORTAFOGLIO ---\n")
                 print("> Seleziona operazione. CTRL+C per tornare al Menu Principale.\n")
@@ -166,13 +167,18 @@ if __name__ == "__main__":
                 print()            
 
                 if operation == 1:
-                    mop.summary(brokers, accounts_formatted, user_folder)
+                    from utils.analysis import summary
+                    hist_save_path = os.path.join(user_folder, "Storico Portafoglio.csv")
+                    summary(brokers, accounts_formatted, hist_save_path)
                 elif operation == 2:
-                    mop.correlation(accounts_formatted)
+                    from utils.analysis import correlation
+                    correlation(accounts_formatted)
                 elif operation == 3:
-                    mop.drawdown(accounts_formatted)
+                    from utils.analysis import drawdown
+                    drawdown(accounts_formatted)
                 else:
-                    mop.var_mc(accounts_formatted)
+                    from utils.analysis import var_mc
+                    var_mc(accounts_formatted)
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '7':
@@ -185,6 +191,7 @@ if __name__ == "__main__":
                 os.system("cls" if os.name == "nt" else "clear")
             
             elif choice in ('i', 'I'):
+                from utils.other_utils import display_information
                 os.system("cls" if os.name == "nt" else "clear")
                 print("--- INFORMAZIONI / GLOSSARIO ---")
                 print("> Seleziona categoria. CTRL+C per tornare al Menu Principale.\n")
