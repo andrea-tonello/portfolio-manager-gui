@@ -5,14 +5,14 @@ import yfinance as yf
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import chain
-from scipy.optimize import newton
 
 from utils.date_utils import get_date, get_pf_date
 from utils.operations_account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
+import utils.newton as newton
 
 
-def xirr(cash_flows, flows_dates, annualization=365, guess=0.1):
+def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2):
     """
     **Given**:
     - *list* of float `cash_flows`: list of ordered cash flows (deposits (-), withdrawals (+)). The first transaction is the initial investment (-); 
@@ -34,7 +34,7 @@ def xirr(cash_flows, flows_dates, annualization=365, guess=0.1):
             for cf, t in zip(cash_flows, years)
         )
     try:
-        xirr_rate = newton(npv_formula, guess)
+        xirr_rate = newton.secant(npv_formula, x0=x0, x1=x1)
         return xirr_rate
     except RuntimeError:
         print("Warning: XIRR convergence wasn't reached.")
