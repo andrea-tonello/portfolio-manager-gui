@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -50,7 +51,7 @@ def load_account(brokers, save_folder, report_default, active_only=True):
             df = pd.read_csv(path)
         except FileNotFoundError:
             print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
-            exit()
+            sys.exit("Esco dal programma...")
 
         len_df_init = len(df)
         edited_flag = False

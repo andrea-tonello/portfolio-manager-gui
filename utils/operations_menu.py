@@ -158,7 +158,7 @@ def add_brokers(config_folder):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(brokers, f, indent=4)
     
-    input("\n    Premi Invio per continuare...")
+    input("\n    Premi Invio per continuare.")
     return brokers
 
 
@@ -184,5 +184,5 @@ def initialize_brokers(config_folder):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(brokers, f, indent=4)
     
-    input("\n    Premi Invio per continuare...")
+    input("\n    Premi Invio per continuare.")
     return brokers

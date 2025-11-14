@@ -201,9 +201,11 @@ if __name__ == "__main__":
 
                     if operation == "1":
                         brokers = mop.add_brokers(config_folder)
+                        sys.exit("\nConti aggiunti. Esco dall'applicazione...\n")                     
                         settings_loop = False
                     elif operation == "2":
                         brokers = mop.initialize_brokers(config_folder)
+                        sys.exit("\nConti inizializzati. Esco dall'applicazione...\n")
                         settings_loop = False
                     elif operation == "3":
                         os.system("cls" if os.name == "nt" else "clear")
@@ -223,11 +225,7 @@ if __name__ == "__main__":
                         else:
                             settings_loop = False
                     else:
-                        input("\nScelta non valida. Premi Invio per riprovare.")    
-                        
-                for broker_name in list(brokers.values()):
-                    create_defaults(config_folder, broker_name)
-                brokers = {int(k): v for k, v in brokers.items()}
+                        input("\nScelta non valida. Premi Invio per riprovare.")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ('i', 'I'):

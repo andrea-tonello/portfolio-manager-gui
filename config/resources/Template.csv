@@ -1,2 +1,2 @@
 Data,Conto,Operazione,Prodotto,Ticker,Nome Asset,TER,Valuta,Tasso di Conv.,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale,PMC,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,P&L,Liquidita Attuale,Valore Titoli,NAV,Liq. Impegnata
-01-01-2000,Directa,,,,,,,,,,,,,,,,,,,,,0.0,,,,0,0,0.0,0.0
+01-01-2000,Template Account,,,,,,,,,,,,,,,,,,,,,0.0,,,,0,0,0.0,0.0
