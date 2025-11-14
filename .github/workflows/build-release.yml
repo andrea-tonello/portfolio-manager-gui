@@ -33,8 +33,6 @@ jobs:
             --collect-all numpy \
             --collect-all pandas \
             --collect-all matplotlib \
-            --collect-all seaborn \
-            --collect-all scipy \
             --collect-all yfinance \
             --collect-all peewee \
             --collect-all frozendict \
@@ -46,8 +44,6 @@ jobs:
             --hidden-import PIL._tkinter_finder \
             --hidden-import numpy \
             --hidden-import pandas \
-            --hidden-import scipy \
-            --hidden-import seaborn \
             --hidden-import matplotlib \
             --hidden-import yfinance \
             --hidden-import peewee \
@@ -92,8 +88,6 @@ jobs:
             --collect-all numpy `
             --collect-all pandas `
             --collect-all matplotlib `
-            --collect-all seaborn `
-            --collect-all scipy `
             --collect-all yfinance `
             --collect-all peewee `
             --collect-all frozendict `
@@ -105,8 +99,6 @@ jobs:
             --hidden-import PIL._tkinter_finder `
             --hidden-import numpy `
             --hidden-import pandas `
-            --hidden-import scipy `
-            --hidden-import seaborn `
             --hidden-import matplotlib `
             --hidden-import yfinance `
             --hidden-import peewee `
@@ -151,8 +143,6 @@ jobs:
             --collect-all numpy \
             --collect-all pandas \
             --collect-all matplotlib \
-            --collect-all seaborn \
-            --collect-all scipy \
             --collect-all yfinance \
             --collect-all peewee \
             --collect-all frozendict \
@@ -164,8 +154,6 @@ jobs:
             --hidden-import PIL._tkinter_finder \
             --hidden-import numpy \
             --hidden-import pandas \
-            --hidden-import scipy \
-            --hidden-import seaborn \
             --hidden-import matplotlib \
             --hidden-import yfinance \
             --hidden-import peewee \

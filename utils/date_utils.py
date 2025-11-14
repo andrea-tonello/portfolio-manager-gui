@@ -42,7 +42,7 @@ def get_pf_date(df_copy, dt, ref_date):
     try:
         first_date = df_valid["Data"][1]
     except KeyError:
-        first_date = df_valid["Data"][0]
+        first_date = None
     return df_valid, first_date
         
 

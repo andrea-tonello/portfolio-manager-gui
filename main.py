@@ -44,11 +44,11 @@ def main_menu(file, account_name, len_df, len_df_init, edited_flag):
     print("    3. Azioni")
     print("    4. Obbligazioni")
     print("    5. Ultimi movimenti")
-    print("    6. Analisi portafoglio")
-    print("    7. Inizializza intermediari\n")
-    print("    s. Esporta in CSV")
+    print("    6. Analisi portafoglio\n")
+    print("    s. Impostazioni applicazione")
+    print("    e. Esporta in CSV")
     print("    r. Rimuovi ultima riga")
-    print("    i. Informazioni/Glossario")
+    print("    i. Informazioni/Glossario\n")
     print("    q. Esci dal programma")
 
 
@@ -69,7 +69,12 @@ if __name__ == "__main__":
     # Convert keys back to ints (json saves everything as str)
     brokers = {int(k): v for k, v in brokers.items()}
 
-    account = aop.load_account(brokers, config_res_folder, REP_DEF)
+    loaded = False
+    while not loaded:
+        account, is_loaded = aop.load_account(brokers, config_res_folder, REP_DEF)
+        loaded = is_loaded
+        os.system("cls" if os.name == "nt" else "clear")
+
     df = account[0]["df"] 
     len_df_init = account[0]["len_df_init"]
     edited_flag = account[0]["edited_flag"] 
@@ -77,7 +82,7 @@ if __name__ == "__main__":
     path = account[0]["path"]
     acc_idx = account[0]["acc_idx"]
 
-    all_accounts = aop.load_account(brokers, config_res_folder, REP_DEF, active_only=False)
+    all_accounts, _ = aop.load_account(brokers, config_res_folder, REP_DEF, active_only=False)
     os.system("cls" if os.name == "nt" else "clear")
 
     while True:
@@ -91,7 +96,11 @@ if __name__ == "__main__":
             choice = input("\n> ")
 
             if choice in ('c', 'C'):
-                account = aop.load_account(brokers, config_res_folder, REP_DEF)
+                loaded = False
+                while not loaded:
+                    account, is_loaded = aop.load_account(brokers, config_res_folder, REP_DEF)
+                    loaded = is_loaded
+                    os.system("cls" if os.name == "nt" else "clear")
                 df = account[0]["df"] 
                 len_df_init = account[0]["len_df_init"]
                 edited_flag = account[0]["edited_flag"] 
@@ -181,19 +190,50 @@ if __name__ == "__main__":
                     var_mc(accounts_formatted)
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice == '7':
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- INIZIALIZZAZIONE INTERMEDIARI ---\n\nCTRL+C per annullare e tornare al Menu Principale.")
-                brokers = mop.initialize_brokers(config_folder)
+            elif choice in ("s", "S"):
+
+                settings_loop = True
+                while settings_loop:
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n--- IMPOSTAZIONI APPLICAZIONE ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
+                    print("    1. Aggiungi conti\n    2. Inizializza conti\n    3. Inizializza applicazione (richiede conferma)")
+                    operation = input("\n> ")
+
+                    if operation == "1":
+                        brokers = mop.add_brokers(config_folder)
+                        settings_loop = False
+                    elif operation == "2":
+                        brokers = mop.initialize_brokers(config_folder)
+                        settings_loop = False
+                    elif operation == "3":
+                        os.system("cls" if os.name == "nt" else "clear")
+                        print("\nQuesta operazione non è reversibile. L'applicazione verrà reimpostata, eliminando tutti i dati salvati.")
+                        confirmation = input("Digitare 'CONFERMA' per procedere. Altri input saranno ignorati.\n\n    > ")
+                        if confirmation == "CONFERMA":
+                            import shutil
+                            try:
+                                if os.path.exists(config_folder):
+                                    shutil.rmtree(config_folder)
+                                if os.path.exists(user_folder):
+                                    shutil.rmtree(user_folder)
+                            except OSError as e:
+                                print(f"Error deleting directory: {e}")
+                            os.system("cls" if os.name == "nt" else "clear")
+                            sys.exit("\nReset completato. Esco dall'applicazione...\n")
+                        else:
+                            settings_loop = False
+                    else:
+                        input("\nScelta non valida. Premi Invio per riprovare.")    
+                        
                 for broker_name in list(brokers.values()):
                     create_defaults(config_folder, broker_name)
                 brokers = {int(k): v for k, v in brokers.items()}
                 os.system("cls" if os.name == "nt" else "clear")
-            
+
             elif choice in ('i', 'I'):
                 from utils.other_utils import display_information
                 os.system("cls" if os.name == "nt" else "clear")
-                print("--- INFORMAZIONI / GLOSSARIO ---")
+                print("--- INFORMAZIONI / GLOSSARIO ---\n")
                 print("> Seleziona categoria. CTRL+C per tornare al Menu Principale.\n")
                 print("    1. Descrizione colonne del report\n    2. Informazioni su metriche/statistiche")
                 accounts_formatted = aop.format_accounts(df, acc_idx, all_accounts)
@@ -212,14 +252,14 @@ if __name__ == "__main__":
                     display_information(page=operation)
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice in ('s', 'S'):
+            elif choice in ("e", "E"):
                 os.system("cls" if os.name == "nt" else "clear")
                 path_user = os.path.join(user_folder, file)
                 df.to_csv(path, index=False)                   # for internal use
                 df.to_csv(path_user, index=False)              # for the user to see 
                 len_df_init = len(df)   
                 edited_flag = False
-                print(f"\nEsportato {file} in {user_folder}")
+                print(f'\nEsportato "{file}" in {user_folder}')
                 input("\nPremi Invio per tornare al Menu Principale...")
                 os.system("cls" if os.name == "nt" else "clear")
 

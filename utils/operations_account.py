@@ -40,7 +40,9 @@ def load_account(brokers, save_folder, report_default, active_only=True):
             if account not in list( range(1, len(brokers)+1) ):
                 raise ValueError
         except ValueError:
-            wrong_input()
+            print("\nERRORE: Inserire il numero corrispondente al conto su cui si intende operare.")
+            input("Premi Invio per riprovare.\n")
+            return accounts_selected, False
 
         file = report_default + brokers[account] + ".csv"
         path = os.path.join(save_folder, file)
@@ -81,7 +83,7 @@ def load_account(brokers, save_folder, report_default, active_only=True):
                 "len_df_init": len_df_init,
                 "edited_flag": edited_flag
             })
-    return accounts_selected
+    return accounts_selected, True
 
 
 def format_accounts(df, acc_idx, all_accounts, non_active_only=False):
@@ -90,6 +92,7 @@ def format_accounts(df, acc_idx, all_accounts, non_active_only=False):
     - pd.DataFrame `df`: table (report) of the account which is currently active
     - int `acc_idx`: index of the account which is currently active (indexing starts with 1)
     - list of dict `all_accounts`: output of `load_account()` function with parameter `select_one=False`
+    - bool `non_active_only`: if True, only return information about every account but the active one 
 
     *Returns*:
     - list of tuples `data`: [(acc_idx1, df1), (acc_idx2, df2), ...] 
@@ -103,6 +106,7 @@ def format_accounts(df, acc_idx, all_accounts, non_active_only=False):
     else:
         data.append((acc_idx, df))
         data = sorted(data, key=lambda x: x[0])
+    data = [list(t) for t in data]
     return data
 
 
@@ -114,7 +118,6 @@ def get_tickers(data):
     *Returns*:
     - list of tuples `total_tickers`: all tickers ever transacted (across every account) and their currencies [("ticker", "currency")]
     - list of tuples `active_tickers`: tickers that have open positions (across every account) and their currencies[("ticker", "currency")]
-    
     """
     total_tickers = []
     active_tickers = []
@@ -204,6 +207,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
     try:
 
         # CLEAN/REDO EXCHANGE RATE CHECKS
+        prices_df = pd.DataFrame([])
 
         only_tickers = [t[0] for t in total_tickers]
         print("\nScaricamento dei dati storici dei titoli da Yahoo Finance...")
@@ -225,17 +229,18 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             prices_df = prices_df.dropna()
             exch_df = exch_df.dropna()
             target_index = prices_df.index
+            
             if target_index.empty:
                 print("Attenzione: l'indice target di prices_df è vuoto dopo dropna().")
                 # Creiamo un indice vuoto per evitare errori successivi
-                target_index = pd.DatetimeIndex([])
+                target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
         else:
-            print("Yahoo Finance non ha restituito dati.")
-            target_index = pd.DatetimeIndex([])
+            print("Dati sui titoli non disponibili.")
+            target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     except Exception as e:
-        print(f"Errore durante il download da Yahoo Finance: {e}")
-        target_index = pd.DatetimeIndex([])
+        print("Dati sui titoli non disponibili.")
+        target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     try:
         portfolio_data = final_df.copy()
@@ -278,7 +283,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
 
         # --- Allineamento all'indice di prices_df ---
 
-        if not target_index.empty:
+        if not target_index.empty:  # == prices_df.index !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             # Combina l'indice target (da prices_df) e l'indice dei dati (da portfolio_df)
             # Questo assicura che il forward fill copra correttamente gli intervalli
             combined_index = target_index.union(combined_sparse_data.index).sort_values()
@@ -299,20 +304,24 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             # portfolio_history_df['Liquidita Impegnata'] = portfolio_history_df['Liquidita Impegnata'].fillna(0)
 
             # --- Aggiunta Valore Titoli e NAV ---
-            if isinstance(prices_df, pd.Series):
-                prices_df_for_calc = prices_df.to_frame(name=only_tickers[0])
-            else:
-                # Assicurati che le colonne siano solo i ticker
-                prices_df_for_calc = prices_df[only_tickers]
-            
-            quantities_for_calc = portfolio_history_df[only_tickers]
+            if not prices_df.empty:
+                if isinstance(prices_df, pd.Series):
+                    prices_df_for_calc = prices_df.to_frame(name=only_tickers[0])
+                else:
+                    # Assicurati che le colonne siano solo i ticker
+                    prices_df_for_calc = prices_df[only_tickers]
+                
+                quantities_for_calc = portfolio_history_df[only_tickers]
 
-            # adjust prices for exchange rate
-            for ticker, currency in total_tickers:
-                if currency == "USD":
-                    prices_df_for_calc[ticker] = prices_df_for_calc[ticker] * exch_df["USDEUR=X"]
+                # adjust prices for exchange rate
+                for ticker, currency in total_tickers:
+                    if currency == "USD":
+                        prices_df_for_calc[ticker] = prices_df_for_calc[ticker] * exch_df["USDEUR=X"]
+                portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * quantities_for_calc).sum(axis=1)
+            else:
+                portfolio_history_df['Valore Titoli'] = 0.0
+                portfolio_history_df.index.rename("Date", inplace=True)
             
-            portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * quantities_for_calc).sum(axis=1)
             portfolio_history_df['NAV'] = portfolio_history_df['Valore Titoli'] + portfolio_history_df['Liquidita']
             portfolio_history_df["Cash Flow"] = portfolio_history_df["Liquidita Impegnata"].diff()
 
@@ -326,7 +335,6 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
-            print("\nImpossibile creare il DataFrame finale perché l'indice di 'prices_df' è vuoto.")
             # Crea un dataframe vuoto con le colonne corrette
             final_columns_complete = ["Date"] + total_tickers + ["Liquidita", "Liquidita Impegnata", "Valore Titoli", "NAV", "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
@@ -399,18 +407,15 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
         })
         tickers.append(row["Ticker"])
 
-    # Scarica dati da qualche giorno prima per gestire weekend/festività
+    # Download data up to 10 days prior to avoid problems with weekends/holidays
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
 
     data = yf.download(tickers, start=start_date, end=end_date, progress=False)["Close"]
-
-    # Prendi l'ultima riga disponibile fino a ref_date. 
-    # Se però questa riga contiene una cella nan, scartala
     data_ref = (
-        data.loc[data.index <= pd.to_datetime(ref_date)]  # fino a ref_date
-            .dropna(how="any")                            # elimina righe con almeno un NaN
-            .iloc[-1]                                     # prendi l’ultima riga valida
+        data.loc[data.index <= pd.to_datetime(ref_date)]  # grab the last available row up until ref_date
+            .dropna(how="any")                            # delete rows which have at least 1 NaN
+            .iloc[-1]                                     # keep just the last valid data
     )
 
     for item in positions:
@@ -424,7 +429,6 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
 
 def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
     
-    price_raw = price / conv_rate
     price_abs = abs(price) / conv_rate
 
     fee = round_half_up(fee)
@@ -451,7 +455,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
     fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
     fiscal_credit_aggiornato = fiscal_credit_iniziale
 
-    # Minusvalenze da commissione ETF
+    # Minusvalenze generated by ETF fee
     minusvalenza_comm = np.nan
     end_date = np.nan
 
@@ -545,15 +549,21 @@ def compute_backpack(df, data_operazione, as_of_index=None):
 
 def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
     
-    if asset_rows.empty:
-        raise ValueError("Nessun titolo da vendere: portafoglio vuoto")
+    try:
+        if asset_rows.empty:
+            raise ValueError
+    except ValueError:
+        wrong_input("Nessun titolo da vendere: portafoglio vuoto.")
     
     fee = round_half_up(fee)
     last_pmpc = asset_rows["PMC"].iloc[-1]
     last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
     
-    if quantity > last_remaining_qt:
-        raise ValueError("Quantità venduta superiore a quella disponibile")
+    try:
+        if quantity > last_remaining_qt:
+            raise ValueError
+    except ValueError:
+        wrong_input(f"Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt}).")
 
     importo_effettivo = round_half_up((round_half_up(quantity * price)) / conv_rate) - fee 
     costo_rilasciato = quantity * last_pmpc

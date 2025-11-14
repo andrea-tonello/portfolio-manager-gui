@@ -11,9 +11,12 @@ from utils.other_utils import round_half_up, wrong_input
 
 # 1 - LIQUIDITÀ
 def cashop(df, dt, ref_date, broker):
-    cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo)\n    > "))
-    if cash == 0:
-        raise ValueError("Il contante inserito non può essere 0€.\nPositivo se depositato, negativo se prelevato.")
+    try:
+        cash = float(input("  - Ammontare operazione in EUR (negativo se prelievo)\n    > "))
+        if cash == 0:
+            raise ValueError()
+    except ValueError:
+        wrong_input("Il contante inserito deve essere un numero diverso da 0. Positivo se depositato, negativo se prelevato.")
     op_type = "Deposito" if cash > 0 else "Prelievo"
 
     df = newrow_cash(df, dt, ref_date, broker, cash, op_type, "Contanti", np.nan, np.nan)
@@ -23,9 +26,12 @@ def cashop(df, dt, ref_date, broker):
     return df
 
 def dividend(df, dt, ref_date, broker):
-    cash = float(input("  - Dividendo in EUR al netto di tasse\n    > "))
-    if cash <= 0.0:
-        raise ValueError("Il dividendo non può essere <= 0€")
+    try:
+        cash = float(input("  - Dividendo in EUR al netto di tasse\n    > "))
+        if cash <= 0.0:
+            raise ValueError
+    except ValueError:
+        wrong_input("Il dividendo inserito deve essere un numero maggiore di 0.")
     ticker = input("  - Ticker completo dell'emittente dividendo\n    > ")
     name = fetch_name(ticker)
 
@@ -36,9 +42,12 @@ def dividend(df, dt, ref_date, broker):
     return df
 
 def charge(df, dt, ref_date, broker):
-    cash = float(input("  - Ammontare imposta in EUR\n    > "))
-    if cash <= 0.0:
-        raise ValueError("L'imposta è da intendersi > 0€.")
+    try:
+        cash = float(input("  - Ammontare imposta in EUR\n    > "))
+        if cash <= 0.0:
+            raise ValueError
+    except ValueError:
+        wrong_input("L'imposta inserita deve essere un numero maggiore di 0.")
     descr = str(input('  - Descrizione imposta (es. "Bollo Q2 2025")\n    > '))
 
     df = newrow_cash(df, dt, ref_date, broker, -cash, "Imposta", descr, np.nan, np.nan)
@@ -56,30 +65,34 @@ def etf_stock(df, broker, choice="ETF"):
     dt, ref_date = get_date(df)
 
     print("  - Valuta\n\t1. EUR\n\t2. USD")
-    currency = input("    > ")
     try:
-        currency = int(currency)
+        currency = int(input("    > "))
         if currency not in [1, 2]:
             raise ValueError
     except ValueError:
-        wrong_input()
+        wrong_input("Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta di interesse.")
     
     conv_rate = 1.0
     if currency == 2:
-        conv_rate = float(input("  - Tasso di conversione EUR-USD\n    > "))
+        conv_rate = float(input("  - Tasso di conversione EUR-USD\n    > "))        ## TYPE CHECK
     conv_rate = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
     ticker = input("  - Ticker completo (standard Yahoo Finance)\n    > ")
 
-    qt = input("  - Quantità (intero positivo)\n    > ")
-    if not (qt.isdigit() and int(qt) > 0):
-        raise ValueError("Quantità non valida. Deve essere un intero positivo.")
-    else:
-        quantity = int(qt)
-
-    price = float(input("  - Prezzo unitario (negativo se acquisto)\n    > "))
-    if price == 0:
-        raise ValueError("Il prezzo non può essere 0€.\nNegativo se acquisto, positivo se vendita.")
+    try:
+        quantity = input("  - Quantità (intero positivo)\n    > ")
+        if not (quantity.isdigit() and int(quantity) > 0):
+            raise ValueError
+        quantity = int(quantity)
+    except ValueError or AttributeError:
+        wrong_input("Quantità non valida. Deve essere un numero intero maggiore di 0.")
+            
+    try:
+        price = float(input("  - Prezzo unitario (negativo se acquisto)\n    > "))
+        if price == 0:
+            raise ValueError
+    except ValueError:
+        wrong_input("Il prezzo non può essere 0. Negativo se acquisto, positivo se vendita.")
 
     currency_fee = 1
     if currency == 2:
@@ -92,11 +105,17 @@ def etf_stock(df, broker, choice="ETF"):
             if currency_fee not in [1, 2]:
                 raise ValueError
         except ValueError:
-            wrong_input()
+            wrong_input("Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta di interesse.")
 
-    fee = float(input("  - Commissione\n    > "))
+    try:
+        fee = float(input("  - Commissione\n    > "))
+        if fee < 0:
+            raise ValueError
+    except ValueError:
+        wrong_input("La commissione deve essere un numero maggiore o uguale a 0.")
+
     if currency_fee == 2:
-        fee = round_half_up(fee / conv_rate, decimal="0.000001")
+            fee = round_half_up(fee / conv_rate, decimal="0.000001")
 
     buy = price < 0
     
@@ -114,13 +133,35 @@ def etf_stock(df, broker, choice="ETF"):
 
 
 
+# 7 - IMPOSTAZIONI
+
+def add_brokers(config_folder):
+    path = os.path.join(config_folder, "brokers.json")
+    with open(path, 'r', encoding='utf-8') as f:
+        brokers = json.load(f)
+
+    idx = len(brokers) + 1
+    print('    Inserisci alias conto. Digitare "q" per terminare.')
+    while True:
+        new_broker = input("\n     > ")
+        if new_broker == "q":
+            if len(brokers) == 0:
+                print("    Operazione negata. È necessario aggiungere almeno un conto.")
+                continue
+            else:
+                print("\nSalvataggio completato. Conti salvati:\n")
+                for key, value in brokers.items():
+                    print(f"{key}. {value}") 
+                break
+        brokers[idx] = new_broker
+        idx += 1
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(brokers, f, indent=4)
+    
+    input("\n    Premi Invio per continuare...")
+    return brokers
 
 
-
-
-
-
-# 7 - INIZIALIZZA BROKERS
 def initialize_brokers(config_folder):
     path = os.path.join(config_folder, "brokers.json")
     brokers = {}

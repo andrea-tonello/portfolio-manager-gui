@@ -24,7 +24,6 @@ def secant(f, x0, x1, tol=1e-7, max_iter=100):
 
         # 2. Check for convergence
         if abs(fx_n) < tol:
-            print(f"Converged to root {x_n} after {i} iterations.")
             return x_n
         
         # 3. Calculate the denominator of the secant formula
@@ -33,8 +32,7 @@ def secant(f, x0, x1, tol=1e-7, max_iter=100):
         # 4. Check for division by zero (or near-zero)
         # This happens if the function values are the same (flat slope)
         if abs(denominator) < 1e-10:
-            print("Error: Denominator is zero. Secant method fails.")
-            return None
+            raise ZeroDivisionError
 
         # 5. Calculate the next guess using the secant formula
         x_n_plus_1 = x_n - fx_n * (x_n - x_n_minus_1) / denominator
@@ -46,5 +44,4 @@ def secant(f, x0, x1, tol=1e-7, max_iter=100):
         x_n = x_n_plus_1
 
     # If the loop finishes without converging
-    print(f"Error: Did not converge after {max_iter} iterations.")
-    return None
+    raise RuntimeError
