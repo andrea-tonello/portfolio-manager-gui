@@ -10,8 +10,8 @@ import json
 
 
 # these imports take 0.80-0.83 seconds
-import utils.operations_menu as mop
-import utils.operations_account as aop
+import utils.menu_operations as mop
+import utils.account as aop
 from utils.date_utils import get_date
 from utils.other_utils import wrong_input, create_defaults
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
                     if operation not in [1, 2, 3]:
                         raise ValueError
                 except:
-                    wrong_input()
+                    wrong_input("Scelta non valida.", suppress_error=True)
                 
                 print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')            
                 dt, ref_date = get_date(df)
@@ -172,7 +172,7 @@ if __name__ == "__main__":
                     if operation not in [1, 2, 3, 4]:
                         raise ValueError
                 except:
-                    wrong_input()
+                    wrong_input("Scelta non valida.", suppress_error=True)
                 print()            
 
                 if operation == 1:
@@ -241,7 +241,7 @@ if __name__ == "__main__":
                     if operation not in [1, 2]:
                         raise ValueError
                 except:
-                    wrong_input()
+                    wrong_input("Scelta non valida.", suppress_error=True)
                 print()            
 
                 if operation == 1:

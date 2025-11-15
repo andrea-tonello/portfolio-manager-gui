@@ -21,9 +21,12 @@ def round_down(value, decimal="0.01"):
 
 
 
-def wrong_input(error=None):
-    print("\nI dati inseriti non sono corretti:")
-    print("ERRORE: " + error)
+def wrong_input(error="error not specified", suppress_error=False):
+    if suppress_error:
+        print("\n" + error)
+    else:
+        print("\nI dati inseriti non sono corretti:")
+        print("ERRORE: " + error)
     input("\nPremi Invio per tornare al Menu Principale...")
     raise KeyboardInterrupt
 

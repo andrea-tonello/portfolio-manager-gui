@@ -32,7 +32,7 @@ Sono inoltre disponibili numerosi strumenti di analisi del rischio: VaR (Monte C
 
 Al primo avvio è richiesto il setup dei propri intermediari. Scegliere gli alias che si preferiscono.
 Ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere aggiunti o rimossi successivamente, 
-ma è da tenere a mente che le modifiche non saranno retroattive (non si possono "rinominare" degli account già salvati; in quel caso, sarà necessario inserire nuovamente tutte le transazioni).
+ma è da tenere a mente non è possibile "rinominare" un account già salvato; in quel caso, sarà necessario inserire nuovamente tutte le transazioni.
 
 ***Utilizzo***
 
@@ -55,7 +55,10 @@ Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
     - Analisi correlazione
     - Analisi Drawdown
     - VaR
-7. (Re)inizializzazione degli intermediari (come spiegato precedentemente)
+7. Impostazioni applicazione:
+    - Aggiungi conto/i
+    - Re-inizializza conti
+    - Reset completo dell'applicazione
 8. Esporta in csv: salva le modifiche eseguite fino a quel momento
 9. Rimuovi ultima riga del report
 10. Glossario con:

@@ -211,7 +211,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
         prices_df = pd.DataFrame([])
 
         only_tickers = [t[0] for t in total_tickers]
-        print("\nScaricamento dei dati storici dei titoli da Yahoo Finance...")
+        print("\n    Scaricamento dei dati storici dei titoli da Yahoo Finance...")
         prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date, progress=False)
         exch_df = yf.download("USDEUR=X",start=start_ref_date, end=end_ref_date, progress=False)
         

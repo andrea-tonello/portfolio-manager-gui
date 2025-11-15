@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from itertools import chain
 
 from utils.date_utils import get_date, get_pf_date
-from utils.operations_account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
+from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up, wrong_input
 import utils.newton as newton
 
@@ -98,12 +98,12 @@ def summary(brokers, data, save_path):
         total_flows.append(flows)
         total_flows_dates.append(flows_dates)
 
-        print(f"\n    NAV (al {dt}): {nav}€")
-        print(f"\t- Liquidità: {current_liq}€")
-        print(f"\t- Valore Titoli: {asset_value}€")
-        print(f"    Liquidità Impegnata: {historic_liq}€")
-        print(f"    P&L: {round_half_up(pl)}€")
-        print(f"    P&L comprendente il non realizzato: {round_half_up(pl_unrealized)}€")
+        print(f"\n    NAV (al {dt}): {nav:.2f}€")
+        print(f"\t- Liquidità: {current_liq:.2f}€")
+        print(f"\t- Valore Titoli: {asset_value:.2f}€")
+        print(f"    Liquidità Impegnata: {historic_liq:.2f}€")
+        print(f"    P&L: {round_half_up(pl):.2f}€")
+        print(f"    P&L comprendente il non realizzato: {round_half_up(pl_unrealized):.2f}€")
         print(f"    Rendimento totale (XIRR): {xirr_full:.2%}")
         print(f"    Rendimento annualizzato (XIRR): {xirr_ann:.2%}\n")
 
@@ -121,7 +121,7 @@ def summary(brokers, data, save_path):
             print("\t ---")
         else:
             for pos in positions:
-                print(f"\t- {pos["ticker"]}    PMC: {pos["pmc"]}€    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001")}€    QT: {pos["quantity"]}    Controvalore: {round_half_up(pos["value"])}€")
+                print(f"\t- {pos["ticker"]}    PMC: {pos["pmc"]:.4f}€    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001"):.4f}€    QT: {pos["quantity"]}    Controvalore: {round_half_up(pos["value"]):.2f}€")
 
 
     print("\n\n\nTotale Portafoglio " + "="*70)
@@ -172,12 +172,12 @@ def summary(brokers, data, save_path):
         print("\n    Non è stato possibile reperire alcuna posizione attiva tra tutti i conti.\n    Statistiche non calcolabili.")  
 
 # Display results ============================================================
-    print(f"\n    NAV (al {dt}): {round_half_up(sum(total_nav))}€")
-    print(f"\t- Liquidità: {round_half_up(sum(total_current_liq))}€")
-    print(f"\t- Valore Titoli: {round_half_up(sum(total_asset_value))}€")
-    print(f"    Liquidità Impegnata: {round_half_up(sum(total_historic_liq))}€\n")
-    print(f"    P&L: {round_half_up(sum(total_pl))}€")
-    print(f"    P&L comprendente il non realizzato: {round_half_up(sum(total_pl_unrealized))}€\n")
+    print(f"\n    NAV (al {dt}): {round_half_up(sum(total_nav)):.2f}€")
+    print(f"\t- Liquidità: {round_half_up(sum(total_current_liq)):.2f}€")
+    print(f"\t- Valore Titoli: {round_half_up(sum(total_asset_value)):.2f}€")
+    print(f"    Liquidità Impegnata: {round_half_up(sum(total_historic_liq)):.2f}€\n")
+    print(f"    P&L: {round_half_up(sum(total_pl)):.2f}€")
+    print(f"    P&L comprendente il non realizzato: {round_half_up(sum(total_pl_unrealized)):.2f}€\n")
     print(f"    Rendimento")
     print(f"\t- XIRR totale: {xirr_total_full:.2%}")
     print(f"\t- XIRR annualizzato: {xirr_total_ann:.2%}")
@@ -368,77 +368,155 @@ def var_mc(data):
 
         # weights for active positions and cash
         aggr_positions = aggregate_positions(total_positions)  # only opened positions at current time
-        asset_value = [pos["value"] for pos in aggr_positions]
+        assets_value = [pos["value"] for pos in aggr_positions]
         asset_tickers = [pos["ticker"] for pos in aggr_positions]
-        sum_active_values = sum(asset_value)
-        weights = asset_value / sum_active_values
+
         cash = sum(total_liquidity)
+        portfolio_value = sum(assets_value)
+        weights = assets_value / portfolio_value
+        portfolio_value = portfolio_value + cash
+        
 
         print("    Scaricamento dei dati storici da Yahoo Finance...")
-        usd_prices_df = yf.download(usd_tickers, start=start_ref_date, end=end_dt, progress=False)
-        eur_prices_df = yf.download(eur_tickers, start=start_ref_date, end=end_dt, progress=False)
-        exch_df = yf.download("USDEUR=X",start=start_ref_date, end=end_dt, progress=False)
-        usd_prices_df = usd_prices_df["Close"]
-        eur_prices_df = eur_prices_df["Close"]
-        exch_df = exch_df["Close"]
 
-        common_dates = usd_prices_df.index.intersection(eur_prices_df.index)
-        common_dates = common_dates.intersection(exch_df.index)
+        # 1. Costruisci un'unica lista di tutti i ticker necessari
+        tickers_to_download = []
+        if usd_tickers:
+            tickers_to_download.extend(usd_tickers)
+        if eur_tickers:
+            tickers_to_download.extend(eur_tickers)
 
-        usd_prices_df = usd_prices_df.loc[common_dates]
-        eur_prices_df = eur_prices_df.loc[common_dates]
-        exch_df = exch_df.loc[common_dates]
-        usd_prices_df = usd_prices_df.mul(exch_df["USDEUR=X"], axis=0)
+        # 2. Aggiungi il tasso di cambio se *qualsiasi* ticker è presente
+        if tickers_to_download:
+            tickers_to_download.append("USDEUR=X")
+        else:
+            print("    Nessun ticker da scaricare.")
+            prices_df = pd.DataFrame([])
 
-        prices_df = pd.concat([usd_prices_df, eur_prices_df], axis=1)
-        prices_df = prices_df[asset_tickers]
+        # 3. Esegui UNA SOLA chiamata di download (solo se necessario)
+        if tickers_to_download:
+            all_data = yf.download(
+                tickers_to_download, 
+                start=start_ref_date, 
+                end=end_dt, 
+                progress=False
+            )
 
-        log_returns = np.log(prices_df/prices_df.shift(1))
+            # Gestione del caso in cui yf restituisce dati None/vuoti
+            if all_data.empty:
+                print("    Nessun dato scaricato da Yahoo Finance.")
+                prices_df = pd.DataFrame([])
+            else:
+                # 4. Estrai i prezzi 'Close'
+                if len(tickers_to_download) > 1:
+                    close_prices = all_data["Close"]
+                else:
+                    # Uniforma l'output a DataFrame se c'è un solo ticker
+                    close_prices = all_data["Close"].to_frame(name=tickers_to_download[0])
 
-        # strong assumption: expected returns are based on historical data
-        def expected_return(tickers, log_returns, weights):
-            means = []
-            for ticker, weight in zip(tickers, weights):
-                ticker_df = log_returns[ticker].copy()
-                ticker_df = ticker_df.dropna()
-                ticker_mean = ticker_df.mean() * weight
-                means.append(ticker_mean)
+                # 5. Prepara i DataFrame e calcola le date comuni
+                final_usd_df = pd.DataFrame([])
+                final_eur_df = pd.DataFrame([])
+                indices_to_intersect = []
 
-            return np.sum(means)
+                # Estrai exch_df per primo, dato che è necessario per tutti i casi
+                exch_df = close_prices["USDEUR=X"].dropna()
+                indices_to_intersect.append(exch_df.index)
 
-        def standard_deviation (cov_matrix, weights):
-            variance = weights.T @ cov_matrix @ weights
-            return np.sqrt(variance)
-        
-        cov_matrix = log_returns.cov()
-        portfolio_expected_return = expected_return(asset_tickers, log_returns, weights)
-        portfolio_std_dev = standard_deviation (cov_matrix, weights)
+                if eur_tickers:
+                    # Estrai i prezzi EUR e rimuovi i giorni in cui *nessun* ticker EUR aveva dati
+                    eur_prices_df = close_prices[eur_tickers].dropna(how='all')
+                    indices_to_intersect.append(eur_prices_df.index)
+                    final_eur_df = eur_prices_df
 
-        def random_z_score():
-            return np.random.normal(0, 1)
+                if usd_tickers:
+                    # Estrai i prezzi USD
+                    usd_prices_df = close_prices[usd_tickers].dropna(how='all')
+                    indices_to_intersect.append(usd_prices_df.index)
+                    
+                    # Converti i prezzi USD in EUR. .mul() allinea automaticamente gli indici
+                    final_usd_df = usd_prices_df.mul(exch_df, axis=0)
 
-        def scenario_gain_loss(current_liq, sum_active_values, portfolio_expected_return, portfolio_std_dev, z_score, days):
-            return current_liq + (sum_active_values * portfolio_expected_return * days) + (sum_active_values * portfolio_std_dev * z_score * np.sqrt(days))
-        
-        num_simulations = 50000
-        scenarioReturn = []
+                # 6. Calcola le date comuni
+                if not indices_to_intersect:
+                    common_dates = pd.DatetimeIndex([])
+                else:
+                    common_dates = indices_to_intersect[0]
+                    for idx in indices_to_intersect[1:]:
+                        common_dates = common_dates.intersection(idx)
+                
+                # 7. Costruisci la lista di DataFrame da concatenare *condizionalmente*
+                dfs_to_concat = []
+                if usd_tickers:
+                    # Filtra solo se il DataFrame non è vuoto
+                    dfs_to_concat.append(final_usd_df.loc[common_dates])
+                if eur_tickers:
+                    # Filtra solo se il DataFrame non è vuoto
+                    dfs_to_concat.append(final_eur_df.loc[common_dates])
 
-        for _ in range(num_simulations):
-            z_score = random_z_score()
-            scenarioReturn.append(scenario_gain_loss(current_liq, sum_active_values, portfolio_expected_return, portfolio_std_dev, z_score, projected_days))
+                # 8. Concatena i risultati
+                if dfs_to_concat:
+                    prices_df = pd.concat(dfs_to_concat, axis=1)
+                else:
+                    prices_df = pd.DataFrame([])
 
-        VaR = -np.percentile(scenarioReturn, 100 * (1 - confidence_interval))
-        print(f"\n    Value at Risk del portafoglio al {confidence_interval:.0%} IdC su {projected_days} giorni:    {VaR:.2f}€")
+            prices_df.to_csv("/home/atonello/Downloads/prices_df1.csv")
 
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.hist(scenarioReturn, bins=100, density=True, color="lightgray")
-        ax.set_xlabel("Gain/Loss (€)")
-        ax.set_ylabel("Densità")
-        ax.axvline(-VaR, color='r', linestyle='dashed', linewidth=2, label=f'VaR al {confidence_interval:.0%} IdC: {VaR:.2f}€')
-        ax.legend()
-        fig.tight_layout()
-        fig.canvas.manager.set_window_title(f"Distribuzione del Portfolio Gain/Loss su {projected_days} giorni")
-        plt.show()
+
+
+            prices_df = prices_df[asset_tickers]
+            prices_df.to_csv("/home/atonello/Downloads/prices_df2.csv")
+
+            log_returns = np.log(prices_df/prices_df.shift(1))
+            log_returns = log_returns.dropna()
+
+            # strong assumption: expected returns are based on historical data
+            def expected_return(tickers, log_returns, weights):
+                means = []
+                for ticker, weight in zip(tickers, weights):
+                    ticker_df = log_returns[ticker].copy()
+                    ticker_df = ticker_df.dropna()
+                    ticker_mean = ticker_df.mean() * weight
+                    means.append(ticker_mean)
+                return np.sum(means)
+            
+            """def expected_return(weights, log_returns):
+                return np.sum(log_returns.mean()*weights)"""
+
+            def standard_deviation (cov_matrix, weights):
+                variance = weights.T @ cov_matrix @ weights
+                return np.sqrt(variance)
+            
+            cov_matrix = log_returns.cov()
+            portfolio_expected_return = expected_return(asset_tickers, log_returns, weights)
+            portfolio_std_dev = standard_deviation (cov_matrix, weights)
+
+            def random_z_score():
+                return np.random.normal(0, 1)
+
+            def scenario_gain_loss(portfolio_value, portfolio_expected_return, portfolio_std_dev, z_score, days):
+                return portfolio_value * portfolio_expected_return * days + (portfolio_value * portfolio_std_dev * z_score * np.sqrt(days))
+            
+            num_simulations = 50000
+            scenarioReturn = []
+
+            for _ in range(num_simulations):
+                z_score = random_z_score()
+                scenarioReturn.append(scenario_gain_loss(portfolio_value, portfolio_expected_return, portfolio_std_dev, z_score, projected_days))
+
+            VaR = -np.percentile(scenarioReturn, 100 * (1 - confidence_interval))
+            print(f"\n    Value at Risk del portafoglio al {confidence_interval:.0%} IdC su {projected_days} giorni:    {VaR:.2f}€")
+
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.hist(scenarioReturn, bins=100, density=True, color="lightgray")
+            ax.set_xlabel("Gain/Loss (€)")
+            ax.set_ylabel("Densità")
+            ax.axvline(-VaR, color='r', linestyle='dashed', linewidth=2, label=f'VaR al {confidence_interval:.0%} IdC: {VaR:.2f}€')
+            ax.legend()
+            fig.tight_layout()
+            fig.canvas.manager.set_window_title(f"Distribuzione del Portfolio Gain/Loss su {projected_days} giorni")
+            plt.show()
     else:
         print("    Non è stata trovata alcuna posizione aperta tra tutti i conti.\n    Value at Risk nullo.")
+
     input("\nPremi Invio per continuare...")
