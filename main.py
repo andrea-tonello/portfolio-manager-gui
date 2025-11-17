@@ -1,19 +1,13 @@
-import time
 import sys
-
-# these imports take ~0.20 seconds
 import numpy as np
 import pandas as pd
 import os
 import json
 
-
-
-# these imports take 0.80-0.83 seconds
 import utils.menu_operations as mop
 import utils.account as aop
 from utils.date_utils import get_date
-from utils.other_utils import wrong_input, create_defaults
+from utils.other_utils import create_defaults
 
 pd.set_option('display.max_columns', None)
 REP_DEF = "Report "
@@ -25,7 +19,7 @@ os.makedirs(config_res_folder, exist_ok=True)
 
 def main_menu(file, account_name, len_df, len_df_init, edited_flag):
     print("\n=================== MENU PRINCIPALE ===================\n")
-    print(f"Si sta operando sul conto: {account_name}\nFile caricato: {file}, con {len_df_init} righe.")
+    print(f"Si sta operando sul conto: {account_name}\nFile caricato: {file}, con {len_df_init-1} righe.")
 
     if edited_flag:
         diff = len_df - len_df_init
@@ -112,27 +106,26 @@ if __name__ == "__main__":
                 continue
 
             elif choice == '1':
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- OPERAZIONI SU LIQUIDITA' ---\n")
-                print("> Seleziona operazione. CTRL+C per tornare al Menu Principale.\n")
-                print("    1. Depositi e Prelievi\n    2. Dividendi\n    3. Imposta di Bollo / Altre imposte")
-                operation = input("\n> ")
-                try:
-                    operation = int(operation)
-                    if operation not in [1, 2, 3]:
-                        raise ValueError
-                except:
-                    wrong_input("Scelta non valida.", suppress_error=True)
-                
-                print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')            
-                dt, ref_date = get_date(df)
+                cash_loop = True
+                while cash_loop:
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n--- OPERAZIONI SU LIQUIDITA' ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
+                    print("    1. Depositi e Prelievi\n    2. Dividendi\n    3. Imposta di Bollo / Altre imposte")
+                    operation = input("\n> ")
+                    print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')            
+                    dt, ref_date = get_date(df)
 
-                if operation == 1:
-                    df = mop.cashop(df, dt, ref_date, brokers[acc_idx])
-                elif operation == 2:
-                    df = mop.dividend(df, dt, ref_date, brokers[acc_idx])
-                else:
-                    df = mop.charge(df, dt, ref_date, brokers[acc_idx])
+                    if operation == "1":
+                        df = mop.cashop(df, dt, ref_date, brokers[acc_idx])                  
+                        cash_loop = False
+                    elif operation == "2":
+                        df = mop.dividend(df, dt, ref_date, brokers[acc_idx])
+                        cash_loop = False
+                    elif operation == "3":
+                        df = mop.charge(df, dt, ref_date, brokers[acc_idx])
+                        cash_loop = False
+                    else:
+                        input("\nScelta non valida. Premi Invio per riprovare.")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '2':
@@ -161,37 +154,36 @@ if __name__ == "__main__":
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice == '6':
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- ANALISI PORTAFOGLIO ---\n")
-                print("> Seleziona operazione. CTRL+C per tornare al Menu Principale.\n")
-                print("    1. Statistiche generali\n    2. Analisi correlazione\n    3. Drawdown\n    4. VaR")
-                accounts_formatted = aop.format_accounts(df, acc_idx, all_accounts)
-                operation = input("\n> ")
-                try:
-                    operation = int(operation)
-                    if operation not in [1, 2, 3, 4]:
-                        raise ValueError
-                except:
-                    wrong_input("Scelta non valida.", suppress_error=True)
-                print()            
+                analysis_loop = True
+                while analysis_loop:
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n--- ANALISI PORTAFOGLIO ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
+                    print("    1. Statistiche generali\n    2. Analisi correlazione\n    3. Drawdown\n    4. VaR")
+                    operation = input("\n> ")
+                    accounts_formatted = aop.format_accounts(df, acc_idx, all_accounts)
 
-                if operation == 1:
-                    from utils.analysis import summary
-                    hist_save_path = os.path.join(user_folder, "Storico Portafoglio.csv")
-                    summary(brokers, accounts_formatted, hist_save_path)
-                elif operation == 2:
-                    from utils.analysis import correlation
-                    correlation(accounts_formatted)
-                elif operation == 3:
-                    from utils.analysis import drawdown
-                    drawdown(accounts_formatted)
-                else:
-                    from utils.analysis import var_mc
-                    var_mc(accounts_formatted)
+                    if operation == "1":
+                        from utils.analysis import summary
+                        hist_save_path = os.path.join(user_folder, "Storico Portafoglio.csv")
+                        summary(brokers, accounts_formatted, hist_save_path)                  
+                        analysis_loop = False
+                    elif operation == "2":
+                        from utils.analysis import correlation
+                        correlation(accounts_formatted)
+                        analysis_loop = False
+                    elif operation == "3":
+                        from utils.analysis import drawdown
+                        drawdown(accounts_formatted)
+                        analysis_loop = False
+                    elif operation == "4":
+                        from utils.analysis import var_mc
+                        var_mc(accounts_formatted)
+                        analysis_loop = False
+                    else:
+                        input("\nScelta non valida. Premi Invio per riprovare.")
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ("s", "S"):
-
                 settings_loop = True
                 while settings_loop:
                     os.system("cls" if os.name == "nt" else "clear")
@@ -228,33 +220,13 @@ if __name__ == "__main__":
                         input("\nScelta non valida. Premi Invio per riprovare.")
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice in ('i', 'I'):
-                from utils.other_utils import display_information
-                os.system("cls" if os.name == "nt" else "clear")
-                print("--- INFORMAZIONI / GLOSSARIO ---\n")
-                print("> Seleziona categoria. CTRL+C per tornare al Menu Principale.\n")
-                print("    1. Descrizione colonne del report\n    2. Informazioni su metriche/statistiche")
-                accounts_formatted = aop.format_accounts(df, acc_idx, all_accounts)
-                operation = input("\n> ")
-                try:
-                    operation = int(operation)
-                    if operation not in [1, 2]:
-                        raise ValueError
-                except:
-                    wrong_input("Scelta non valida.", suppress_error=True)
-                print()            
-
-                if operation == 1:
-                    display_information(page=operation)
-                else:
-                    display_information(page=operation)
-                os.system("cls" if os.name == "nt" else "clear")
-
             elif choice in ("e", "E"):
                 os.system("cls" if os.name == "nt" else "clear")
                 path_user = os.path.join(user_folder, file)
-                df.to_csv(path, index=False)                   # for internal use
-                df.to_csv(path_user, index=False)              # for the user to see 
+                df_user = df.copy()
+                df_user = df_user[1:]
+                df.to_csv(path, index=False)                        # for internal use
+                df_user.to_csv(path_user, index=False)              # for the user to see 
                 len_df_init = len(df)   
                 edited_flag = False
                 print(f'\nEsportato "{file}" in {user_folder}')
@@ -267,7 +239,22 @@ if __name__ == "__main__":
                     df = df.iloc[:-1]
                     print("\nUltima riga rimossa.")
                 else:
-                    print("\nLa riga template non può essere rimossa.")
+                    print("\nNessuna riga da rimuovere.")
+
+            elif choice in ('i', 'I'):
+                from utils.other_utils import display_information
+                info_loop = True
+                while info_loop:
+                    os.system("cls" if os.name == "nt" else "clear")
+                    print("\n--- INFORMAZIONI / GLOSSARIO ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
+                    print("    1. Descrizione colonne del report\n    2. Informazioni su metriche/statistiche")
+                    operation = input("\n> ")
+                    if operation in ("1", "2"):
+                        display_information(page=int(operation))                 
+                        info_loop = False
+                    else:
+                        input("\nScelta non valida. Premi Invio per riprovare.")
+                os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ('q', 'Q'):
                 os.system("cls" if os.name == "nt" else "clear")

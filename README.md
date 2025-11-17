@@ -36,7 +36,7 @@ ma è da tenere a mente non è possibile "rinominare" un account già salvato; i
 
 ***Utilizzo***
 
-All'avvio del programma verrà sempre richiesto il conto su cui operare. Ad ogni conto è associato un report, ovvero una tabella CSV con le operazioni effettuate. I report sono salvati nella cartella "reports", assieme ad un report di Template.
+All'avvio del programma verrà sempre richiesto il conto su cui operare. Ad ogni conto è associato un report, ovvero una tabella CSV con le operazioni effettuate. I report vengono salvati con l'opzione apposita (come spiegato in seguito) nella cartella "reports".
 
 <img src="./media/screenshots/report.png" alt="Report Example"/>
 
@@ -85,7 +85,7 @@ Come già specificato, le modifiche (comprese la rimozione di righe) sono confer
   - `uv`: esegui semplicemente `uv sync` per creare l'enviroment specificato in `pyproject.toml`
   - `pip`: in un environment, installa:
 ```sh
-pip install pandas numpy python-dateutil yfinance seaborn matplotlib scipy
+pip install pandas numpy python-dateutil yfinance matplotlib
 ```
 3. Esegui `main.py`
 

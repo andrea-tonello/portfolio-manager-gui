@@ -61,7 +61,7 @@ def charge(df, dt, ref_date, broker):
 # 2,3 - ETF, STOCK
 def etf_stock(df, broker, choice="ETF"):
     
-    print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')
+    print('  - Data operazione GG-MM-AAAA ("t" per data odierna)')
     dt, ref_date = get_date(df)
 
     print("  - Valuta\n\t1. EUR\n\t2. USD")
@@ -141,7 +141,7 @@ def add_brokers(config_folder):
         brokers = json.load(f)
 
     idx = len(brokers) + 1
-    print('    Inserisci alias conto. Digitare "q" per terminare.')
+    print('\n    Inserisci alias conto. Digitare "q" per terminare.')
     while True:
         new_broker = input("\n     > ")
         if new_broker == "q":
@@ -166,7 +166,7 @@ def initialize_brokers(config_folder):
     path = os.path.join(config_folder, "brokers.json")
     brokers = {}
     idx = 1
-    print('    Inserisci alias conto. Digitare "q" per terminare.')
+    print('\n    Inserisci alias conto. Digitare "q" per terminare.')
     while True:
         new_broker = input("\n     > ")
         if new_broker == "q":

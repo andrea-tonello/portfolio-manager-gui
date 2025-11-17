@@ -223,7 +223,7 @@ def correlation(data):
     for account in data:
         account[1] = account[1][account[1]["Operazione"].isin(["Acquisto", "Vendita"])]
 
-    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
+    print('\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
     print("  - Data inizio analisi:")
     start_dt, start_ref_date = get_date()
     print("  - Data fine analisi:")
@@ -293,7 +293,7 @@ def drawdown(data):
 
     data = [account for account in data if len(account[1]) > 1]
 
-    print('  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
+    print('\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
     print("  - Data inizio analisi:")
     start_dt, start_ref_date = get_date()
     print("  - Data fine analisi:")
@@ -334,7 +334,7 @@ def var_mc(data):
     if data:    
         start_ref_date = "2010-01-01"
         try:
-            confidence_interval = float(input("  - Intervallo di Confidenza (es. 0.99)\n    > "))
+            confidence_interval = float(input("\n  - Intervallo di Confidenza (es. 0.99)\n    > "))
             if confidence_interval <= 0.0 or confidence_interval >= 1.0:
                 raise ValueError
         except ValueError:
@@ -376,9 +376,7 @@ def var_mc(data):
         weights = assets_value / portfolio_value
         portfolio_value = portfolio_value + cash
         
-
         print("    Scaricamento dei dati storici da Yahoo Finance...")
-
         # 1. Costruisci un'unica lista di tutti i ticker necessari
         tickers_to_download = []
         if usd_tickers:
@@ -401,7 +399,6 @@ def var_mc(data):
                 end=end_dt, 
                 progress=False
             )
-
             # Gestione del caso in cui yf restituisce dati None/vuoti
             if all_data.empty:
                 print("    Nessun dato scaricato da Yahoo Finance.")
@@ -460,13 +457,7 @@ def var_mc(data):
                 else:
                     prices_df = pd.DataFrame([])
 
-            prices_df.to_csv("/home/atonello/Downloads/prices_df1.csv")
-
-
-
             prices_df = prices_df[asset_tickers]
-            prices_df.to_csv("/home/atonello/Downloads/prices_df2.csv")
-
             log_returns = np.log(prices_df/prices_df.shift(1))
             log_returns = log_returns.dropna()
 
@@ -479,9 +470,6 @@ def var_mc(data):
                     ticker_mean = ticker_df.mean() * weight
                     means.append(ticker_mean)
                 return np.sum(means)
-            
-            """def expected_return(weights, log_returns):
-                return np.sum(log_returns.mean()*weights)"""
 
             def standard_deviation (cov_matrix, weights):
                 variance = weights.T @ cov_matrix @ weights

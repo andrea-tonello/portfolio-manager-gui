@@ -131,7 +131,7 @@ def display_information(page):
         print("\tIl calcolo si basa sulla media geometrica dei rendimenti di tutti i sottoperiodi in cui è suddiviso l'investimento (es. giornaliero, mensile).")
         print("\tUtile nel confronto di performance con benchmark/indici o nella misurazione di statistiche, quali lo Sharpe Ratio.\n")
         
-        print("- Volatilità\n    Deviazione standard dei rendimenti per un determinato periodo di tempo.\n")
+        print("- Volatilità\n    Deviazione standard dei rendimenti su un determinato periodo di tempo.\n")
         print("- Sharpe Ratio\n    Misura la performance di un investimento confrontato con un asset 'risk-free' (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).")
         print("    Si calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata excess returns, diviso la deviazione standard degli excess returns.\n")
 
