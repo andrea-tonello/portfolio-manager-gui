@@ -1,13 +1,12 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
 
 import utils.account as aop
 from utils.other_utils import round_half_up
 from utils.fetch_utils import fetch_name
 
 
-def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name):
+def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, ticker, name):
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + cash
 
@@ -16,7 +15,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     else:
         historic_liq = float(df["Liq. Impegnata"].iloc[-1])
 
-    positions = aop.get_asset_value(df, ref_date=ref_date)
+    positions = aop.get_asset_value(translator, df, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions)
 
     new_row = pd.DataFrame({
@@ -53,11 +52,10 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     })
 
     df = pd.concat([df, new_row], ignore_index=True)
-
     return df
 
 
-def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
+def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -67,9 +65,9 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
     asset_rows = asset_rows[asset_rows["Operazione"].isin(["Acquisto", "Vendita"])]     # non passare righe con dividendi
 
     if buy:
-        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
+        results = aop.buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
     else:
-        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
+        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
 
     price_eur = price / conv_rate
 
@@ -107,5 +105,4 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
     })
 
     df = pd.concat([df, new_row], ignore_index=True)
-
     return df

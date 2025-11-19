@@ -44,9 +44,9 @@ def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=10
 
 # 6 - ANALISI PORTAFOGLIO
 #    6.1 - Resoconto
-def summary(brokers, data, save_path):
-    print('\n  - Data di interesse GG-MM-AAAA ("t" per data odierna)')
-    dt, ref_date = get_date()
+def summary(translator, brokers, data, save_path):
+    print(translator.get("analysis.summary.date"))
+    dt, ref_date = get_date(translator=translator)
 
     total_current_liq = []
     total_asset_value = []
@@ -57,15 +57,15 @@ def summary(brokers, data, save_path):
     total_flows = []
     total_flows_dates = []
     first_dates = []
-    positions_check = []
+    accounts_with_positions = 0
 
     for account in data:
-        print(f"\n\n\nConto {account[0]}: {brokers[account[0]]} " + "="*70)
+        print("\n\n\n"+ translator.get("analysis.summary.account_literal") + f" {account[0]}: {brokers[account[0]]} " + "="*70)
 
         df_copy = account[1].copy()
-        positions = get_asset_value(df_copy, ref_date=ref_date)
+        positions = get_asset_value(translator, df_copy, ref_date=ref_date)
 
-        df_valid, first_date = get_pf_date(df_copy, dt, ref_date)
+        df_valid, first_date = get_pf_date(translator, df_copy, dt, ref_date)
 
         current_liq = round_half_up(float(df_valid.iloc[-1]["Liquidita Attuale"]))
         historic_liq = df_valid["Liq. Impegnata"].iloc[-1]
@@ -92,20 +92,19 @@ def summary(brokers, data, save_path):
             flows.append(nav)   # add updated nav
             xirr_full = xirr(flows, flows_dates, annualization=(ref_date-flows_dates[0]).days)
             xirr_ann = xirr(flows, flows_dates)
-            positions_check.append("pass")
+            accounts_with_positions += 1
         else:
-            print("\n    Non è stato possibile reperire alcuna posizione attiva.\n    Statistiche non calcolabili.")
+            print(translator.get("analysis.summary.no_active_pos"))
         total_flows.append(flows)
         total_flows_dates.append(flows_dates)
 
-        print(f"\n    NAV (al {dt}): {nav:.2f}€")
-        print(f"\t- Liquidità: {current_liq:.2f}€")
-        print(f"\t- Valore Titoli: {asset_value:.2f}€")
-        print(f"    Liquidità Impegnata: {historic_liq:.2f}€")
-        print(f"    P&L: {round_half_up(pl):.2f}€")
-        print(f"    P&L comprendente il non realizzato: {round_half_up(pl_unrealized):.2f}€")
-        print(f"    Rendimento totale (XIRR): {xirr_full:.2%}")
-        print(f"    Rendimento annualizzato (XIRR): {xirr_ann:.2%}\n")
+        print(translator.get("analysis.summary.nav", dt=dt, nav=nav))
+        print(translator.get("analysis.summary.cash", current_liq=current_liq))
+        print(translator.get("analysis.summary.assets_value", asset_value=asset_value))
+        print(translator.get("analysis.summary.historic_cash", historic_liq=historic_liq))
+        print(translator.get("analysis.summary.pl", pl=round_half_up(pl)))
+        print(translator.get("analysis.summary.pl_unrealized", pl_unrealized=round_half_up(pl_unrealized)))
+        print(translator.get("analysis.summary.return_account", xirr_full=xirr_full, xirr_ann=xirr_ann))
 
         total_current_liq.append(current_liq)
         total_asset_value.append(asset_value)
@@ -116,18 +115,17 @@ def summary(brokers, data, save_path):
         if first_date is not None:
             first_dates.append(first_date)
 
-        print(f"    Titoli detenuti in data {dt}:\n")
+        print(translator.get("analysis.summary.assets_recap.held_assets", dt=dt))
         if not positions:
             print("\t ---")
         else:
             for pos in positions:
-                print(f"\t- {pos["ticker"]}    PMC: {pos["pmc"]:.4f}€    Prezzo attuale: {round_half_up(pos["price"], decimal="0.0001"):.4f}€    QT: {pos["quantity"]}    Controvalore: {round_half_up(pos["value"]):.2f}€")
+                print(f"\t- {pos["ticker"]}" + translator.get("analysis.summary.assets_recap.avg_price") + f"{pos["pmc"]:.4f}€" + translator.get("analysis.summary.assets_recap.current_price") + f"{round_half_up(pos["price"], decimal="0.0001"):.4f}€    QT: {pos["quantity"]}" + translator.get("analysis.summary.assets_recap.value") + f"{round_half_up(pos["value"]):.2f}€")
 
-
-    print("\n\n\nTotale Portafoglio " + "="*70)
+    print("\n\n\n" + translator.get("analysis.summary.portfolio_literal") + "="*70)
     if first_dates:
         min_date = min(first_dates)
-        pf_history = portfolio_history(min_date, ref_date, data)
+        pf_history = portfolio_history(translator, min_date, ref_date, data)
     else:
         pf_history = pd.DataFrame([])
     xirr_total_full = np.nan
@@ -137,7 +135,7 @@ def summary(brokers, data, save_path):
     volatility = np.nan
     sharpe_ratio = np.nan
 
-    if positions_check: # if there is at least one active position across all accounts, proceed with statistics
+    if accounts_with_positions > 0: # if there is at least one active position across all accounts, proceed with statistics
     # XIRR ========================================================================
         combined_flows = list(
             chain.from_iterable(
@@ -169,22 +167,18 @@ def summary(brokers, data, save_path):
         # Note: this is the volatility of the returns. The denominator of the sharpe ratio is instead the volatility of excess return (i.e. returns - risk free rate)
         volatility = pf_history["TWRR Giornaliero"].std() * np.sqrt(trading_days)  
     else:
-        print("\n    Non è stato possibile reperire alcuna posizione attiva tra tutti i conti.\n    Statistiche non calcolabili.")  
+        print(translator.get("analysis.summary.no_active_pos"))  
 
 # Display results ============================================================
-    print(f"\n    NAV (al {dt}): {round_half_up(sum(total_nav)):.2f}€")
-    print(f"\t- Liquidità: {round_half_up(sum(total_current_liq)):.2f}€")
-    print(f"\t- Valore Titoli: {round_half_up(sum(total_asset_value)):.2f}€")
-    print(f"    Liquidità Impegnata: {round_half_up(sum(total_historic_liq)):.2f}€\n")
-    print(f"    P&L: {round_half_up(sum(total_pl)):.2f}€")
-    print(f"    P&L comprendente il non realizzato: {round_half_up(sum(total_pl_unrealized)):.2f}€\n")
-    print(f"    Rendimento")
-    print(f"\t- XIRR totale: {xirr_total_full:.2%}")
-    print(f"\t- XIRR annualizzato: {xirr_total_ann:.2%}")
-    print(f"\t- TWRR totale: {twrr_total:.2%}")
-    print(f"\t- TWRR annualizzato: {twrr_ann:.2%}\n")
-    print(f"    Volatilità annualizzata: {volatility:.2%}")
-    print(f"    Sharpe Ratio: {sharpe_ratio:.2f}\n")
+    print(translator.get("analysis.summary.nav", dt=dt, nav=round_half_up(sum(total_nav))))
+    print(translator.get("analysis.summary.cash", current_liq=round_half_up(sum(total_current_liq))))
+    print(translator.get("analysis.summary.assets_value", asset_value=round_half_up(sum(total_asset_value))))
+    print(translator.get("analysis.summary.historic_cash", historic_liq=round_half_up(sum(total_historic_liq))))
+    print(translator.get("analysis.summary.pl", pl=round_half_up(sum(total_pl))))
+    print(translator.get("analysis.summary.pl_unrealized", pl_unrealized=round_half_up(sum(total_pl_unrealized))))
+    print(translator.get("analysis.summary.return_portfolio", xirr_full=xirr_total_full, xirr_ann=xirr_total_ann, twrr_full=twrr_total, twrr_ann=twrr_ann))
+    print(translator.get("analysis.summary.volatility", volatility=volatility))
+    print(translator.get("analysis.summary.sharpe_ratio", sharpe_ratio=sharpe_ratio))
 
     if not pf_history.empty:
         pf_history = pf_history.dropna()
@@ -193,14 +187,14 @@ def summary(brokers, data, save_path):
         ax.plot(pf_history["Date"], pf_history["Valore Titoli"], label='Valore titoli', color='red', linestyle='--')
         ax.plot(pf_history["Date"], pf_history["Liquidita"], label='Liquidità nel conto', color='darkgreen', linestyle='--')
         ax.plot(pf_history["Date"], pf_history["Liquidita Impegnata"], label='Liquidità impegnata', color='limegreen', linestyle=':')
-        ax.set_xlabel("Data")
-        ax.set_ylabel("Valore (€)")
+        ax.set_xlabel(translator.get("analysis.summary.plot1.xlabel"))
+        ax.set_ylabel(translator.get("analysis.summary.plot1.ylabel"))
         labels = ax.get_xticklabels() 
         ax.set_xticklabels(labels, rotation=45, ha='right')
         ax.legend()
         ax.grid(True, alpha=0.5)
         fig.tight_layout()
-        fig.canvas.manager.set_window_title(f"Valore Portafoglio | Dal: {min_date.strftime("%d-%m-%Y")} | Al: {dt}")
+        fig.canvas.manager.set_window_title(translator.get("analysis.summary.plot1.window_title", min_date=min_date.strftime("%d-%m-%Y"), dt=dt))
         plt.show()
 
         rounding_dict = { "Liquidita":2, "Liquidita Impegnata":2, "Valore Titoli":2, "NAV":2, 
@@ -208,30 +202,27 @@ def summary(brokers, data, save_path):
         pf_history = pf_history.round(rounding_dict)
         pf_history = pf_history.set_index("Date")
         pf_history.to_csv(save_path, date_format='%Y-%m-%d')
-        print(f"\nEsportato storico del portafoglio in {save_path}\n")
-
-    input("\nPremi Invio per continuare...")
-
+        print(translator.get("analysis.summary.exported", save_path=save_path))
 
 
 
 #    6.2 - Correlazione
-def correlation(data):
+def correlation(translator, data):
     # parse empty accounts:
     # remove rows with dividends, since there may be the (very unlikely) case where there is a report
     # with has a ticker which happens to only have dividends associated to it (and no buy/sell operation whatsoever)
     for account in data:
         account[1] = account[1][account[1]["Operazione"].isin(["Acquisto", "Vendita"])]
 
-    print('\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
-    print("  - Data inizio analisi:")
-    start_dt, start_ref_date = get_date()
-    print("  - Data fine analisi:")
-    end_dt, end_ref_date = get_date()
+    print(translator.get("analysis.corr.date"))
+    print(translator.get("analysis.corr.start_dt"))
+    start_dt, start_ref_date = get_date(translator=translator)
+    print(translator.get("analysis.corr.end_dt"))
+    end_dt, end_ref_date = get_date(translator=translator)
 
-    print(f"\n--- Correlazione semplice ---")
+    print(translator.get("analysis.corr.simple"))
 
-    _, active_tickers = get_tickers(data)
+    _, active_tickers = get_tickers(translator, data)
     if active_tickers:     # if you where able to retrieve active tickers:
         active_tickers = [t[0] for t in active_tickers]
 
@@ -240,19 +231,25 @@ def correlation(data):
         prices_df = yf.download(active_tickers, start=start_ref_date, end=end_ref_date, progress=False)
         returns_df = prices_df["Close"].pct_change().dropna()
         correlation_matrix = returns_df.corr()
+        print()
         print(correlation_matrix)
+        print("\n")
     else:                  # not enough data (empty account, no buy/sell operation)
-        print("    Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.\n\n")
+        print(translator.get("analysis.corr.simple_error"))
 
     # Rolling correlation. Not restricted to just owned assets;
     # If at least one of the input assets is not owned, download appropriate data.
     # Else reuse what was previously downloaded  
-    print(f"\n--- Correlazione rolling tra due assets ---")
-    print("Inserire ticker degli asset interessati. Non è necessario che essi siano detenuti nel portafoglio.\n")
-    asset1 = input("  - Ticker asset 1\n    > ")
-    asset2 = input("  - Ticker asset 2\n    > ")
-    window = int(input("  - Finestra temporale in giorni. Si consiglia 100-150 per storici superiori a 2 anni, 20-60 altrimenti.\n    > "))
-    
+    print(translator.get("analysis.corr.rolling"))
+    asset1 = input(translator.get("analysis.corr.asset1"))
+    asset2 = input(translator.get("analysis.corr.asset2"))
+    try: 
+        window = int(input(translator.get("analysis.corr.window")))
+        if window <= 0:
+            raise ValueError
+    except ValueError:
+        wrong_input(translator.get("analysis.corr.window_error"))
+
     if not(asset1 or asset2) in active_tickers:
         prices_df = yf.download([asset1, asset2], start=start_ref_date, end=end_ref_date, progress=False)
         returns_df = prices_df["Close"].pct_change().dropna()
@@ -261,8 +258,8 @@ def correlation(data):
     if active_tickers:
         # heatmap is drawn with matplotlib to avoid requiring seaborn just for this purpose
         fig1, ax1 = plt.subplots(figsize=(7, 6))
-        cax = ax1.matshow(correlation_matrix, cmap='coolwarm', vmin=-1, vmax=1)
-        fig1.colorbar(cax, label='Correlation')
+        cax = ax1.matshow(correlation_matrix, cmap="coolwarm", vmin=-1, vmax=1)
+        fig1.colorbar(cax, label=translator.get("analysis.corr.plot1.colorbar"))
         labels = correlation_matrix.columns
         ax1.set_xticks(np.arange(len(labels)))
         ax1.set_yticks(np.arange(len(labels)))
@@ -271,62 +268,59 @@ def correlation(data):
         # draw the numbers on the tiles:
         for i in range(len(labels)):
             for j in range(len(labels)):
-                text = ax1.text(j, i, f'{correlation_matrix.iloc[i, j]:.3f}',
-                            ha='center', va='center', color='black', fontsize=15)
+                text = ax1.text(j, i, f"{correlation_matrix.iloc[i, j]:.3f}",
+                            ha="center", va="center", color="black", fontsize=15)
         fig1.tight_layout()
-        fig1.canvas.manager.set_window_title(f"Correlazione semplice | Dal: {start_dt} | Al: {end_dt}")
+        fig1.canvas.manager.set_window_title(translator.get("analysis.corr.plot1.window_title", start_dt=start_dt, end_dt=end_dt))
 
     fig2 = plt.figure(figsize=(8, 6))
-    ax2 = rolling_corr.plot(title=f'Intervallo: {window}gg    Assets: {asset1}, {asset2}', legend=False, color='blue')
-    ax2.axhline(0, color='red', linestyle='--', linewidth=0.8, label='Correlazione Zero')
-    ax2.set_xlabel('Data')
-    ax2.set_ylabel('Coefficiente di correlazione')
+    ax2 = rolling_corr.plot(title=translator.get("analysis.corr.plot2.title", window=window, asset1=asset1, asset2=asset2), legend=False, color="blue")
+    ax2.axhline(0, color="red", linestyle="--", linewidth=0.8)
+    ax2.set_xlabel(translator.get("analysis.corr.plot2.xlabel"))
+    ax2.set_ylabel(translator.get("analysis.corr.plot2.ylabel"))
     ax2.grid(True, alpha=0.5)
     fig2.tight_layout()
-    fig2.canvas.manager.set_window_title(f"Correlazione rolling | Dal: {start_dt} | Al: {end_dt}")
+    fig2.canvas.manager.set_window_title(translator.get("analysis.corr.plot2.window_title", start_dt=end_dt, end_dt=end_dt))
     plt.show()
 
-    input("\nPremi Invio per continuare...")
 
 #    6.3 - Drawdown
-def drawdown(data):
-
+def drawdown(translator, data):
     data = [account for account in data if len(account[1]) > 1]
 
-    print('\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, "t" per data odierna.')
-    print("  - Data inizio analisi:")
-    start_dt, start_ref_date = get_date()
-    print("  - Data fine analisi:")
-    end_dt, end_ref_date = get_date()
+    print(translator.get("analysis.drawdown.date"))
+    print(translator.get("analysis.drawdown.start_dt"))
+    start_dt, start_ref_date = get_date(translator=translator)
+    print(translator.get("analysis.drawdown.end_dt"))
+    end_dt, end_ref_date = get_date(translator=translator)
 
     if data:
-        pf_history = portfolio_history(start_ref_date, end_ref_date, data)
+        pf_history = portfolio_history(translator, start_ref_date, end_ref_date, data)
         pf_history = pf_history.dropna()
         running_max = pf_history["NAV"].expanding().max()
         drawdown = (pf_history["NAV"] - running_max) / running_max
         mdd = drawdown.min()
-        print(f"\n    Maximum Drawdown del portafoglio tra il {start_dt} ed il {end_dt}: {mdd * 100:.2f}%")
+        print(translator.get("analysis.drawdown.result", start_dt=start_dt, end_dt=end_dt, mdd=mdd*100))
 
         fig, ax = plt.subplots(figsize=(10, 8))
-        ax.plot(pf_history["Date"], (drawdown * 100), color="red", linestyle="-")
-        ax.axhline(mdd * 100, color='blue', linestyle='--', linewidth=2, label=f'Maximum Drawdown: {mdd * 100:.2f}%')
-        ax.set_xlabel("Data")
+        ax.plot(pf_history["Date"], (drawdown * 100), color="black", linestyle="-")
+        ax.axhline(mdd * 100, color="red", linestyle="--", linewidth=2, label=translator.get("analysis.drawdown.plot1.legend", mdd=mdd*100))
+        ax.set_xlabel(translator.get("analysis.drawdown.plot1.xlabel"))
         ax.set_ylabel("Drawdown (%)")
         ax.set_ylim(bottom=mdd*100 -2.5, top=2.5)
         labels = ax.get_xticklabels() 
-        ax.set_xticklabels(labels, rotation=45, ha='right')
+        ax.set_xticklabels(labels, rotation=45, ha="right")
         ax.legend()
         ax.grid(True, alpha=0.5)
         fig.tight_layout()
-        fig.canvas.manager.set_window_title(f"Drawdown Portafoglio | Dal: {start_dt} | Al: {end_dt}")
+        fig.canvas.manager.set_window_title(translator.get("analysis.drawdown.plot1.window_title", start_dt=start_dt, end_dt=end_dt))
         plt.show()
     else:
-        print("\n    Nessun dato presente nello storico delle transazioni, tra tutti i conti.\n    Drawdown non calcolabile.")  
-    input("\nPremi Invio per continuare...")
+        print(translator.get("analysis.drawdown.error"))  
+        
 
 
-def var_mc(data):
-
+def var_mc(translator, data):
     # SEE IF YOU CAN OPTIMIZE ACTIVE POSITION FETCHING LOGIC
     # there must be some positions currently opened
     data = [account for account in data if account[1]["Valore Titoli"].iloc[-1] > 0.0]
@@ -334,21 +328,21 @@ def var_mc(data):
     if data:    
         start_ref_date = "2010-01-01"
         try:
-            confidence_interval = float(input("\n  - Intervallo di Confidenza (es. 0.99)\n    > "))
+            confidence_interval = float(input(translator.get("analysis.var.ci")))
             if confidence_interval <= 0.0 or confidence_interval >= 1.0:
                 raise ValueError
         except ValueError:
-            wrong_input("L'Intervallo di Confidenza è definito tra 0 ed 1, estremi esclusi.") 
+            wrong_input(translator.get("analysis.var.ci_error")) 
         
         try:
-            projected_days = int(input("  - Numero di giorni interessati. Più questo numero è alto, meno attendibili saranno i risultati.\n    > "))
+            projected_days = int(input(translator.get("analysis.var.days")))
             if projected_days <= 0:
                 raise ValueError
         except ValueError:
-            wrong_input("Il numero di giorni per la previsione deve essere un numero intero maggiore di 0")
+            wrong_input(translator.get("analysis.var.days_error"))
         end_dt = datetime.now()
 
-        _, total_tickers = get_tickers(data)
+        _, total_tickers = get_tickers(translator, data)
         usd_tickers = [t[0] for t in total_tickers if t[1] == "USD"]
         eur_tickers = [t[0] for t in total_tickers if t[1] == "EUR"]
 
@@ -356,13 +350,13 @@ def var_mc(data):
         total_liquidity = []
 
         # get for date end_dt: total positions held across accounts, total liquidity 
-        print("\n    Aggiornamento dei titoli in possesso da Yahoo Finance...")
+        print(translator.get("yf.download_current"))
         for account in data:
             df_copy = account[1].copy()
-            positions = get_asset_value(df_copy, ref_date=end_dt, suppress_progress=True)
+            positions = get_asset_value(translator, df_copy, ref_date=end_dt, suppress_progress=True)
             total_positions.extend(positions)
 
-            df_valid, _ = get_pf_date(df_copy, end_dt, end_dt)
+            df_valid, _ = get_pf_date(translator, df_copy, end_dt, end_dt)
             current_liq = round_half_up(float(df_valid.iloc[-1]["Liquidita Attuale"]))
             total_liquidity.append(current_liq)
 
@@ -376,7 +370,7 @@ def var_mc(data):
         weights = assets_value / portfolio_value
         portfolio_value = portfolio_value + cash
         
-        print("    Scaricamento dei dati storici da Yahoo Finance...")
+        print(translator.get("yf.download_historic_generic"))
         # 1. Costruisci un'unica lista di tutti i ticker necessari
         tickers_to_download = []
         if usd_tickers:
@@ -388,7 +382,7 @@ def var_mc(data):
         if tickers_to_download:
             tickers_to_download.append("USDEUR=X")
         else:
-            print("    Nessun ticker da scaricare.")
+            print("    " + translator.get("yf.no_tickers"))
             prices_df = pd.DataFrame([])
 
         # 3. Esegui UNA SOLA chiamata di download (solo se necessario)
@@ -401,7 +395,7 @@ def var_mc(data):
             )
             # Gestione del caso in cui yf restituisce dati None/vuoti
             if all_data.empty:
-                print("    Nessun dato scaricato da Yahoo Finance.")
+                print(translator.get("yf.error_empty_df"))
                 prices_df = pd.DataFrame([])
             else:
                 # 4. Estrai i prezzi 'Close'
@@ -493,18 +487,16 @@ def var_mc(data):
                 scenarioReturn.append(scenario_gain_loss(portfolio_value, portfolio_expected_return, portfolio_std_dev, z_score, projected_days))
 
             VaR = -np.percentile(scenarioReturn, 100 * (1 - confidence_interval))
-            print(f"\n    Value at Risk del portafoglio al {confidence_interval:.0%} IdC su {projected_days} giorni:    {VaR:.2f}€")
+            print(translator.get("analysis.var.result", ci=confidence_interval, days=projected_days, var=VaR))
 
             fig, ax = plt.subplots(figsize=(8, 6))
             ax.hist(scenarioReturn, bins=100, density=True, color="lightgray")
-            ax.set_xlabel("Gain/Loss (€)")
-            ax.set_ylabel("Densità")
-            ax.axvline(-VaR, color='r', linestyle='dashed', linewidth=2, label=f'VaR al {confidence_interval:.0%} IdC: {VaR:.2f}€')
+            ax.set_xlabel(translator.get("analysis.var.plot1.xlabel"))
+            ax.set_ylabel(translator.get("analysis.var.plot1.ylabel"))
+            ax.axvline(-VaR, color="red", linestyle="dashed", linewidth=2, label=translator.get("analysis.var.plot1.legend", ci=confidence_interval, var=VaR))
             ax.legend()
             fig.tight_layout()
-            fig.canvas.manager.set_window_title(f"Distribuzione del Portfolio Gain/Loss su {projected_days} giorni")
+            fig.canvas.manager.set_window_title(translator.get("analysis.var.plot1.window_title", days=projected_days))
             plt.show()
     else:
-        print("    Non è stata trovata alcuna posizione aperta tra tutti i conti.\n    Value at Risk nullo.")
-
-    input("\nPremi Invio per continuare...")
+        print(translator.get("analysis.var.error"))

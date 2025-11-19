@@ -6,10 +6,10 @@ import json
 
 import utils.menu_operations as mop
 import utils.account as aop
-from utils.date_utils import get_date
 from utils.other_utils import create_defaults
+from utils.translator import Translator
 
-pd.set_option('display.max_columns', None)
+pd.set_option("display.max_columns", None)
 REP_DEF = "Report "
 user_folder = os.path.join(os.getcwd(), "reports")
 config_folder = os.path.join(os.getcwd(), "config")
@@ -17,45 +17,37 @@ config_res_folder = os.path.join(config_folder, "resources")
 os.makedirs(user_folder, exist_ok=True)
 os.makedirs(config_res_folder, exist_ok=True)
 
-def main_menu(file, account_name, len_df, len_df_init, edited_flag):
-    print("\n=================== MENU PRINCIPALE ===================\n")
-    print(f"Si sta operando sul conto: {account_name}\nFile caricato: {file}, con {len_df_init-1} righe.")
+def main_menu(translator, file, account_name, len_df, len_df_init, edited_flag):
+    header = translator.get("main_menu.title")
+    header_length = len(header)
+    print("\n" + header + "\n")
+    print(translator.get("main_menu.operating_on", account_name=account_name, file=file, rows=len_df_init-1))
 
     if edited_flag:
         diff = len_df - len_df_init
-        print("Sono presenti modifiche non salvate.")
+        print(translator.get("main_menu.unsaved_changes"))
         if diff == 0:
-            print(f"Righe totali aggiunte o rimosse: {diff} (il numero di righe è invariato, ma il contenuto potrebbe essere stato modificato).")
+            print(translator.get("main_menu.rows_changed", diff=diff) + translator.get("main_menu.rows_changed_zero"))
         else:
-            print(f"Righe totali aggiunte o rimosse: {diff}")
+            print(translator.get("main_menu.rows_changed", diff=diff))
     else:
-        print("Nessuna modifica eseguita.")
+        print(translator.get("main_menu.no_changes"))
     
-    print("\n> Seleziona operazione.\n")
-    print("    c. Cambia conto\n")
-    print("    1. Liquidità")
-    print("    2. ETF")
-    print("    3. Azioni")
-    print("    4. Obbligazioni")
-    print("    5. Ultimi movimenti")
-    print("    6. Analisi portafoglio\n")
-    print("    s. Impostazioni applicazione")
-    print("    e. Esporta in CSV")
-    print("    r. Rimuovi ultima riga")
-    print("    i. Informazioni/Glossario\n")
-    print("    q. Esci dal programma")
+    print(translator.get("main_menu.select_operation"))
+    print(translator.get("main_menu.operations"))
+    return header_length
 
 
 if __name__ == "__main__":
 
+    translator = Translator(language_code="it")
+
     try:
-        with open(os.path.join(config_folder, "brokers.json"), 'r', encoding='utf-8') as f:
+        with open(os.path.join(config_folder, "brokers.json"), "r", encoding="utf-8") as f:
             brokers = json.load(f)  
     except FileNotFoundError:
-        print("\nSembra che sia la prima volta che si utilizzi questo programma.")
-        print("Si prega di aggiungere un alias rappresentativo per ciascuno dei propri conti.")
-        print('Ad esempio, "Fineco" o "Conto Intesa 1".\n')
-        brokers = mop.initialize_brokers(config_folder)
+        print(translator.get("main_menu.first_boot"))
+        brokers = mop.initialize_brokers(translator, config_folder)
         os.system("cls" if os.name == "nt" else "clear")    
 
     for broker_name in list(brokers.values()):
@@ -65,7 +57,7 @@ if __name__ == "__main__":
 
     loaded = False
     while not loaded:
-        account, is_loaded = aop.load_account(brokers, config_res_folder, REP_DEF)
+        account, is_loaded = aop.load_account(translator, brokers, config_res_folder, REP_DEF)
         loaded = is_loaded
         os.system("cls" if os.name == "nt" else "clear")
 
@@ -76,7 +68,7 @@ if __name__ == "__main__":
     path = account[0]["path"]
     acc_idx = account[0]["acc_idx"]
 
-    all_accounts, _ = aop.load_account(brokers, config_res_folder, REP_DEF, active_only=False)
+    all_accounts, _ = aop.load_account(translator, brokers, config_res_folder, REP_DEF, active_only=False)
     os.system("cls" if os.name == "nt" else "clear")
 
     while True:
@@ -85,14 +77,14 @@ if __name__ == "__main__":
             if len(df) != len_df_init:
                 edited_flag = True
 
-            main_menu(file, brokers[acc_idx], len(df), len_df_init, edited_flag)
-            print("\n" + "="*55)
+            header_length = main_menu(translator, file, brokers[acc_idx], len(df), len_df_init, edited_flag)
+            print("\n" + "="*header_length)
             choice = input("\n> ")
 
-            if choice in ('c', 'C'):
+            if choice in ("a", "A"):
                 loaded = False
                 while not loaded:
-                    account, is_loaded = aop.load_account(brokers, config_res_folder, REP_DEF)
+                    account, is_loaded = aop.load_account(translator, brokers, config_res_folder, REP_DEF)
                     loaded = is_loaded
                     os.system("cls" if os.name == "nt" else "clear")
                 df = account[0]["df"] 
@@ -105,105 +97,106 @@ if __name__ == "__main__":
                 os.system("cls" if os.name == "nt" else "clear")
                 continue
 
-            elif choice == '1':
+            elif choice == "1":
                 cash_loop = True
                 while cash_loop:
                     os.system("cls" if os.name == "nt" else "clear")
-                    print("\n--- OPERAZIONI SU LIQUIDITA' ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                    print("    1. Depositi e Prelievi\n    2. Dividendi\n    3. Imposta di Bollo / Altre imposte")
+                    print(translator.get("cash.title") + translator.get("redirect.cancel_home") + "\n")
+                    print(translator.get("cash.operations"))
                     operation = input("\n> ")
-                    print('\n  - Data operazione GG-MM-AAAA ("t" per data odierna)')            
-                    dt, ref_date = get_date(df)
 
                     if operation == "1":
-                        df = mop.cashop(df, dt, ref_date, brokers[acc_idx])                  
+                        df = mop.cashop(translator, df, brokers[acc_idx])                  
                         cash_loop = False
                     elif operation == "2":
-                        df = mop.dividend(df, dt, ref_date, brokers[acc_idx])
+                        df = mop.dividend(translator, df, brokers[acc_idx])
                         cash_loop = False
                     elif operation == "3":
-                        df = mop.charge(df, dt, ref_date, brokers[acc_idx])
+                        df = mop.charge(translator, df, brokers[acc_idx])
                         cash_loop = False
                     else:
-                        input("\nScelta non valida. Premi Invio per riprovare.")
+                        input("\n" + translator.get("redirect.invalid_choice"))
+                        continue
+                    input("\n" + translator.get("redirect.continue_home"))
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice == '2':
+            elif choice == "2":
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- ETF ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                df = mop.etf_stock(df, brokers[acc_idx], choice="ETF")
+                print(translator.get("stock.title_etf") + translator.get("redirect.cancel_home") + "\n")
+                df = mop.etf_stock(translator, df, brokers[acc_idx], choice="ETF")
                 os.system("cls" if os.name == "nt" else "clear")
             
-            elif choice == '3':
+            elif choice == "3":
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- AZIONI ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                df = mop.etf_stock(df, brokers[acc_idx], choice="Azioni")
-                os.system("cls" if os.name == "nt" else "clear")
-
-            elif choice == '4':
-                os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- OBBLIGAZIONI ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                input("Obbligazioni non ancora implementate. Premi Invio per continuare...")
+                print(translator.get("stock.title_stock") + translator.get("redirect.cancel_home") + "\n")
+                df = mop.etf_stock(translator, df, brokers[acc_idx], choice="Azioni")
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice == '5':
+            elif choice == "4":
                 os.system("cls" if os.name == "nt" else "clear")
-                print("\n--- ULTIMI MOVIMENTI (MAX 10) ---\n\n")
+                print(translator.get("bond.title") + translator.get("redirect.cancel_home") + "\n")
+                input(translator.get("bond.not_implemented"))
+                os.system("cls" if os.name == "nt" else "clear")
+
+            elif choice == "5":
+                os.system("cls" if os.name == "nt" else "clear")
+                print(translator.get("review.title"))
                 print(df.tail(10))
-                input("\nPremi Invio per tornare al Menu Principale...")
+                input("\n" + translator.get("redirect.continue_home"))
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice == '6':
+            elif choice == "6":
                 analysis_loop = True
                 while analysis_loop:
                     os.system("cls" if os.name == "nt" else "clear")
-                    print("\n--- ANALISI PORTAFOGLIO ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                    print("    1. Statistiche generali\n    2. Analisi correlazione\n    3. Drawdown\n    4. VaR")
+                    print(translator.get("analysis.title") + translator.get("redirect.cancel_home") + "\n")
+                    print(translator.get("analysis.operations"))
                     operation = input("\n> ")
                     accounts_formatted = aop.format_accounts(df, acc_idx, all_accounts)
 
                     if operation == "1":
                         from utils.analysis import summary
                         hist_save_path = os.path.join(user_folder, "Storico Portafoglio.csv")
-                        summary(brokers, accounts_formatted, hist_save_path)                  
+                        summary(translator, brokers, accounts_formatted, hist_save_path)                  
                         analysis_loop = False
                     elif operation == "2":
                         from utils.analysis import correlation
-                        correlation(accounts_formatted)
+                        correlation(translator, accounts_formatted)
                         analysis_loop = False
                     elif operation == "3":
                         from utils.analysis import drawdown
-                        drawdown(accounts_formatted)
+                        drawdown(translator, accounts_formatted)
                         analysis_loop = False
                     elif operation == "4":
                         from utils.analysis import var_mc
-                        var_mc(accounts_formatted)
+                        var_mc(translator, accounts_formatted)
                         analysis_loop = False
                     else:
-                        input("\nScelta non valida. Premi Invio per riprovare.")
+                        input("\n" + translator.get("redirect.invalid_choice"))
+                    input(translator.get("redirect.continue"))
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ("s", "S"):
                 settings_loop = True
                 while settings_loop:
                     os.system("cls" if os.name == "nt" else "clear")
-                    print("\n--- IMPOSTAZIONI APPLICAZIONE ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                    print("    1. Aggiungi conti\n    2. Inizializza conti\n    3. Inizializza applicazione (richiede conferma)")
+                    print(translator.get("settings.title") + translator.get("redirect.cancel_home") + "\n")
+                    print(translator.get("settings.operations"))
                     operation = input("\n> ")
 
                     if operation == "1":
-                        brokers = mop.add_brokers(config_folder)
-                        sys.exit("\nConti aggiunti. Esco dall'applicazione...\n")                     
+                        brokers = mop.add_brokers(translator, config_folder)
+                        sys.exit(translator.get("settings.accounts_added") + translator.get("redirect.exit"))                     
                         settings_loop = False
                     elif operation == "2":
-                        brokers = mop.initialize_brokers(config_folder)
-                        sys.exit("\nConti inizializzati. Esco dall'applicazione...\n")
+                        brokers = mop.initialize_brokers(translator, config_folder)
+                        sys.exit(translator.get("settings.accounts_initialized") + translator.get("redirect.exit"))
                         settings_loop = False
                     elif operation == "3":
                         os.system("cls" if os.name == "nt" else "clear")
-                        print("\nQuesta operazione non è reversibile. L'applicazione verrà reimpostata, eliminando tutti i dati salvati.")
-                        confirmation = input("Digitare 'CONFERMA' per procedere. Altri input saranno ignorati.\n\n    > ")
-                        if confirmation == "CONFERMA":
+                        print(translator.get("settings.reset_warning"))
+                        confirmation = input(translator.get("settings.reset_confirm"))
+                        if confirmation == "RESET":
                             import shutil
                             try:
                                 if os.path.exists(config_folder):
@@ -213,11 +206,11 @@ if __name__ == "__main__":
                             except OSError as e:
                                 print(f"Error deleting directory: {e}")
                             os.system("cls" if os.name == "nt" else "clear")
-                            sys.exit("\nReset completato. Esco dall'applicazione...\n")
+                            sys.exit(translator.get("settings.reset_completed") + translator.get("redirect.exit"))
                         else:
                             settings_loop = False
                     else:
-                        input("\nScelta non valida. Premi Invio per riprovare.")
+                        input("\n" + translator.get("redirect.invalid_choice"))
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ("e", "E"):
@@ -229,40 +222,46 @@ if __name__ == "__main__":
                 df_user.to_csv(path_user, index=False)              # for the user to see 
                 len_df_init = len(df)   
                 edited_flag = False
-                print(f'\nEsportato "{file}" in {user_folder}')
-                input("\nPremi Invio per tornare al Menu Principale...")
+                print(translator.get("export.exported", file=file, user_folder=user_folder))
+                input(translator.get("redirect.continue_home"))
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice in ('r', 'R'):
+            elif choice in ("r", "R"):
                 os.system("cls" if os.name == "nt" else "clear")
                 if len(df) > 1:
                     df = df.iloc[:-1]
-                    print("\nUltima riga rimossa.")
+                    print(translator.get("remove_row.row_removed"))
                 else:
-                    print("\nNessuna riga da rimuovere.")
+                    print(translator.get("remove_row.no_rows"))
 
-            elif choice in ('i', 'I'):
+            elif choice in ("i", "I"):
                 from utils.other_utils import display_information
                 info_loop = True
                 while info_loop:
                     os.system("cls" if os.name == "nt" else "clear")
-                    print("\n--- INFORMAZIONI / GLOSSARIO ---\n\nCTRL+C per annullare e tornare al Menu Principale.\n")
-                    print("    1. Descrizione colonne del report\n    2. Informazioni su metriche/statistiche")
+                    print(translator.get("glossary.title") + translator.get("redirect.cancel_home") + "\n")
+                    print(translator.get("glossary.operations"))
                     operation = input("\n> ")
                     if operation in ("1", "2"):
-                        display_information(page=int(operation))                 
+                        display_information(translator, page=int(operation))                 
                         info_loop = False
                     else:
-                        input("\nScelta non valida. Premi Invio per riprovare.")
+                        input("\n" + translator.get("redirect.invalid_choice"))
                 os.system("cls" if os.name == "nt" else "clear")
 
-            elif choice in ('q', 'Q'):
+            elif choice in ("l", "L"):
                 os.system("cls" if os.name == "nt" else "clear")
-                sys.exit("\nEsco dal programma...\n")
+                print(translator.get("language.title") + translator.get("redirect.cancel_home") + "\n")
+                input(translator.get("language.not_implemented"))
+                os.system("cls" if os.name == "nt" else "clear")
+
+            elif choice in ("q", "Q"):
+                os.system("cls" if os.name == "nt" else "clear")
+                sys.exit("\n" + translator.get("redirect.exit"))
             
             else:
                 os.system("cls" if os.name == "nt" else "clear")
-                input("\nScelta non valida. Premi Invio per riprovare.")
+                input("\n" + translator.get("redirect.invalid_choice"))
 
         except KeyboardInterrupt:
             os.system("cls" if os.name == "nt" else "clear")

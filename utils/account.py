@@ -11,7 +11,7 @@ from utils.fetch_utils import fetch_exchange_rate
 warnings.simplefilter(action='ignore', category=Warning)
 
 
-def load_account(brokers, save_folder, report_default, active_only=True):
+def load_account(translator, brokers, save_folder, report_default, active_only=True):
     """
     *Given*:
     - dict `brokers`: **Key** = int: account index, starting from 1. **Value** = str: name of the account
@@ -32,7 +32,7 @@ def load_account(brokers, save_folder, report_default, active_only=True):
     accounts_selected = []
 
     if active_only:
-        print("\nSelezionare il conto su cui operare.\n")
+        print(translator.get("account.selection"))
         for key, value in brokers.items():
             print(f"    {key}. {value}")
         account = input(f"\n > ")
@@ -41,24 +41,24 @@ def load_account(brokers, save_folder, report_default, active_only=True):
             if account not in list( range(1, len(brokers)+1) ):
                 raise ValueError
         except ValueError:
-            print("\nERRORE: Inserire il numero corrispondente al conto su cui si intende operare.")
-            input("Premi Invio per riprovare.\n")
+            print(translator.get("account.selection_error"))
+            input(translator.get("redirect.invalid_choice") + "\n")
             return accounts_selected, False
 
-        file = report_default + brokers[account] + ".csv"
-        path = os.path.join(save_folder, file)
+        filename = report_default + brokers[account] + ".csv"
+        path = os.path.join(save_folder, filename)
         try:
             df = pd.read_csv(path)
         except FileNotFoundError:
-            print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
-            sys.exit("Esco dal programma...")
+            print(translator.get("account.filenotfound_error", filename=filename))
+            sys.exit(translator.get("redirect.exit"))
 
         len_df_init = len(df)
         edited_flag = False
         accounts_selected.append({
             "acc_idx": account,
             "df": df,
-            "file": file,
+            "file": filename,
             "path": path,
             "len_df_init": len_df_init,
             "edited_flag": edited_flag
@@ -66,20 +66,20 @@ def load_account(brokers, save_folder, report_default, active_only=True):
         
     else:
         for account in list( range(1, len(brokers)+1) ):
-            file = report_default + brokers[account] + ".csv"
-            path = os.path.join(save_folder, file)
+            filename = report_default + brokers[account] + ".csv"
+            path = os.path.join(save_folder, filename)
             try:
                 df = pd.read_csv(path)
             except FileNotFoundError:
-                print(f'\nFile "{file}" non trovato.\nAssicurati che sia già presente nella cartella reports e che segua il formato di Template.csv')
-                exit()
+                print(translator.get("account.filenotfound_error", filename=filename))
+                sys.exit(translator.get("redirect.exit"))
 
             len_df_init = len(df)
             edited_flag = False
             accounts_selected.append({
                 "acc_idx": account,
                 "df": df,
-                "file": file,
+                "file": filename,
                 "path": path,
                 "len_df_init": len_df_init,
                 "edited_flag": edited_flag
@@ -111,7 +111,7 @@ def format_accounts(df, acc_idx, all_accounts, non_active_only=False):
     return data
 
 
-def get_tickers(data):
+def get_tickers(translator, data):
     """
     *Given*:
     - list of tuples `data`: a list output by the `format_account()` function, consisting of [(acc_idx1, df1), (acc_idx2, df2), ...] 
@@ -123,7 +123,7 @@ def get_tickers(data):
     total_tickers = []
     active_tickers = []
     for account in data:
-        total_assets, active_assets = get_asset_value(account[1], just_assets=True)
+        total_assets, active_assets = get_asset_value(translator, account[1], just_assets=True)
 
         total_ticker_list = total_assets[["Ticker", "Valuta"]].dropna(subset=["Ticker", "Valuta"]).drop_duplicates().apply(tuple, axis=1).tolist()
         active_ticker_list = active_assets[["Ticker", "Valuta"]].dropna(subset=["Ticker", "Valuta"]).drop_duplicates().apply(tuple, axis=1).tolist()
@@ -134,9 +134,9 @@ def get_tickers(data):
     return list(set(total_tickers)), list(set(active_tickers))
 
 
-def portfolio_history(start_ref_date, end_ref_date, data):
+def portfolio_history(translator, start_ref_date, end_ref_date, data):
 
-    total_tickers, _ = get_tickers(data)
+    total_tickers, _ = get_tickers(translator, data)
     all_dfs = []
 
     for account in data:
@@ -211,7 +211,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
         prices_df = pd.DataFrame([])
 
         only_tickers = [t[0] for t in total_tickers]
-        print("\n    Scaricamento dei dati storici dei titoli da Yahoo Finance...")
+        print(translator.get("yf.download_historic"))
         prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date, progress=False)
         exch_df = yf.download("USDEUR=X",start=start_ref_date, end=end_ref_date, progress=False)
         
@@ -232,15 +232,15 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             target_index = prices_df.index
             
             if target_index.empty:
-                print("Attenzione: l'indice target di prices_df è vuoto dopo dropna().")
+                print(translator.get("yf.error_empty_df_na"))
                 # Creiamo un indice vuoto per evitare errori successivi
                 target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
         else:
-            print("Dati sui titoli non disponibili.")
+            print(translator.get("yf.error_empty_df"))
             target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     except Exception as e:
-        print("Dati sui titoli non disponibili.")
+        print(translator.get("yf.error_empty_df"))
         target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     try:
@@ -284,7 +284,7 @@ def portfolio_history(start_ref_date, end_ref_date, data):
 
         # --- Allineamento all'indice di prices_df ---
 
-        if not target_index.empty:  # == prices_df.index !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if not target_index.empty:
             # Combina l'indice target (da prices_df) e l'indice dei dati (da portfolio_df)
             # Questo assicura che il forward fill copra correttamente gli intervalli
             combined_index = target_index.union(combined_sparse_data.index).sort_values()
@@ -336,13 +336,12 @@ def portfolio_history(start_ref_date, end_ref_date, data):
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
-            # Crea un dataframe vuoto con le colonne corrette
             final_columns_complete = ["Date"] + total_tickers + ["Liquidita", "Liquidita Impegnata", "Valore Titoli", "NAV", "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
         
     except Exception as e:
-        print(f"Si è verificato un errore imprevisto: {e}")
+        print(translator.get("yf.error_generic", e=e))
 
 
 def aggregate_positions(total_positions):
@@ -367,7 +366,7 @@ def aggregate_positions(total_positions):
     return aggr_positions
 
 
-def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, suppress_progress=False):
+def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False, suppress_progress=False):
 
     df_copy = df.copy()
     df_copy["Data"] = pd.to_datetime(df_copy["Data"], format="%d-%m-%Y")
@@ -393,7 +392,7 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
         return []
 
     if not suppress_progress:
-        print("\n    Aggiornamento dei titoli in possesso da Yahoo Finance...")
+        print(translator.get("yf.download_current"))
 
     positions = []
     tickers = []
@@ -428,19 +427,18 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False, s
     return positions
 
 
-def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
+def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
     
     price_abs = abs(price) / conv_rate
-
     fee = round_half_up(fee)
     pmpc = 0
     current_qt = quantity
 
-    # First ever data point for that ISIN
+    # First ever data point for "ticker"
     if asset_rows.empty:                   
         pmpc = (price_abs * quantity + fee) / quantity
 
-    # Ticker already logged
+    # "ticker" already logged
     else:         
         last_pmpc = asset_rows["PMC"].iloc[-1]
         last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
@@ -466,7 +464,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
         fiscal_credit_aggiornato += minusvalenza_comm
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + round_half_up(round_half_up(quantity * price) / conv_rate) - fee
-    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
+    positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
     
     return {
@@ -548,13 +546,13 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
+def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
     
     try:
         if asset_rows.empty:
             raise ValueError
     except ValueError:
-        wrong_input("Nessun titolo da vendere: portafoglio vuoto.")
+        wrong_input(translator.get("stock.sell_noitems"))
     
     fee = round_half_up(fee)
     last_pmpc = asset_rows["PMC"].iloc[-1]
@@ -564,7 +562,7 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, produc
         if quantity > last_remaining_qt:
             raise ValueError
     except ValueError:
-        wrong_input(f"Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt}).")
+        wrong_input(translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
     importo_effettivo = round_half_up((round_half_up(quantity * price)) / conv_rate) - fee 
     costo_rilasciato = quantity * last_pmpc
@@ -610,7 +608,7 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, produc
         minusvalenza_generata += minusvalenza_comm
 
     current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
-    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
+    positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price)
 
     return {
