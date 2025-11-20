@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import json
+import configparser
 
 import utils.menu_operations as mop
 import utils.account as aop
@@ -10,6 +11,7 @@ from utils.other_utils import create_defaults
 from utils.translator import Translator
 
 pd.set_option("display.max_columns", None)
+LANG = {1: ("en", "English"), 2: ("it", "Italiano")}
 REP_DEF = "Report "
 user_folder = os.path.join(os.getcwd(), "reports")
 config_folder = os.path.join(os.getcwd(), "config")
@@ -40,20 +42,38 @@ def main_menu(translator, file, account_name, len_df, len_df_init, edited_flag):
 
 if __name__ == "__main__":
 
-    translator = Translator(language_code="it")
+    config_path = os.path.join(config_folder, "config.ini")
+    config = configparser.ConfigParser()
 
-    try:
-        with open(os.path.join(config_folder, "brokers.json"), "r", encoding="utf-8") as f:
-            brokers = json.load(f)  
-    except FileNotFoundError:
+
+    default_lang = LANG[1][0]    # default - en
+    translator = Translator(language_code=default_lang)
+    lang_code = None
+    if os.path.exists(config_path):
+        config.read(config_path)
+        if 'Language' in config and 'Code' in config['Language']:
+            lang_code = config['Language']['Code']
+    if lang_code is None:
+        lang_code = mop.select_language(translator, config_folder, LANG)
+    translator.load_language(lang_code)
+
+
+    brokers = {}
+    # Try to load brokers from config
+    if os.path.exists(config_path) and 'Brokers' in config:
+        try:
+            # Convert keys to int (configparser reads keys as strings)
+            brokers = {int(k): v for k, v in config.items('Brokers')}
+        except ValueError:
+            pass
+    # If no brokers found (first boot or empty section), initialize
+    if not brokers:
         print(translator.get("main_menu.first_boot"))
         brokers = mop.initialize_brokers(translator, config_folder)
         os.system("cls" if os.name == "nt" else "clear")    
-
     for broker_name in list(brokers.values()):
         create_defaults(config_res_folder, broker_name)
-    # Convert keys back to ints (json saves everything as str)
-    brokers = {int(k): v for k, v in brokers.items()}
+
 
     loaded = False
     while not loaded:
@@ -177,25 +197,28 @@ if __name__ == "__main__":
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ("s", "S"):
-                settings_loop = True
-                while settings_loop:
+                while True:
                     os.system("cls" if os.name == "nt" else "clear")
                     print(translator.get("settings.title") + translator.get("redirect.cancel_home") + "\n")
                     print(translator.get("settings.operations"))
                     operation = input("\n> ")
 
                     if operation == "1":
+                        lang_code = mop.select_language(translator, config_folder, LANG)
+                        translator.load_language(lang_code)
+                        break
+                    if operation == "2":
                         brokers = mop.add_brokers(translator, config_folder)
-                        sys.exit(translator.get("settings.accounts_added") + translator.get("redirect.exit"))                     
-                        settings_loop = False
-                    elif operation == "2":
-                        brokers = mop.initialize_brokers(translator, config_folder)
-                        sys.exit(translator.get("settings.accounts_initialized") + translator.get("redirect.exit"))
-                        settings_loop = False
+                        sys.exit(translator.get("settings.account.accounts_added") + translator.get("redirect.exit"))                     
+                        break
                     elif operation == "3":
+                        brokers = mop.initialize_brokers(translator, config_folder)
+                        sys.exit(translator.get("settings.account.accounts_initialized") + translator.get("redirect.exit"))
+                        break
+                    elif operation == "4":
                         os.system("cls" if os.name == "nt" else "clear")
-                        print(translator.get("settings.reset_warning"))
-                        confirmation = input(translator.get("settings.reset_confirm"))
+                        print(translator.get("settings.account.reset_warning"))
+                        confirmation = input(translator.get("settings.account.reset_confirm"))
                         if confirmation == "RESET":
                             import shutil
                             try:
@@ -204,11 +227,11 @@ if __name__ == "__main__":
                                 if os.path.exists(user_folder):
                                     shutil.rmtree(user_folder)
                             except OSError as e:
-                                print(f"Error deleting directory: {e}")
+                                print(translator.get("settings.account.deletion_error"))
                             os.system("cls" if os.name == "nt" else "clear")
-                            sys.exit(translator.get("settings.reset_completed") + translator.get("redirect.exit"))
+                            sys.exit(translator.get("settings.account.reset_completed") + translator.get("redirect.exit"))
                         else:
-                            settings_loop = False
+                            break
                     else:
                         input("\n" + translator.get("redirect.invalid_choice"))
                 os.system("cls" if os.name == "nt" else "clear")
@@ -247,12 +270,6 @@ if __name__ == "__main__":
                         info_loop = False
                     else:
                         input("\n" + translator.get("redirect.invalid_choice"))
-                os.system("cls" if os.name == "nt" else "clear")
-
-            elif choice in ("l", "L"):
-                os.system("cls" if os.name == "nt" else "clear")
-                print(translator.get("language.title") + translator.get("redirect.cancel_home") + "\n")
-                input(translator.get("language.not_implemented"))
                 os.system("cls" if os.name == "nt" else "clear")
 
             elif choice in ("q", "Q"):

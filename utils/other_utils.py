@@ -18,21 +18,19 @@ def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
 
 
-def wrong_input(error="error not specified", suppress_error=False):
+def wrong_input(translator, error="error not specified", suppress_error=False):
     if suppress_error:
         print("\n" + error)
     else:
-        print("\nI dati inseriti non sono corretti:")
-        print("ERRORE: " + error)
-    input("\nPremi Invio per tornare al Menu Principale...")
+        print(translator.get("misc.wrong_input"))
+        print(translator.get("misc.which_error") + error)
+    input(translator.get("redirect.continue_home"))
     raise KeyboardInterrupt
 
 
 def create_defaults(save_folder, broker_name):
     path_rep = os.path.join(save_folder, "Report " + broker_name + ".csv")
-    path_temp = os.path.join(save_folder, "Template.csv")
     check_rep = os.path.isfile(path_rep)
-    check_temp = os.path.isfile(path_temp)
 
     df_template = pd.DataFrame({
         "Data": ["01-01-2000"],
@@ -66,16 +64,10 @@ def create_defaults(save_folder, broker_name):
         "NAV": [0.0],
         "Liq. Impegnata": [0.0]
     })
-
     # if the reports folder is missing entirely OR 
-    # if the reports folder is there, but Report.csv and Report-template.csv are missing:
-    if (not os.listdir(save_folder)) or (not (check_rep and check_temp)):
-        # If somehow there's a filled report but no template, initialize JUST the template (otherwise the report will be overwritten)
-        if check_rep == True and check_temp == False:
-            df_template.to_csv(path_temp, index=False)
-        else:
-            df_template.to_csv(path_rep, index=False)
-            df_template.to_csv(path_temp, index=False)
+    # if the reports folder is there, but Report.csv is missing:
+    if (not os.listdir(save_folder)) or (not check_rep):
+        df_template.to_csv(path_rep, index=False)
             
 
 def display_information(translator, page):

@@ -552,7 +552,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         if asset_rows.empty:
             raise ValueError
     except ValueError:
-        wrong_input(translator.get("stock.sell_noitems"))
+        wrong_input(translator, translator.get("stock.sell_noitems"))
     
     fee = round_half_up(fee)
     last_pmpc = asset_rows["PMC"].iloc[-1]
@@ -562,7 +562,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         if quantity > last_remaining_qt:
             raise ValueError
     except ValueError:
-        wrong_input(translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
+        wrong_input(translator, translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
     importo_effettivo = round_half_up((round_half_up(quantity * price)) / conv_rate) - fee 
     costo_rilasciato = quantity * last_pmpc

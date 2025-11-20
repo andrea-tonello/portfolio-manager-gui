@@ -1,10 +1,15 @@
 {
   "redirect": {
-    "continue": "\nPremi Invio per continuare...",
+    "continue": "Premi Invio per continuare...",
     "continue_home": "\nPremi Invio per tornare al Menu Principale...",
     "cancel_home": "CTRL+C per annullare e tornare al Menu Principale.",
     "exit": "Esco dall'applicazione...\n",
     "invalid_choice": "Scelta non valida. Premi Invio per riprovare."
+  },
+
+  "misc": {
+    "wrong_input": "\nI dati inseriti non sono corretti:",
+    "which_error": "ERRORE: "
   },
 
   "main_menu": {
@@ -16,7 +21,7 @@
     "rows_changed": "Righe totali aggiunte o rimosse: {diff}",
     "rows_changed_zero": "(il numero di righe è invariato, ma il contenuto potrebbe essere stato modificato).",
     "select_operation": "\n> Seleziona operazione.\n",
-    "operations": "    a. Cambia conto\n\n    1. Liquidità\n    2. ETF\n    3. Azioni\n    4. Obbligazioni\n    5. Ultimi movimenti\n    6. Analisi portafoglio\n\n    s. Impostazioni applicazione\n    e. Esporta in CSV\n    r. Rimuovi ultima riga\n    i. Informazioni e Glossario\n    l. Lingua / Language\n\n    q. Esci dal programma"
+    "operations": "    a. Cambia conto\n\n    1. Liquidità\n    2. ETF\n    3. Azioni\n    4. Obbligazioni\n    5. Ultimi movimenti\n    6. Analisi portafoglio\n\n    s. Impostazioni applicazione\n    e. Esporta in CSV\n    r. Rimuovi ultima riga\n    i. Informazioni e Glossario\n\n    q. Esci dal programma"
   },
 
   "account": {
@@ -33,7 +38,7 @@
     "cash_error": "Il contante inserito deve essere un numero diverso da 0. Positivo se depositato, negativo se prelevato.",
     "dividend_amount": "  - Dividendo in EUR al netto di tasse\n    > ",
     "dividend_error": "Il dividendo inserito deve essere un numero maggiore di 0.",
-    "dividend_ticker": "  - Ticker completo dell'emittente dividendo\n    > ",
+    "dividend_ticker": "  - Ticker completo dell'emittente dividendo (standard Yahoo Finance)\n    > ",
     "charge_amount": "  - Ammontare imposta in EUR\n    > ",
     "charge_error": "L'imposta inserita deve essere un numero maggiore di 0.",
     "charge_descr": "  - Descrizione imposta (es. \"Bollo Q2 2025\")\n    > "
@@ -44,7 +49,7 @@
     "title_stock": "\n--- AZIONI ---\n\n",
     "date": "\n  - Data operazione GG-MM-AAAA (\"t\" per data odierna)",
     "currency": "  - Valuta\n\t1. EUR\n\t2. USD",
-    "currency_error": "Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta di interesse.",
+    "currency_error": "Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta scelta.",
     "exch_rate": "  - Tasso di conversione EUR-USD\n    > ",
     "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0.",
     "ticker": "  - Ticker completo (standard Yahoo Finance)\n    > ",
@@ -152,15 +157,23 @@
 
   "settings": {
     "title": "\n--- IMPOSTAZIONI APPLICAZIONE ---\n\n",
-    "operations": "    1. Aggiungi conti\n    2. Inizializza conti\n    3. Inizializza applicazione (richiede conferma)",
-    "add_account": "\n    Inserisci alias conto. Digitare \"q\" per terminare.",
-    "op_denied": "    Operazione negata. È necessario aggiungere almeno un conto.",
-    "saved": "\nSalvataggio completato. Conti salvati:\n",
-    "accounts_added": "\nConti aggiunti. ",
-    "accounts_initialized": "\nConti inizializzati. ",
-    "reset_warning": "\nQuesta operazione non è reversibile. L'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
-    "reset_confirm": "Digitare 'RESET' per procedere. Altri input saranno ignorati.\n\n    > ",
-    "reset_completed": "\nReset completato. "
+    "operations": "    1. Lingua\n    2. Aggiungi conti\n    3. Inizializza conti\n    4. Inizializza applicazione (richiede conferma)",
+    "account": {
+      "add_account": "\n    Inserisci alias conto. Digitare \"q\" per terminare.",
+      "op_denied": "    Operazione negata. È necessario aggiungere almeno un conto.",
+      "saved": "\nSalvataggio completato. Conti salvati:\n",
+      "accounts_added": "\nConti aggiunti. ",
+      "accounts_initialized": "\nConti inizializzati. ",
+      "reset_warning": "\nQuesta operazione non è reversibile. L'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
+      "reset_confirm": "Digitare 'RESET' per procedere. Altri input saranno ignorati.\n\n    > ",
+      "deletion_error": "Errore nella rimozione dei dati: {e}",
+      "reset_completed": "\nReset completato. "
+    },
+    "language": {
+      "select_language": "Seleziona lingua.",
+      "selection_error": "Errore. Inserire il numero corrispondente alla lingua.",
+      "changed": "\nLingua impostata con successo."
+    }
   },
 
   "export": {
@@ -220,13 +233,6 @@
       "drawdown": "- Drawdown\n    Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\n    Il Maximum Drawdown, in particolare, riporta la differenza maggiore.\n",
       "var": "- Value at Risk (VaR)\n    Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.\n    L'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni.\n"
     }
-  },
-
-  "language": {
-    "title": "\n--- LINGUA ---\n\n",
-    "not_implemented": "La selezione della lingua sarà implementata a breve. Premi Invio per continuare...",
-    "select_language": "\nSeleziona lingua / Select language:\n\n    1. Italiano\n    2. English\n\n> ",
-    "changed": "\nLingua cambiata con successo. Riavvia l'applicazione per applicare le modifiche.\n"
   },
 
   "yf": {

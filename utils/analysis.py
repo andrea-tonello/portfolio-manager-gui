@@ -248,7 +248,7 @@ def correlation(translator, data):
         if window <= 0:
             raise ValueError
     except ValueError:
-        wrong_input(translator.get("analysis.corr.window_error"))
+        wrong_input(translator, translator.get("analysis.corr.window_error"))
 
     if not(asset1 or asset2) in active_tickers:
         prices_df = yf.download([asset1, asset2], start=start_ref_date, end=end_ref_date, progress=False)
@@ -332,14 +332,14 @@ def var_mc(translator, data):
             if confidence_interval <= 0.0 or confidence_interval >= 1.0:
                 raise ValueError
         except ValueError:
-            wrong_input(translator.get("analysis.var.ci_error")) 
+            wrong_input(translator, translator.get("analysis.var.ci_error")) 
         
         try:
             projected_days = int(input(translator.get("analysis.var.days")))
             if projected_days <= 0:
                 raise ValueError
         except ValueError:
-            wrong_input(translator.get("analysis.var.days_error"))
+            wrong_input(translator, translator.get("analysis.var.days_error"))
         end_dt = datetime.now()
 
         _, total_tickers = get_tickers(translator, data)
