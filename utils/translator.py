@@ -1,19 +1,25 @@
 import json
 import os
+import sys
 
 class Translator:
-    def __init__(self, language_code='it'):
+    def __init__(self, language_code="en"):
         self.language_code = language_code
         self.strings = {}
-        self.locales_dir = os.path.join(os.getcwd(), 'locales')
+        # Determine base path: sys._MEIPASS if frozen (PyInstaller), else current dir
+        if getattr(sys, "frozen", False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.getcwd()
+        self.locales_dir = os.path.join(base_path, "locales")
         self.load_language(language_code)
 
     def load_language(self, language_code):
         self.language_code = language_code
-        path = os.path.join(self.locales_dir, f'{language_code}.json')
+        path = os.path.join(self.locales_dir, f"{language_code}.json")
         
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 self.strings = json.load(f)
         except FileNotFoundError:
             self.strings = {} 
@@ -22,7 +28,7 @@ class Translator:
     def get(self, key, **kwargs):
         """
         Gets a translated string by its key, using dot-notation for nesting.
-        Example: get('main_menu.options.exit')
+        Example: translator.get("main_menu.options.exit")
         """
         try:
             # Split the key by '.' to navigate the nested dictionary

@@ -6,6 +6,10 @@ on:
       version:
         description: 'The version to release (e.g., v0.1.5 or v0.2.0)'
         required: true
+      notes:
+        description: 'Custom release notes (optional)'
+        required: false
+        type: string
 
 jobs:
   build-linux:
@@ -29,6 +33,7 @@ jobs:
         run: |
           uv run pyinstaller --onefile --name portfolio-manager \
             --add-data "utils:utils" \
+            --add-data "locales:locales" \
             --add-data "newrow.py:." \
             --collect-all numpy \
             --collect-all pandas \
@@ -84,7 +89,8 @@ jobs:
         run: |
           uv run pyinstaller --onefile --name portfolio-manager `
             --add-data "utils:utils" `
-            --add-data "newrow.py:." `
+            --add-data "locales:locales" `
+            --add-data "newrow.py;." `
             --collect-all numpy `
             --collect-all pandas `
             --collect-all matplotlib `
@@ -139,6 +145,7 @@ jobs:
         run: |
           uv run pyinstaller --onefile --name portfolio-manager \
             --add-data "utils:utils" \
+            --add-data "locales:locales" \
             --add-data "newrow.py:." \
             --collect-all numpy \
             --collect-all pandas \
@@ -193,7 +200,10 @@ jobs:
             artifacts/portfolio-manager-macos/portfolio-manager-macos.zip
           tag_name: ${{ github.event.inputs.version }}
           release_name: "Release ${{ github.event.inputs.version }}"
+          generate_release_notes: true
           body: |
+            ${{ github.event.inputs.notes }}
+
             Automated release of portfolio-manager executables.
 
             **Note:** After downloading and unzipping, you must create a `config` folder in the same directory as the executable. You can copy the `config` folder from the repository.

@@ -100,7 +100,7 @@ pip install pandas numpy python-dateutil yfinance matplotlib
 
 ---
 
-# ENG 🇬🇧
+# ENG 🇬🇧 🇺🇸
 # Portfolio Manager
 
 Portfolio Manager is CLI software designed for the management and analysis of financial portfolios (Stocks and ETFs). It is intended for private investors who wish to track operations, liquidity, capital gains/losses, and manage tax loss carryforwards (*zainetto fiscale*) according to Italian regulations.
