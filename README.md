@@ -31,7 +31,7 @@ Sono inoltre disponibili numerosi strumenti di analisi del rischio: VaR (Monte C
 ## Utilizzo
 ***Primo avvio***
 
-Al primo avvio sono richiesti la scelta della lingua (Italiano, Inglese) ed il setup dei propri intermediari. Per quanto riguarda i secondi, scegliere gli alias che si preferiscono: ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere aggiunti o rimossi successivamente, ma è da tenere a mente non è possibile "rinominare" un account già salvato; in quel caso, sarà necessario inserire nuovamente tutte le transazioni.
+Al primo avvio sono richiesti la scelta della lingua (Italiano, Inglese) ed il setup dei propri intermediari. Per quanto riguarda questi ultimi, scegliere gli alias che si preferiscono: ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere aggiunti o rimossi successivamente, ma è da tenere a mente non è possibile "rinominare" un account già salvato; in quel caso, sarà necessario inserire nuovamente tutte le transazioni.
 
 ***Utilizzo***
 
