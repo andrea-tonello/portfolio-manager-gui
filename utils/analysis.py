@@ -7,7 +7,8 @@ from itertools import chain
 
 from utils.date_utils import get_date, get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
-from utils.other_utils import round_half_up, wrong_input
+from utils.other_utils import round_half_up, wrong_input, validated_float, validated_int
+from utils.constants import DATE_FORMAT
 import utils.newton as newton
 
 
@@ -194,8 +195,9 @@ def summary(translator, brokers, data, save_path):
         ax.legend()
         ax.grid(True, alpha=0.5)
         fig.tight_layout()
-        fig.canvas.manager.set_window_title(translator.get("analysis.summary.plot1.window_title", min_date=min_date.strftime("%d-%m-%Y"), dt=dt))
+        fig.canvas.manager.set_window_title(translator.get("analysis.summary.plot1.window_title", min_date=min_date.strftime(DATE_FORMAT), dt=dt))
         plt.show()
+        plt.close("all")
 
         rounding_dict = { "Liquidita":2, "Liquidita Impegnata":2, "Valore Titoli":2, "NAV":2, 
                          "Cash Flow":2, "TWRR Giornaliero":4, "TWRR Cumulativo":4 }
@@ -243,12 +245,8 @@ def correlation(translator, data):
     print(translator.get("analysis.corr.rolling"))
     asset1 = input(translator.get("analysis.corr.asset1"))
     asset2 = input(translator.get("analysis.corr.asset2"))
-    try: 
-        window = int(input(translator.get("analysis.corr.window")))
-        if window <= 0:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("analysis.corr.window_error"))
+    window = validated_int(translator, translator.get("analysis.corr.window"),
+                           "analysis.corr.window_error", condition=lambda x: x > 0)
 
     if not(asset1 or asset2) in active_tickers:
         prices_df = yf.download([asset1, asset2], start=start_ref_date, end=end_ref_date, progress=False)
@@ -282,6 +280,7 @@ def correlation(translator, data):
     fig2.tight_layout()
     fig2.canvas.manager.set_window_title(translator.get("analysis.corr.plot2.window_title", start_dt=end_dt, end_dt=end_dt))
     plt.show()
+    plt.close("all")
 
 
 #    6.3 - Drawdown
@@ -315,6 +314,7 @@ def drawdown(translator, data):
         fig.tight_layout()
         fig.canvas.manager.set_window_title(translator.get("analysis.drawdown.plot1.window_title", start_dt=start_dt, end_dt=end_dt))
         plt.show()
+        plt.close("all")
     else:
         print(translator.get("analysis.drawdown.error"))  
         
@@ -327,19 +327,11 @@ def var_mc(translator, data):
 
     if data:    
         start_ref_date = "2010-01-01"
-        try:
-            confidence_interval = float(input(translator.get("analysis.var.ci")))
-            if confidence_interval <= 0.0 or confidence_interval >= 1.0:
-                raise ValueError
-        except ValueError:
-            wrong_input(translator, translator.get("analysis.var.ci_error")) 
-        
-        try:
-            projected_days = int(input(translator.get("analysis.var.days")))
-            if projected_days <= 0:
-                raise ValueError
-        except ValueError:
-            wrong_input(translator, translator.get("analysis.var.days_error"))
+        confidence_interval = validated_float(translator, translator.get("analysis.var.ci"),
+                                               "analysis.var.ci_error",
+                                               condition=lambda x: 0.0 < x < 1.0)
+        projected_days = validated_int(translator, translator.get("analysis.var.days"),
+                                       "analysis.var.days_error", condition=lambda x: x > 0)
         end_dt = datetime.now()
 
         _, total_tickers = get_tickers(translator, data)
@@ -498,5 +490,6 @@ def var_mc(translator, data):
             fig.tight_layout()
             fig.canvas.manager.set_window_title(translator.get("analysis.var.plot1.window_title", days=projected_days))
             plt.show()
+            plt.close("all")
     else:
         print(translator.get("analysis.var.error"))

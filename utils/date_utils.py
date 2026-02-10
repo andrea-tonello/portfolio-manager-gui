@@ -2,21 +2,23 @@ from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 
+from utils.constants import DATE_FORMAT
+
 def get_date(translator, df=None):
     try:
         dt = input('    > ')
         td = date.today()
 
         if dt in ["t", "T"]:
-            dt = td.strftime("%d-%m-%Y")
+            dt = td.strftime(DATE_FORMAT)
 
-        ref_date = datetime.strptime(dt, "%d-%m-%Y")
+        ref_date = datetime.strptime(dt, DATE_FORMAT)
         if ref_date.date() > td:
             raise ValueError(translator.get("dates.error_future"))
 
         if df is not None and not df.empty:
             lastdt = df["Data"].iloc[-1]
-            num_lastdt = datetime.strptime(lastdt, "%d-%m-%Y")
+            num_lastdt = datetime.strptime(lastdt, DATE_FORMAT)
             if ref_date < num_lastdt:
                 raise ValueError(translator.get("dates.error_sequential"))
         
@@ -47,4 +49,4 @@ def get_pf_date(translator, df_copy, dt, ref_date):
 def add_solar_years(data_generazione):
     data_scadenza = data_generazione + relativedelta(years=4)
     end_date = datetime(data_scadenza.year, 12, 31)
-    return end_date.strftime("%d-%m-%Y")
+    return end_date.strftime(DATE_FORMAT)

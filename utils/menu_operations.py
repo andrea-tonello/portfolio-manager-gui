@@ -4,55 +4,36 @@ import os
 
 from newrow import newrow_cash, newrow_etf_stock
 from utils.date_utils import get_date
-from utils.fetch_utils import fetch_name    
-from utils.other_utils import round_half_up, wrong_input
+from utils.fetch_utils import fetch_name
+from utils.other_utils import round_half_up, wrong_input, validated_float, validated_int
+from utils.constants import clear_screen, CURRENCY_EUR, CURRENCY_USD, CURRENCY_CHOICES
 
 # 1. CASH OPERATIONS
-def cashop(translator, df, broker):
-    print(translator.get("cash.date"))            
+def cash_operation(translator, df, broker, op_kind):
+    print(translator.get("cash.date"))
     dt, ref_date = get_date(translator, df)
-    try:
-        cash = float(input(translator.get("cash.cash_amount")))
-        if cash == 0:
-            raise ValueError()
-    except ValueError:
-        wrong_input(translator, translator.get("cash.cash_error"))
-    op_type = "Deposito" if cash > 0 else "Prelievo"
 
-    df = newrow_cash(translator, df, dt, ref_date, broker, cash, op_type, "Contanti", np.nan, np.nan)
-    print()
-    print(df.tail(10))
-    return df
+    if op_kind == "deposit_withdrawal":
+        cash = validated_float(translator, translator.get("cash.cash_amount"),
+                               "cash.cash_error", condition=lambda x: x != 0)
+        op_type = "Deposito" if cash > 0 else "Prelievo"
+        product, ticker, name = "Contanti", np.nan, np.nan
 
-def dividend(translator, df, broker):
-    print(translator.get("cash.date"))            
-    dt, ref_date = get_date(translator, df)
-    try:
-        cash = float(input(translator.get("cash.dividend_amount")))
-        if cash <= 0.0:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("cash.dividend_error"))
-    ticker = input(translator.get("cash.dividend_ticker"))
-    name = fetch_name(ticker)
+    elif op_kind == "dividend":
+        cash = validated_float(translator, translator.get("cash.dividend_amount"),
+                               "cash.dividend_error", condition=lambda x: x > 0)
+        ticker = input(translator.get("cash.dividend_ticker"))
+        name = fetch_name(ticker)
+        op_type, product = "Dividendo", "Dividendo"
 
-    df = newrow_cash(translator, df, dt, ref_date, broker, cash, "Dividendo", "Dividendo", ticker, name)
-    print()
-    print(df.tail(10))
-    return df
+    elif op_kind == "charge":
+        cash_input = validated_float(translator, translator.get("cash.charge_amount"),
+                                     "cash.charge_error", condition=lambda x: x > 0)
+        cash = -cash_input
+        descr = str(input(translator.get("cash.charge_descr")))
+        op_type, product, ticker, name = "Imposta", descr, np.nan, np.nan
 
-def charge(translator, df, broker):
-    print(translator.get("cash.date"))            
-    dt, ref_date = get_date(translator, df)
-    try:
-        cash = float(input(translator.get("cash.charge_amount")))
-        if cash <= 0.0:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("cash.charge_error"))
-    descr = str(input(translator.get("cash.charge_descr")))
-
-    df = newrow_cash(translator, df, dt, ref_date, broker, -cash, "Imposta", descr, np.nan, np.nan)
+    df = newrow_cash(translator, df, dt, ref_date, broker, cash, op_type, product, ticker, name)
     print()
     print(df.tail(10))
     return df
@@ -66,59 +47,31 @@ def etf_stock(translator, df, broker, choice="ETF"):
     dt, ref_date = get_date(translator, df)
 
     print(translator.get("stock.currency"))
-    try:
-        currency = int(input("    > "))
-        if currency not in [1, 2]:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("stock.currency_error"))
-    
+    currency = validated_int(translator, "    > ", "stock.currency_error",
+                             condition=lambda x: x in [CURRENCY_EUR, CURRENCY_USD])
+
     conv_rate = 1.0
-    if currency == 2:
-        try:
-            conv_rate = float(input(translator.get("stock.exch_rate")))
-            if conv_rate <= 0:
-                raise ValueError
-        except ValueError:
-            wrong_input(translator, translator.get("stock.exch_rate_error"))
+    if currency == CURRENCY_USD:
+        conv_rate = validated_float(translator, translator.get("stock.exch_rate"),
+                                    "stock.exch_rate_error", condition=lambda x: x > 0)
     conv_rate = round_half_up(1.0 / conv_rate, decimal="0.000001")
 
     ticker = input(translator.get("stock.ticker"))
+    quantity = validated_int(translator, translator.get("stock.qt"), "stock.qt_error",
+                             condition=lambda x: x > 0)
+    price = validated_float(translator, translator.get("stock.price"), "stock.price_error",
+                            condition=lambda x: x != 0)
 
-    try:
-        quantity = input(translator.get("stock.qt"))
-        if not (quantity.isdigit() and int(quantity) > 0):
-            raise ValueError
-        quantity = int(quantity)
-    except ValueError or AttributeError:
-        wrong_input(translator, translator.get("stock.qt_error"))
-            
-    try:
-        price = float(input(translator.get("stock.price")))
-        if price == 0:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("stock.price_error"))
-
-    currency_fee = 1
-    if currency == 2:
+    currency_fee = CURRENCY_EUR
+    if currency == CURRENCY_USD:
         print(translator.get("stock.currency_fee"))
-        currency_fee = input("    > ")
-        try:
-            currency_fee = int(currency_fee)
-            if currency_fee not in [1, 2]:
-                raise ValueError
-        except ValueError:
-            wrong_input(translator, translator.get("stock.currency_error"))
+        currency_fee = validated_int(translator, "    > ", "stock.currency_error",
+                                     condition=lambda x: x in [CURRENCY_EUR, CURRENCY_USD])
 
-    try:
-        fee = float(input(translator.get("stock.fee")))
-        if fee < 0:
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get("stock.fee_error"))
+    fee = validated_float(translator, translator.get("stock.fee"), "stock.fee_error",
+                          condition=lambda x: x >= 0)
 
-    if currency_fee == 2:
+    if currency_fee == CURRENCY_USD:
             fee = round_half_up(fee / conv_rate, decimal="0.000001")
 
     buy = price < 0
@@ -128,7 +81,7 @@ def etf_stock(translator, df, broker, choice="ETF"):
         ter = input(translator.get("stock.ter"))
         ter += "%"
 
-    df = newrow_etf_stock(translator, df, dt, ref_date, broker, "EUR" if currency==1 else "USD", choice, ticker, quantity, price, conv_rate, ter, fee, buy)
+    df = newrow_etf_stock(translator, df, dt, ref_date, broker, CURRENCY_CHOICES[currency], choice, ticker, quantity, price, conv_rate, ter, fee, buy)
     print()
     print(df.tail(10))
     input("\n" + translator.get("redirect.continue_home"))
@@ -159,7 +112,7 @@ def select_language(translator, config_folder, lang_dict):
         except ValueError:
             print(translator.get("settings.language.selection_error"))
             input(translator.get("redirect.invalid_choice") + "\n")
-            os.system("cls" if os.name == "nt" else "clear")
+            clear_screen()
             continue
         
         lang_code = lang_dict[selected_lang][0]
@@ -174,84 +127,48 @@ def select_language(translator, config_folder, lang_dict):
     return lang_code
 
 
-def add_brokers(translator, config_folder):
+def manage_brokers(translator, config_folder, reset=False):
     path = os.path.join(config_folder, "config.ini")
     config = configparser.ConfigParser()
     config.read(path)
 
-    if not config.has_section('Brokers'):
+    if reset:
+        if config.has_section('Brokers'):
+            config.remove_section('Brokers')
         config.add_section('Brokers')
-
-    existing_indices = []
-    if 'Brokers' in config:
-        try:
-            existing_indices = [int(k) for k in config['Brokers']]
-        except ValueError:
-            pass
-
-    idx = max(existing_indices) + 1 if existing_indices else 1
+        brokers = {}
+        idx = 1
+    else:
+        if not config.has_section('Brokers'):
+            config.add_section('Brokers')
+        existing_indices = []
+        if 'Brokers' in config:
+            try:
+                existing_indices = [int(k) for k in config['Brokers']]
+            except ValueError:
+                pass
+        idx = max(existing_indices) + 1 if existing_indices else 1
+        brokers = {int(k): v for k, v in config.items('Brokers')} if 'Brokers' in config else {}
 
     print(translator.get("settings.account.add_account"))
-    brokers = {} 
-    # Reload full brokers dict for return value
-    if 'Brokers' in config:
-        brokers = {int(k): v for k, v in config.items('Brokers')}
-
     while True:
         new_broker = input("\n     > ")
         if new_broker == "q":
-            # Since we load from file, we check the current state of brokers in the file/dict
             if not brokers:
                 print(translator.get("settings.account.op_denied"))
                 continue
             else:
                 print(translator.get("settings.account.saved"))
                 for key, value in sorted(brokers.items()):
-                    print(f"{key}. {value}") 
+                    print(f"{key}. {value}")
                 break
-        
-        config.set('Brokers', str(idx), new_broker)
-        brokers[idx] = new_broker
-        idx += 1
-    
-    with open(path, 'w', encoding='utf-8') as f:
-        config.write(f)
-    
-    input(translator.get("redirect.continue"))
-    return brokers
 
-
-def initialize_brokers(translator, config_folder):
-    path = os.path.join(config_folder, "config.ini")
-    config = configparser.ConfigParser()
-    config.read(path)
-    
-    # Reset brokers section
-    if config.has_section('Brokers'):
-        config.remove_section('Brokers')
-    config.add_section('Brokers')
-
-    brokers = {}
-    idx = 1
-    print(translator.get("settings.account.add_account"))
-    while True:
-        new_broker = input("\n     > ")
-        if new_broker == "q":
-            if not brokers:
-                print(translator.get("settings.account.op_denied"))
-                continue
-            else:
-                print(translator.get("settings.account.saved"))
-                for key, value in brokers.items():
-                    print(f"{key}. {value}") 
-                break
-        
         config.set('Brokers', str(idx), new_broker)
         brokers[idx] = new_broker
         idx += 1
 
     with open(path, 'w', encoding='utf-8') as f:
         config.write(f)
-    
+
     input("\n" + translator.get("redirect.continue"))
     return brokers

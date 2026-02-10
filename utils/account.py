@@ -8,6 +8,7 @@ import warnings
 from utils.other_utils import wrong_input, round_half_up, round_down
 from utils.date_utils import add_solar_years
 from utils.fetch_utils import fetch_exchange_rate
+from utils.constants import DATE_FORMAT
 warnings.simplefilter(action='ignore', category=Warning)
 
 
@@ -134,24 +135,7 @@ def get_tickers(translator, data):
     return list(set(total_tickers)), list(set(active_tickers))
 
 
-def portfolio_history(translator, start_ref_date, end_ref_date, data):
-
-    total_tickers, _ = get_tickers(translator, data)
-    all_dfs = []
-
-    for account in data:
-        df_copy = account[1].copy()
-        df_copy["Data"] = pd.to_datetime(df_copy["Data"], dayfirst=True, errors="coerce")
-        df_copy = df_copy[["Data", "Conto", "Ticker", "Valuta", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"]]
-        all_dfs.append(df_copy)
-
-# 1)
-    final_df = pd.concat(all_dfs, ignore_index=True)
-    final_df = final_df.sort_values(by="Data", ascending=True, kind="mergesort")
-    final_df = final_df.iloc[len(data):]
-    final_df = final_df.reset_index(drop=True)
-
-  # 1.1) Total liquidity across accounts
+def _compute_total_liquidity(final_df):
     accounts = final_df['Conto'].unique()
     liq_cols = []
     liq_hist_cols = []
@@ -172,83 +156,81 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
     final_df[liq_hist_cols] = final_df[liq_hist_cols].fillna(0)
     final_df['Liq. Impegnata Totale'] = final_df[liq_hist_cols].sum(axis=1)
     final_df = final_df.drop(columns=liq_cols+liq_hist_cols)
+    return final_df
 
-  # 1.2) Total quantities (assets) across accounts
+
+def _compute_total_quantities(final_df):
     pairs = final_df.dropna(subset=['Ticker'])[['Conto', 'Ticker']].drop_duplicates().values
     state_cols = []
     ticker_to_cols_map = {}
 
-    # Crea una colonna di stato "running" per ogni coppia (Conto, Ticker)
     for conto, ticker in pairs:
         col_name = f'state_qty_{conto}_{ticker}'
         state_cols.append(col_name)
-        # Mappa il ticker alla sua colonna di stato
         if ticker not in ticker_to_cols_map:
             ticker_to_cols_map[ticker] = []
         ticker_to_cols_map[ticker].append(col_name)
-        # Crea la colonna di stato:
-        # Prende il valore 'QT. Attuale' solo per la riga esatta
         mask = (final_df['Conto'] == conto) & (final_df['Ticker'] == ticker)
         final_df[col_name] = final_df.where(mask)['QT. Attuale']
-        # Propaga l'ultimo valore valido (ffill)
         final_df[col_name] = final_df[col_name].ffill()
 
     final_df[state_cols] = final_df[state_cols].fillna(0)
     final_df['QT. Totale'] = np.nan
 
-    # Calcola il totale sommando le colonne di stato appropriate per ogni riga
     for ticker, cols_to_sum in ticker_to_cols_map.items():
         ticker_rows_mask = (final_df['Ticker'] == ticker) & (final_df['QT. Attuale'].notna())
         final_df.loc[ticker_rows_mask, 'QT. Totale'] = final_df[cols_to_sum].sum(axis=1)
     final_df = final_df.drop(columns=state_cols)
 
     final_df = final_df.drop(columns=["Conto", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"])
+    return final_df
 
-# 2)
+
+def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date):
+    prices_df = pd.DataFrame([])
+    exch_df = pd.DataFrame([])
+    fallback_index = pd.date_range(start=start_ref_date, end=end_ref_date)
+
     try:
-
-        # CLEAN/REDO EXCHANGE RATE CHECKS
-        prices_df = pd.DataFrame([])
-
-        only_tickers = [t[0] for t in total_tickers]
         print(translator.get("yf.download_historic"))
         prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date, progress=False)
-        exch_df = yf.download("USDEUR=X",start=start_ref_date, end=end_ref_date, progress=False)
-        
+        exch_df_raw = yf.download("USDEUR=X", start=start_ref_date, end=end_ref_date, progress=False)
+
         if not prices_df_raw.empty:
             prices_df = prices_df_raw["Close"]
-            exch_df = exch_df["Close"]
+            exch_df = exch_df_raw["Close"]
 
             common_dates = prices_df.index.intersection(exch_df.index)
             prices_df = prices_df.loc[common_dates]
             exch_df = exch_df.loc[common_dates]
 
-            # Gestisce il caso di un singolo ticker (restituisce una Serie)
             if isinstance(prices_df, pd.Series):
                 prices_df = prices_df.to_frame(name=only_tickers[0] if len(only_tickers) == 1 else "Close")
-                
+
             prices_df = prices_df.dropna()
             exch_df = exch_df.dropna()
             target_index = prices_df.index
-            
+
             if target_index.empty:
                 print(translator.get("yf.error_empty_df_na"))
-                # Creiamo un indice vuoto per evitare errori successivi
-                target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
+                target_index = fallback_index
         else:
             print(translator.get("yf.error_empty_df"))
-            target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
+            target_index = fallback_index
 
-    except Exception as e:
+    except Exception:
         print(translator.get("yf.error_empty_df"))
-        target_index = pd.date_range(start=start_ref_date, end=end_ref_date)
+        target_index = fallback_index
 
+    return prices_df, exch_df, target_index
+
+
+def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
     try:
         portfolio_data = final_df.copy()
         portfolio_data.drop(columns=["Valuta"])
         portfolio_data = portfolio_data.sort_values(by='Data', kind="mergesort")
 
-        # Isola i dati sulla liquidità e rimuovi duplicati sulla data, mantenendo l'ultimo record del giorno
         liquidity_sparse = portfolio_data.dropna(subset=['Liquidita Totale'])
         liquidity_sparse = liquidity_sparse.drop_duplicates(subset=['Data'], keep='last')
         liquidity_sparse = liquidity_sparse.set_index('Data')[['Liquidita Totale']]
@@ -259,21 +241,15 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
         immessa_sparse = immessa_sparse.set_index('Data')[['Liq. Impegnata Totale']]
         immessa_sparse = immessa_sparse.rename(columns={'Liq. Impegnata Totale': 'Liquidita Impegnata'})
 
-        # Isola i dati delle quantità dei ticker
         quantities_sparse = portfolio_data.dropna(subset=['Ticker', 'QT. Totale'])
         quantities_sparse = quantities_sparse.drop_duplicates(subset=['Data', 'Ticker'], keep='last')
-        
-        # Esegui il pivot per avere i ticker come colonne
         quantities_wide_sparse = quantities_sparse.pivot(index='Data', columns='Ticker', values='QT. Totale')
 
-        # Combina i dati di quantità e liquidità per data
         combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, immessa_sparse], axis=1)
 
         for ticker in only_tickers:
             if ticker not in combined_sparse_data.columns:
                 combined_sparse_data[ticker] = np.nan
-
-        # Assicura che le colonne Liquidita esistano se non c'erano dati 
         if 'Liquidita' not in combined_sparse_data.columns:
             combined_sparse_data['Liquidita'] = np.nan
         if 'Liquidita Impegnata' not in combined_sparse_data.columns:
@@ -282,47 +258,26 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
         final_columns = only_tickers + ['Liquidita', 'Liquidita Impegnata']
         combined_sparse_data = combined_sparse_data[final_columns]
 
-        # --- Allineamento all'indice di prices_df ---
-
         if not target_index.empty:
-            # Combina l'indice target (da prices_df) e l'indice dei dati (da portfolio_df)
-            # Questo assicura che il forward fill copra correttamente gli intervalli
             combined_index = target_index.union(combined_sparse_data.index).sort_values()
-
-            # Reindicizza ai giorni combinati ed esegui il forward fill (ffill)
-            # Questo "porta avanti" l'ultimo valore noto per ogni colonna
             quantities_df_filled = combined_sparse_data.reindex(combined_index).ffill()
-
-            # Seleziona solo le date di prices_df
             portfolio_history_df = quantities_df_filled.loc[target_index]
-
-            # Riempi i NaN dei ticker con 0
-            # (per i ticker mai posseduti o per date antecedenti la prima transazione)
             portfolio_history_df[only_tickers] = portfolio_history_df[only_tickers].fillna(0)
-            
-            # (Opzionale: riempi Liquidita NaN con 0 se preferito, altrimenti ffill dovrebbe averla gestita)
-            # portfolio_history_df['Liquidita'] = portfolio_history_df['Liquidita'].fillna(0)
-            # portfolio_history_df['Liquidita Impegnata'] = portfolio_history_df['Liquidita Impegnata'].fillna(0)
 
-            # --- Aggiunta Valore Titoli e NAV ---
             if not prices_df.empty:
                 if isinstance(prices_df, pd.Series):
                     prices_df_for_calc = prices_df.to_frame(name=only_tickers[0])
                 else:
-                    # Assicurati che le colonne siano solo i ticker
                     prices_df_for_calc = prices_df[only_tickers]
-                
-                quantities_for_calc = portfolio_history_df[only_tickers]
 
-                # adjust prices for exchange rate
                 for ticker, currency in total_tickers:
                     if currency == "USD":
                         prices_df_for_calc[ticker] = prices_df_for_calc[ticker] * exch_df["USDEUR=X"]
-                portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * quantities_for_calc).sum(axis=1)
+                portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * portfolio_history_df[only_tickers]).sum(axis=1)
             else:
                 portfolio_history_df['Valore Titoli'] = 0.0
                 portfolio_history_df.index.rename("Date", inplace=True)
-            
+
             portfolio_history_df['NAV'] = portfolio_history_df['Valore Titoli'] + portfolio_history_df['Liquidita']
             portfolio_history_df["Cash Flow"] = portfolio_history_df["Liquidita Impegnata"].diff()
 
@@ -339,9 +294,38 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
             final_columns_complete = ["Date"] + total_tickers + ["Liquidita", "Liquidita Impegnata", "Valore Titoli", "NAV", "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
-        
+
     except Exception as e:
         print(translator.get("yf.error_generic", e=e))
+
+
+def portfolio_history(translator, start_ref_date, end_ref_date, data):
+
+    total_tickers, _ = get_tickers(translator, data)
+    only_tickers = [t[0] for t in total_tickers]
+
+    all_dfs = []
+    for account in data:
+        df_copy = account[1].copy()
+        df_copy["Data"] = pd.to_datetime(df_copy["Data"], dayfirst=True, errors="coerce")
+        df_copy = df_copy[["Data", "Conto", "Ticker", "Valuta", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"]]
+        all_dfs.append(df_copy)
+
+    final_df = pd.concat(all_dfs, ignore_index=True)
+    final_df = final_df.sort_values(by="Data", ascending=True, kind="mergesort")
+    final_df = final_df.iloc[len(data):]
+    final_df = final_df.reset_index(drop=True)
+
+    final_df = _compute_total_liquidity(final_df)
+    final_df = _compute_total_quantities(final_df)
+
+    prices_df, exch_df, target_index = _download_price_data(
+        translator, only_tickers, start_ref_date, end_ref_date
+    )
+
+    return _build_portfolio_timeseries(
+        translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers
+    )
 
 
 def aggregate_positions(total_positions):
@@ -369,7 +353,7 @@ def aggregate_positions(total_positions):
 def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False, suppress_progress=False):
 
     df_copy = df.copy()
-    df_copy["Data"] = pd.to_datetime(df_copy["Data"], format="%d-%m-%Y")
+    df_copy["Data"] = pd.to_datetime(df_copy["Data"], format=DATE_FORMAT)
     if ref_date:
         df_copy = df_copy[df_copy["Data"] <= ref_date]
 
@@ -499,7 +483,7 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     Ritorna float (credito residuo non negativo).
     """
     history = df.copy()
-    history['Data_dt'] = pd.to_datetime(history['Data'], format="%d-%m-%Y")
+    history['Data_dt'] = pd.to_datetime(history['Data'], format=DATE_FORMAT)
     # consideriamo solo righe fino alla data_operazione inclusa
     history = history[history['Data_dt'] <= data_operazione].copy()
     if as_of_index is not None:
@@ -523,7 +507,7 @@ def compute_backpack(df, data_operazione, as_of_index=None):
             if pd.isna(scad):
                 expiry_dt = current_date
             else:
-                expiry_dt = pd.to_datetime(scad, format="%d-%m-%Y", errors='coerce')
+                expiry_dt = pd.to_datetime(scad, format=DATE_FORMAT, errors='coerce')
             active_minuses.append({'amount': float(r['Minusv. Generata']), 'expiry': expiry_dt})
 
         # se la riga ha una plus lorda > 0, la uso per consumare il credito attivo (FIFO)
@@ -548,20 +532,14 @@ def compute_backpack(df, data_operazione, as_of_index=None):
 
 def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
     
-    try:
-        if asset_rows.empty:
-            raise ValueError
-    except ValueError:
+    if asset_rows.empty:
         wrong_input(translator, translator.get("stock.sell_noitems"))
-    
+
     fee = round_half_up(fee)
     last_pmpc = asset_rows["PMC"].iloc[-1]
     last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
-    
-    try:
-        if quantity > last_remaining_qt:
-            raise ValueError
-    except ValueError:
+
+    if quantity > last_remaining_qt:
         wrong_input(translator, translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
     importo_effettivo = round_half_up((round_half_up(quantity * price)) / conv_rate) - fee 
