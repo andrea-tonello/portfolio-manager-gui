@@ -62,12 +62,12 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     return _append_row(df, row)
 
 
-def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy):
+def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
 
-    name = fetch_name(ticker)
+    name = asset_name_override if asset_name_override else fetch_name(ticker)
     asset_rows = df[df["Ticker"] == ticker]
     asset_rows = asset_rows[asset_rows["Operazione"].isin(["Acquisto", "Vendita"])]
 

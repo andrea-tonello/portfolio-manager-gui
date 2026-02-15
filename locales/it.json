@@ -1,4 +1,45 @@
 {
+  "nav": {
+    "home": "Home",
+    "operations": "Operazioni",
+    "analysis": "Analisi",
+    "transactions": "Movimenti",
+    "settings": "Impostazioni"
+  },
+
+  "components": {
+    "pick_date": "Seleziona data",
+    "confirm": "Conferma",
+    "cancel": "Annulla",
+    "apply": "Applica",
+    "loading": "Caricamento...",
+    "export": "Esporta Report",
+    "remove_row": "Rimuovi ultima operazione"
+  },
+
+  "home": {
+    "no_account": "Nessun conto configurato. Vai alle Impostazioni per aggiungerne uno.",
+    "overview": "Tutti i Conti",
+    "export_success": "File esportato con successo",
+    "filter_by_count": "Transazioni",
+    "filter_by_days": "Giorni",
+    "hidden": "Nascosto",
+    "open_positions": "Posizioni Aperte",
+    "open_positions_descr": "Ticker  /  PMC  /  Prezzo attuale",
+    "watchlist": "Watchlist",
+    "watchlist_add": "Aggiungi ticker...",
+    "watchlist_added": "Aggiunto alla watchlist",
+    "watchlist_removed": "Rimosso dalla watchlist",
+    "watchlist_duplicate": "Ticker già presente nella watchlist",
+    "watchlist_empty": "Nessun ticker nella watchlist"
+  },
+
+  "operations": {
+    "select_account": "Seleziona un conto...",
+    "operating_on": "Si sta operando su",
+    "add_transaction": "Aggiungi Transazione"
+  },
+
   "redirect": {
     "continue": "Premi Invio per continuare...",
     "continue_home": "\nPremi Invio per tornare al Menu Principale...",
@@ -25,42 +66,46 @@
   },
 
   "account": {
-    "selection": "\nSelezionare il conto su cui operare.\n",
     "selection_error": "\nERRORE: Inserire il numero corrispondente al conto su cui si intende operare.",
     "filenotfound_error": "\nFile \"{filename}\" non trovato."
   },
 
   "cash": {
-    "title": "\n--- OPERAZIONI SU LIQUIDITA' ---\n\n",
-    "operations": "    1. Depositi e Prelievi\n    2. Dividendi\n    3. Imposta di Bollo / Altre imposte",
+    "title": "LIQUIDITÀ",
+    "op_deposit": "Deposito",
+    "op_withdrawal": "Prelievo",
+    "op_dividend": "Dividendo",
+    "op_charge": "Bollo / Altre imposte",
     "date": "\n  - Data operazione GG-MM-AAAA (\"t\" per data odierna)",
-    "cash_amount": "  - Ammontare operazione in EUR (negativo se prelievo)\n    > ",
+    "amount_descr": "Ammontare operazione in EUR (negativo se prelievo)",
+    "amount": "Valore operazione",
     "cash_error": "Il contante inserito deve essere un numero diverso da 0. Positivo se depositato, negativo se prelevato.",
-    "dividend_amount": "  - Dividendo in EUR al netto di tasse\n    > ",
+    "dividend_descr": "Dividendo in EUR al netto di tasse",
+    "dividend_ticker_descr": "Ticker completo dell'emittente dividendo (standard Yahoo Finance)",
+    "dividend_ticker": "Ticker",
     "dividend_error": "Il dividendo inserito deve essere un numero maggiore di 0.",
-    "dividend_ticker": "  - Ticker completo dell'emittente dividendo (standard Yahoo Finance)\n    > ",
-    "charge_amount": "  - Ammontare imposta in EUR\n    > ",
+    "charge_descr": "Ammontare imposta in EUR",
     "charge_error": "L'imposta inserita deve essere un numero maggiore di 0.",
-    "charge_descr": "  - Descrizione imposta (es. \"Bollo Q2 2025\")\n    > "
+    "charge_verbose": "Descrizione imposta (es. \"Bollo Q2 2025\")"
   },
 
   "stock": {
-    "title_etf": "\n--- ETF ---\n\n",
-    "title_stock": "\n--- AZIONI ---\n\n",
+    "title_etf": "ETF",
+    "title_stock": "AZIONI",
     "date": "\n  - Data operazione GG-MM-AAAA (\"t\" per data odierna)",
-    "currency": "  - Valuta\n\t1. EUR\n\t2. USD",
+    "currency": "Valuta",
     "currency_error": "Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta scelta.",
-    "exch_rate": "  - Tasso di conversione EUR-USD\n    > ",
+    "exch_rate": "Tasso EUR-USD",
     "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0.",
-    "ticker": "  - Ticker completo (standard Yahoo Finance)\n    > ",
-    "qt": "  - Quantità (intero positivo)\n    > ",
+    "ticker": "Ticker completo (standard Yahoo Finance)",
+    "qt": "Quantità",
     "qt_error": "Quantità non valida. Deve essere un numero intero maggiore di 0.",
-    "price": "  - Prezzo unitario (negativo se acquisto)\n    > ",
+    "price": "Prezzo unitario (negativo se acquisto)",
     "price_error": "Il prezzo non può essere 0. Negativo se acquisto, positivo se vendita.",
-    "currency_fee": "  - Valuta commissione\n    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.\n\t1. EUR\n\t2. USD",
-    "fee": "  - Commissione\n    > ",
+    "currency_fee": "Valuta commissione\n    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.\n\t1. EUR\n\t2. USD",
+    "fee": "Commissione",
     "fee_error": "La commissione deve essere un numero maggiore o uguale a 0.",
-    "ter": "  - Total Expense Ratio\n    > ",
+    "ter": "Total Expense Ratio",
     "sell_noitems": "Nessun titolo da vendere: portafoglio vuoto.",
     "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})."
   },
@@ -71,12 +116,16 @@
   },
 
   "review": {
-    "title": "\n--- ULTIMI MOVIMENTI (MAX 10) ---\n\n"
+    "title": "\nUltimi Movimenti\n\n"
   },
 
   "analysis": {
     "title": "\n--- ANALISI PORTAFOGLIO ---\n\n",
-    "operations": "    1. Statistiche generali\n    2. Analisi correlazione\n    3. Drawdown\n    4. VaR",
+    "all_accounts": "Tutti i Conti",
+    "op_statistics": "STATISTICHE GENERALI",
+    "op_correlation": "CORRELAZIONE",
+    "op_drawdown": "DRAWDOWN",
+    "op_var": "VaR",
     "summary": {
       "date": "\n  - Data di interesse GG-MM-AAAA (\"t\" per data odierna)",
       "account_literal": "Conto",
@@ -107,14 +156,14 @@
     },
     "corr": {
       "date": "\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, \"t\" per data odierna.",
-      "start_dt": "  - Data inizio analisi:",
-      "end_dt": "  - Data fine analisi:",
+      "start_dt": "Data inizio analisi:",
+      "end_dt": "Data fine analisi:",
       "simple": "\n--- Correlazione semplice ---",
       "simple_error": "\n    Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.\n\n",
       "rolling": "\n--- Correlazione rolling tra due assets ---\n\n    Inserire ticker degli asset interessati.\n    Non è necessario che essi siano detenuti nel portafoglio.\n",
-      "asset1": "  - Ticker asset 1\n    > ",
-      "asset2": "  - Ticker asset 2\n    > ",
-      "window": "  - Finestra temporale in giorni. Si consiglia 100-150 per storici superiori a 2 anni, 20-60 altrimenti.\n    > ",
+      "asset1": "Ticker asset 1",
+      "asset2": "Ticker asset 2",
+      "window": "Finestra temporale in giorni",
       "window_error": "Il numero di giorni deve essere un intero maggiore di 0.",
       "plot1": {
         "colorbar": "Correlazione",
@@ -129,8 +178,8 @@
     },
     "drawdown": {
       "date": "\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, \"t\" per data odierna.",
-      "start_dt": "  - Data inizio analisi:",
-      "end_dt": "  - Data fine analisi:",
+      "start_dt": "Data inizio analisi:",
+      "end_dt": "Data fine analisi:",
       "result": "\n    Drawdown massimo del portafoglio tra il {start_dt} ed il {end_dt}: {mdd:.2f}%",
       "error": "\n    Nessun dato presente nello storico delle transazioni, tra tutti i conti.\n    Drawdown non calcolabile.",
       "plot1": {
@@ -140,39 +189,58 @@
       }
     },
     "var": {
-      "ci": "\n  - Intervallo di Confidenza (es. 0.99)\n    > ",
+      "ci": "Intervallo di Confidenza",
       "ci_error": "L'Intervallo di Confidenza è definito tra 0 ed 1, estremi esclusi.",
-      "days": "  - Numero di giorni interessati. Più questo numero è alto, meno attendibili saranno i risultati.\n    > ",
+      "days": "Numero di giorni",
       "days_error": "Il numero di giorni per la previsione deve essere un numero intero maggiore di 0",
-      "result": "\n    Value at Risk del portafoglio al {ci:.0%} IdC su {days} giorni:    {var:.2f}€",
+      "result": "\n    Value at Risk del portafoglio al {ci:.0%} IdC su {days} giorni:",
       "error": "\n    Non è stata trovata alcuna posizione aperta tra tutti i conti.\n    Value at Risk nullo.",
       "plot1": {
         "xlabel": "Guadagno/Perdita (€)",
         "ylabel": "Densità di probabilità",
-        "legend": "VaR al {ci:.0%} IdC: {var:.2f}€",
+        "legend": "VaR: {var:.2f}€",
         "window_title": "Distribuzione del Portfolio Gain/Loss su {days} giorni"
       }
     }
   },
 
   "settings": {
-    "title": "\n--- IMPOSTAZIONI APPLICAZIONE ---\n\n",
-    "operations": "    1. Lingua\n    2. Aggiungi conti\n    3. Inizializza conti\n    4. Inizializza applicazione (richiede conferma)",
+    "language": {
+      "title": "Lingua",
+      "changed": "\nLingua impostata con successo"
+    },
+    "theme": {
+      "title": "Tema",
+      "system": "Automatico",
+      "light": "Chiaro",
+      "dark": "Scuro"
+    },
+    "palette": {
+      "title": "Palette",
+      "blue": "Azzurro",
+      "teal": "Verde Acqua",
+      "green": "Verde Foresta",
+      "yellow": "Giallo",
+      "orange": "Arancione",
+      "red": "Rosso",
+      "purple": "Viola",
+      "indigo": "Indaco"
+    },
     "account": {
-      "add_account": "\n    Inserisci alias conto. Digitare \"q\" per terminare.",
+      "title": "Gestione Conti",
+      "add_account": "Aggiungi conto...",
       "op_denied": "    Operazione negata. È necessario aggiungere almeno un conto.",
       "saved": "\nSalvataggio completato. Conti salvati:\n",
       "accounts_added": "\nConti aggiunti. ",
+      "delete_account": "Elimina conto",
+      "delete_confirm": "Sei sicuro di voler eliminare il conto \"{account}\"? Tutti i dati associati verranno rimossi.",
+      "delete_last": "Impossibile eliminare l'ultimo conto rimasto.",
+      "account_deleted": "Conto eliminato con successo.",
       "accounts_initialized": "\nConti inizializzati. ",
-      "reset_warning": "\nQuesta operazione non è reversibile. L'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
+      "reset_warning": "\nQuesta operazione non è reversibile.\nL'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
       "reset_confirm": "Digitare 'RESET' per procedere. Altri input saranno ignorati.\n\n    > ",
       "deletion_error": "Errore nella rimozione dei dati: {e}",
       "reset_completed": "\nReset completato. "
-    },
-    "language": {
-      "select_language": "Seleziona lingua.",
-      "selection_error": "Errore. Inserire il numero corrispondente alla lingua.",
-      "changed": "\nLingua impostata con successo."
     }
   },
 
@@ -189,8 +257,8 @@
     "title": "\n--- INFORMAZIONI / GLOSSARIO ---\n\n",
     "operations": "    1. Descrizione colonne del report\n    2. Informazioni su metriche/statistiche",
     "page_1": {
-      "title": "\nPAGINA 1.\nQuesta pagina funge da glossario relativo alle colonne dei report\n",
-      "date": "Data\n    Data dell'esecuzione dell'operazione.\n",
+      "title": "Descrizione delle colonne dei report\n",
+      "date": "- Data\n    Data dell'esecuzione dell'operazione.\n",
       "account": "- Conto\n    Conto sul quale è stata svolta l'operazione.\n",
       "operation": "- Operazione\n    Tipo di operazione (Acquisto, Vendita, Deposito...)\n",
       "product": "- Prodotto\n    Tipo di prodotto (Azione, ETF, Contanti...)\n",
@@ -222,14 +290,14 @@
       "historic_cash": "- Liq. Impegnata\n    Liquidità totale immessa nel conto. Tiene conto esclusivamente di depositi e prelievi.\n"
     },
     "page_2": {
-      "title": "\nPAGINA 2.\nQuesta pagina fornisce informazioni sugli strumenti statistici usati nell'analisi di portafoglio.\n",
+      "title": "Informazioni sugli strumenti statistici",
       "return": "- Tipologie di rendimento",
       "xirr": "    XIRR (Extended Internal Rate of Return).\n\tL'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante\n\tutilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.\n\tUtile a misurare il proprio rendimento personale, tenendo conto delle scelte di investimento e disinvestimento.",
       "twrr": "    TWRR (Time-Weighted Rate of Return).\n\tSi concentra sul rendimento degli asset e non sul rendimento effettivo dell'investitore (in pratica, escludendo i flussi di cassa).\n\tIl calcolo si basa sulla media geometrica dei rendimenti di tutti i sottoperiodi in cui è suddiviso l'investimento (es. giornaliero, mensile).\n\tUtile nel confronto di performance con benchmark/indici o nella misurazione di statistiche, quali lo Sharpe Ratio.\n",
       "volatility": "- Volatilità\n    Deviazione standard dei rendimenti su un determinato periodo di tempo.\n",
       "sharpe_ratio": "- Sharpe Ratio\n    Misura la performance di un investimento confrontato con un asset 'risk-free' (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).\n Si calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata excess returns, diviso la deviazione standard degli excess returns.\n",
       "corr": "- Correlazione semplice\n    Misura, tramite un coefficiente compreso tra -1 ed 1, quanto due asset siano correlati tra loro in un dato momento.\n    +1: i due asset sono positivamente correlati: all'aumentare del primo, aumenta il secondo (e viceversa).\n    0: i due asset sono perfettamente decorrelati: il cambiamento del primo non influisce in alcun modo sul secondo (e viceversa).\n    -1: i due asset sono negativamente correlati: all'aumentare del primo, diminuisce il secondo (e viceversa).\n",
-      "corr_roll": "- Correlazione scorrevole (rolling)\n    È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni); inoltre, viene applicata\n    una media mobile con intervallo specificato (in giorni). Offre una misura di cambiamento della correlazione tra due asset nel tempo.\n",
+      "corr_roll": "- Correlazione scorrevole (rolling)\n    È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni).\nInoltre, viene applicata una media mobile con intervallo specificato (in giorni); si consiglia 100-150 giorni per storici superiori a 2 anni, 20-60 altrimenti.\nOffre una misura di cambiamento della correlazione tra due asset nel tempo.\n",
       "drawdown": "- Drawdown\n    Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\n    Il Maximum Drawdown, in particolare, riporta la differenza maggiore.\n",
       "var": "- Value at Risk (VaR)\n    Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.\n    L'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni.\n"
     }

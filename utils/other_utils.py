@@ -3,7 +3,12 @@ import numpy as np
 import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 
-from utils.constants import clear_screen, REPORT_PREFIX
+from utils.constants import REPORT_PREFIX
+
+
+class ValidationError(Exception):
+    """Raised when user input or business logic validation fails."""
+    pass
 
 
 def round_half_up(valore, decimal="0.01"):
@@ -12,54 +17,11 @@ def round_half_up(valore, decimal="0.01"):
     try:
         return float(Decimal(str(valore)).quantize(Decimal(decimal), rounding=ROUND_HALF_UP))
     except Exception:
-        print(f"Warning: unable to round value {valore}")
         return valore
-    
+
 
 def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
-
-
-def wrong_input(translator, error="error not specified", suppress_error=False):
-    if suppress_error:
-        print("\n" + error)
-    else:
-        print(translator.get("misc.wrong_input"))
-        print(translator.get("misc.which_error") + error)
-    input(translator.get("redirect.continue_home"))
-    raise KeyboardInterrupt
-
-
-def validated_float(translator, prompt, error_key, condition=lambda x: True):
-    try:
-        value = float(input(prompt))
-        if not condition(value):
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get(error_key))
-    return value
-
-
-def validated_int(translator, prompt, error_key, condition=lambda x: True):
-    try:
-        value = int(input(prompt))
-        if not condition(value):
-            raise ValueError
-    except ValueError:
-        wrong_input(translator, translator.get(error_key))
-    return value
-
-
-def run_submenu(translator, title_key, operations_key, handlers):
-    while True:
-        clear_screen()
-        print(translator.get(title_key) + translator.get("redirect.cancel_home") + "\n")
-        print(translator.get(operations_key))
-        operation = input("\n> ")
-        if operation in handlers:
-            return handlers[operation]()
-        else:
-            input("\n" + translator.get("redirect.invalid_choice"))
 
 
 def create_defaults(save_folder, broker_name):
@@ -80,11 +42,9 @@ def create_defaults(save_folder, broker_name):
     })
     df_template = pd.DataFrame({k: [v] for k, v in row.items()})
 
-    # if the reports folder is missing entirely OR
-    # if the reports folder is there, but Report.csv is missing:
     if (not os.listdir(save_folder)) or (not check_rep):
         df_template.to_csv(path_rep, index=False)
-            
+
 
 _GLOSSARY_KEYS = {
     1: [
@@ -107,11 +67,3 @@ _GLOSSARY_KEYS = {
         "glossary.page_2.var",
     ],
 }
-
-
-def display_information(translator, page):
-    clear_screen()
-    for key in _GLOSSARY_KEYS[page]:
-        print(translator.get(key))
-    input(translator.get("redirect.continue_home"))
-

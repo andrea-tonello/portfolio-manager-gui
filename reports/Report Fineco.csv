@@ -1,5 +1,4 @@
 Data,Conto,Operazione,Prodotto,Ticker,Nome Asset,TER,Valuta,Tasso di Conv.,QT. Scambio,Prezzo,Prezzo EUR,Imp. Nominale Operaz.,Commissioni,QT. Attuale,PMC,Imp. Residuo Asset,Imp. Effettivo Operaz.,Costo Rilasciato,Plusv. Lorda,Minusv. Generata,Scadenza,Zainetto Fiscale,Plusv. Imponibile,Imposta,P&L,Liquidita Attuale,Valore Titoli,NAV,Liq. Impegnata
-01-01-2000,Fineco,,,,,,,,,,,,,,,,,,,,,0.0,,,,0.0,0.0,0.0,0.0
 03-03-2025,Fineco,Deposito,Contanti,,,,EUR,,,,,425.68,,,,,425.68,,,,,0.0,,,,425.68,0.0,425.68,425.68
 03-03-2025,Fineco,Acquisto,Azioni,AMD,"Advanced Micro Devices, Inc.",,USD,1.0465,2.0,-97.69,-93.3493,-186.7,3.77,2.0,95.2343,190.47,-190.47,,,,,0.0,,,,235.21,186.7,421.91,425.68
 04-03-2025,Fineco,Acquisto,Azioni,ARM,Arm Holdings plc,,USD,1.0465,2.0,-121.1,-115.7191,-231.44,3.77,2.0,117.6041,235.21,-235.21,,,,,0.0,,,,0.0,423.62,423.62,425.68

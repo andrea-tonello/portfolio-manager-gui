@@ -1,4 +1,45 @@
 {
+  "nav": {
+    "home": "Home",
+    "operations": "Operations",
+    "analysis": "Analysis",
+    "transactions": "Transactions",
+    "settings": "Settings"
+  },
+
+  "components": {
+    "pick_date": "Select date",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "loading": "Loading...",
+    "export": "Export Report",
+    "remove_row": "Remove latest transaction"
+  },
+
+  "home": {
+    "no_account": "No accounts configured. Go to Settings to add one.",
+    "overview": "All Accounts",
+    "export_success": "File exported successfully",
+    "filter_by_count": "Transaction counts",
+    "filter_by_days": "Days",
+    "hidden": "Hidden",
+    "open_positions": "Open Positions",
+    "open_positions_descr": "Ticker  /  Avg. cost  /  Current price",
+    "watchlist": "Watchlist",
+    "watchlist_add": "Add ticker...",
+    "watchlist_added": "Added to watchlist",
+    "watchlist_removed": "Removed from watchlist",
+    "watchlist_duplicate": "Ticker already in watchlist",
+    "watchlist_empty": "No tickers in watchlist"
+  },
+
+  "operations": {
+    "select_account": "Select an account...",
+    "operating_on": "Operating on",
+    "add_transaction": "Add Transaction"
+  },
+
   "redirect": {
     "continue": "Press Enter to continue...",
     "continue_home": "\nPress Enter to return to the Main Menu...",
@@ -31,36 +72,41 @@
   },
 
   "cash": {
-    "title": "\n--- CASH OPERATIONS ---\n\n",
-    "operations": "    1. Deposits and Withdrawals\n    2. Dividends\n    3. Stamp Duty / Other taxes",
+    "title": "CASH OPERATIONS",
+    "op_deposit": "Deposit",
+    "op_withdrawal": "Withdrawal",
+    "op_dividend": "Dividend",
+    "op_charge": "Stamp duty / Other charges",
     "date": "\n  - Transaction date DD-MM-YYYY (\"t\" for today)",
-    "cash_amount": "  - Transaction amount in EUR (negative if withdrawal)\n    > ",
-    "cash_error": "The cash amount must be a non-zero number. Positive if deposited, negative if withdrawn.",
-    "dividend_amount": "  - Net dividend in EUR\n    > ",
+    "amount_descr": "Transaction amount in EUR (negative if withdrawal)",
+    "amount": "Amount",
+    "amount_error": "The cash amount must be a non-zero number. Positive if deposited, negative if withdrawn.",
+    "dividend_descr": "Net dividend in EUR",
+    "dividend_ticker_descr": "Full ticker of the dividend issuer (Yahoo Finance standard)",
+    "dividend_ticker": "Ticker",
     "dividend_error": "The dividend must be a number greater than 0.",
-    "dividend_ticker": "  - Full ticker of the dividend issuer (Yahoo Finance standard)\n    > ",
-    "charge_amount": "  - Tax amount in EUR\n    > ",
+    "charge_descr": "Tax amount in EUR",
     "charge_error": "The tax amount must be a number greater than 0.",
-    "charge_descr": "  - Tax description (e.g., \"Stamp Duty Q2 2025\")\n    > "
+    "charge_verbose": "Charge description (e.g., \"Stamp Duty Q2 2025\")"
   },
 
   "stock": {
-    "title_etf": "\n--- ETFs ---\n\n",
-    "title_stock": "\n--- STOCKS ---\n\n",
+    "title_etf": "ETFs",
+    "title_stock": "STOCKS",
     "date": "\n  - Transaction date DD-MM-YYYY (\"t\" for today)",
-    "currency": "  - Currency\n\t1. EUR\n\t2. USD",
+    "currency": "Currency",
     "currency_error": "Currency not recognized. You must enter the number corresponding to the currency of choice.",
-    "exch_rate": "  - EUR-USD conversion rate\n    > ",
+    "exch_rate": "EUR-USD rate",
     "exch_rate_error": "The conversion rate must be a number greater than 0.",
-    "ticker": "  - Full ticker (Yahoo Finance standard)\n    > ",
-    "qt": "  - Quantity (positive integer)\n    > ",
+    "ticker": "Full ticker (Yahoo Finance standard)",
+    "qt": "Quantity",
     "qt_error": "Invalid quantity. It must be an integer greater than 0.",
-    "price": "  - Unit price (negative if buy)\n    > ",
+    "price": "Unit price (negative if buy)",
     "price_error": "The price cannot be 0. Negative if buy, positive if sell.",
-    "currency_fee": "  - Fee currency\n    Must be specified as some brokers (e.g. Fineco) apply fixed EUR fees even on USD transactions.\n\t1. EUR\n\t2. USD",
-    "fee": "  - Commission / Fee\n    > ",
+    "currency_fee": "Fee currency\n    Must be specified as some brokers (e.g. Fineco) apply fixed EUR fees even on USD transactions.\n\t1. EUR\n\t2. USD",
+    "fee": "Fee amount",
     "fee_error": "The commission must be a number greater than or equal to 0.",
-    "ter": "  - Total Expense Ratio\n    > ",
+    "ter": "Total Expense Ratio",
     "sell_noitems": "No assets to sell: portfolio is empty.",
     "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})."
   },
@@ -71,12 +117,16 @@
   },
 
   "review": {
-    "title": "\n--- RECENT TRANSACTIONS (MAX 10) ---\n\n"
+    "title": "\nRecent Transactions\n\n"
   },
 
   "analysis": {
     "title": "\n--- PORTFOLIO ANALYSIS ---\n\n",
-    "operations": "    1. Statistics\n    2. Correlation analysis\n    3. Drawdown\n    4. VaR",
+    "all_accounts": "All Accounts",
+    "op_statistics": "STATISTICS",
+    "op_correlation": "CORRELATION",
+    "op_drawdown": "DRAWDOWN",
+    "op_var": "VaR",
     "summary": {
       "date": "\n  - Date of interest DD-MM-YYYY (\"t\" for today)",
       "account_literal": "Account",
@@ -107,14 +157,14 @@
     },
     "corr": {
       "date": "\n  Define the analysis interval. For example, from portfolio inception to today.\n  Format: DD-MM-YYYY, \"t\" for today.",
-      "start_dt": "  - Analysis start date:",
-      "end_dt": "  - Analysis end date:",
+      "start_dt": "Analysis start date:",
+      "end_dt": "Analysis end date:",
       "simple": "\n--- Simple Correlation ---",
       "simple_error": "\n    Correlation matrix cannot be calculated: no assets found in portfolio.\n\n",
       "rolling": "\n--- Rolling correlation between two assets ---\n\n    Enter tickers of the assets of interest.\n    You do not need to own the two assets to perform rolling correlation computation.\n",
-      "asset1": "  - Ticker asset 1\n    > ",
-      "asset2": "  - Ticker asset 2\n    > ",
-      "window": "  - Time window in days. Recommended 100-150 for a history greater than 2 years, 20-60 otherwise.\n    > ",
+      "asset1": "Ticker asset 1",
+      "asset2": "Ticker asset 2",
+      "window": "Time window in days",
       "window_error": "The number of days must be an integer greater than 0.",
       "plot1": {
         "colorbar": "Correlation",
@@ -129,8 +179,8 @@
     },
     "drawdown": {
       "date": "\n  Define the analysis interval. For example, from portfolio inception to today.\n  Format: DD-MM-YYYY, \"t\" for today.",
-      "start_dt": "  - Analysis start date:",
-      "end_dt": "  - Analysis end date:",
+      "start_dt": "Analysis start date:",
+      "end_dt": "Analysis end date:",
       "result": "\n    Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
       "error": "\n    No data present in transaction history across all accounts.\n    Drawdown cannot be calculated.",
       "plot1": {
@@ -140,9 +190,9 @@
       }
     },
     "var": {
-      "ci": "\n  - Confidence Interval (e.g., 0.99)\n    > ",
+      "ci": "Confidence Interval",
       "ci_error": "The Confidence Interval is defined between 0 and 1, extrema excluded.",
-      "days": "  - Number of days of interest. The higher this number, the less reliable the results.\n    > ",
+      "days": "Number of days",
       "days_error": "The number of days for the forecast must be an integer greater than 0",
       "result": "\n    Portfolio Value at Risk at {ci:.0%} CI over {days} days:    {var:.2f}€",
       "error": "\n    No open positions found across all accounts.\n    Value at Risk is zero.",
@@ -156,23 +206,42 @@
   },
 
   "settings": {
-    "title": "\n--- PROGRAM SETTINGS ---\n\n",
-    "operations": "    1. Language\n    2. Add accounts\n    3. Initialize accounts\n    4. Initialize application (requires confirmation)",
+    "language": {
+      "title": "Language",
+      "changed": "\nLanguage set successfully"
+    },
+    "theme": {
+      "title": "Theme",
+      "system": "Auto",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "palette": {
+      "title": "Color Palette",
+      "blue": "Blue",
+      "teal": "Teal",
+      "green": "Forest Green",
+      "yellow": "Yellow",
+      "orange": "Orange",
+      "red": "Red",
+      "purple": "Purple",
+      "indigo": "Indigo"
+    }, 
     "account": {
-      "add_account": "\n    Enter account alias. Type \"q\" to finish.",
+      "title": "Manage Accounts",
+      "add_account": "Add account...",
       "op_denied": "    Operation denied. You must add at least one account.",
       "saved": "\nSave complete. Accounts saved:\n",
       "accounts_added": "\nAccounts added. ",
+      "delete_account": "Delete account",
+      "delete_confirm": "Are you sure you want to delete the account \"{account}\"? This will remove all associated data.",
+      "delete_last": "Cannot delete the last remaining account.",
+      "account_deleted": "Account deleted successfully.",
       "accounts_initialized": "\nAccounts initialized. ",
-      "reset_warning": "\nThis operation is not reversible. The application will be reset, deleting all saved data.",
+      "reset_warning": "\nThis operation is not reversible.\nThe application will be reset, deleting all saved data.",
       "reset_confirm": "Type 'RESET' to proceed. All other input will be ignored.\n\n    > ",
       "deletion_error": "Error deleting directory: {e}",
       "reset_completed": "\nReset completed. "
-    },
-    "language": {
-      "select_language": "Select language.",
-      "selection_error": "Error. Enter the number corresponding to the language.",
-      "changed": "\nLanguage set successfully."
     }
   },
 
@@ -189,8 +258,8 @@
     "title": "\n--- INFO / GLOSSARY ---\n\n",
     "operations": "    1. Column descriptions of the Report tables\n    2. Info on metrics/statistics",
     "page_1": {
-      "title": "\nPAGE 1.\nThis page serves as a glossary for the Report columns\n",
-      "date": "Date\n    Date when the operation was executed on.\n",
+      "title": "Report's columns description",
+      "date": "- Date\n    Date when the operation was executed on.\n",
       "account": "- Account\n    Account on which the operation was performed.\n",
       "operation": "- Operation\n    Type of operation (Buy, Sell, Deposit...)\n",
       "product": "- Product\n    Type of product (Stock, ETF, Cash...)\n",
@@ -222,14 +291,14 @@
       "historic_cash": "- Committed Cash\n    Total liquidity injected into the account. Considers only deposits and withdrawals.\n"
     },
     "page_2": {
-      "title": "\nPAGE 2.\nThis page provides information on statistical tools used in portfolio analysis.\n",
+      "title": "Information on statistical tools",
       "return": "- Return Types",
       "xirr": "    XIRR (Extended Internal Rate of Return).\n\tIRR is a numerical method to calculate the Internal Rate of Return of a series of cash flows (inflows and outflows); XIRR is a variant\n\tused when flows occur at irregular time intervals. It is calculated as the rate that zeros the Net Present Value (NPV) of all flows.\n\tUseful for measuring personal performance, taking into account investment and divestment choices.",
       "twrr": "    TWRR (Time-Weighted Rate of Return).\n\tFocuses on the return of the assets and not the effective return of the investor (essentially excluding cash flows).\n\tThe calculation is based on the geometric mean of returns of all sub-periods into which the investment is divided (e.g., daily, monthly).\n\tUseful for comparing performance with benchmarks/indices or measuring statistics such as the Sharpe Ratio.\n",
       "volatility": "- Volatility\n    Standard deviation of returns over a specific time period.\n",
       "sharpe_ratio": "- Sharpe Ratio\n    Measures the performance of an investment compared to a 'risk-free' asset (e.g., AAA short-term government bonds' interest rate).\n It is calculated as the difference between investment returns and risk-free returns, called excess returns, divided by the standard deviation of excess returns.\n",
       "corr": "- Simple Correlation\n    Measures, via a coefficient between -1 and 1, how correlated two assets are at a given moment.\n    +1: the two assets are positively correlated: as the first increases, the second increases (and vice versa).\n    0: the two assets are perfectly uncorrelated: a change in the first one will not affect the second one in any way (and vice versa).\n    -1: the two assets are negatively correlated: as the first increases, the second decreases (and vice versa).\n",
-      "corr_roll": "- Rolling Correlation\n    Calculated similarly to the previous one, but over a pre-established time interval (e.g., 5 years); furthermore,\n    a rolling average with a specified interval (in days) is applied. Offers a measure of how the correlation between two assets changes over time.\n",
+      "corr_roll": "- Rolling Correlation\n    Calculated similarly to the previous one, but over a pre-established time interval (e.g., 5 years); furthermore,\n    a rolling average with a specified interval (in days) is applied; this interval is recommended to be 100-150 for a history greater than 2 years, 20-60 otherwise.\n Offers a measure of how the correlation between two assets changes over time.\n",
       "drawdown": "- Drawdown\n    Measures the percentage decline in the value of the portfolio (or an asset) from its historic peak to the subsequent minimum.\n    Maximum Drawdown, specifically, reports the largest difference.\n",
       "var": "- Value at Risk (VaR)\n    Maximum expected loss over a specified time horizon in days, given a confidence interval.\n    The implementation used here is based on the Monte Carlo method, using historical data for return estimates.\n"
     }

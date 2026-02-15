@@ -1,7 +1,8 @@
+.claude/
 .venv/
 __pycache__/
 dist/
 build/
 menus/
 secret.py
-tests.ipynb
+
