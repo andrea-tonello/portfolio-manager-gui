@@ -1,10 +1,10 @@
 import flet as ft
 import pandas as pd
-import yfinance as yf
 from datetime import datetime
 
 from components.snack import show_snack
 from services import config_service
+from services.market_data import download_close
 from utils.other_utils import round_half_up
 from utils.account import get_asset_value
 
@@ -170,7 +170,7 @@ class HomeView:
 
         def worker():
             try:
-                data = yf.download(tickers, period="2d", progress=False)["Close"]
+                data = download_close(tickers, period="2d")
                 if isinstance(data, pd.Series):
                     data = data.to_frame(name=tickers[0])
                 data = data.dropna(how="all")

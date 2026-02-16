@@ -26,9 +26,12 @@ class AnalysisView:
         dd_content = self._build_drawdown_tab()
         var_content = self._build_var_tab()
 
+        self.state._analysis_tab_index = 0
+
         self.form_container.content = ft.Tabs(
             length=4,
             selected_index=0,
+            on_change=self._on_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
                     ft.Tab(label=t.get("analysis.op_statistics")),
@@ -73,6 +76,9 @@ class AnalysisView:
             border_color=ft.Colors.SECONDARY_CONTAINER,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
         )
+
+    def _on_tab_change(self, e):
+        self.state._analysis_tab_index = e.control.selected_index
 
     def _on_account_selected(self, e):
         val = e.control.value

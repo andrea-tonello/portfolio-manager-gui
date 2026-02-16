@@ -9,5 +9,46 @@ dependencies = [
     "flet-charts>=0.80.5",
     "numpy>=1.26.0",
     "pandas>=2.1.0",
-    "yfinance>=0.2.40",
 ]
+
+[tool.flet.app]
+exclude = [
+    "reports",
+    "tests",
+    ".git",
+    "__pycache__",
+    ".venv",
+    "*.csv",
+    "*.md",
+]
+
+[tool.flet.compile]
+app = true
+packages = true
+
+[tool.flet.cleanup]
+app = true
+packages = true
+app_files = [
+    "**/__pycache__",
+    "**/*.md",
+    "**/*.rst",
+    "**/*.txt",
+]
+package_files = [
+    "**/*.pyi",
+    "**/*.typed",
+    "**/__pycache__",
+    "**/*.md",
+    "**/*.rst",
+    "**/*.txt",
+    "**/*.html",
+    "**/tests",
+    "**/test",
+    "**/*.c",
+    "**/*.h",
+    "**/*.hpp",
+]
+
+[tool.flet.android]
+target_arch = ["arm64-v8a"]

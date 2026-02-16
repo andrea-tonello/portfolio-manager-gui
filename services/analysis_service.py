@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import yfinance as yf
 from itertools import chain
 
+from services.market_data import download_close
 from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
@@ -205,16 +205,22 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1, 
 
     if active_tickers:
         active_ticker_names = list(set([t[0] for t in active_tickers]))
-        prices_df = yf.download(active_ticker_names, start=start_ref_date, end=end_ref_date, progress=False)
-        returns_df = prices_df["Close"].pct_change().dropna()
+        close_df = download_close(active_ticker_names, start=start_ref_date, end=end_ref_date)
+        if isinstance(close_df, pd.Series):
+            close_df = close_df.to_frame(name=active_ticker_names[0])
+        close_df = close_df.ffill()
+        returns_df = close_df.pct_change().dropna()
         correlation_matrix = returns_df.corr()
     else:
         returns_df = pd.DataFrame()
 
     # Rolling correlation
     if not (asset1 in (active_tickers if not active_tickers else [t[0] for t in active_tickers])):
-        prices_df = yf.download([asset1, asset2], start=start_ref_date, end=end_ref_date, progress=False)
-        returns_df = prices_df["Close"].pct_change().dropna()
+        close_df = download_close([asset1, asset2], start=start_ref_date, end=end_ref_date)
+        if isinstance(close_df, pd.Series):
+            close_df = close_df.to_frame(name=asset1)
+        close_df = close_df.ffill()
+        returns_df = close_df.pct_change().dropna()
 
     rolling_corr = returns_df[asset1].rolling(window=window).corr(returns_df[asset2])
 
@@ -308,15 +314,15 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
     else:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
-    all_data = yf.download(tickers_to_download, start=start_ref_date, end=end_dt, progress=False)
+    close_prices = download_close(tickers_to_download, start=start_ref_date, end=end_dt)
 
-    if all_data.empty:
+    if isinstance(close_prices, pd.Series):
+        close_prices = close_prices.to_frame(name=tickers_to_download[0])
+
+    if close_prices.empty:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
-    if len(tickers_to_download) > 1:
-        close_prices = all_data["Close"]
-    else:
-        close_prices = all_data["Close"].to_frame(name=tickers_to_download[0])
+    close_prices = close_prices.ffill()
 
     final_usd_df = pd.DataFrame([])
     final_eur_df = pd.DataFrame([])

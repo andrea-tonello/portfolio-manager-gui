@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service
-from utils.other_utils import _GLOSSARY_KEYS
 
 
 class TransactionsView:
@@ -112,10 +111,7 @@ class TransactionsView:
 
         return ft.Column([
             ft.Container(height=10),
-            ft.Row([
-                ft.Text(t.get("review.title").strip(), weight=ft.FontWeight.BOLD, size=20),
-                self._build_info_button(),
-            ], spacing=8),
+            ft.Text(t.get("review.title").strip(), weight=ft.FontWeight.BOLD, size=20),
             ft.Row([
                 self.filter_radio,
                 self.tx_filter_field,
@@ -175,18 +171,8 @@ class TransactionsView:
         )
 
     def _show_glossary(self, page_num):
-        t = self.state.translator
-        keys = _GLOSSARY_KEYS.get(page_num, [])
-        keys = keys[1:]     # remove title
-        text = "\n".join(t.get(k) for k in keys)
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get(f"glossary.page_{page_num}.title")),
-            content=ft.Column([
-                ft.Text(text, size=12, selectable=True),
-            ], scroll=ft.ScrollMode.AUTO, tight=True),
-            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
+        from views import _show_glossary
+        _show_glossary(self.page, self.state, page_num)
 
     # ── Table ──────────────────────────────────────────────────────
 

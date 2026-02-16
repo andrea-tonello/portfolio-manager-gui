@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import numpy as np
-import yfinance as yf
 import warnings
 
+from services.market_data import download_close
 from utils.other_utils import round_half_up, round_down, ValidationError
 from utils.date_utils import add_solar_years
 from utils.fetch_utils import fetch_exchange_rate
@@ -96,26 +96,33 @@ def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date)
     fallback_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     try:
-        prices_df_raw = yf.download(only_tickers, start=start_ref_date, end=end_ref_date, progress=False)
-        exch_df_raw = yf.download("USDEUR=X", start=start_ref_date, end=end_ref_date, progress=False)
+        prices_df = download_close(only_tickers, start=start_ref_date, end=end_ref_date)
+        exch_series = download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
 
-        if not prices_df_raw.empty:
-            prices_df = prices_df_raw["Close"]
-            exch_df = exch_df_raw["Close"]
+        if isinstance(prices_df, pd.Series):
+            prices_df = prices_df.to_frame(name=only_tickers[0] if len(only_tickers) == 1 else "Close")
 
+        if isinstance(exch_series, pd.Series):
+            exch_df = exch_series.to_frame(name="USDEUR=X")
+        elif not exch_series.empty:
+            exch_df = exch_series
+        else:
+            exch_df = pd.DataFrame()
+
+        if not prices_df.empty and not exch_df.empty:
             common_dates = prices_df.index.intersection(exch_df.index)
             prices_df = prices_df.loc[common_dates]
             exch_df = exch_df.loc[common_dates]
 
-            if isinstance(prices_df, pd.Series):
-                prices_df = prices_df.to_frame(name=only_tickers[0] if len(only_tickers) == 1 else "Close")
-
-            prices_df = prices_df.dropna()
-            exch_df = exch_df.dropna()
+            prices_df = prices_df.ffill().dropna()
+            exch_df = exch_df.ffill().dropna()
             target_index = prices_df.index
 
             if target_index.empty:
                 target_index = fallback_index
+        elif not prices_df.empty:
+            prices_df = prices_df.ffill().dropna()
+            target_index = prices_df.index if not prices_df.empty else fallback_index
         else:
             target_index = fallback_index
 
@@ -281,7 +288,9 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
 
-    data = yf.download(tickers, start=start_date, end=end_date, progress=False)["Close"]
+    data = download_close(tickers, start=start_date, end=end_date)
+    if isinstance(data, pd.Series):
+        data = data.to_frame(name=tickers[0])
     data_ref = (
         data.loc[data.index <= pd.to_datetime(ref_date)]
             .dropna(how="any")

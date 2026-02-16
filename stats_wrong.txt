@@ -1,0 +1,55 @@
+
+Account: Fineco
+    NAV (on 16-02-2026): 604.77€
+	- Cash: 4.53€
+	- Asset Value: 600.24€
+    Committed Cash: 390.68€
+    P&L: 151.15€
+    P&L including unrealized: 214.09€
+    Total return (XIRR): 51.80%
+    Annualized return (XIRR): 54.54%
+
+    Assets held on 16-02-2026:
+    AASI.MI
+          Avg Cost: 44.7750
+          Current Price: 50.0200
+          Value: 600.24
+
+
+Account: BG Saxo
+    NAV (on 16-02-2026): 937.13€
+	- Cash: 18.39€
+	- Asset Value: 918.74€
+    Committed Cash: 810.80€
+    P&L: 95.02€
+    P&L including unrealized: 126.32€
+    Total return (XIRR): 18.65%
+    Annualized return (XIRR): 26.90%
+
+    Assets held on 16-02-2026:
+    MWEQ.MI
+          Avg Cost: 5.1209
+          Current Price: 5.5170
+          Value: 871.69
+    POET
+          Avg Cost: 7.8339
+          Current Price: 4.7056
+          Value: 47.06
+
+
+Portfolio total 
+    NAV (on 16-02-2026): 1541.78€
+	- Cash: 22.92€
+	- Asset Value: 1518.86€
+    Committed Cash: 1201.48€
+    P&L: 246.17€
+    P&L including unrealized: 340.29€
+
+    Return
+	- Total XIRR: 37.93%
+	- Annualized XIRR: 39.85%
+	- Total TWRR: nan%
+	- Annualized TWRR: nan%
+
+    Annualized volatility: nan%
+    Sharpe Ratio: nan
