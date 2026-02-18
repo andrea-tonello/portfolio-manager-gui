@@ -13,8 +13,8 @@
     "cancel": "Annulla",
     "apply": "Applica",
     "loading": "Caricamento...",
-    "export": "Esporta Report",
-    "remove_row": "Rimuovi ultima operazione"
+    "export": "Esporta",
+    "remove_row": "Rimuovi ultima transaz."
   },
 
   "home": {

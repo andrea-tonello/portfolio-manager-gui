@@ -29,6 +29,8 @@ def export_account(df: pd.DataFrame, path: str, user_folder: str, filename: str)
     df.to_csv(path, index=False)
     path_user = os.path.join(user_folder, filename)
     df_user = df.copy().iloc[1:]
+    df_user["_date_parsed"] = pd.to_datetime(df_user["Data"], dayfirst=True, errors="coerce")
+    df_user = df_user.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
     df_user.to_csv(path_user, index=False)
 
 

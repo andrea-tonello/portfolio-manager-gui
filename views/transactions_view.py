@@ -1,9 +1,12 @@
+import os
+
 import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service
+from utils.constants import REPORT_PREFIX
 
 
 class TransactionsView:
@@ -19,17 +22,15 @@ class TransactionsView:
         df = self._get_tx_df()
         sel = self.state.tx_selection
 
+        acc_idx = None if sel == "overview" else int(sel)
+
         children = [
             ft.Container(
                 self._build_dropdown(),
                 padding=ft.padding.only(top=5, left=5, right=5),
             ),
-            self._build_transactions_section(df),
+            self._build_transactions_section(df, acc_idx),
         ]
-
-        if sel != "overview":
-            children.append(ft.Divider())
-            children.append(self._build_action_buttons(int(sel)))
 
         return ft.Column(children, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -78,7 +79,7 @@ class TransactionsView:
 
     # ── Transactions Section (filter + table) ─────────────────────────
 
-    def _build_transactions_section(self, df) -> ft.Control:
+    def _build_transactions_section(self, df, acc_idx=None) -> ft.Control:
         t = self.state.translator
 
         self._tx_df = df
@@ -90,7 +91,7 @@ class TransactionsView:
         self.filter_radio = ft.RadioGroup(
             value="count",
             on_change=self._on_filter_mode_change,
-            content=ft.Row([
+            content=ft.Column([
                 ft.Radio(value="count", label=t.get("home.filter_by_count")),
                 ft.Radio(value="days", label=t.get("home.filter_by_days")),
             ], spacing=16),
@@ -110,13 +111,24 @@ class TransactionsView:
         self._update_tx_table()
 
         return ft.Column([
-            ft.Container(height=10),
-            ft.Text(t.get("review.title").strip(), weight=ft.FontWeight.BOLD, size=20),
-            ft.Row([
-                self.filter_radio,
-                self.tx_filter_field,
-                filter_btn,
-            ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER, wrap=True),
+            ft.Container(
+                ft.Text(t.get("review.title").strip(), weight=ft.FontWeight.BOLD, size=20),
+                padding=ft.padding.only(left=15, top=10)
+            ),
+            ft.Container(
+                ft.Row([
+                    self.filter_radio,
+                    ft.Container(
+                        ft.Column([
+                            self.tx_filter_field,
+                            filter_btn,
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=ft.padding.only(left=15)
+                    ),
+                ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.padding.only(left=15)
+            ),
+            self._build_action_buttons(acc_idx),
             self.tx_table_container,
         ], spacing=20)
 
@@ -204,22 +216,31 @@ class TransactionsView:
             ),
         ], scroll=ft.ScrollMode.ALWAYS)
 
-    # ── Action Buttons (single account only) ──────────────────────
+    # ── Action Buttons ────────────────────────────────────────────
 
-    def _build_action_buttons(self, idx: int) -> ft.Control:
+    def _build_action_buttons(self, idx) -> ft.Control:
         t = self.state.translator
-        return ft.Row([
+        buttons = [
             ft.ElevatedButton(
                 t.get("components.export"),
                 icon=ft.Icons.SAVE,
-                on_click=lambda e, i=idx: self._on_export(e, i),
+                on_click=(lambda e, i=idx: self._on_export(e, i))
+                if idx is not None
+                else self._on_export_overview,
             ),
-            ft.OutlinedButton(
-                t.get("components.remove_row"),
-                icon=ft.Icons.UNDO,
-                on_click=lambda e, i=idx: self._on_remove_row(e, i),
-            ),
-        ], wrap=True)
+        ]
+        if idx is not None:
+            buttons.append(
+                ft.OutlinedButton(
+                    t.get("components.remove_row"),
+                    icon=ft.Icons.UNDO,
+                    on_click=lambda e, i=idx: self._on_remove_row(e, i),
+                ),
+            )
+        return ft.Container(
+            ft.Row(buttons, wrap=True),
+            padding=ft.padding.only(left=10, right=10, top=10)
+        )
 
     def _on_export(self, e, idx):
         s = self.state
@@ -233,6 +254,22 @@ class TransactionsView:
             show_snack(self.page, t.get("home.export_success"))
             from views import _rebuild_page
             _rebuild_page(self.page, s, selected_index=3)
+        except Exception as ex:
+            show_snack(self.page, str(ex), error=True)
+
+    def _on_export_overview(self, e):
+        s = self.state
+        t = s.translator
+        df = self._tx_df
+        if df is None or df.empty:
+            show_snack(self.page, t.get("remove_row.no_rows"), error=True)
+            return
+        try:
+            df["_date_parsed"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
+            df = df.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
+            path = os.path.join(s.user_folder, REPORT_PREFIX + "All Accounts.csv")
+            df.to_csv(path, index=False)
+            show_snack(self.page, t.get("home.export_success"))
         except Exception as ex:
             show_snack(self.page, str(ex), error=True)
 

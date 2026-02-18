@@ -89,7 +89,7 @@ class HomeView:
                 self._watchlist_toggle_icon,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             on_click=self._toggle_watchlist,
-            padding=ft.padding.symmetric(horizontal=16, vertical=8),
+            padding=ft.padding.only(left=16, right=16, top=10, bottom=14),
             ink=True,
         )
 
@@ -98,6 +98,7 @@ class HomeView:
             border_radius=ft.border_radius.all(15),
             expand=True,
             on_submit=self._on_watchlist_add,
+            height=40,
         )
         add_row = ft.Row([
             self._watchlist_ticker_field,
