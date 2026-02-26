@@ -20,31 +20,25 @@ def _date_axis_labels(dates, num_labels=6):
             text = dt.strftime("%Y-%m-%d")
         else:
             text = str(dt)[:10]
-        labels.append(fch.ChartAxisLabel(
-            value=i,
-            label=ft.Container(
-                ft.Text(text, size=9),
-                padding=ft.padding.only(top=4),
-            ),
-        ))
+        labels.append(fch.ChartAxisLabel(value=i, label=text))
     return labels
 
 
-def _y_axis_labels(y_min, y_max, num_labels=5):
+def _y_axis_labels(y_min, y_max, num_labels=5, suffix=""):
     """Create evenly-spaced Y axis labels."""
     if y_max == y_min:
-        return [fch.ChartAxisLabel(value=y_min, label=ft.Text(f"{y_min:.0f}", size=9))]
+        return [fch.ChartAxisLabel(value=y_min, label=f"{y_min:.0f}{suffix}")]
     step = (y_max - y_min) / (num_labels - 1)
     labels = []
     for i in range(num_labels):
         val = y_min + i * step
         if abs(val) >= 1000:
-            text = f"{val:,.0f}"
+            text = f"{val:,.0f}{suffix}"
         elif abs(val) >= 1:
-            text = f"{val:.1f}"
+            text = f"{val:.1f}{suffix}"
         else:
-            text = f"{val:.3f}"
-        labels.append(fch.ChartAxisLabel(value=val, label=ft.Text(text, size=9)))
+            text = f"{val:.3f}{suffix}"
+        labels.append(fch.ChartAxisLabel(value=val, label=text))
     return labels
 
 
@@ -134,13 +128,24 @@ def chart_summary(translator, pf_history, min_date_str, dt_str) -> ft.Control:
 
     all_y = []
     data_series = []
+    first_series = True
     for col, label, color, width, dash in series_config:
         points = []
         for idx in sample_indices:
             y = float(pf_history.iloc[idx][col])
-            points.append(fch.LineChartDataPoint(
-                idx, y, show_tooltip=False,
-            ))
+            if first_series:
+                dt = dates[idx]
+                date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
+                tip = fch.LineChartDataPointTooltip(
+                    text=f"{date_str}\n{label}: {y:,.0f}",
+                    text_style=ft.TextStyle(size=10),
+                )
+            else:
+                tip = fch.LineChartDataPointTooltip(
+                    text=f"{label}: {y:,.0f}",
+                    text_style=ft.TextStyle(size=10),
+                )
+            points.append(fch.LineChartDataPoint(idx, y, tooltip=tip))
             all_y.append(y)
         data_series.append(fch.LineChartData(
             points=points,
@@ -150,6 +155,7 @@ def chart_summary(translator, pf_history, min_date_str, dt_str) -> ft.Control:
             curved=False,
             point=False,
         ))
+        first_series = False
 
     y_min = min(all_y)
     y_max = max(all_y)
@@ -168,31 +174,44 @@ def chart_summary(translator, pf_history, min_date_str, dt_str) -> ft.Control:
             width=1,
         ),
         bottom_axis=fch.ChartAxis(
-            label_size=40,
+            label_size=0,
             labels=_date_axis_labels(dates),
             show_min=False,
             show_max=False,
         ),
         left_axis=fch.ChartAxis(
-            label_size=55,
+            label_size=0,
             labels=_y_axis_labels(y_min, y_max),
             show_min=False,
             show_max=False,
         ),
-        interactive=False,
+        interactive=True,
+        tooltip=fch.LineChartTooltip(
+            bgcolor="#E0E0E0",
+            border_radius=8,
+            padding=ft.Padding.all(8),
+            max_width=160,
+            fit_inside_horizontally=True,
+            fit_inside_vertically=True,
+        ),
     )
 
-    legend = ft.Row([
-        ft.Row([
-            ft.Container(width=16, height=3, bgcolor=color),
-            ft.Text(label, size=11),
-        ], spacing=4)
-        for _, label, color, _, _ in series_config
-    ], spacing=12, wrap=True)
+    spans = []
+    for _, label, color, _, _ in series_config:
+        spans.append(ft.TextSpan("■ ", style=ft.TextStyle(color=color, size=10)))
+        spans.append(ft.TextSpan(label + "   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)))
+    legend = ft.Text(spans=spans)
 
     return ft.Container(
         content=ft.Column([legend, chart], spacing=6, expand=True),
-        height=420,
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
     )
 
 
@@ -225,7 +244,7 @@ def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) 
     header_cells = [ft.Container(width=label_size, height=30)]
     for lbl in labels:
         header_cells.append(ft.Container(
-            content=ft.Text(lbl, size=9, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+            content=ft.Text(lbl, size=9, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER, color=ft.Colors.BLACK),
             width=cell_size, height=30,
             alignment=ft.alignment.Alignment.CENTER,
         ))
@@ -235,7 +254,7 @@ def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) 
     data_rows = []
     for i in range(n):
         row_cells = [ft.Container(
-            content=ft.Text(labels[i], size=9, weight=ft.FontWeight.BOLD),
+            content=ft.Text(labels[i], size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
             width=label_size, height=cell_size,
             alignment=ft.alignment.Alignment.CENTER_RIGHT,
             padding=ft.padding.only(right=6),
@@ -262,14 +281,24 @@ def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) 
             alignment=ft.alignment.Alignment.CENTER,
         ))
     scale = ft.Row([
-        ft.Text(translator.get("analysis.corr.plot1.colorbar"), size=10),
+        ft.Text(translator.get("analysis.corr.plot1.colorbar"), size=10, color=ft.Colors.BLACK),
         *scale_containers,
     ], spacing=4)
 
-    return ft.Column([
-        ft.Row([ft.Column([header_row, *data_rows], spacing=0)], scroll=ft.ScrollMode.AUTO),
-        scale,
-    ], spacing=8)
+    return ft.Container(
+        content=ft.Column([
+            ft.Row([ft.Column([header_row, *data_rows], spacing=0)], scroll=ft.ScrollMode.AUTO),
+            scale,
+        ], spacing=8),
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
+    )
 
 
 def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, start_dt, end_dt) -> ft.Control:
@@ -290,7 +319,15 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
     y_vals = []
     for idx in sample_indices:
         y = float(values[idx])
-        points.append(fch.LineChartDataPoint(idx, y, show_tooltip=False))
+        dt = orig_dates[idx]
+        date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
+        points.append(fch.LineChartDataPoint(
+            idx, y,
+            tooltip=fch.LineChartDataPointTooltip(
+                text=f"{date_str}\nCorr: {y:.3f}",
+                text_style=ft.TextStyle(size=10),
+            ),
+        ))
         y_vals.append(y)
 
     # Main correlation line
@@ -333,13 +370,13 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
             width=1,
         ),
         bottom_axis=fch.ChartAxis(
-            label_size=40,
+            label_size=0,
             labels=_date_axis_labels(orig_dates),
             show_min=False,
             show_max=False,
         ),
         left_axis=fch.ChartAxis(
-            label_size=45,
+            label_size=0,
             labels=_y_axis_labels(
                 max(min(y_vals), -1.0),
                 min(max(y_vals), 1.0),
@@ -348,27 +385,38 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
             show_min=False,
             show_max=False,
         ),
-        interactive=False,
+        interactive=True,
+        tooltip=fch.LineChartTooltip(
+            bgcolor="#E0E0E0",
+            border_radius=8,
+            padding=ft.Padding.all(8),
+            max_width=160,
+            fit_inside_horizontally=True,
+            fit_inside_vertically=True,
+        ),
     )
 
-    legend = ft.Row([
-        ft.Row([
-            ft.Container(width=16, height=3, bgcolor=ft.Colors.BLUE),
-            ft.Text(f"{asset1} / {asset2}", size=11),
-        ], spacing=4),
-        ft.Row([
-            ft.Container(width=16, height=3, bgcolor=ft.Colors.RED),
-            ft.Text("Zero", size=11),
-        ], spacing=4),
-    ], spacing=12, wrap=True)
+    legend = ft.Text(spans=[
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.BLUE, size=10)),
+        ft.TextSpan(f"{asset1} / {asset2}   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED, size=10)),
+        ft.TextSpan("Zero", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+    ])
 
     return ft.Container(
         content=ft.Column([
-            ft.Text(title, size=12, weight=ft.FontWeight.BOLD),
+            ft.Text(title, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
             legend,
             chart,
         ], spacing=6, expand=True),
-        height=400,
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
     )
 
 
@@ -392,7 +440,15 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
     y_vals = []
     for idx in sample_indices:
         y = float(drawdown_pct.iloc[idx])
-        points.append(fch.LineChartDataPoint(idx, y, show_tooltip=False))
+        dt = dates[idx]
+        date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
+        points.append(fch.LineChartDataPoint(
+            idx, y,
+            tooltip=fch.LineChartDataPointTooltip(
+                text=f"{date_str}\nDD: {y:.1f}%",
+                text_style=ft.TextStyle(size=10),
+            ),
+        ))
         y_vals.append(y)
 
     dd_line = fch.LineChartData(
@@ -433,34 +489,45 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
             width=1,
         ),
         bottom_axis=fch.ChartAxis(
-            label_size=40,
+            label_size=0,
             labels=_date_axis_labels(dates),
             show_min=False,
             show_max=False,
         ),
         left_axis=fch.ChartAxis(
-            label_size=45,
-            labels=_y_axis_labels(y_min, y_max),
+            label_size=0,
+            labels=_y_axis_labels(y_min, y_max, suffix="%"),
             show_min=False,
             show_max=False,
         ),
-        interactive=False,
+        interactive=True,
+        tooltip=fch.LineChartTooltip(
+            bgcolor="#E0E0E0",
+            border_radius=8,
+            padding=ft.Padding.all(8),
+            max_width=160,
+            fit_inside_horizontally=True,
+            fit_inside_vertically=True,
+        ),
     )
 
-    legend = ft.Row([
-        ft.Row([
-            ft.Container(width=16, height=3, bgcolor=ft.Colors.BLACK),
-            ft.Text("Drawdown", size=11),
-        ], spacing=4),
-        ft.Row([
-            ft.Container(width=16, height=3, bgcolor=ft.Colors.RED),
-            ft.Text(mdd_label, size=11),
-        ], spacing=4),
-    ], spacing=12, wrap=True)
+    legend = ft.Text(spans=[
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan("Drawdown   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED, size=10)),
+        ft.TextSpan(mdd_label, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+    ])
 
     return ft.Container(
         content=ft.Column([legend, chart], spacing=6, expand=True),
-        height=420,
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
     )
 
 
@@ -524,32 +591,35 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
             width=1,
         ),
         bottom_axis=fch.ChartAxis(
-            label_size=40,
+            label_size=20,
             labels=x_labels,
             show_min=False,
             show_max=False,
         ),
         left_axis=fch.ChartAxis(
-            label_size=45,
-            show_labels=False,
+            label_size=0,
+            labels=_y_axis_labels(0, max_count * 1.1, num_labels=3),
             show_min=False,
             show_max=False,
         ),
-        interactive=False,
+        interactive=True,
     )
 
-    legend = ft.Row([
-        ft.Row([
-            ft.Container(width=12, height=12, bgcolor="#BDBDBD"),
-            ft.Text(translator.get("analysis.var.plot1.xlabel"), size=11),
-        ], spacing=4),
-        ft.Row([
-            ft.Container(width=12, height=12, bgcolor=ft.Colors.RED_300),
-            ft.Text(var_legend, size=11),
-        ], spacing=4),
-    ], spacing=12, wrap=True)
+    legend = ft.Text(spans=[
+        ft.TextSpan("■ ", style=ft.TextStyle(color="#BDBDBD", size=10)),
+        ft.TextSpan(translator.get("analysis.var.plot1.xlabel") + "   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED_300, size=10)),
+        ft.TextSpan(var_legend, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+    ])
 
     return ft.Container(
         content=ft.Column([legend, chart], spacing=6, expand=True),
-        height=400,
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
     )

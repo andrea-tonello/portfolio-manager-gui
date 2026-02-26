@@ -1,5 +1,3 @@
-import os
-
 import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
@@ -18,6 +16,13 @@ class TransactionsView:
         t = self.state.translator
         if not self.state.brokers:
             return ft.Column([ft.Text(t.get("home.no_account"), size=16)])
+
+        # Set up FilePicker service for export
+        self.file_picker = ft.FilePicker()
+        self.page.services[:] = [
+            s for s in self.page.services if not isinstance(s, ft.FilePicker)
+        ]
+        self.page.services.append(self.file_picker)
 
         df = self._get_tx_df()
         sel = self.state.tx_selection
@@ -94,14 +99,16 @@ class TransactionsView:
             content=ft.Column([
                 ft.Radio(value="count", label=t.get("home.filter_by_count")),
                 ft.Radio(value="days", label=t.get("home.filter_by_days")),
-            ], spacing=16),
+            ], spacing=10),
         )
         self.tx_filter_field = ft.TextField(
             value="5",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=80,
+            height=45,
             on_submit=self._on_filter_apply,
             border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
         filter_btn = ft.FilledButton(
             content=t.get("components.apply"),
@@ -118,14 +125,9 @@ class TransactionsView:
             ft.Container(
                 ft.Row([
                     self.filter_radio,
-                    ft.Container(
-                        ft.Column([
-                            self.tx_filter_field,
-                            filter_btn,
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                        padding=ft.padding.only(left=15)
-                    ),
-                ], spacing=12, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    self.tx_filter_field,
+                    filter_btn,
+                ], spacing=25, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 padding=ft.padding.only(left=15)
             ),
             self._build_action_buttons(acc_idx),
@@ -220,13 +222,19 @@ class TransactionsView:
 
     def _build_action_buttons(self, idx) -> ft.Control:
         t = self.state.translator
+
+        if idx is not None:
+            async def on_export(e):
+                await self._on_export(e, idx)
+            export_click = on_export
+        else:
+            export_click = self._on_export_overview
+
         buttons = [
             ft.ElevatedButton(
                 t.get("components.export"),
                 icon=ft.Icons.SAVE,
-                on_click=(lambda e, i=idx: self._on_export(e, i))
-                if idx is not None
-                else self._on_export_overview,
+                on_click=export_click,
             ),
         ]
         if idx is not None:
@@ -242,36 +250,48 @@ class TransactionsView:
             padding=ft.padding.only(left=10, right=10, top=10)
         )
 
-    def _on_export(self, e, idx):
+    def _prepare_export_csv(self, df):
+        """Sort df by date descending and return CSV bytes."""
+        df = df.copy()
+        df["_date_parsed"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
+        df = df.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
+        return df.to_csv(index=False).encode("utf-8")
+
+    async def _on_export(self, e, idx):
         s = self.state
         t = s.translator
         acc = s.get_account(idx)
         if acc is None:
             return
-        try:
-            account_service.export_account(acc["df"], acc["path"], s.user_folder, acc["file"])
-            s.mark_account_saved(idx)
-            show_snack(self.page, t.get("home.export_success"))
-            from views import _rebuild_page
-            _rebuild_page(self.page, s, selected_index=3)
-        except Exception as ex:
-            show_snack(self.page, str(ex), error=True)
+        # Save to internal config path
+        account_service.save_account(acc["df"], acc["path"])
+        s.mark_account_saved(idx)
+        # Open file picker for user export
+        csv_bytes = self._prepare_export_csv(acc["df"].iloc[1:])
+        await self._save_via_picker(acc["file"], csv_bytes)
 
-    def _on_export_overview(self, e):
-        s = self.state
-        t = s.translator
+    async def _on_export_overview(self, e):
+        t = self.state.translator
         df = self._tx_df
         if df is None or df.empty:
             show_snack(self.page, t.get("remove_row.no_rows"), error=True)
             return
-        try:
-            df["_date_parsed"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
-            df = df.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
-            path = os.path.join(s.user_folder, REPORT_PREFIX + "All Accounts.csv")
-            df.to_csv(path, index=False)
+        csv_bytes = self._prepare_export_csv(df)
+        await self._save_via_picker(REPORT_PREFIX + "All Accounts.csv", csv_bytes)
+
+    async def _save_via_picker(self, file_name, csv_bytes):
+        t = self.state.translator
+        path = await self.file_picker.save_file(
+            file_name=file_name,
+            allowed_extensions=["csv"],
+            src_bytes=csv_bytes,
+        )
+        if path:
+            # On desktop, save_file() only returns the path — we must write the file
+            if not self.page.web and not self.page.platform.is_mobile():
+                with open(path, "wb") as f:
+                    f.write(csv_bytes)
             show_snack(self.page, t.get("home.export_success"))
-        except Exception as ex:
-            show_snack(self.page, str(ex), error=True)
 
     def _on_remove_row(self, e, idx):
         s = self.state

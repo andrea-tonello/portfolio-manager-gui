@@ -146,6 +146,7 @@ class SettingsView:
                     on_select=self._on_language_change,
                     expand=True,
                     border_radius=ft.border_radius.all(15),
+                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                 ),
             ], spacing=10),
             padding=20,
@@ -184,6 +185,7 @@ class SettingsView:
         self.new_broker_field = ft.TextField(
             label=t.get("settings.account.add_account"),
             border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
 
@@ -285,8 +287,9 @@ class SettingsView:
     def _on_reset_click(self, e):
         t = self.state.translator
         self.reset_field = ft.TextField(
-            label=t.get("settings.account.reset_confirm").strip().split("\n")[0],
+            label=t.get("settings.account.reset_confirm"),
             border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         dlg = ft.AlertDialog(

@@ -46,6 +46,12 @@ class AppState:
         # Watchlist
         self.watchlist: list[str] = []
 
+        # Home view
+        self._home_values_hidden: bool = False
+        self._home_cache: dict | None = None
+        self._home_nav_count: int = 0
+        self._home_nav_threshold: int = 10
+
         # Navigation state
         self._last_nav_index: int = 0
 
@@ -75,6 +81,8 @@ class AppState:
             if "Watchlist" in self.config:
                 tickers_str = self.config.get("Watchlist", "tickers", fallback="")
                 self.watchlist = [t.strip() for t in tickers_str.split(",") if t.strip()]
+            if "Home" in self.config:
+                self._home_values_hidden = self.config.get("Home", "hidden", fallback="false") == "true"
             if "Brokers" in self.config:
                 try:
                     self.brokers = {int(k): v for k, v in self.config.items("Brokers")}

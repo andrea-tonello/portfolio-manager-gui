@@ -25,13 +25,9 @@ def load_all_accounts(brokers: dict, save_folder: str) -> list[dict]:
     return accounts
 
 
-def export_account(df: pd.DataFrame, path: str, user_folder: str, filename: str):
+def save_account(df: pd.DataFrame, path: str):
+    """Save account DataFrame to its internal config path."""
     df.to_csv(path, index=False)
-    path_user = os.path.join(user_folder, filename)
-    df_user = df.copy().iloc[1:]
-    df_user["_date_parsed"] = pd.to_datetime(df_user["Data"], dayfirst=True, errors="coerce")
-    df_user = df_user.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
-    df_user.to_csv(path_user, index=False)
 
 
 def delete_account_files(broker_name: str, save_folder: str, user_folder: str):

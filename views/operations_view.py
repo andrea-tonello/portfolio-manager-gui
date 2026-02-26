@@ -1,11 +1,13 @@
 import flet as ft
 import numpy as np
+import pandas as pd
 from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import operations_service
 from utils.other_utils import round_half_up, ValidationError
 from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
+from utils.date_utils import parse_date_input
 
 
 class OperationsView:
@@ -19,6 +21,7 @@ class OperationsView:
             return ft.Text(t.get("home.no_account"), size=16)
 
         has_account = self.state.ops_acc_idx is not None
+        self._ops_tab_index = 0
         self.form_container = ft.Container(disabled=not has_account)
 
         cash_content = self._build_cash_tab()
@@ -28,6 +31,7 @@ class OperationsView:
         self.form_container.content = ft.Tabs(
             length=3,
             selected_index=0,
+            on_change=self._on_ops_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
                     ft.Tab(label=t.get("cash.title")),
@@ -42,9 +46,25 @@ class OperationsView:
             expand=True,
         )
 
-        return ft.Column([
-            ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5),),
-            self.form_container,
+        add_btn = ft.FilledButton(
+            t.get("operations.add_transaction"),
+            icon=ft.Icons.ADD,
+            on_click=self._on_add_transaction,
+            disabled=not has_account,
+            style=ft.ButtonStyle(
+                padding=ft.padding.symmetric(horizontal=32, vertical=18),
+            ),
+        )
+
+        return ft.Stack([
+            ft.Column([
+                ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                self.form_container,
+            ], expand=True),
+            ft.Container(
+                ft.Row([add_btn], alignment=ft.MainAxisAlignment.CENTER),
+                left=0, right=0, bottom=20,
+            ),
         ], expand=True)
 
     def _build_account_dropdown(self) -> ft.Control:
@@ -72,6 +92,17 @@ class OperationsView:
         from views import _rebuild_page
         _rebuild_page(self.page, self.state, selected_index=1)
 
+    def _on_ops_tab_change(self, e):
+        self._ops_tab_index = e.control.selected_index
+
+    def _on_add_transaction(self, e):
+        if self._ops_tab_index == 0:
+            self._submit_cash(e)
+        elif self._ops_tab_index == 1:
+            self._submit_es(e, "ETF")
+        else:
+            self._submit_es(e, "Azioni")
+
     def _get_ops_df(self):
         """Get the df for the currently selected operations account."""
         idx = self.state.ops_acc_idx
@@ -85,6 +116,11 @@ class OperationsView:
         if idx is None:
             return None
         return self.state.brokers.get(idx)
+
+    def _check_date_sequential(self, df, date_value) -> bool:
+        """Return True if date_value is not strictly after the last recorded date."""
+        dates = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce").dropna()
+        return not dates.empty and date_value <= dates.max().date()
 
     # ── Cash Tab ──────────────────────────────────────────────────────
 
@@ -102,37 +138,42 @@ class OperationsView:
             ], wrap=True, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
         )
-        self.cash_date_btn = ft.ElevatedButton(
-            t.get("components.pick_date"), icon=ft.Icons.CALENDAR_TODAY,
+        self.cash_date_field = ft.TextField(
+            label=t.get("components.pick_date"),
+            hint_text=t.get("components.date_format_hint"),
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            keyboard_type=ft.KeyboardType.DATETIME,
+            on_change=self._on_cash_date_typed,
+            expand=True,
+        )
+        self.cash_date_icon = ft.FilledTonalIconButton(
+            icon=ft.Icons.CALENDAR_MONTH,
             on_click=self._open_cash_date_picker,
         )
-        self.cash_date_label = ft.Text("")
         self.cash_date_value = None
 
         self.cash_amount = ft.TextField(label=t.get("cash.amount"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
                                         border_radius=ft.border_radius.all(15),
+                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         col={"xs": 12, "md": 6})
         self.cash_ticker = ft.TextField(label=t.get("cash.dividend_ticker"),
                                         border_radius=ft.border_radius.all(15),
+                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         visible=False, col={"xs": 12, "md": 6})
         self.cash_descr = ft.TextField(label=t.get("cash.charge_verbose"),
                                        border_radius=ft.border_radius.all(15),
+                                       border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
         self.cash_loading = ft.ProgressRing(visible=False, width=30, height=30)
 
         return ft.Container(
             content=ft.Column([
                 self.cash_type,
-                ft.Row([self.cash_date_btn, self.cash_date_label]),
+                ft.Row([self.cash_date_field, self.cash_date_icon]),
                 ft.ResponsiveRow([self.cash_amount, self.cash_ticker, self.cash_descr]),
-                ft.Row([
-                    ft.ElevatedButton(
-                        t.get("operations.add_transaction"),
-                        icon=ft.Icons.ADD,
-                        on_click=self._submit_cash),
-                    self.cash_loading,
-                ]),
+                self.cash_loading,
             ], spacing=15),
             padding=20,
         )
@@ -151,12 +192,15 @@ class OperationsView:
         )
         self.page.show_dialog(dp)
 
+    def _on_cash_date_typed(self, e):
+        self.cash_date_value = parse_date_input(e.control.value)
+
     def _on_cash_date_picked(self, e):
         picked = e.control.value
         if isinstance(picked, datetime):
             picked = (picked + timedelta(hours=12)).date()
         self.cash_date_value = picked
-        self.cash_date_label.value = picked.strftime(DATE_FORMAT)
+        self.cash_date_field.value = picked.strftime(DATE_FORMAT)
         self.page.update()
 
     def _submit_cash(self, e):
@@ -169,24 +213,31 @@ class OperationsView:
             return
 
         if self.cash_date_value is None:
-            show_snack(self.page, t.get("dates.error"), error=True)
+            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
+            return
+        if self._check_date_sequential(df, self.cash_date_value):
+            show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
         try:
             amount = float(self.cash_amount.value)
         except (ValueError, TypeError):
-            show_snack(self.page, t.get("cash.cash_error"), error=True)
+            show_snack(self.page, t.get("cash.error_cash"), error=True)
             return
 
         kind = self.cash_type.value
-        if kind == "deposit_withdrawal" and amount == 0:
-            show_snack(self.page, t.get("cash.cash_error"), error=True)
+        if kind in ("deposit", "withdrawal") and amount <= 0:
+            show_snack(self.page, t.get("cash.error_cash"), error=True)
             return
         if kind == "dividend" and amount <= 0:
-            show_snack(self.page, t.get("cash.dividend_error"), error=True)
+            show_snack(self.page, t.get("cash.error_dividend"), error=True)
             return
         if kind == "charge" and amount <= 0:
-            show_snack(self.page, t.get("cash.charge_error"), error=True)
+            show_snack(self.page, t.get("cash.error_charge"), error=True)
             return
+
+        if kind == "withdrawal":
+            amount = -amount
+        service_kind = "deposit_withdrawal" if kind in ("deposit", "withdrawal") else kind
 
         date_str = self.cash_date_value.strftime(DATE_FORMAT)
         ref_date = self.cash_date_value
@@ -200,7 +251,7 @@ class OperationsView:
         def worker():
             try:
                 new_df = operations_service.execute_cash_operation(
-                    t, df, broker, kind, date_str, ref_date, amount,
+                    t, df, broker, service_kind, date_str, ref_date, amount,
                     ticker=ticker, description=descr,
                 )
                 s.accounts[acc_idx]["df"] = new_df
@@ -219,11 +270,29 @@ class OperationsView:
     def _build_etf_stock_tab(self, product_type: str) -> ft.Control:
         t = self.state.translator
 
-        date_btn = ft.ElevatedButton(
-            t.get("components.pick_date"), icon=ft.Icons.CALENDAR_TODAY,
+        no_account = self.state.ops_acc_idx is None
+        es_type = ft.RadioGroup(
+            value="buy",
+            disabled=no_account,
+            content=ft.Row([
+                ft.Radio(value="buy", label=t.get("stock.op_buy"), disabled=no_account),
+                ft.Radio(value="sell", label=t.get("stock.op_sell"), disabled=no_account),
+            ], wrap=True, opacity=0.4 if no_account else 1.0),
+        )
+
+        date_field = ft.TextField(
+            label=t.get("components.pick_date"),
+            hint_text=t.get("components.date_format_hint"),
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            keyboard_type=ft.KeyboardType.DATETIME,
+            on_change=lambda e, pt=product_type: self._on_es_date_typed(e, pt),
+            expand=True,
+        )
+        date_icon = ft.FilledTonalIconButton(
+            icon=ft.Icons.CALENDAR_MONTH,
             on_click=lambda e, pt=product_type: self._open_es_date_picker(e, pt),
         )
-        date_label = ft.Text("")
 
         currency_dd = ft.Dropdown(
             label=t.get("stock.currency"),
@@ -234,20 +303,26 @@ class OperationsView:
             value=str(CURRENCY_EUR),
             on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
             col={"xs": 6, "md": 4},
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
         exch_rate = ft.TextField(label=t.get("stock.exch_rate"),
                                  keyboard_type=ft.KeyboardType.NUMBER,
                                  border_radius=ft.border_radius.all(15),
+                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  visible=False, col={"xs": 6, "md": 4})
         ticker_field = ft.TextField(label="Ticker",
                                     border_radius=ft.border_radius.all(15),
+                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                     col={"xs": 12, "md": 6})
         quantity_field = ft.TextField(label=t.get("stock.qt"),
-                                      border_radius=ft.border_radius.all(15),
+                                     border_radius=ft.border_radius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,
+                                     border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                      col={"xs": 6, "md": 3})
         price_field = ft.TextField(label=t.get("stock.price"),
                                    border_radius=ft.border_radius.all(15),
+                                   border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                    keyboard_type=ft.KeyboardType.NUMBER,
                                    col={"xs": 6, "md": 3})
         fee_currency_dd = ft.Dropdown(
@@ -258,19 +333,24 @@ class OperationsView:
             ],
             value=str(CURRENCY_EUR),
             visible=False, col={"xs": 6, "md": 4},
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
         fee_field = ft.TextField(label=t.get("stock.fee"),
                                  border_radius=ft.border_radius.all(15),
+                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
                                  col={"xs": 6, "md": 3})
         ter_field = ft.TextField(label="TER (%)",
                                  border_radius=ft.border_radius.all(15),
+                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  visible=(product_type == "ETF"),
                                  col={"xs": 6, "md": 3})
         loading = ft.ProgressRing(visible=False, width=30, height=30)
 
         tab_data = {
-            "date_btn": date_btn, "date_label": date_label, "date_value": None,
+            "es_type": es_type,
+            "date_field": date_field, "date_icon": date_icon, "date_value": None,
             "currency_dd": currency_dd, "exch_rate": exch_rate,
             "ticker": ticker_field, "quantity": quantity_field, "price": price_field,
             "fee_currency_dd": fee_currency_dd, "fee": fee_field, "ter": ter_field,
@@ -282,19 +362,12 @@ class OperationsView:
 
         return ft.Container(
             content=ft.Column([
-                ft.Row([date_btn, date_label]),
+                es_type,
+                ft.Row([date_field, date_icon]),
                 ft.ResponsiveRow([currency_dd, exch_rate]),
                 ft.ResponsiveRow([ticker_field, quantity_field, price_field]),
-                ft.Text(t.get("stock.price_error"), size=11, italic=True, color=ft.Colors.GREY_500),
                 ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
-                ft.Row([
-                    ft.ElevatedButton(
-                        t.get("operations.add_transaction"),
-                        icon=ft.Icons.ADD,
-                        on_click=lambda e, 
-                        pt=product_type: self._submit_es(e, pt)),
-                    loading,
-                ]),
+                loading,
             ], spacing=12),
             padding=20,
         )
@@ -307,13 +380,17 @@ class OperationsView:
         )
         self.page.show_dialog(dp)
 
+    def _on_es_date_typed(self, e, product_type):
+        tab = self._es_tabs[product_type]
+        tab["date_value"] = parse_date_input(e.control.value)
+
     def _on_es_date_picked(self, e, product_type):
         picked = e.control.value
         if isinstance(picked, datetime):
             picked = (picked + timedelta(hours=12)).date()
         tab = self._es_tabs[product_type]
         tab["date_value"] = picked
-        tab["date_label"].value = picked.strftime(DATE_FORMAT)
+        tab["date_field"].value = picked.strftime(DATE_FORMAT)
         self.page.update()
 
     def _on_currency_change(self, e, product_type):
@@ -334,7 +411,10 @@ class OperationsView:
             return
 
         if tab["date_value"] is None:
-            show_snack(self.page, t.get("dates.error"), error=True)
+            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
+            return
+        if self._check_date_sequential(df, tab["date_value"]):
+            show_snack(self.page, t.get("misc_error.date_sequential"), error=True)
             return
 
         try:
@@ -353,9 +433,11 @@ class OperationsView:
         if quantity <= 0:
             show_snack(self.page, t.get("stock.qt_error"), error=True)
             return
-        if price == 0:
+        if price <= 0:
             show_snack(self.page, t.get("stock.price_error"), error=True)
             return
+        if tab["es_type"].value == "buy":
+            price = -price
         if fee < 0:
             show_snack(self.page, t.get("stock.fee_error"), error=True)
             return

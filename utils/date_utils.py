@@ -5,6 +5,14 @@ import pandas as pd
 from utils.constants import DATE_FORMAT
 
 
+def parse_date_input(text):
+    """Parse DD-MM-YYYY text to a date object, or None if invalid."""
+    try:
+        return datetime.strptime(text.strip(), DATE_FORMAT).date()
+    except (ValueError, AttributeError):
+        return None
+
+
 def get_pf_date(translator, df_copy, dt, ref_date):
     df_copy["Data"] = pd.to_datetime(df_copy["Data"], dayfirst=True, errors="coerce")
     ref_date = pd.Timestamp(ref_date)

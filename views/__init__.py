@@ -15,6 +15,10 @@ _TAB_TO_GLOSSARY = {0: 2, 1: 3, 2: 4, 3: 5}
 def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     t = state.translator
     state._last_nav_index = selected_index
+    page.on_view_pop = None
+    if page.views:
+        page.views[0].can_pop = True
+        page.views[0].on_confirm_pop = None
 
     current_view = _VIEW_BUILDERS[selected_index](page, state).build()
 
@@ -23,10 +27,13 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     page.appbar = ft.AppBar(
         title=ft.Text(page_title),
         actions=[
-            ft.IconButton(
-                icon=ft.Icons.SETTINGS,
-                tooltip=t.get("nav.settings"),
-                on_click=lambda e: _show_settings(page, state),
+            ft.Container(
+                ft.IconButton(
+                    icon=ft.Icons.SETTINGS,
+                    tooltip=t.get("nav.settings"),
+                    on_click=lambda e: _show_settings(page, state),
+                ),
+                padding=ft.padding.only(right=8),
             ),
         ],
     )
@@ -34,10 +41,13 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     nav_bar = ft.NavigationBar(
         selected_index=selected_index,
         destinations=[
-            ft.NavigationBarDestination(icon=ft.Icons.HOME, label=t.get("nav.home")),
+            ft.NavigationBarDestination(icon=ft.Icons.HOME_OUTLINED, label=t.get("nav.home"),
+                                        selected_icon=ft.Icons.HOME),
             ft.NavigationBarDestination(icon=ft.Icons.SWAP_HORIZ, label=t.get("nav.operations")),
-            ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS, label=t.get("nav.analysis")),
-            ft.NavigationBarDestination(icon=ft.Icons.RECEIPT_LONG, label=t.get("nav.transactions")),
+            ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS_OUTLINED, label=t.get("nav.analysis"),
+                                        selected_icon=ft.Icons.ANALYTICS),
+            ft.NavigationBarDestination(icon=ft.Icons.RECEIPT_LONG_OUTLINED, label=t.get("nav.transactions"),
+                                        selected_icon=ft.Icons.RECEIPT_LONG),
         ],
         on_change=lambda e: _on_nav_change(e, page, state),
     )
@@ -45,15 +55,19 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     # Wrap analysis/transactions views in a Stack with a floating info button
     if selected_index in (2, 3):
         if selected_index == 2:
-            glossary_page = _TAB_TO_GLOSSARY.get(getattr(state, "_analysis_tab_index", 0), 2)
+            def _info_click(_):
+                p = _TAB_TO_GLOSSARY.get(getattr(state, "_analysis_tab_index", 0), 2)
+                _show_glossary(page, state, p)
+            info_handler = _info_click
         else:
-            glossary_page = 1
+            info_handler = lambda _: _show_glossary(page, state, 1)
         current_view = ft.Stack([
             ft.Column([current_view], expand=True),
             ft.Container(
                 content=ft.FloatingActionButton(
                     icon=ft.Icons.INFO_OUTLINE,
-                    on_click=lambda e, p=glossary_page: _show_glossary(page, state, p),
+                    mini=True,
+                    on_click=info_handler,
                 ),
                 right=16,
                 bottom=8,
@@ -72,10 +86,17 @@ def _show_settings(page: ft.Page, state):
     """Show the settings page with a back button in the AppBar."""
     t = state.translator
 
+    def _go_back(e):
+        _rebuild_page(page, state, selected_index=state._last_nav_index)
+
+    page.on_view_pop = _go_back
+    if page.views:
+        page.views[0].can_pop = False
+        page.views[0].on_confirm_pop = _go_back
     page.appbar = ft.AppBar(
         leading=ft.IconButton(
             icon=ft.Icons.ARROW_BACK,
-            on_click=lambda e: _rebuild_page(page, state, selected_index=state._last_nav_index),
+            on_click=_go_back,
         ),
         title=ft.Text(t.get("nav.settings")),
     )
@@ -117,4 +138,6 @@ def _show_glossary(page, state, page_num):
 
 def _on_nav_change(e, page, state):
     idx = e.control.selected_index
+    if idx != 0:
+        state._home_nav_count += 1
     _rebuild_page(page, state, selected_index=idx)

@@ -188,41 +188,42 @@ def compute_summary(translator, brokers, data, ref_date, dt_str, save_path=None)
     }
 
 
-def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1, asset2, window):
+def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
     """
     Returns dict:
     {
         "correlation_matrix": DataFrame or None,
-        "rolling_corr": Series,
+        "rolling_corr": Series or None,
         "active_tickers": list,
     }
+    When asset1/asset2/window are None, only simple correlation is computed.
+    When they are provided, only rolling correlation is computed.
     """
     for account in data:
         account[1] = account[1][account[1]["Operazione"].isin(["Acquisto", "Vendita"])]
 
     _, active_tickers = get_tickers(translator, data)
     correlation_matrix = None
+    rolling_corr = None
 
-    if active_tickers:
-        active_ticker_names = list(set([t[0] for t in active_tickers]))
-        close_df = download_close(active_ticker_names, start=start_ref_date, end=end_ref_date)
-        if isinstance(close_df, pd.Series):
-            close_df = close_df.to_frame(name=active_ticker_names[0])
-        close_df = close_df.ffill()
-        returns_df = close_df.pct_change().dropna()
-        correlation_matrix = returns_df.corr()
-    else:
-        returns_df = pd.DataFrame()
-
-    # Rolling correlation
-    if not (asset1 in (active_tickers if not active_tickers else [t[0] for t in active_tickers])):
+    if asset1 and asset2 and window:
+        # Rolling correlation only
         close_df = download_close([asset1, asset2], start=start_ref_date, end=end_ref_date)
         if isinstance(close_df, pd.Series):
             close_df = close_df.to_frame(name=asset1)
         close_df = close_df.ffill()
         returns_df = close_df.pct_change().dropna()
-
-    rolling_corr = returns_df[asset1].rolling(window=window).corr(returns_df[asset2])
+        rolling_corr = returns_df[asset1].rolling(window=window).corr(returns_df[asset2])
+    else:
+        # Simple correlation only
+        if active_tickers:
+            active_ticker_names = list(set([t[0] for t in active_tickers]))
+            close_df = download_close(active_ticker_names, start=start_ref_date, end=end_ref_date)
+            if isinstance(close_df, pd.Series):
+                close_df = close_df.to_frame(name=active_ticker_names[0])
+            close_df = close_df.ffill()
+            returns_df = close_df.pct_change().dropna()
+            correlation_matrix = returns_df.corr()
 
     return {
         "correlation_matrix": correlation_matrix,

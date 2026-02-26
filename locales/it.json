@@ -9,7 +9,9 @@
 
   "components": {
     "pick_date": "Seleziona data",
+    "date_format_hint": "DD-MM-YYYY",
     "confirm": "Conferma",
+    "calculate": "Calcola",
     "cancel": "Annulla",
     "apply": "Applica",
     "loading": "Caricamento...",
@@ -26,6 +28,11 @@
     "hidden": "Nascosto",
     "open_positions": "Posizioni Aperte",
     "open_positions_descr": "Ticker  /  PMC  /  Prezzo attuale",
+    "pnl_unrealized": "P&L Non Realiz.",
+    "pnl_total": "P&L Totale",
+    "pos_value": "Valore",
+    "pos_total_pct": "Totale %",
+    "pos_daily_pct": "Giornaliero %",
     "watchlist": "Watchlist",
     "watchlist_add": "Aggiungi ticker...",
     "watchlist_added": "Aggiunto alla watchlist",
@@ -66,8 +73,16 @@
   },
 
   "account": {
+    "selection": "\nSeleziona un account sul quale operare.\n",
     "selection_error": "\nERRORE: Inserire il numero corrispondente al conto su cui si intende operare.",
     "filenotfound_error": "\nFile \"{filename}\" non trovato."
+  },
+
+  "misc_errors": {
+    "nodate": "Inserire data operazione",
+    "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
+    "date_sequential": "La data deve essere successiva all'ultima registrata",
+    "date_future": "Impossibile inserire date future."
   },
 
   "cash": {
@@ -76,17 +91,16 @@
     "op_withdrawal": "Prelievo",
     "op_dividend": "Dividendo",
     "op_charge": "Bollo / Altre imposte",
-    "date": "\n  - Data operazione GG-MM-AAAA (\"t\" per data odierna)",
-    "amount_descr": "Ammontare operazione in EUR (negativo se prelievo)",
+    "amount_descr": "Ammontare operazione in EUR",
     "amount": "Valore operazione",
-    "cash_error": "Il contante inserito deve essere un numero diverso da 0. Positivo se depositato, negativo se prelevato.",
     "dividend_descr": "Dividendo in EUR al netto di tasse",
     "dividend_ticker_descr": "Ticker completo dell'emittente dividendo (standard Yahoo Finance)",
     "dividend_ticker": "Ticker",
-    "dividend_error": "Il dividendo inserito deve essere un numero maggiore di 0.",
     "charge_descr": "Ammontare imposta in EUR",
-    "charge_error": "L'imposta inserita deve essere un numero maggiore di 0.",
-    "charge_verbose": "Descrizione imposta (es. \"Bollo Q2 2025\")"
+    "charge_verbose": "Descrizione imposta (es. \"Bollo Q2 2025\")",
+    "error_cash": "Il contante inserito deve essere un numero diverso da 0",
+    "error_dividend": "Il dividendo inserito deve essere un numero maggiore di 0",
+    "error_charge": "L'imposta inserita deve essere un numero maggiore di 0"
   },
 
   "stock": {
@@ -100,8 +114,10 @@
     "ticker": "Ticker completo (standard Yahoo Finance)",
     "qt": "Quantità",
     "qt_error": "Quantità non valida. Deve essere un numero intero maggiore di 0.",
-    "price": "Prezzo unitario (negativo se acquisto)",
-    "price_error": "Il prezzo non può essere 0. Negativo se acquisto, positivo se vendita.",
+    "op_buy": "Acquisto",
+    "op_sell": "Vendita",
+    "price": "Prezzo unitario",
+    "price_error": "Il prezzo deve essere maggiore di 0.",
     "currency_fee": "Valuta commissione\n    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.\n\t1. EUR\n\t2. USD",
     "fee": "Commissione",
     "fee_error": "La commissione deve essere un numero maggiore o uguale a 0.",
@@ -122,6 +138,8 @@
   "analysis": {
     "title": "\n--- ANALISI PORTAFOGLIO ---\n\n",
     "all_accounts": "Tutti i Conti",
+    "export_csv": "Esporta CSV",
+    "export_plot_csv": "Esporta dati in CSV",
     "op_statistics": "STATISTICHE GENERALI",
     "op_correlation": "CORRELAZIONE",
     "op_drawdown": "DRAWDOWN",
@@ -155,12 +173,12 @@
       "exported": "\nEsportato storico del portafoglio in {save_path}\n"
     },
     "corr": {
-      "date": "\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, \"t\" per data odierna.",
-      "start_dt": "Data inizio analisi:",
-      "end_dt": "Data fine analisi:",
-      "simple": "\n--- Correlazione semplice ---",
+      "start_dt": "Data inizio analisi",
+      "end_dt": "Data fine analisi",
+      "simple": "Correlazione semplice",
       "simple_error": "\n    Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.\n\n",
       "rolling": "\n--- Correlazione rolling tra due assets ---\n\n    Inserire ticker degli asset interessati.\n    Non è necessario che essi siano detenuti nel portafoglio.\n",
+      "rolling_label": "Correlazione Rolling",
       "asset1": "Ticker asset 1",
       "asset2": "Ticker asset 2",
       "window": "Finestra temporale in giorni",
@@ -177,9 +195,8 @@
       }
     },
     "drawdown": {
-      "date": "\n  Definire il periodo di analisi interessato. Ad esempio, da inizio portafoglio ad oggi.\n  Formato: GG-MM-AAAA, \"t\" per data odierna.",
-      "start_dt": "Data inizio analisi:",
-      "end_dt": "Data fine analisi:",
+      "start_dt": "Data inizio analisi",
+      "end_dt": "Data fine analisi",
       "result": "\n    Drawdown massimo del portafoglio tra il {start_dt} ed il {end_dt}: {mdd:.2f}%",
       "error": "\n    Nessun dato presente nello storico delle transazioni, tra tutti i conti.\n    Drawdown non calcolabile.",
       "plot1": {
@@ -238,7 +255,7 @@
       "account_deleted": "Conto eliminato con successo.",
       "accounts_initialized": "\nConti inizializzati. ",
       "reset_warning": "\nQuesta operazione non è reversibile.\nL'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
-      "reset_confirm": "Digitare 'RESET' per procedere. Altri input saranno ignorati.\n\n    > ",
+      "reset_confirm": "Digitare \"RESET\" per confermare l'operazione",
       "deletion_error": "Errore nella rimozione dei dati: {e}",
       "reset_completed": "\nReset completato. "
     }
@@ -355,12 +372,5 @@
     "error_empty_df_na": "Attenzione: l'indice target di prices_df è vuoto dopo dropna().",
     "error_empty_df": "Dati sui titoli non disponibili.",
     "error_generic": "Si è verificato un errore imprevisto: {e}"
-  },
-
-  "dates": {
-    "error": "\nERRORE NELLA DATA:",
-    "error_future": "Impossibile inserire date future.",
-    "error_sequential": "La data inserita è precedente all'ultima registrata",
-    "error_nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}"
   }
 }

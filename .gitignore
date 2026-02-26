@@ -5,4 +5,5 @@ dist/
 build/
 menus/
 secret.py
+just_colors.py
 

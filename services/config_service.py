@@ -59,6 +59,18 @@ def save_brokers(config_folder: str, brokers: dict[int, str], reset: bool = Fals
         config.write(f)
 
 
+def save_home_hidden(config_folder: str, hidden: bool):
+    path = os.path.join(config_folder, "config.ini")
+    config = configparser.ConfigParser()
+    if os.path.exists(path):
+        config.read(path)
+    if not config.has_section("Home"):
+        config.add_section("Home")
+    config.set("Home", "hidden", str(hidden).lower())
+    with open(path, "w", encoding="utf-8") as f:
+        config.write(f)
+
+
 def reset_application(config_folder: str, user_folder: str):
     if os.path.exists(config_folder):
         shutil.rmtree(config_folder)

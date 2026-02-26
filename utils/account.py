@@ -291,17 +291,19 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     data = download_close(tickers, start=start_date, end=end_date)
     if isinstance(data, pd.Series):
         data = data.to_frame(name=tickers[0])
-    data_ref = (
+    data_valid = (
         data.loc[data.index <= pd.to_datetime(ref_date)]
             .dropna(how="any")
-            .iloc[-1]
     )
+    data_ref = data_valid.iloc[-1]
+    data_prev = data_valid.iloc[-2] if len(data_valid) >= 2 else data_ref
 
     for item in positions:
         ticker = item["ticker"]
         price = data_ref[ticker] * item["exchange_rate"]
         item["price"] = price
         item["value"] = item["quantity"] * price
+        item["prev_close"] = data_prev[ticker] * item["exchange_rate"]
 
     return positions
 
