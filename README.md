@@ -1,7 +1,7 @@
 # ITA 🇮🇹 (ENG below)
 # Portfolio Manager
 
-Portfolio Manager è un software CLI pensato per la gestione ed analisi di portafogli finanziari (azionario ed ETF), per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
+Portfolio Manager è la versione GUI di \[Portfolio Manager CLI\] pensato per la gestione ed analisi di portafogli finanziari (azionario ed ETF), per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
 Sono inoltre disponibili numerosi strumenti di analisi del rischio: VaR (Monte Carlo), analisi volatilità/Sharpe ratio, analisi della correlazione, drawdown.
 
