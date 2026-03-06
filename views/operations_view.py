@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from components.snack import show_snack
-from services import operations_service
+from services import account_service, operations_service
 from utils.other_utils import round_half_up, ValidationError
 from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
 from utils.date_utils import parse_date_input
@@ -22,7 +22,7 @@ class OperationsView:
 
         has_account = self.state.ops_acc_idx is not None
         self._ops_tab_index = 0
-        self.form_container = ft.Container(disabled=not has_account)
+        self.form_container = ft.Container(disabled=not has_account, expand=True)
 
         cash_content = self._build_cash_tab()
         etf_content = self._build_etf_stock_tab("ETF")
@@ -118,9 +118,9 @@ class OperationsView:
         return self.state.brokers.get(idx)
 
     def _check_date_sequential(self, df, date_value) -> bool:
-        """Return True if date_value is not strictly after the last recorded date."""
+        """Return True if date_value is before the last recorded date."""
         dates = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce").dropna()
-        return not dates.empty and date_value <= dates.max().date()
+        return not dates.empty and date_value < dates.max().date()
 
     # ── Cash Tab ──────────────────────────────────────────────────────
 
@@ -168,15 +168,28 @@ class OperationsView:
                                        visible=False, col={"xs": 12, "md": 6})
         self.cash_loading = ft.ProgressRing(visible=False, width=30, height=30)
 
-        return ft.Container(
-            content=ft.Column([
-                self.cash_type,
-                ft.Row([self.cash_date_field, self.cash_date_icon]),
-                ft.ResponsiveRow([self.cash_amount, self.cash_ticker, self.cash_descr]),
-                self.cash_loading,
-            ], spacing=15),
-            padding=20,
-        )
+        col = ft.Column([
+            self.cash_type,
+            ft.Row([self.cash_date_field, self.cash_date_icon]),
+            ft.ResponsiveRow([self.cash_amount, self.cash_ticker, self.cash_descr]),
+            self.cash_loading,
+            ft.Container(height=80),
+        ], spacing=15, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        self.cash_date_field.key = "cash_date"
+        self.cash_date_field.on_focus = on_focus
+        self.cash_amount.key = "cash_amount"
+        self.cash_amount.on_focus = on_focus
+        self.cash_ticker.key = "cash_ticker"
+        self.cash_ticker.on_focus = on_focus
+        self.cash_descr.key = "cash_descr"
+        self.cash_descr.on_focus = on_focus
+
+        return ft.Container(content=col, padding=20, expand=True)
 
     def _on_cash_type_change(self, e):
         kind = self.cash_type.value
@@ -255,6 +268,7 @@ class OperationsView:
                     ticker=ticker, description=descr,
                 )
                 s.accounts[acc_idx]["df"] = new_df
+                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, "OK")
                 self._refresh_page()
             except (RuntimeError, ValidationError, Exception) as ex:
@@ -360,17 +374,29 @@ class OperationsView:
             self._es_tabs = {}
         self._es_tabs[product_type] = tab_data
 
-        return ft.Container(
-            content=ft.Column([
-                es_type,
-                ft.Row([date_field, date_icon]),
-                ft.ResponsiveRow([currency_dd, exch_rate]),
-                ft.ResponsiveRow([ticker_field, quantity_field, price_field]),
-                ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
-                loading,
-            ], spacing=12),
-            padding=20,
-        )
+        col = ft.Column([
+            es_type,
+            ft.Row([date_field, date_icon]),
+            ft.ResponsiveRow([currency_dd, exch_rate]),
+            ft.ResponsiveRow([ticker_field, quantity_field, price_field]),
+            ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
+            loading,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        for name, field in [
+            ("date", date_field), ("exch_rate", exch_rate),
+            ("ticker", ticker_field), ("quantity", quantity_field),
+            ("price", price_field), ("fee", fee_field), ("ter", ter_field),
+        ]:
+            field.key = f"{product_type}_{name}"
+            field.on_focus = on_focus
+
+        return ft.Container(content=col, padding=20, expand=True)
 
     def _open_es_date_picker(self, e, product_type):
         dp = ft.DatePicker(
@@ -414,7 +440,7 @@ class OperationsView:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
         if self._check_date_sequential(df, tab["date_value"]):
-            show_snack(self.page, t.get("misc_error.date_sequential"), error=True)
+            show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
         try:
@@ -477,6 +503,7 @@ class OperationsView:
                     fee, ter, product_type,
                 )
                 s.accounts[acc_idx]["df"] = new_df
+                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, "OK")
                 self._refresh_page()
             except (RuntimeError, ValidationError, Exception) as ex:

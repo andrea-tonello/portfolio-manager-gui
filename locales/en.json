@@ -12,6 +12,7 @@
     "date_format_hint": "DD-MM-YYYY",
     "confirm": "Confirm",
     "calculate": "Calculate",
+    "add": "Add",
     "cancel": "Cancel",
     "apply": "Apply",
     "loading": "Loading...",
@@ -61,7 +62,6 @@
   },
 
   "main_menu": {
-    "first_boot": "\nIt seems this is the first time you are using this program.\nPlease add a representative alias for each of your accounts.\nFor example, \"Main Account\" or \"Trading Account 2\".\n",
     "title": "=================== MAIN MENU ===================",
     "operating_on": "Operating on: {account_name}\nLoaded file: {file}, with {rows} rows.",
     "unsaved_changes": "There are some unsaved changes.",
@@ -81,7 +81,7 @@
   "misc_errors": {
     "nodate": "Enter transaction date",
     "nodates": "No dates available in DataFrame prior to {dt}",
-    "date_sequential": "The date must be later than the last one recorded",
+    "date_sequential": "The date cannot be earlier than the last one recorded",
     "date_future": "Cannot insert future dates."
   },
 
@@ -222,8 +222,11 @@
   },
 
   "settings": {
+    "new_acc": "Please add a representative alias for each of your accounts",
+    "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",
     "language": {
       "title": "Language",
+      "select": "Select Language",
       "changed": "\nLanguage set successfully"
     },
     "theme": {
@@ -246,7 +249,7 @@
     "account": {
       "title": "Manage Accounts",
       "add_account": "Add account...",
-      "op_denied": "    Operation denied. You must add at least one account.",
+      "op_denied": "You must add at least one account.",
       "saved": "\nSave complete. Accounts saved:\n",
       "accounts_added": "\nAccounts added. ",
       "delete_account": "Delete account",

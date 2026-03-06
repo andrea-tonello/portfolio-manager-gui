@@ -59,8 +59,10 @@ def _show_language_picker(page: ft.Page, state: AppState):
         for _, (code, name) in sorted(LANG.items())
     ]
     dd = ft.Dropdown(
-        label=t.get("settings.language.select_language"),
+        label=t.get("settings.language.title"),
         options=options,
+        border_radius=ft.border_radius.all(15),
+        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
 
@@ -76,13 +78,20 @@ def _show_language_picker(page: ft.Page, state: AppState):
 
     page.controls.clear()
     page.controls.append(
-        ft.Column([
-            ft.Text(t.get("settings.language.select_language"), size=20, weight=ft.FontWeight.BOLD),
-            dd,
-            ft.ElevatedButton(t.get("components.submit"), on_click=on_submit),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-           alignment=ft.MainAxisAlignment.CENTER,
-           expand=True)
+        ft.SafeArea(
+            ft.Container(
+                ft.Column([
+                    ft.Container([], height=200),
+                    ft.Text(t.get("settings.language.select"), size=20, weight=ft.FontWeight.BOLD),
+                    dd,
+                    ft.Container(height=100, expand=True),
+                    ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK,
+                                    width=150, height=50, on_click=on_submit),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=30),
+                expand=True,
+                padding=15,
+            )
+        )
     )
     page.update()
 
@@ -90,7 +99,9 @@ def _show_language_picker(page: ft.Page, state: AppState):
 def _show_broker_onboarding(page: ft.Page, state: AppState):
     t = state.translator
     broker_field = ft.TextField(
-        label=t.get("settings.account.add_account").strip().split("\n")[0],
+        label=t.get("settings.account.add_account"),
+        border_radius=ft.border_radius.all(15),
+        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
     broker_list = ft.Column([], spacing=5)
@@ -102,7 +113,19 @@ def _show_broker_onboarding(page: ft.Page, state: AppState):
             return
         next_idx = max(brokers_temp.keys(), default=0) + 1
         brokers_temp[next_idx] = name
-        broker_list.controls.append(ft.Text(f"  {next_idx}. {name}"))
+
+        def on_remove(ev, idx=next_idx):
+            brokers_temp.pop(idx, None)
+            broker_list.controls[:] = [
+                c for c in broker_list.controls
+                if c.data != idx
+            ]
+            page.update()
+
+        broker_list.controls.append(ft.Row([
+            ft.Text(f"  {next_idx}. {name}", expand=True),
+            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, on_click=on_remove),
+        ], data=next_idx, alignment=ft.MainAxisAlignment.CENTER))
         broker_field.value = ""
         page.update()
 
@@ -125,17 +148,26 @@ def _show_broker_onboarding(page: ft.Page, state: AppState):
 
     page.controls.clear()
     page.controls.append(
-        ft.Column([
-            ft.Text(t.get("main_menu.first_boot").strip(), size=14),
-            ft.ResponsiveRow([
-                broker_field,
-                ft.ElevatedButton(t.get("components.submit"), icon=ft.Icons.ADD, on_click=on_add,
-                                  col={"xs": 12, "sm": 4}),
-            ]),
-            broker_list,
-            ft.Divider(),
-            ft.ElevatedButton("Done", icon=ft.Icons.CHECK, on_click=on_done),
-        ], spacing=15, expand=True)
+        ft.SafeArea(
+            ft.Column([
+                ft.Container([], height=100),
+                ft.Text(t.get("settings.new_acc"), size=20),
+                ft.Text(t.get("settings.new_acc_example"), size=14),
+                ft.ResponsiveRow([
+                    broker_field,
+                    ft.ElevatedButton(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
+                    width=150, height=35)
+                ]),
+                broker_list,
+                ft.Container(height=50),
+                ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
+                                width=150, height=50, on_click=on_done),
+                ft.Container(height=30),
+            ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+               scroll=ft.ScrollMode.AUTO, expand=True),
+            expand=True,
+            minimum_padding=15,
+        )
     )
     page.update()
 

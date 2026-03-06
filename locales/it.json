@@ -12,6 +12,7 @@
     "date_format_hint": "DD-MM-YYYY",
     "confirm": "Conferma",
     "calculate": "Calcola",
+    "add": "Aggiungi",
     "cancel": "Annulla",
     "apply": "Applica",
     "loading": "Caricamento...",
@@ -61,7 +62,6 @@
   },
 
   "main_menu": {
-    "first_boot": "\nSembra che sia la prima volta che si utilizzi questo programma.\nSi prega di aggiungere un alias rappresentativo per ciascuno dei propri conti.\nAd esempio, \"Fineco\" o \"Conto Intesa 1\".\n",
     "title": "=================== MENU PRINCIPALE ===================",
     "operating_on": "Si sta operando sul conto: {account_name}\nFile caricato: {file}, con {rows} righe.",
     "unsaved_changes": "Sono presenti modifiche non salvate.",
@@ -81,7 +81,7 @@
   "misc_errors": {
     "nodate": "Inserire data operazione",
     "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
-    "date_sequential": "La data deve essere successiva all'ultima registrata",
+    "date_sequential": "La data non può essere precedente all'ultima registrata",
     "date_future": "Impossibile inserire date future."
   },
 
@@ -222,8 +222,11 @@
   },
 
   "settings": {
+    "new_acc": "Si prega di aggiungere un alias per ciascuno dei propri conti",
+    "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",
     "language": {
       "title": "Lingua",
+      "select": "Seleziona Lingua",
       "changed": "\nLingua impostata con successo"
     },
     "theme": {
@@ -246,7 +249,7 @@
     "account": {
       "title": "Gestione Conti",
       "add_account": "Aggiungi conto...",
-      "op_denied": "    Operazione negata. È necessario aggiungere almeno un conto.",
+      "op_denied": "È necessario aggiungere almeno un conto.",
       "saved": "\nSalvataggio completato. Conti salvati:\n",
       "accounts_added": "\nConti aggiunti. ",
       "delete_account": "Elimina conto",

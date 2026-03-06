@@ -171,18 +171,23 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_sum_csv)),
         ], visible=False)
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([self.sum_date_field, self.sum_date_icon]),
-                self.sum_loading,
-                self.sum_results,
-                self.sum_chart,
-                self.sum_export_row,
-                ft.Container(height=80),
-            ], spacing=12, scroll=ft.ScrollMode.AUTO),
-            padding=10,
-            expand=True,
-        )
+        col = ft.Column([
+            ft.Row([self.sum_date_field, self.sum_date_icon]),
+            self.sum_loading,
+            self.sum_results,
+            self.sum_chart,
+            self.sum_export_row,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        self.sum_date_field.key = "sum_date"
+        self.sum_date_field.on_focus = on_focus
+
+        return ft.Container(content=col, padding=10, expand=True)
 
     def _open_sum_date_picker(self, e):
         dp = ft.DatePicker(
@@ -374,22 +379,32 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_corr_csv)),
         ], visible=False)
 
-        return ft.Container(
-            content=ft.Column([
-                self.corr_type,
-                ft.Row([self.corr_start_field, self.corr_start_icon]),
-                ft.Row([self.corr_end_field, self.corr_end_icon]),
-                self.corr_rolling_fields,
-                self.corr_loading,
-                self.corr_results,
-                self.corr_heatmap,
-                self.corr_rolling_chart,
-                self.corr_export_row,
-                ft.Container(height=80),
-            ], spacing=12, scroll=ft.ScrollMode.AUTO),
-            padding=10,
-            expand=True,
-        )
+        col = ft.Column([
+            self.corr_type,
+            ft.Row([self.corr_start_field, self.corr_start_icon]),
+            ft.Row([self.corr_end_field, self.corr_end_icon]),
+            self.corr_rolling_fields,
+            self.corr_loading,
+            self.corr_results,
+            self.corr_heatmap,
+            self.corr_rolling_chart,
+            self.corr_export_row,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        for name, field in [
+            ("corr_start", self.corr_start_field), ("corr_end", self.corr_end_field),
+            ("corr_asset1", self.corr_asset1), ("corr_asset2", self.corr_asset2),
+            ("corr_window", self.corr_window),
+        ]:
+            field.key = name
+            field.on_focus = on_focus
+
+        return ft.Container(content=col, padding=10, expand=True)
 
     def _on_corr_type_change(self, e):
         self.corr_rolling_fields.visible = (self.corr_type.value == "rolling")
@@ -561,19 +576,26 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_dd_csv)),
         ], visible=False)
 
-        return ft.Container(
-            content=ft.Column([
-                ft.Row([self.dd_start_field, self.dd_start_icon]),
-                ft.Row([self.dd_end_field, self.dd_end_icon]),
-                self.dd_loading,
-                self.dd_result_text,
-                self.dd_chart,
-                self.dd_export_row,
-                ft.Container(height=80),
-            ], spacing=12, scroll=ft.ScrollMode.AUTO),
-            padding=10,
-            expand=True,
-        )
+        col = ft.Column([
+            ft.Row([self.dd_start_field, self.dd_start_icon]),
+            ft.Row([self.dd_end_field, self.dd_end_icon]),
+            self.dd_loading,
+            self.dd_result_text,
+            self.dd_chart,
+            self.dd_export_row,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        self.dd_start_field.key = "dd_start"
+        self.dd_start_field.on_focus = on_focus
+        self.dd_end_field.key = "dd_end"
+        self.dd_end_field.on_focus = on_focus
+
+        return ft.Container(content=col, padding=10, expand=True)
 
     def _open_dd_date_picker(self, e, which):
         first = datetime(2000, 1, 1)
@@ -683,18 +705,25 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_var_csv)),
         ], visible=False)
 
-        return ft.Container(
-            content=ft.Column([
-                ft.ResponsiveRow([self.var_ci, self.var_days]),
-                self.var_loading,
-                self.var_result_text,
-                self.var_chart,
-                self.var_export_row,
-                ft.Container(height=80),
-            ], spacing=12, scroll=ft.ScrollMode.AUTO),
-            padding=10,
-            expand=True,
-        )
+        col = ft.Column([
+            ft.ResponsiveRow([self.var_ci, self.var_days]),
+            self.var_loading,
+            self.var_result_text,
+            self.var_chart,
+            self.var_export_row,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        async def on_focus(e):
+            if hasattr(e.control, "key") and e.control.key:
+                await col.scroll_to(scroll_key=e.control.key, duration=300)
+
+        self.var_ci.key = "var_ci"
+        self.var_ci.on_focus = on_focus
+        self.var_days.key = "var_days"
+        self.var_days.on_focus = on_focus
+
+        return ft.Container(content=col, padding=10, expand=True)
 
     def _submit_var(self, e):
         s = self.state

@@ -157,7 +157,7 @@ class TransactionsView:
     def _update_tx_table(self):
         df = self._tx_df
         if df is None or df.empty:
-            self.tx_table_container.content = ft.Text("No data", size=12, italic=True)
+            self.tx_table_container.content = ft.Text("No data", size=14)
             return
 
         df_sorted = df.copy()
@@ -192,7 +192,7 @@ class TransactionsView:
 
     def _build_transactions_table(self, df) -> ft.Control:
         if df is None or df.empty:
-            return ft.Text("No data", size=12, italic=True)
+            return ft.Text("No data", size=14)
 
         display_cols = ["Data", "Conto", "Operazione", "Prodotto", "Ticker", "QT. Scambio",
                         "Prezzo EUR", "Commissioni", "Imp. Effettivo Operaz.", "P&L"]
@@ -258,15 +258,9 @@ class TransactionsView:
         return df.to_csv(index=False).encode("utf-8")
 
     async def _on_export(self, e, idx):
-        s = self.state
-        t = s.translator
-        acc = s.get_account(idx)
+        acc = self.state.get_account(idx)
         if acc is None:
             return
-        # Save to internal config path
-        account_service.save_account(acc["df"], acc["path"])
-        s.mark_account_saved(idx)
-        # Open file picker for user export
         csv_bytes = self._prepare_export_csv(acc["df"].iloc[1:])
         await self._save_via_picker(acc["file"], csv_bytes)
 

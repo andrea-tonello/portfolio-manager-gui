@@ -4,6 +4,6 @@ __pycache__/
 dist/
 build/
 menus/
+config/
 secret.py
 just_colors.py
-

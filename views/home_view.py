@@ -331,10 +331,6 @@ class HomeView:
             return ft.Text(t.get("home.no_account"), size=14)
 
         df = acc["df"]
-        broker_name = self.state.brokers.get(idx, "")
-        edited = self.state.is_account_edited(idx)
-        status_text = t.get("main_menu.unsaved_changes") if edited else t.get("main_menu.no_changes")
-        status_color = ft.Colors.ORANGE if edited else ft.Colors.GREEN
 
         # Start with stale values
         nav = float(df.iloc[-1].get("NAV", 0) or 0) if not df.empty else 0
@@ -346,14 +342,6 @@ class HomeView:
         watchlist = self._build_watchlist()
 
         content = ft.Column([
-            ft.Text(
-                t.get("main_menu.operating_on",
-                       account_name=broker_name,
-                       file=acc["file"],
-                       rows=acc["len_df_init"] - 1),
-                size=14,
-            ),
-            ft.Text(status_text, italic=True, color=status_color, size=13),
             cards,
             self._positions_container,
             watchlist,
