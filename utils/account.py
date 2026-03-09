@@ -30,8 +30,8 @@ def get_tickers(translator, data):
     for account in data:
         total_assets, active_assets = get_asset_value(translator, account[1], just_assets=True)
 
-        total_ticker_list = total_assets[["Ticker", "Valuta"]].dropna(subset=["Ticker", "Valuta"]).drop_duplicates().apply(tuple, axis=1).tolist()
-        active_ticker_list = active_assets[["Ticker", "Valuta"]].dropna(subset=["Ticker", "Valuta"]).drop_duplicates().apply(tuple, axis=1).tolist()
+        total_ticker_list = total_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()
+        active_ticker_list = active_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()
 
         total_tickers.extend(total_ticker_list)
         active_tickers.extend(active_ticker_list)
@@ -40,31 +40,31 @@ def get_tickers(translator, data):
 
 
 def _compute_total_liquidity(final_df):
-    accounts = final_df['Conto'].unique()
+    accounts = final_df['account'].unique()
     liq_cols = []
     liq_hist_cols = []
     for acc in accounts:
         col_name = f'liq_running_{acc}'
         col_name_hist = f'liq_hist_{acc}'
 
-        final_df[col_name] = final_df.where(final_df["Conto"] == acc)["Liquidita Attuale"]
+        final_df[col_name] = final_df.where(final_df["account"] == acc)["cash_held"]
         final_df[col_name] = final_df[col_name].ffill()
-        final_df[col_name_hist] = final_df.where(final_df["Conto"] == acc)["Liq. Impegnata"]
+        final_df[col_name_hist] = final_df.where(final_df["account"] == acc)["committed_cash"]
         final_df[col_name_hist] = final_df[col_name_hist].ffill()
 
         liq_cols.append(col_name)
         liq_hist_cols.append(col_name_hist)
 
     final_df[liq_cols] = final_df[liq_cols].fillna(0)
-    final_df['Liquidita Totale'] = final_df[liq_cols].sum(axis=1)
+    final_df['cash_total'] = final_df[liq_cols].sum(axis=1)
     final_df[liq_hist_cols] = final_df[liq_hist_cols].fillna(0)
-    final_df['Liq. Impegnata Totale'] = final_df[liq_hist_cols].sum(axis=1)
+    final_df['committed_total'] = final_df[liq_hist_cols].sum(axis=1)
     final_df = final_df.drop(columns=liq_cols+liq_hist_cols)
     return final_df
 
 
 def _compute_total_quantities(final_df):
-    pairs = final_df.dropna(subset=['Ticker'])[['Conto', 'Ticker']].drop_duplicates().values
+    pairs = final_df.dropna(subset=['ticker'])[['account', 'ticker']].drop_duplicates().values
     state_cols = []
     ticker_to_cols_map = {}
 
@@ -74,19 +74,19 @@ def _compute_total_quantities(final_df):
         if ticker not in ticker_to_cols_map:
             ticker_to_cols_map[ticker] = []
         ticker_to_cols_map[ticker].append(col_name)
-        mask = (final_df['Conto'] == conto) & (final_df['Ticker'] == ticker)
-        final_df[col_name] = final_df.where(mask)['QT. Attuale']
+        mask = (final_df['account'] == conto) & (final_df['ticker'] == ticker)
+        final_df[col_name] = final_df.where(mask)['qt_held']
         final_df[col_name] = final_df[col_name].ffill()
 
     final_df[state_cols] = final_df[state_cols].fillna(0)
-    final_df['QT. Totale'] = np.nan
+    final_df['qt_total'] = np.nan
 
     for ticker, cols_to_sum in ticker_to_cols_map.items():
-        ticker_rows_mask = (final_df['Ticker'] == ticker) & (final_df['QT. Attuale'].notna())
-        final_df.loc[ticker_rows_mask, 'QT. Totale'] = final_df[cols_to_sum].sum(axis=1)
+        ticker_rows_mask = (final_df['ticker'] == ticker) & (final_df['qt_held'].notna())
+        final_df.loc[ticker_rows_mask, 'qt_total'] = final_df[cols_to_sum].sum(axis=1)
     final_df = final_df.drop(columns=state_cols)
 
-    final_df = final_df.drop(columns=["Conto", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"])
+    final_df = final_df.drop(columns=["account", "qt_held", "cash_held", "committed_cash"])
     return final_df
 
 
@@ -135,34 +135,34 @@ def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date)
 def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
     try:
         portfolio_data = final_df.copy()
-        portfolio_data.drop(columns=["Valuta"])
-        portfolio_data = portfolio_data.sort_values(by='Data', kind="mergesort")
+        portfolio_data.drop(columns=["curr"])
+        portfolio_data = portfolio_data.sort_values(by='date', kind="mergesort")
 
-        liquidity_sparse = portfolio_data.dropna(subset=['Liquidita Totale'])
-        liquidity_sparse = liquidity_sparse.drop_duplicates(subset=['Data'], keep='last')
-        liquidity_sparse = liquidity_sparse.set_index('Data')[['Liquidita Totale']]
-        liquidity_sparse = liquidity_sparse.rename(columns={'Liquidita Totale': 'Liquidita'})
+        liquidity_sparse = portfolio_data.dropna(subset=['cash_total'])
+        liquidity_sparse = liquidity_sparse.drop_duplicates(subset=['date'], keep='last')
+        liquidity_sparse = liquidity_sparse.set_index('date')[['cash_total']]
+        liquidity_sparse = liquidity_sparse.rename(columns={'cash_total': 'cash'})
 
-        immessa_sparse = portfolio_data.dropna(subset=['Liq. Impegnata Totale'])
-        immessa_sparse = immessa_sparse.drop_duplicates(subset=['Data'], keep='last')
-        immessa_sparse = immessa_sparse.set_index('Data')[['Liq. Impegnata Totale']]
-        immessa_sparse = immessa_sparse.rename(columns={'Liq. Impegnata Totale': 'Liquidita Impegnata'})
+        immessa_sparse = portfolio_data.dropna(subset=['committed_total'])
+        immessa_sparse = immessa_sparse.drop_duplicates(subset=['date'], keep='last')
+        immessa_sparse = immessa_sparse.set_index('date')[['committed_total']]
+        immessa_sparse = immessa_sparse.rename(columns={'committed_total': 'committed_cash'})
 
-        quantities_sparse = portfolio_data.dropna(subset=['Ticker', 'QT. Totale'])
-        quantities_sparse = quantities_sparse.drop_duplicates(subset=['Data', 'Ticker'], keep='last')
-        quantities_wide_sparse = quantities_sparse.pivot(index='Data', columns='Ticker', values='QT. Totale')
+        quantities_sparse = portfolio_data.dropna(subset=['ticker', 'qt_total'])
+        quantities_sparse = quantities_sparse.drop_duplicates(subset=['date', 'ticker'], keep='last')
+        quantities_wide_sparse = quantities_sparse.pivot(index='date', columns='ticker', values='qt_total')
 
         combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, immessa_sparse], axis=1)
 
         for ticker in only_tickers:
             if ticker not in combined_sparse_data.columns:
                 combined_sparse_data[ticker] = np.nan
-        if 'Liquidita' not in combined_sparse_data.columns:
-            combined_sparse_data['Liquidita'] = np.nan
-        if 'Liquidita Impegnata' not in combined_sparse_data.columns:
-            combined_sparse_data['Liquidita Impegnata'] = np.nan
+        if 'cash' not in combined_sparse_data.columns:
+            combined_sparse_data['cash'] = np.nan
+        if 'committed_cash' not in combined_sparse_data.columns:
+            combined_sparse_data['committed_cash'] = np.nan
 
-        final_columns = only_tickers + ['Liquidita', 'Liquidita Impegnata']
+        final_columns = only_tickers + ['cash', 'committed_cash']
         combined_sparse_data = combined_sparse_data[final_columns]
 
         if not target_index.empty:
@@ -180,17 +180,17 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
                 for ticker, currency in total_tickers:
                     if currency == "USD":
                         prices_df_for_calc[ticker] = prices_df_for_calc[ticker] * exch_df["USDEUR=X"]
-                portfolio_history_df['Valore Titoli'] = (prices_df_for_calc * portfolio_history_df[only_tickers]).sum(axis=1)
+                portfolio_history_df['assets_value'] = (prices_df_for_calc * portfolio_history_df[only_tickers]).sum(axis=1)
             else:
-                portfolio_history_df['Valore Titoli'] = 0.0
+                portfolio_history_df['assets_value'] = 0.0
                 portfolio_history_df.index.rename("Date", inplace=True)
 
-            portfolio_history_df['NAV'] = portfolio_history_df['Valore Titoli'] + portfolio_history_df['Liquidita']
-            portfolio_history_df["Cash Flow"] = portfolio_history_df["Liquidita Impegnata"].diff()
+            portfolio_history_df['nav'] = portfolio_history_df['assets_value'] + portfolio_history_df['cash']
+            portfolio_history_df["Cash Flow"] = portfolio_history_df["committed_cash"].diff()
 
-            previous_nav = portfolio_history_df['NAV'].shift(1)
+            previous_nav = portfolio_history_df['nav'].shift(1)
             portfolio_history_df["TWRR Giornaliero"] = (
-                portfolio_history_df['NAV'] - previous_nav - portfolio_history_df['Cash Flow']
+                portfolio_history_df['nav'] - previous_nav - portfolio_history_df['Cash Flow']
             ) / previous_nav
 
             portfolio_history_df = portfolio_history_df.iloc[1:]
@@ -198,7 +198,7 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
-            final_columns_complete = ["Date"] + total_tickers + ["Liquidita", "Liquidita Impegnata", "Valore Titoli", "NAV", "TWRR Giornaliero", "TWRR Cumulativo"]
+            final_columns_complete = ["Date"] + total_tickers + ["cash", "committed_cash", "assets_value", "nav", "TWRR Giornaliero", "TWRR Cumulativo"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
 
@@ -214,12 +214,12 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
     all_dfs = []
     for account in data:
         df_copy = account[1].copy()
-        df_copy["Data"] = pd.to_datetime(df_copy["Data"], dayfirst=True, errors="coerce")
-        df_copy = df_copy[["Data", "Conto", "Ticker", "Valuta", "QT. Attuale", "Liquidita Attuale", "Liq. Impegnata"]]
+        df_copy["date"] = pd.to_datetime(df_copy["date"], dayfirst=True, errors="coerce")
+        df_copy = df_copy[["date", "account", "ticker", "curr", "qt_held", "cash_held", "committed_cash"]]
         all_dfs.append(df_copy)
 
     final_df = pd.concat(all_dfs, ignore_index=True)
-    final_df = final_df.sort_values(by="Data", ascending=True, kind="mergesort")
+    final_df = final_df.sort_values(by="date", ascending=True, kind="mergesort")
     final_df = final_df.iloc[len(data):]
     final_df = final_df.reset_index(drop=True)
 
@@ -253,18 +253,18 @@ def aggregate_positions(total_positions):
 def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False, suppress_progress=False):
 
     df_copy = df.copy()
-    df_copy["Data"] = pd.to_datetime(df_copy["Data"], format=DATE_FORMAT)
+    df_copy["date"] = pd.to_datetime(df_copy["date"], format=DATE_FORMAT)
     if ref_date:
         ref_date = pd.Timestamp(ref_date)
-        df_copy = df_copy[df_copy["Data"] <= ref_date]
+        df_copy = df_copy[df_copy["date"] <= ref_date]
 
-    df_filtered = df_copy.dropna(subset=["Ticker"])
+    df_filtered = df_copy.dropna(subset=["ticker"])
     if current_ticker:
-        df_filtered = df_filtered[df_filtered["Ticker"] != current_ticker]
+        df_filtered = df_filtered[df_filtered["ticker"] != current_ticker]
 
-    df_filtered = df_filtered[df_filtered["Operazione"].isin(["Acquisto", "Vendita"])]
-    total_assets = df_filtered.groupby("Ticker").last().reset_index()
-    total_active_assets = total_assets.loc[total_assets["QT. Attuale"] > 0, ["Ticker", "QT. Attuale", "Valuta", "PMC"]]
+    df_filtered = df_filtered[df_filtered["operation"].isin(["Buy", "Sell"])]
+    total_assets = df_filtered.groupby("ticker").last().reset_index()
+    total_active_assets = total_assets.loc[total_assets["qt_held"] > 0, ["ticker", "qt_held", "curr", "abp"]]
 
     if just_assets:
         return total_assets, total_active_assets
@@ -276,14 +276,14 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     tickers = []
     for _, row in total_active_assets.iterrows():
         positions.append({
-            "ticker": row["Ticker"],
-            "quantity": row["QT. Attuale"],
-            "exchange_rate": 1.0 if row["Valuta"] == "EUR" else fetch_exchange_rate(ref_date.strftime("%Y-%m-%d")),
+            "ticker": row["ticker"],
+            "quantity": row["qt_held"],
+            "exchange_rate": 1.0 if row["curr"] == "EUR" else fetch_exchange_rate(ref_date.strftime("%Y-%m-%d")),
             "price": np.nan,
             "value": np.nan,
-            "pmc": row["PMC"]
+            "pmc": row["abp"]
         })
-        tickers.append(row["Ticker"])
+        tickers.append(row["ticker"])
 
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
@@ -318,8 +318,8 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
     if asset_rows.empty:
         pmpc = (price_abs * quantity + fee) / quantity
     else:
-        last_pmpc = asset_rows["PMC"].iloc[-1]
-        last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
+        last_pmpc = asset_rows["abp"].iloc[-1]
+        last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
         old_cost = last_pmpc * last_remaining_qt
         new_cost = price_abs * quantity + fee
@@ -340,56 +340,56 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
         end_date = add_solar_years(ref_date)
         fiscal_credit_aggiornato += minusvalenza_comm
 
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + round_half_up(round_half_up(quantity * price) / conv_rate) - fee
+    current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) / conv_rate) - fee
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
 
     return {
-        "Operazione": "Acquisto",
-        "QT. Attuale": current_qt,
-        "PMC": pmpc,
-        "Imp. Residuo Asset": importo_residuo,
-        "Costo Rilasciato": np.nan,
-        "Plusv. Lorda": np.nan,
-        "Minusv. Generata": minusvalenza_comm,
-        "Scadenza": end_date,
-        "Zainetto Fiscale": fiscal_credit_aggiornato,
-        "Plusv. Imponibile": np.nan,
-        "Imposta": np.nan,
-        "P&L": np.nan,
-        "Liquidita Attuale": current_liq,
-        "Valore Titoli": asset_value,
-        "NAV": current_liq + asset_value
+        "operation": "Buy",
+        "qt_held": current_qt,
+        "abp": pmpc,
+        "residual_amount": importo_residuo,
+        "released_amount": np.nan,
+        "gross_gain": np.nan,
+        "generated_loss": minusvalenza_comm,
+        "expiry": end_date,
+        "carryforward": fiscal_credit_aggiornato,
+        "taxable_gain": np.nan,
+        "tax": np.nan,
+        "pl": np.nan,
+        "cash_held": current_liq,
+        "assets_value": asset_value,
+        "nav": current_liq + asset_value
     }
 
 
 def compute_backpack(df, data_operazione, as_of_index=None):
     history = df.copy()
-    history['Data_dt'] = pd.to_datetime(history['Data'], format=DATE_FORMAT)
+    history['date_dt'] = pd.to_datetime(history['date'], format=DATE_FORMAT)
     data_operazione = pd.Timestamp(data_operazione)
-    history = history[history['Data_dt'] <= data_operazione].copy()
+    history = history[history['date_dt'] <= data_operazione].copy()
     if as_of_index is not None:
         history = history.loc[history.index < as_of_index]
 
-    history = history.sort_values(by=['Data_dt']).assign(_orig_index=history.index)
-    history = history.sort_values(by=['Data_dt', '_orig_index'])
+    history = history.sort_values(by=['date_dt']).assign(_orig_index=history.index)
+    history = history.sort_values(by=['date_dt', '_orig_index'])
 
     active_minuses = []
 
     for _, r in history.iterrows():
-        current_date = r['Data_dt']
+        current_date = r['date_dt']
         active_minuses = [m for m in active_minuses if m['expiry'] >= current_date]
 
-        if pd.notna(r.get('Minusv. Generata')) and r['Minusv. Generata'] > 0:
-            scad = r.get('Scadenza', np.nan)
+        if pd.notna(r.get('generated_loss')) and r['generated_loss'] > 0:
+            scad = r.get('expiry', np.nan)
             if pd.isna(scad):
                 expiry_dt = current_date
             else:
                 expiry_dt = pd.to_datetime(scad, format=DATE_FORMAT, errors='coerce')
-            active_minuses.append({'amount': float(r['Minusv. Generata']), 'expiry': expiry_dt})
+            active_minuses.append({'amount': float(r['generated_loss']), 'expiry': expiry_dt})
 
-        if pd.notna(r.get('Plusv. Lorda')) and r['Plusv. Lorda'] > 0:
-            to_consume = float(r['Plusv. Lorda'])
+        if pd.notna(r.get('gross_gain')) and r['gross_gain'] > 0:
+            to_consume = float(r['gross_gain'])
             i = 0
             while to_consume > 0 and i < len(active_minuses):
                 avail = active_minuses[i]['amount']
@@ -411,8 +411,8 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         raise ValidationError(translator.get("stock.sell_noitems"))
 
     fee = round_half_up(fee)
-    last_pmpc = asset_rows["PMC"].iloc[-1]
-    last_remaining_qt = asset_rows["QT. Attuale"].iloc[-1]
+    last_pmpc = asset_rows["abp"].iloc[-1]
+    last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
     if quantity > last_remaining_qt:
         raise ValidationError(translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
@@ -458,24 +458,24 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         end_date = add_solar_years(ref_date)
         minusvalenza_generata += minusvalenza_comm
 
-    current_liq = float(df["Liquidita Attuale"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
+    current_liq = float(df["cash_held"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price)
 
     return {
-        "Operazione": "Vendita",
-        "QT. Attuale": current_qt,
-        "PMC": pmpc_residuo,
-        "Imp. Residuo Asset": importo_residuo,
-        "Costo Rilasciato": costo_rilasciato,
-        "Plusv. Lorda": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
-        "Minusv. Generata": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
-        "Scadenza": end_date,
-        "Zainetto Fiscale": fiscal_credit_aggiornato,
-        "Plusv. Imponibile": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
-        "Imposta": imposta,
-        "P&L": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
-        "Liquidita Attuale": current_liq,
-        "Valore Titoli": asset_value,
-        "NAV": current_liq + asset_value
+        "operation": "Sell",
+        "qt_held": current_qt,
+        "abp": pmpc_residuo,
+        "residual_amount": importo_residuo,
+        "released_amount": costo_rilasciato,
+        "gross_gain": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
+        "generated_loss": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
+        "expiry": end_date,
+        "carryforward": fiscal_credit_aggiornato,
+        "taxable_gain": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
+        "tax": imposta,
+        "pl": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
+        "cash_held": current_liq,
+        "assets_value": asset_value,
+        "nav": current_liq + asset_value
     }

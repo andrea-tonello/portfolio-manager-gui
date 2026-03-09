@@ -116,14 +116,14 @@ def chart_summary(translator, pf_history, min_date_str, dt_str) -> ft.Control:
         return ft.Text("No data")
 
     series_config = [
-        ("NAV", "NAV", ft.Colors.BLUE, 2.5, None),
-        ("Valore Titoli", "Securities", ft.Colors.RED, 1.5, [8, 4]),
-        ("Liquidita", "Cash", "#1B5E20", 1.5, [8, 4]),
-        ("Liquidita Impegnata", "Committed Cash", ft.Colors.LIGHT_GREEN, 1.0, [4, 4]),
+        ("nav", "NAV", ft.Colors.BLUE, 2.5, None),
+        ("assets_value", "Securities", ft.Colors.RED, 1.5, [8, 4]),
+        ("cash", "Cash", "#1B5E20", 1.5, [8, 4]),
+        ("committed_cash", "Committed Cash", ft.Colors.LIGHT_GREEN, 1.0, [4, 4]),
     ]
 
     # Downsample the NAV series for performance
-    nav_values = [float(pf_history.iloc[i]["NAV"]) for i in range(n)]
+    nav_values = [float(pf_history.iloc[i]["nav"]) for i in range(n)]
     _, sample_indices = _downsample_series(nav_values, max_points=150)
 
     all_y = []

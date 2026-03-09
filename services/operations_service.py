@@ -9,18 +9,18 @@ from utils.constants import CURRENCY_EUR, CURRENCY_USD, CURRENCY_CHOICES
 def execute_cash_operation(translator, df, broker, op_kind, date_str, ref_date,
                            amount, ticker=None, description=None, asset_name=None):
     if op_kind == "deposit_withdrawal":
-        op_type = "Deposito" if amount > 0 else "Prelievo"
-        product, tk, name = "Contanti", np.nan, np.nan
+        op_type = "Deposit" if amount > 0 else "Withdrawal"
+        product, tk, name = "Cash", np.nan, np.nan
 
     elif op_kind == "dividend":
         if asset_name is None:
             asset_name = fetch_name(ticker)
-        op_type, product, tk, name = "Dividendo", "Dividendo", ticker, asset_name
+        op_type, product, tk, name = "Dividend", "Dividend", ticker, asset_name
 
     elif op_kind == "charge":
         amount = -abs(amount)
-        op_type = "Imposta"
-        product = description if description else "Imposta"
+        op_type = "Tax"
+        product = description if description else "Tax"
         tk, name = np.nan, np.nan
 
     else:

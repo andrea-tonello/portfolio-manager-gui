@@ -32,13 +32,13 @@ def create_defaults(save_folder, broker_name):
 
     row = _base_row()
     row.update({
-        "Data": "01-01-2000",
-        "Conto": broker_name,
-        "Zainetto Fiscale": 0.0,
-        "Liquidita Attuale": 0,
-        "Valore Titoli": 0,
-        "NAV": 0.0,
-        "Liq. Impegnata": 0.0,
+        "date": "01-01-2000",
+        "account": broker_name,
+        "carryforward": 0.0,
+        "cash_held": 0,
+        "assets_value": 0,
+        "nav": 0.0,
+        "committed_cash": 0.0,
     })
     df_template = pd.DataFrame({k: [v] for k, v in row.items()})
 

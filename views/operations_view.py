@@ -26,7 +26,7 @@ class OperationsView:
 
         cash_content = self._build_cash_tab()
         etf_content = self._build_etf_stock_tab("ETF")
-        stock_content = self._build_etf_stock_tab("Azioni")
+        stock_content = self._build_etf_stock_tab("Stock")
 
         self.form_container.content = ft.Tabs(
             length=3,
@@ -101,7 +101,7 @@ class OperationsView:
         elif self._ops_tab_index == 1:
             self._submit_es(e, "ETF")
         else:
-            self._submit_es(e, "Azioni")
+            self._submit_es(e, "Stock")
 
     def _get_ops_df(self):
         """Get the df for the currently selected operations account."""
@@ -119,7 +119,7 @@ class OperationsView:
 
     def _check_date_sequential(self, df, date_value) -> bool:
         """Return True if date_value is before the last recorded date."""
-        dates = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce").dropna()
+        dates = pd.to_datetime(df["date"], dayfirst=True, errors="coerce").dropna()
         return not dates.empty and date_value < dates.max().date()
 
     # ── Cash Tab ──────────────────────────────────────────────────────

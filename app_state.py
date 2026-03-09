@@ -3,7 +3,7 @@ import configparser
 import pandas as pd
 
 from utils.translator import Translator
-from utils.constants import LANG, REPORT_PREFIX
+from utils.constants import LANG
 from utils.other_utils import create_defaults
 
 
@@ -12,10 +12,8 @@ class AppState:
 
     def __init__(self, base_path: str):
         self.base_path = base_path
-        self.user_folder = os.path.join(base_path, "reports")
         self.config_folder = os.path.join(base_path, "config")
         self.config_res_folder = os.path.join(self.config_folder, "resources")
-        os.makedirs(self.user_folder, exist_ok=True)
         os.makedirs(self.config_res_folder, exist_ok=True)
 
         self.config_path = os.path.join(self.config_folder, "config.ini")

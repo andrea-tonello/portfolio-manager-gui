@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service
+from utils.columns import rename_for_export
 from utils.constants import REPORT_PREFIX
 
 
@@ -161,7 +162,7 @@ class TransactionsView:
             return
 
         df_sorted = df.copy()
-        df_sorted["_date_parsed"] = pd.to_datetime(df_sorted["Data"], dayfirst=True, errors="coerce")
+        df_sorted["_date_parsed"] = pd.to_datetime(df_sorted["date"], dayfirst=True, errors="coerce")
         df_sorted["_orig_idx"] = range(len(df_sorted))
         df_sorted = df_sorted.sort_values(["_date_parsed", "_orig_idx"], ascending=[False, False])
 
@@ -194,8 +195,8 @@ class TransactionsView:
         if df is None or df.empty:
             return ft.Text("No data", size=14)
 
-        display_cols = ["Data", "Conto", "Operazione", "Prodotto", "Ticker", "QT. Scambio",
-                        "Prezzo EUR", "Commissioni", "Imp. Effettivo Operaz.", "P&L"]
+        display_cols = ["date", "account", "operation", "product", "ticker", "qt_exch",
+                        "price_eur", "fee", "effective_amount", "pl"]
         available_cols = [c for c in display_cols if c in df.columns]
 
         columns = [ft.DataColumn(ft.Text(col, size=11, weight=ft.FontWeight.BOLD)) for col in available_cols]
@@ -251,10 +252,11 @@ class TransactionsView:
         )
 
     def _prepare_export_csv(self, df):
-        """Sort df by date descending and return CSV bytes."""
+        """Sort df by date descending, rename to locale headers, return CSV bytes."""
         df = df.copy()
-        df["_date_parsed"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
+        df["_date_parsed"] = pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
         df = df.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
+        df = rename_for_export(df, self.state.translator)
         return df.to_csv(index=False).encode("utf-8")
 
     async def _on_export(self, e, idx):

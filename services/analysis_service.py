@@ -28,7 +28,7 @@ def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=10
         return np.nan
 
 
-def compute_summary(translator, brokers, data, ref_date, dt_str, save_path=None):
+def compute_summary(translator, brokers, data, ref_date, dt_str):
     """
     Returns dict:
     {
@@ -59,17 +59,17 @@ def compute_summary(translator, brokers, data, ref_date, dt_str, save_path=None)
 
         df_valid, first_date = get_pf_date(translator, df_copy, dt_str, ref_date)
 
-        current_liq = round_half_up(float(df_valid.iloc[-1]["Liquidita Attuale"]))
-        historic_liq = df_valid["Liq. Impegnata"].iloc[-1]
+        current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
+        historic_liq = df_valid["committed_cash"].iloc[-1]
         asset_value = 0.0
-        pl = df_valid["P&L"].sum()
+        pl = df_valid["pl"].sum()
         pl_unrealized = 0.0
         nav = current_liq
 
-        cashflow_df = df_valid[df_valid["Operazione"].isin(["Deposito", "Prelievo"])]
-        flows = (cashflow_df["Imp. Effettivo Operaz."] * -1).tolist()
+        cashflow_df = df_valid[df_valid["operation"].isin(["Deposit", "Withdrawal"])]
+        flows = (cashflow_df["effective_amount"] * -1).tolist()
         flows.append(nav)
-        flows_dates = cashflow_df["Data"].tolist()
+        flows_dates = cashflow_df["date"].tolist()
         flows_dates.append(ref_date)
 
         xirr_full = np.nan
@@ -155,17 +155,6 @@ def compute_summary(translator, brokers, data, ref_date, dt_str, save_path=None)
 
             volatility = pf_history_df["TWRR Giornaliero"].std() * np.sqrt(trading_days)
 
-    # Export CSV if save_path given
-    if save_path and pf_history_df is not None and not pf_history_df.empty:
-        pf_export = pf_history_df.dropna()
-        rounding_dict = {
-            "Liquidita": 2, "Liquidita Impegnata": 2, "Valore Titoli": 2, "NAV": 2,
-            "Cash Flow": 2, "TWRR Giornaliero": 4, "TWRR Cumulativo": 4,
-        }
-        pf_export = pf_export.round(rounding_dict)
-        pf_export = pf_export.set_index("Date")
-        pf_export.to_csv(save_path, date_format="%Y-%m-%d")
-
     return {
         "accounts": account_results,
         "portfolio": {
@@ -200,7 +189,7 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
     When they are provided, only rolling correlation is computed.
     """
     for account in data:
-        account[1] = account[1][account[1]["Operazione"].isin(["Acquisto", "Vendita"])]
+        account[1] = account[1][account[1]["operation"].isin(["Buy", "Sell"])]
 
     _, active_tickers = get_tickers(translator, data)
     correlation_matrix = None
@@ -249,8 +238,8 @@ def compute_drawdown(translator, data, start_ref_date, end_ref_date):
 
     pf_history_df = portfolio_history(translator, start_ref_date, end_ref_date, data)
     pf_history_df = pf_history_df.dropna()
-    running_max = pf_history_df["NAV"].expanding().max()
-    drawdown = (pf_history_df["NAV"] - running_max) / running_max
+    running_max = pf_history_df["nav"].expanding().max()
+    drawdown = (pf_history_df["nav"] - running_max) / running_max
     mdd = drawdown.min()
 
     return {
@@ -271,7 +260,7 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
         "has_positions": bool,
     }
     """
-    data = [account for account in data if account[1]["Valore Titoli"].iloc[-1] > 0.0]
+    data = [account for account in data if account[1]["assets_value"].iloc[-1] > 0.0]
 
     if not data:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": 0.0, "has_positions": False}
@@ -292,7 +281,7 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
         total_positions.extend(positions)
 
         df_valid, _ = get_pf_date(translator, df_copy, end_dt, end_dt)
-        current_liq = round_half_up(float(df_valid.iloc[-1]["Liquidita Attuale"]))
+        current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         total_liquidity.append(current_liq)
 
     aggr_positions = aggregate_positions(total_positions)

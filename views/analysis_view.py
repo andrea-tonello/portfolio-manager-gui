@@ -227,11 +227,9 @@ class AnalysisView:
             try:
                 ref_date = self.sum_date_value
                 dt_str = ref_date.strftime(DATE_FORMAT)
-                import os
-                save_path = os.path.join(s.user_folder, "Storico Portafoglio.csv")
 
                 result = analysis_service.compute_summary(
-                    t, s.brokers, data, ref_date, dt_str, save_path=save_path
+                    t, s.brokers, data, ref_date, dt_str
                 )
                 self._display_summary(result, dt_str)
             except Exception as ex:

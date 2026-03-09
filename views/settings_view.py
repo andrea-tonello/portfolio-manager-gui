@@ -246,7 +246,7 @@ class SettingsView:
         t = s.translator
         self.page.pop_dialog()
         try:
-            account_service.delete_account_files(broker_name, s.config_res_folder, s.user_folder)
+            account_service.delete_account_files(broker_name, s.config_res_folder)
             del s.brokers[idx]
             config_service.save_brokers(s.config_folder, s.brokers, reset=True)
             s.accounts.pop(idx, None)
@@ -307,10 +307,9 @@ class SettingsView:
             s = self.state
             self.page.pop_dialog()
             try:
-                config_service.reset_application(s.config_folder, s.user_folder)
+                config_service.reset_application(s.config_folder)
                 show_snack(self.page, s.translator.get("settings.account.reset_completed"))
                 import os
-                os.makedirs(s.user_folder, exist_ok=True)
                 os.makedirs(s.config_res_folder, exist_ok=True)
                 s.brokers = {}
                 s.accounts = {}

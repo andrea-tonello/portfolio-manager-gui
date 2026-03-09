@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+from utils.columns import rename_from_legacy
 from utils.constants import REPORT_PREFIX
 
 
@@ -8,6 +9,11 @@ def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> di
     filename = REPORT_PREFIX + brokers[account_idx] + ".csv"
     path = os.path.join(save_folder, filename)
     df = pd.read_csv(path)
+
+    # Auto-migrate legacy Italian column names to English
+    if rename_from_legacy(df):
+        df.to_csv(path, index=False)
+
     return {
         "acc_idx": account_idx,
         "df": df,
@@ -30,10 +36,9 @@ def save_account(df: pd.DataFrame, path: str):
     df.to_csv(path, index=False)
 
 
-def delete_account_files(broker_name: str, save_folder: str, user_folder: str):
+def delete_account_files(broker_name: str, save_folder: str):
     """Delete CSV files for a given broker."""
     filename = REPORT_PREFIX + broker_name + ".csv"
-    for folder in (save_folder, user_folder):
-        path = os.path.join(folder, filename)
-        if os.path.exists(path):
-            os.remove(path)
+    path = os.path.join(save_folder, filename)
+    if os.path.exists(path):
+        os.remove(path)

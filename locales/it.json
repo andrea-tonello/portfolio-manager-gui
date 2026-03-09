@@ -273,6 +273,20 @@
     "no_rows": "\nNessuna riga da rimuovere."
   },
 
+  "values": {
+    "op_deposit": "Deposito",
+    "op_withdrawal": "Prelievo",
+    "op_buy": "Acquisto",
+    "op_sell": "Vendita",
+    "op_dividend": "Dividendo",
+    "op_tax": "Imposta",
+    "prod_cash": "Contanti",
+    "prod_etf": "ETF",
+    "prod_stock": "Azioni",
+    "prod_dividend": "Dividendo",
+    "prod_tax": "Imposta"
+  },
+
   "glossary": {
     "page_1": {
       "title": "Descrizione delle colonne dei report",

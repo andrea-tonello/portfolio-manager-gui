@@ -71,8 +71,6 @@ def save_home_hidden(config_folder: str, hidden: bool):
         config.write(f)
 
 
-def reset_application(config_folder: str, user_folder: str):
+def reset_application(config_folder: str):
     if os.path.exists(config_folder):
         shutil.rmtree(config_folder)
-    if os.path.exists(user_folder):
-        shutil.rmtree(user_folder)

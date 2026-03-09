@@ -302,9 +302,9 @@ class HomeView:
             df = acc["df"]
             if df is not None and not df.empty:
                 last_row = df.iloc[-1]
-                total_nav += float(last_row.get("NAV", 0) or 0)
-                total_cash += float(last_row.get("Liquidita Attuale", 0) or 0)
-                total_assets += float(last_row.get("Valore Titoli", 0) or 0)
+                total_nav += float(last_row.get("nav", 0) or 0)
+                total_cash += float(last_row.get("cash_held", 0) or 0)
+                total_assets += float(last_row.get("assets_value", 0) or 0)
 
         cards = self._build_stats_cards(total_nav, total_cash, total_assets)
         self._positions_container = ft.Column([], spacing=6)
@@ -333,9 +333,9 @@ class HomeView:
         df = acc["df"]
 
         # Start with stale values
-        nav = float(df.iloc[-1].get("NAV", 0) or 0) if not df.empty else 0
-        cash = float(df.iloc[-1].get("Liquidita Attuale", 0) or 0) if not df.empty else 0
-        assets = float(df.iloc[-1].get("Valore Titoli", 0) or 0) if not df.empty else 0
+        nav = float(df.iloc[-1].get("nav", 0) or 0) if not df.empty else 0
+        cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
+        assets = float(df.iloc[-1].get("assets_value", 0) or 0) if not df.empty else 0
 
         cards = self._build_stats_cards(nav, cash, assets)
         self._positions_container = ft.Column([], spacing=6)
@@ -405,8 +405,8 @@ class HomeView:
                         df = acc["df"]
                         if df is None or df.empty:
                             continue
-                        total_cash += float(df.iloc[-1].get("Liquidita Attuale", 0) or 0)
-                        total_committed += float(df.iloc[-1].get("Liq. Impegnata", 0) or 0)
+                        total_cash += float(df.iloc[-1].get("cash_held", 0) or 0)
+                        total_committed += float(df.iloc[-1].get("committed_cash", 0) or 0)
                         positions = get_asset_value(t, df, ref_date=ref_date, suppress_progress=True)
                         if positions:
                             total_assets += round_half_up(sum(p["value"] for p in positions))
@@ -441,8 +441,8 @@ class HomeView:
                     if acc is None:
                         return
                     df = acc["df"]
-                    cash = float(df.iloc[-1].get("Liquidita Attuale", 0) or 0) if not df.empty else 0
-                    total_committed = float(df.iloc[-1].get("Liquidita Impegnata", 0) or 0) if not df.empty else 0
+                    cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
+                    total_committed = float(df.iloc[-1].get("committed_cash", 0) or 0) if not df.empty else 0
                     positions = get_asset_value(t, df, ref_date=ref_date, suppress_progress=True)
                     assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
                     nav = cash + assets
