@@ -32,7 +32,7 @@ jobs:
         run: uv sync
 
       - name: Build APK
-        run: uv run flet build apk --project Portfolio\ Manager
+        run: yes | uv run flet build apk --project Portfolio\ Manager
 
       - name: Rename APK
         run: mv build/apk/*.apk build/apk/portfolio-manager.apk
@@ -62,7 +62,7 @@ jobs:
         run: uv sync
 
       - name: Build Linux
-        run: uv run flet build linux --project Portfolio\ Manager
+        run: yes | uv run flet build linux --project Portfolio\ Manager
 
       - name: Archive Linux build
         working-directory: build/linux
@@ -88,7 +88,8 @@ jobs:
         run: uv sync
 
       - name: Build Windows
-        run: uv run flet build windows --project Portfolio\ Manager
+        shell: bash
+        run: yes | uv run flet build windows --project "Portfolio Manager"
 
       - name: Archive Windows build
         run: Compress-Archive -Path build\windows\* -DestinationPath portfolio-manager-windows.zip
@@ -113,7 +114,7 @@ jobs:
         run: uv sync
 
       - name: Build macOS
-        run: uv run flet build macos --project Portfolio\ Manager
+        run: yes | uv run flet build macos --project Portfolio\ Manager
 
       - name: Archive macOS build
         working-directory: build/macos
