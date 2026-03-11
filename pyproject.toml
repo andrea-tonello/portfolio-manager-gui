@@ -13,7 +13,6 @@ dependencies = [
 
 [tool.flet.app]
 exclude = [
-    "reports",
     "tests",
     ".git",
     "__pycache__",

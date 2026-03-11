@@ -1,199 +1,201 @@
 # ITA 🇮🇹 (ENG below)
 # Portfolio Manager
 
-Portfolio Manager è la versione GUI di \[Portfolio Manager CLI\] pensato per la gestione ed analisi di portafogli finanziari (azionario ed ETF), per investitori privati che desiderano tracciare in modo dettagliato le operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
+Portfolio Manager è un'applicazione GUI multipiattaforma per la gestione ed analisi di portafogli finanziari (azioni ed ETF), pensata per investitori privati che desiderano tracciare in modo dettagliato le proprie operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
-Sono inoltre disponibili numerosi strumenti di analisi del rischio: VaR (Monte Carlo), analisi volatilità/Sharpe ratio, analisi della correlazione, drawdown.
+Sono inoltre disponibili numerosi strumenti di analisi: VaR (Monte Carlo), volatilità/Sharpe ratio, correlazione, drawdown, XIRR e TWRR.
+
+Realizzata con [Flet](https://flet.dev/) (Flutter per Python), funziona su Desktop (Windows, macOS, Linux), Android e iOS.
+
 
 ## Funzionalità principali
 
-- Interfaccia da riga di comando per l'inserimento guidato di nuove operazioni: acquisto, vendita, deposito e prelievo di liquidità, dividendi, imposte
-- Calcolo di:
-  - Prezzo Medio di Carico
-  - Plusvalenze e minusvalenze
-  - Zainetto fiscale
-  - Scadenza delle minusvalenze secondo la normativa italiana
-  - NAV, liquidità attuale e storica
-- Salvataggio in tabelle CSV di transazioni e storico del portafoglio
-- Tools per analisi di portafoglio, con statistiche e grafici
+- **Gestione multi-conto**: supporto a più intermediari con alias personalizzabili
+- **Operazioni su liquidità**: depositi, prelievi, dividendi, imposte e commissioni
+- **Operazioni su titoli**: acquisto e vendita di azioni ed ETF, con gestione valuta (EUR/USD), commissioni e TER
+- **Calcolo automatico di**:
+  - Prezzo Medio di Carico (PMC)
+  - Plusvalenze e minusvalenze realizzate e non
+  - Zainetto fiscale con scadenza delle minusvalenze
+  - NAV, liquidità corrente e storica
+- **Panoramica del portafoglio** con posizioni aperte, P&L e prezzi in tempo reale (Yahoo Finance)
+- **Watchlist** di titoli personalizzabile
+- **Esportazione CSV** delle transazioni con intestazioni localizzate
+- **Strumenti di analisi del rischio** (dettagli sotto)
+- **Temi personalizzabili**: chiaro, scuro o automatico, con 8 palette colori
+- **Multilingua**: italiano e inglese
 
-
-
-| Menù Principale                                                      | Statistiche generali del portafoglio                                  |
+| Panoramica del portafoglio                                           | Statistiche                                                           |
 | -                                                                    | -                                                                     |
 | <img src="./media/screenshots/menu.png" alt="image" width="500"/>    | <img src="./media/screenshots/stats.png" alt="image" width="500"/>    |
-|**Correlazione semplice tra asset in portafoglio**                    |**Correlazione rolling tra due asset**                                 |
+|**Correlazione semplice**                                             |**Correlazione rolling**                                               |
 |<img src="./media/screenshots/corr.png" alt="image" width="500"/>     |<img src="./media/screenshots/corr-roll.png" alt="image" width="500"/> |
 | **Drawdown**                                                         | **Value at Risk**                                                     |
 |<img src="./media/screenshots/drawdown.png" alt="image" width="500"/> | <img src="./media/screenshots/var.png" alt="image" width="500"/>      |
 
 
-## Utilizzo
-***Primo avvio***
+## Struttura dell'app
 
-Al primo avvio sono richiesti la scelta della lingua (Italiano, Inglese) ed il setup dei propri intermediari. Per quanto riguarda questi ultimi, scegliere gli alias che si preferiscono: ad esempio, con due conti Fineco e uno Directa: *Fineco Principale, Fineco 2, Directa*. Gli intermediari potranno inoltre essere aggiunti o rimossi successivamente, ma è da tenere a mente non è possibile "rinominare" un account già salvato; in quel caso, sarà necessario inserire nuovamente tutte le transazioni.
+L'app presenta quattro schermate principali, accessibili dalla barra di navigazione inferiore, più una schermata di impostazioni:
 
-***Utilizzo***
+### Home
+- Selezione del conto (singolo o panoramica di tutti i conti)
+- Posizioni aperte con prezzo corrente, PMC, P&L non realizzato e variazione giornaliera
+- Watchlist con prezzi in tempo reale
+- Possibilità di nascondere i valori
 
-All'avvio del programma verrà sempre richiesto il conto su cui operare. Ad ogni conto è associato un report, ovvero una tabella CSV con le transazioni effettuate. I report vengono salvati con l'opzione apposita (come spiegato in seguito) nella cartella "reports".
+### Operazioni
+- Inserimento guidato di nuove transazioni
+- Tre tab: **Liquidità** (depositi, prelievi, dividendi, imposte), **ETF** (acquisto/vendita), **Azioni** (acquisto/vendita)
+- Selezione valuta (EUR/USD) con tasso di cambio
+- Commissioni e TER (per ETF)
 
-<img src="./media/screenshots/report.png" alt="Report Example"/>
+### Transazioni
+- Storico completo delle transazioni per conto o per tutti i conti
+- Filtro per numero di transazioni o per intervallo di giorni
+- Esportazione CSV con intestazioni nella lingua selezionata
 
-*Esempio di un report per il conto "Fineco".*
+### Analisi
+- **Statistiche generali**: NAV, P&L, liquidità impegnata, XIRR (totale e annualizzato), TWRR (totale e annualizzato), volatilità annualizzata, Sharpe ratio
+- **Correlazione**: matrice di correlazione tra gli asset in portafoglio e correlazione rolling tra due asset selezionati
+- **Drawdown**: calcolo e grafico del Maximum Drawdown (MDD)
+- **Value at Risk**: simulazione Monte Carlo (50.000 iterazioni) con intervallo di confidenza e orizzonte temporale personalizzabili
 
-Successivamente verrà presentato il Menu Principale con le seguenti opzioni:
-
-0. Cambia conto: ri-seleziona il conto su cui operare
-1. Operazioni su liquidità: Depositi, Prelievi, Dividendi, Imposte varie (es. Imposta di Bollo)
-2. Operazioni su ETF: Acquisto, Vendita
-3. Operazioni su Azioni: Acquisto, Vendita
-4. Operazioni su Obbligazioni: ***non ancora implementate***
-5. Ultimi movimenti: visualizzazione delle ultime dieci righe del report
-6. Analisi portafoglio:
-    - Statistiche generali (NAV, P&L, rendimento, volatilità...)
-    - Analisi correlazione
-    - Analisi Drawdown
-    - VaR
-7. Impostazioni applicazione:
-    - Cambia lingua (Italiano, Inglese)
-    - Aggiungi conto/i
-    - Re-inizializza conti
-    - Reset completo dell'applicazione
-8. Esporta in csv: salva le modifiche eseguite fino a quel momento
-9. Rimuovi ultima riga del report
-10. Glossario con:
-    - Descrizioni delle colonne dei report
-    - Definizioni ed interpretazioni degli strumenti statistici
-11. Esci dal programma
-
-Le opzioni di analisi producono grafici da poter salvare su disco. L'opzione 6.1 produce inoltre, nella cartella "reports", uno storico del valore di tutto il portafoglio.
-
-<img src="./media/screenshots/report-historical.png" alt="Example of Historical performance of the portfolio"/>
-
-*Esempio dello Storico Portafoglio, comprensivo di tutti i conti salvati.*
-
-Da qualsiasi schermata, è possibile annullare l'operazione corrente e tornare al Menu Principale con CTRL+C / CMD+C.
-Come già specificato, le modifiche (comprese la rimozione di righe) sono confermate (salvate) solo manualmente con l'opzione apposita.
+### Impostazioni
+- Lingua (italiano / inglese)
+- Tema (chiaro / scuro / sistema) e palette colori
+- Gestione conti: aggiunta e rimozione intermediari
+- Reset completo dell'applicazione
 
 
-## Download / Installazione
+## Primo avvio
+
+1. **Scelta della lingua**: italiano o inglese
+2. **Setup dei conti**: inserimento degli alias dei propri intermediari (es. *Fineco Principale, Fineco 2, Directa*). I conti possono essere aggiunti o rimossi successivamente dalle impostazioni. Non è possibile rinominare un conto esistente.
+
+Le transazioni vengono salvate automaticamente ad ogni inserimento.
+
+
+## Installazione
 #### Download diretto
-1. Su questa pagina, clicca su "Release" e scarica il programma per il tuo sistema operativo in una cartella dedicata.
+1. Nella sezione "Releases", scarica il programma per il tuo sistema operativo.
+
 #### Installazione manuale
 1. Clona la repository
-2. Installa i pacchetti (testato con Python 3.13)
-  - `uv`: esegui semplicemente `uv sync` per creare l'enviroment specificato in `pyproject.toml`
-  - `pip`: in un environment, installa:
+2. Installa i pacchetti (richiesto Python >= 3.11, testato con 3.13):
+  - `uv`: esegui `uv sync`
+  - `pip`:
 ```sh
-pip install pandas numpy python-dateutil yfinance matplotlib
+pip install flet flet-charts pandas numpy yfinance python-dateutil
 ```
-3. Esegui `main.py`
+3. Esegui `python main.py` oppure `flet run`
 
 
 ## Note
 
-- Attenzione: attualmente, gli split azionari ***NON*** sono gestiti
-- Attenzione: attualmente, l'inserimento di transazioni è esclusivamente sequenziale
-
-- Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria.
-- La logica fiscale implementata segue la normativa italiana vigente al 2025, ma si consiglia di verificare sempre con un consulente.
+- Gli split azionari **non** sono attualmente gestiti
+- L'inserimento delle transazioni è esclusivamente sequenziale (cronologico)
+- Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria
+- La logica fiscale segue la normativa italiana vigente al 2026; si consiglia sempre la verifica con un consulente
 
 ---
 
 # ENG 🇬🇧 🇺🇸
 # Portfolio Manager
 
-Portfolio Manager is CLI software designed for the management and analysis of financial portfolios (Stocks and ETFs). It is intended for private investors who wish to track operations, liquidity, capital gains/losses, and manage tax loss carryforwards (*zainetto fiscale*) according to Italian regulations.
+Portfolio Manager is a cross-platform GUI application for managing and analyzing financial portfolios (stocks and ETFs). It is designed for private investors who wish to track their operations, liquidity, capital gains/losses, and manage tax loss carryforwards (*zainetto fiscale*) according to Italian regulations.
 
-Numerous risk analysis tools are also available: VaR (Monte Carlo), volatility/Sharpe ratio analysis, correlation analysis, and drawdown.
+It also includes several analysis tools: VaR (Monte Carlo), volatility/Sharpe ratio, correlation, drawdown, XIRR and TWRR.
+
+Built with [Flet](https://flet.dev/) (Flutter for Python), it runs on Desktop (Windows, macOS, Linux), Android and iOS.
+
 
 ## Main Features
 
-- Command line interface for guided entry of new operations: purchases, sales, deposits and withdrawals of liquidity, dividends, and taxes.
-- Calculation of:
-  - Average Carrying Price (Average Cost Basis)
-  - Capital gains and losses
-  - Tax Loss Carryforward (*Zainetto fiscale*)
-  - Expiration of capital losses according to Italian regulations
+- **Multi-account management**: support for multiple brokers with custom aliases
+- **Cash operations**: deposits, withdrawals, dividends, taxes and charges
+- **Securities operations**: buy and sell stocks and ETFs, with currency handling (EUR/USD), fees and TER
+- **Automatic calculation of**:
+  - Average Cost Basis (ACB)
+  - Realized and unrealized capital gains/losses
+  - Tax loss carryforward with expiry tracking
   - NAV, current and historical liquidity
-- Saving of transactions and portfolio history into CSV tables.
-- Portfolio analysis tools, complete with statistics and charts.
+- **Portfolio overview** with open positions, P&L and live prices (Yahoo Finance)
+- **Customizable watchlist**
+- **CSV export** of transactions with localized column headers
+- **Risk analysis tools** (details below)
+- **Customizable themes**: light, dark or system, with 8 color palettes
+- **Multilingual**: English and Italian
 
-| Main Menu                                                            | General Portfolio Statistics                                          |
+| Portfolio overview                                                   | Statistics                                                            |
 | -                                                                    | -                                                                     |
 | <img src="./media/screenshots/menu.png" alt="image" width="500"/>    | <img src="./media/screenshots/stats.png" alt="image" width="500"/>    |
-|**Simple correlation between assets**                                 |**Rolling correlation between two assets**                             |
+|**Simple correlation**                                                |**Rolling correlation**                                                |
 |<img src="./media/screenshots/corr.png" alt="image" width="500"/>     |<img src="./media/screenshots/corr-roll.png" alt="image" width="500"/> |
 | **Drawdown**                                                         | **Value at Risk**                                                     |
 |<img src="./media/screenshots/drawdown.png" alt="image" width="500"/> | <img src="./media/screenshots/var.png" alt="image" width="500"/>      |
 
 
-## Usage
-***First launch***
+## App Structure
 
-Upon the first launch, you will be asked to select a language (English, Italian) and set up your brokers/accounts. Regarding the latter, choose the aliases you prefer: for example, if you have two Fineco accounts and one Directa account, you might use: *Fineco Main, Fineco 2, Directa*. Brokers can be added or removed later, but keep in mind that, once saved, it is not possible to "rename" an account; in that case, you would need to re-enter all transactions.
+The app has four main screens accessible from the bottom navigation bar, plus a settings screen:
 
-***Usage***
+### Home
+- Account selector (single account or all-accounts overview)
+- Open positions with current price, average cost basis, unrealized P&L and daily change
+- Watchlist with live prices
+- Option to hide values
 
-When the program starts, you will always be asked which account you want to operate on. Each account is associated with a report, which is a CSV table containing the performed transactions. Reports are saved via the specific menu option (explained below) in the "reports" folder.
+### Operations
+- Guided entry of new transactions
+- Three tabs: **Cash** (deposits, withdrawals, dividends, taxes), **ETF** (buy/sell), **Stock** (buy/sell)
+- Currency selection (EUR/USD) with exchange rate
+- Fees and TER (for ETFs)
 
-<img src="./media/screenshots/report.png" alt="Report Example"/>
+### Transactions
+- Full transaction history per account or across all accounts
+- Filter by transaction count or by number of days
+- CSV export with column headers in the selected language
 
-*Example of a report for the "Fineco" account.*
+### Analysis
+- **Summary statistics**: NAV, P&L, committed cash, XIRR (full and annualized), TWRR (full and annualized), annualized volatility, Sharpe ratio
+- **Correlation**: correlation matrix of portfolio holdings and rolling correlation between two selected assets
+- **Drawdown**: Maximum Drawdown (MDD) calculation and chart
+- **Value at Risk**: Monte Carlo simulation (50,000 iterations) with customizable confidence interval and time horizon
 
-After that, the Main Menu will be presented with the following options:
-
-0. Change account: Re-select the account to operate on.
-1. Cash operations: Deposits, Withdrawals, Dividends, various Taxes (e.g., Stamp Duty).
-2. ETF Operations: Buy, Sell.
-3. Stock Operations: Buy, Sell.
-4. Bond Operations: ***not yet implemented***.
-5. Latest movements: View the last ten rows of the report.
-6. Portfolio Analysis:
-    - General statistics (NAV, P&L, return, volatility...)
-    - Correlation analysis
-    - Drawdown analysis
-    - VaR
-7. Application Settings:
-    - Change language (Italian, English)
-    - Add account(s)
-    - Re-initialize accounts
-    - Full application reset
-8. Export to CSV: Saves changes made up to that point.
-9. Remove last row of the report.
-10. Glossary containing:
-    - Descriptions of report columns
-    - Definitions and interpretations of statistical analysis tools
-11. Exit the program.
-
-The analysis options produce charts that can be saved to disk. Option 6.1 also produces a history of the total portfolio value in the "reports" folder.
-
-<img src="./media/screenshots/report-historical.png" alt="Example of Historical performance of the portfolio"/>
-
-*Example of Portfolio History, including all saved accounts.*
-
-From any screen, you can cancel the current operation and return to the Main Menu using `CTRL+C` / `CMD+C`.
-As previously specified, changes (including the removal of rows) are confirmed (saved) only manually using the specific menu option.
+### Settings
+- Language (English / Italian)
+- Theme (light / dark / system) and color palette
+- Account management: add and delete brokers
+- Full application reset
 
 
-## Download / Installation
+## First Launch
+
+1. **Language selection**: English or Italian
+2. **Account setup**: enter aliases for your brokers (e.g., *Fineco Main, Fineco 2, Directa*). Accounts can be added or removed later from Settings. Existing accounts cannot be renamed.
+
+Transactions are saved automatically as they are entered.
+
+
+## Installation
 #### Direct Download
-1. On this page, click on "Releases" and download the program for your operating system into a dedicated folder.
+1. In the "Releases" section, download the program for your operating system.
+
 #### Manual Installation
-1. Clone the repository.
-2. Install packages (tested with Python 3.13).
-  - `uv`: Simply run `uv sync` to create the environment specified in `pyproject.toml`.
-  - `pip`: In an environment, install:
+1. Clone the repository
+2. Install packages (requires Python >= 3.11, tested with 3.13):
+  - `uv`: run `uv sync`
+  - `pip`:
 ```sh
-pip install pandas numpy python-dateutil yfinance matplotlib
+pip install flet flet-charts pandas numpy yfinance python-dateutil
 ```
-3. Run `main.py`
+3. Run `python main.py` or `flet run`
 
 
 ## Notes
 
-- Warning: Currently, stock splits are NOT handled.
-- Warning: Currently, transaction entry is exclusively sequential.
-
-- The software is intended for personal and educational use. It does not constitute financial advice.
-- The fiscal logic implemented follows the Italian regulations in force as of 2025, but it is always advisable to verify with a consultant.
+- Stock splits are **not** currently handled
+- Transaction entry is exclusively sequential (chronological)
+- This software is intended for personal and educational use. It does not constitute financial advice
+- The fiscal logic follows Italian regulations in force as of 2026; always verify with a professional advisor
