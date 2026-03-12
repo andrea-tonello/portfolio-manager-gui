@@ -120,7 +120,7 @@ jobs:
 
       - name: Archive macOS build
         working-directory: build/macos
-        run: zip -r ../../portfolio-manager-macos.zip .
+        run: zip -r -y ../../portfolio-manager-macos.zip .
 
       - uses: actions/upload-artifact@v4
         with:
