@@ -158,7 +158,10 @@ class TransactionsView:
     def _update_tx_table(self):
         df = self._tx_df
         if df is None or df.empty:
-            self.tx_table_container.content = ft.Text("No data", size=14)
+            self.tx_table_container.content = ft.Column([
+                ft.Container(height=80),
+                ft.Text("No data", size=16)
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             return
 
         df_sorted = df.copy()
@@ -281,7 +284,7 @@ class TransactionsView:
         t = self.state.translator
         df = self._tx_df
         if df is None or df.empty:
-            show_snack(self.page, t.get("remove_row.no_rows"), error=True)
+            show_snack(self.page, t.get("export.no_data"), error=True)
             return
         csv_bytes = self._prepare_export_csv(df)
         await self._save_via_picker(REPORT_PREFIX + "All Accounts.csv", csv_bytes)

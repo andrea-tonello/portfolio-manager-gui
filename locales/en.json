@@ -260,17 +260,18 @@
       "reset_warning": "\nThis operation is not reversible.\nThe application will be reset, deleting all saved data.",
       "reset_confirm": "Type \"RESET\" to confirm the deletion",
       "deletion_error": "Error deleting directory: {e}",
-      "reset_completed": "\nReset completed. "
+      "reset_completed": "\nReset completed"
     }
   },
 
   "export": {
-    "exported": "\nExported \"{file}\" to {user_folder}"
+    "exported": "\nExported \"{file}\" to {user_folder}",
+    "no_data": "No data available, cannot export"
   },
 
   "remove_row": {
-    "row_removed": "\nLast row removed.",
-    "no_rows": "\nNo rows to remove."
+    "row_removed": "\nLast row removed",
+    "no_rows": "\nNo rows to remove"
   },
 
   "values": {

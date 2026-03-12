@@ -260,17 +260,18 @@
       "reset_warning": "\nQuesta operazione non è reversibile.\nL'applicazione verrà reimpostata, eliminando tutti i dati salvati.",
       "reset_confirm": "Digitare \"RESET\" per confermare l'operazione",
       "deletion_error": "Errore nella rimozione dei dati: {e}",
-      "reset_completed": "\nReset completato. "
+      "reset_completed": "\nReset completato "
     }
   },
 
   "export": {
-    "exported": "\nEsportato \"{file}\" in {user_folder}"
+    "exported": "\nEsportato \"{file}\" in {user_folder}",
+    "no_data": "Nessun dato disponibile, impossibile esportare"
   },
 
   "remove_row": {
-    "row_removed": "\nUltima riga rimossa.",
-    "no_rows": "\nNessuna riga da rimuovere."
+    "row_removed": "\nUltima riga rimossa",
+    "no_rows": "\nNessuna riga da rimuovere"
   },
 
   "values": {
