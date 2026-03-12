@@ -45,7 +45,45 @@
   "operations": {
     "select_account": "Select an account...",
     "operating_on": "Operating on",
-    "add_transaction": "Add Transaction"
+    "add_transaction": "Add Transaction",
+    "cash": {
+      "title": "CASH OPERATIONS",
+      "op_deposit": "Deposit",
+      "op_withdrawal": "Withdrawal",
+      "op_dividend": "Dividend",
+      "op_charge": "Stamp duty / Other charges",
+      "amount": "Amount in EUR",
+      "dividend_amount": "Net dividend in EUR",
+      "charge_descr": "Description (e.g., \"Stamp Duty Q2 2025\")",
+      "error_cash": "The cash amount must be a number greater than 0",
+      "error_dividend": "The dividend must be a number greater than 0",
+      "error_charge": "The tax amount must be a number greater than 0"
+    },
+    "stock": {
+      "title_etf": "ETFs",
+      "title_stock": "STOCKS",
+      "currency": "Currency",
+      "exch_rate": "EUR-USD rate",
+      "exch_rate_error": "The conversion rate must be a number greater than 0",
+      "ticker": "Ticker",
+      "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n\t\t\t\t\t\tVWCE, Milan S.E.: VWCE.MI\n\nCheck on Yahoo Finance's website",
+      "qt": "Quantity",
+      "qt_error": "Invalid quantity. It must be an integer greater than 0",
+      "op_buy": "Buy",
+      "op_sell": "Sell",
+      "price": "Unit price",
+      "price_error": "The price must be greater than 0",
+      "currency_fee": "Fee currency",
+      "fee": "Fee amount",
+      "fee_error": "The commission must be a number greater than or equal to 0",
+      "ter": "Total Expense Ratio",
+      "sell_noitems": "No assets to sell: portfolio is empty",
+      "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})"
+    },
+    "bond": {
+      "title": "\n--- BONDS ---\n\n",
+      "not_implemented": "Bonds not yet implemented. Press Enter to continue..."
+    }
   },
 
   "redirect": {
@@ -85,51 +123,6 @@
     "date_future": "Cannot insert future dates."
   },
 
-  "cash": {
-    "title": "CASH OPERATIONS",
-    "op_deposit": "Deposit",
-    "op_withdrawal": "Withdrawal",
-    "op_dividend": "Dividend",
-    "op_charge": "Stamp duty / Other charges",
-    "amount_descr": "Transaction amount in EUR",
-    "amount": "Amount",
-    "dividend_descr": "Net dividend in EUR",
-    "dividend_ticker_descr": "Full ticker of the dividend issuer (Yahoo Finance standard)",
-    "dividend_ticker": "Ticker",
-    "charge_descr": "Tax amount in EUR",
-    "charge_verbose": "Description (e.g., \"Stamp Duty Q2 2025\")",
-    "error_cash": "The cash amount must be a number greater than 0",
-    "error_dividend": "The dividend must be a number greater than 0",
-    "error_charge": "The tax amount must be a number greater than 0"
-  },
-
-  "stock": {
-    "title_etf": "ETFs",
-    "title_stock": "STOCKS",
-    "date": "\n  - Transaction date DD-MM-YYYY (\"t\" for today)",
-    "currency": "Currency",
-    "currency_error": "Currency not recognized. You must enter the number corresponding to the currency of choice.",
-    "exch_rate": "EUR-USD rate",
-    "exch_rate_error": "The conversion rate must be a number greater than 0.",
-    "ticker": "Full ticker (Yahoo Finance standard)",
-    "qt": "Quantity",
-    "qt_error": "Invalid quantity. It must be an integer greater than 0.",
-    "op_buy": "Buy",
-    "op_sell": "Sell",
-    "price": "Unit price",
-    "price_error": "The price must be greater than 0.",
-    "currency_fee": "Fee currency\n    Must be specified as some brokers (e.g. Fineco) apply fixed EUR fees even on USD transactions.\n\t1. EUR\n\t2. USD",
-    "fee": "Fee amount",
-    "fee_error": "The commission must be a number greater than or equal to 0.",
-    "ter": "Total Expense Ratio",
-    "sell_noitems": "No assets to sell: portfolio is empty.",
-    "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})."
-  },
-
-  "bond": {
-    "title": "\n--- BONDS ---\n\n",
-    "not_implemented": "Bonds not yet implemented. Press Enter to continue..."
-  },
 
   "review": {
     "title": "\nRecent Transactions\n\n"

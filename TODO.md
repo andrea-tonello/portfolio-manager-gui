@@ -1,7 +1,13 @@
 - [LOCALIZATION] Review legacy/unused documentation from CLI project
+    - [x] nav
+    - [ ] components
+    - [ ] home
+    - [ ] operations
 - [UI BUG] Apply button in Transaction is cutoff (mobile only)
+- [UI BUG] "Fee currency" dropdown is larger then "Currency" dropdown. Make them equal
 - [UI] Change "OK" SnackBar message to something more appropriate when adding operations
 - [UI] Remove SnackBar messages when adding and removing accounts (also review documentation, remove if not necessary)
+- [LOCALIZATION] Add another example + unicode char for Ticker popup + Yahoo Finance link
 - [FEATURE] Manage stock splits
 - [UI] Add loading screen with version
 - [UI] Add versioning at the bottom of the Settings page + github link + privacy/OSS thingy

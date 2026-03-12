@@ -9,7 +9,7 @@
 
   "components": {
     "pick_date": "Seleziona data",
-    "date_format_hint": "DD-MM-YYYY",
+    "date_format_hint": "GG-MM-AAAA",
     "confirm": "Conferma",
     "calculate": "Calcola",
     "add": "Aggiungi",
@@ -45,7 +45,45 @@
   "operations": {
     "select_account": "Seleziona un conto...",
     "operating_on": "Si sta operando su",
-    "add_transaction": "Aggiungi Transazione"
+    "add_transaction": "Aggiungi Transazione",
+    "cash": {
+      "title": "LIQUIDITÀ",
+      "op_deposit": "Deposito",
+      "op_withdrawal": "Prelievo",
+      "op_dividend": "Dividendo",
+      "op_charge": "Bollo / Altre imposte",
+      "amount": "Valore operazione EUR",
+      "dividend_amount": "Dividendo in EUR al netto di tasse",
+      "charge_descr": "Descrizione imposta (es. \"Bollo Q2 2025\")",
+      "error_cash": "Il contante inserito deve essere un numero diverso da 0",
+      "error_dividend": "Il dividendo inserito deve essere un numero maggiore di 0",
+      "error_charge": "L'imposta inserita deve essere un numero maggiore di 0"
+    },
+    "stock": {
+      "title_etf": "ETF",
+      "title_stock": "AZIONI",
+      "currency": "Valuta",
+      "exch_rate": "Tasso EUR-USD",
+      "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0",
+      "ticker": "Ticker",
+      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n\t\t\t\t\t\tVWCE, Milano: VWCE.MI\n\nVerificare su Yahoo Finance",
+      "qt": "Quantità",
+      "qt_error": "Quantità non valida. Deve essere un numero intero maggiore di 0",
+      "op_buy": "Acquisto",
+      "op_sell": "Vendita",
+      "price": "Prezzo unitario",
+      "price_error": "Il prezzo deve essere maggiore di 0",
+      "currency_fee": "Valuta commissione",
+      "fee": "Commissione",
+      "fee_error": "La commissione deve essere un numero maggiore o uguale a 0",
+      "ter": "Total Expense Ratio",
+      "sell_noitems": "Nessun titolo da vendere: portafoglio vuoto",
+      "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})"
+    },
+    "bond": {
+      "title": "\n--- OBBLIGAZIONI ---\n\n",
+      "not_implemented": "Obbligazioni non ancora implementate. Premi Invio per continuare..."
+    }
   },
 
   "redirect": {
@@ -83,52 +121,6 @@
     "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
     "date_sequential": "La data non può essere precedente all'ultima registrata",
     "date_future": "Impossibile inserire date future."
-  },
-
-  "cash": {
-    "title": "LIQUIDITÀ",
-    "op_deposit": "Deposito",
-    "op_withdrawal": "Prelievo",
-    "op_dividend": "Dividendo",
-    "op_charge": "Bollo / Altre imposte",
-    "amount_descr": "Ammontare operazione in EUR",
-    "amount": "Valore operazione",
-    "dividend_descr": "Dividendo in EUR al netto di tasse",
-    "dividend_ticker_descr": "Ticker completo dell'emittente dividendo (standard Yahoo Finance)",
-    "dividend_ticker": "Ticker",
-    "charge_descr": "Ammontare imposta in EUR",
-    "charge_verbose": "Descrizione imposta (es. \"Bollo Q2 2025\")",
-    "error_cash": "Il contante inserito deve essere un numero diverso da 0",
-    "error_dividend": "Il dividendo inserito deve essere un numero maggiore di 0",
-    "error_charge": "L'imposta inserita deve essere un numero maggiore di 0"
-  },
-
-  "stock": {
-    "title_etf": "ETF",
-    "title_stock": "AZIONI",
-    "date": "\n  - Data operazione GG-MM-AAAA (\"t\" per data odierna)",
-    "currency": "Valuta",
-    "currency_error": "Valuta non riconosciuta. È necessario inserire il numero corrispondente alla valuta scelta.",
-    "exch_rate": "Tasso EUR-USD",
-    "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0.",
-    "ticker": "Ticker completo (standard Yahoo Finance)",
-    "qt": "Quantità",
-    "qt_error": "Quantità non valida. Deve essere un numero intero maggiore di 0.",
-    "op_buy": "Acquisto",
-    "op_sell": "Vendita",
-    "price": "Prezzo unitario",
-    "price_error": "Il prezzo deve essere maggiore di 0.",
-    "currency_fee": "Valuta commissione\n    È necessario specificarla in quanto, ad esempio, Fineco (conto Trading) applica fees fisse in EUR anche su operazioni in USD.\n\t1. EUR\n\t2. USD",
-    "fee": "Commissione",
-    "fee_error": "La commissione deve essere un numero maggiore o uguale a 0.",
-    "ter": "Total Expense Ratio",
-    "sell_noitems": "Nessun titolo da vendere: portafoglio vuoto.",
-    "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})."
-  },
-
-  "bond": {
-    "title": "\n--- OBBLIGAZIONI ---\n\n",
-    "not_implemented": "Obbligazioni non ancora implementate. Premi Invio per continuare..."
   },
 
   "review": {

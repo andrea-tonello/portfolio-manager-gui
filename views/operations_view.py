@@ -34,9 +34,9 @@ class OperationsView:
             on_change=self._on_ops_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
-                    ft.Tab(label=t.get("cash.title")),
-                    ft.Tab(label=t.get("stock.title_etf")),
-                    ft.Tab(label=t.get("stock.title_stock")),
+                    ft.Tab(label=t.get("operations.cash.title")),
+                    ft.Tab(label=t.get("operations.stock.title_etf")),
+                    ft.Tab(label=t.get("operations.stock.title_stock")),
                 ], scrollable=True),
                 ft.TabBarView(
                     controls=[cash_content, etf_content, stock_content],
@@ -131,10 +131,10 @@ class OperationsView:
             value="deposit",
             disabled=no_account,
             content=ft.Row([
-                ft.Radio(value="deposit", label=t.get("cash.op_deposit"), disabled=no_account),
-                ft.Radio(value="withdrawal", label=t.get("cash.op_withdrawal"), disabled=no_account),
-                ft.Radio(value="dividend", label=t.get("cash.op_dividend"), disabled=no_account),
-                ft.Radio(value="charge", label=t.get("cash.op_charge"), disabled=no_account),
+                ft.Radio(value="deposit", label=t.get("operations.cash.op_deposit"), disabled=no_account),
+                ft.Radio(value="withdrawal", label=t.get("operations.cash.op_withdrawal"), disabled=no_account),
+                ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
+                ft.Radio(value="charge", label=t.get("operations.cash.op_charge"), disabled=no_account),
             ], wrap=True, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
         )
@@ -153,16 +153,24 @@ class OperationsView:
         )
         self.cash_date_value = None
 
-        self.cash_amount = ft.TextField(label=t.get("cash.amount"),
+        self.cash_amount = ft.TextField(label=t.get("operations.cash.amount"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
                                         border_radius=ft.border_radius.all(15),
                                         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         col={"xs": 12, "md": 6})
-        self.cash_ticker = ft.TextField(label=t.get("cash.dividend_ticker"),
+        self.cash_ticker = ft.TextField(label=t.get("operations.stock.ticker"),
                                         border_radius=ft.border_radius.all(15),
                                         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                        visible=False, col={"xs": 12, "md": 6})
-        self.cash_descr = ft.TextField(label=t.get("cash.charge_verbose"),
+                                        expand=True)
+        self.cash_ticker_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_ticker_help,
+        )
+        self.cash_ticker_row = ft.Row(
+            [self.cash_ticker, self.cash_ticker_help],
+            visible=False, col={"xs": 12, "md": 6},
+        )
+        self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_verbose"),
                                        border_radius=ft.border_radius.all(15),
                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
@@ -171,7 +179,7 @@ class OperationsView:
         col = ft.Column([
             self.cash_type,
             ft.Row([self.cash_date_field, self.cash_date_icon]),
-            ft.ResponsiveRow([self.cash_amount, self.cash_ticker, self.cash_descr]),
+            ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr]),
             self.cash_loading,
             ft.Container(height=80),
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
@@ -192,9 +200,14 @@ class OperationsView:
         return ft.Container(content=col, padding=20, expand=True)
 
     def _on_cash_type_change(self, e):
+        t = self.state.translator
         kind = self.cash_type.value
-        self.cash_ticker.visible = (kind == "dividend")
+        self.cash_ticker_row.visible = (kind == "dividend")
         self.cash_descr.visible = (kind == "charge")
+        self.cash_amount.label = (
+            t.get("operations.cash.dividend_amount") if kind == "dividend"
+            else t.get("operations.cash.amount")
+        )
         self.page.update()
 
     def _open_cash_date_picker(self, e):
@@ -234,18 +247,18 @@ class OperationsView:
         try:
             amount = float(self.cash_amount.value)
         except (ValueError, TypeError):
-            show_snack(self.page, t.get("cash.error_cash"), error=True)
+            show_snack(self.page, t.get("operations.cash.error_cash"), error=True)
             return
 
         kind = self.cash_type.value
         if kind in ("deposit", "withdrawal") and amount <= 0:
-            show_snack(self.page, t.get("cash.error_cash"), error=True)
+            show_snack(self.page, t.get("operations.cash.error_cash"), error=True)
             return
         if kind == "dividend" and amount <= 0:
-            show_snack(self.page, t.get("cash.error_dividend"), error=True)
+            show_snack(self.page, t.get("operations.cash.error_dividend"), error=True)
             return
         if kind == "charge" and amount <= 0:
-            show_snack(self.page, t.get("cash.error_charge"), error=True)
+            show_snack(self.page, t.get("operations.cash.error_charge"), error=True)
             return
 
         if kind == "withdrawal":
@@ -289,8 +302,8 @@ class OperationsView:
             value="buy",
             disabled=no_account,
             content=ft.Row([
-                ft.Radio(value="buy", label=t.get("stock.op_buy"), disabled=no_account),
-                ft.Radio(value="sell", label=t.get("stock.op_sell"), disabled=no_account),
+                ft.Radio(value="buy", label=t.get("operations.stock.op_buy"), disabled=no_account),
+                ft.Radio(value="sell", label=t.get("operations.stock.op_sell"), disabled=no_account),
             ], wrap=True, opacity=0.4 if no_account else 1.0),
         )
 
@@ -309,7 +322,7 @@ class OperationsView:
         )
 
         currency_dd = ft.Dropdown(
-            label=t.get("stock.currency"),
+            label=t.get("operations.stock.currency"),
             options=[
                 ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
                 ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
@@ -320,7 +333,7 @@ class OperationsView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
-        exch_rate = ft.TextField(label=t.get("stock.exch_rate"),
+        exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
                                  keyboard_type=ft.KeyboardType.NUMBER,
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
@@ -328,19 +341,24 @@ class OperationsView:
         ticker_field = ft.TextField(label="Ticker",
                                     border_radius=ft.border_radius.all(15),
                                     border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                    col={"xs": 12, "md": 6})
-        quantity_field = ft.TextField(label=t.get("stock.qt"),
+                                    expand=True)
+        ticker_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_ticker_help,
+        )
+        ticker_row = ft.Row([ticker_field, ticker_help], col={"xs": 12, "md": 6})
+        quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
                                      border_radius=ft.border_radius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,
                                      border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                      col={"xs": 6, "md": 3})
-        price_field = ft.TextField(label=t.get("stock.price"),
+        price_field = ft.TextField(label=t.get("operations.stock.price"),
                                    border_radius=ft.border_radius.all(15),
                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                    keyboard_type=ft.KeyboardType.NUMBER,
                                    col={"xs": 6, "md": 3})
         fee_currency_dd = ft.Dropdown(
-            label=t.get("stock.currency_fee").strip().split("\n")[0],
+            label=t.get("operations.stock.currency_fee"),
             options=[
                 ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
                 ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
@@ -350,7 +368,7 @@ class OperationsView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
-        fee_field = ft.TextField(label=t.get("stock.fee"),
+        fee_field = ft.TextField(label=t.get("operations.stock.fee"),
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
@@ -378,7 +396,7 @@ class OperationsView:
             es_type,
             ft.Row([date_field, date_icon]),
             ft.ResponsiveRow([currency_dd, exch_rate]),
-            ft.ResponsiveRow([ticker_field, quantity_field, price_field]),
+            ft.ResponsiveRow([ticker_row, quantity_field, price_field]),
             ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
             loading,
             ft.Container(height=80),
@@ -457,15 +475,15 @@ class OperationsView:
             show_snack(self.page, "Ticker required", error=True)
             return
         if quantity <= 0:
-            show_snack(self.page, t.get("stock.qt_error"), error=True)
+            show_snack(self.page, t.get("operations.stock.qt_error"), error=True)
             return
         if price <= 0:
-            show_snack(self.page, t.get("stock.price_error"), error=True)
+            show_snack(self.page, t.get("operations.stock.price_error"), error=True)
             return
         if tab["es_type"].value == "buy":
             price = -price
         if fee < 0:
-            show_snack(self.page, t.get("stock.fee_error"), error=True)
+            show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
             return
 
         conv_rate = 1.0
@@ -476,7 +494,7 @@ class OperationsView:
                     raise ValueError
                 conv_rate = exch
             except (ValueError, TypeError):
-                show_snack(self.page, t.get("stock.exch_rate_error"), error=True)
+                show_snack(self.page, t.get("operations.stock.exch_rate_error"), error=True)
                 return
             fee_currency = int(tab["fee_currency_dd"].value)
             if fee_currency == CURRENCY_USD:
@@ -513,6 +531,15 @@ class OperationsView:
                 self.page.update()
 
         self.page.run_thread(worker)
+
+    def _show_ticker_help(self, e):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.stock.ticker")),
+            content=ft.Text(t.get("operations.stock.ticker_explained")),
+            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
 
     def _refresh_page(self):
         from views import _rebuild_page

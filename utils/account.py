@@ -408,14 +408,14 @@ def compute_backpack(df, data_operazione, as_of_index=None):
 def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
 
     if asset_rows.empty:
-        raise ValidationError(translator.get("stock.sell_noitems"))
+        raise ValidationError(translator.get("operations.stock.sell_noitems"))
 
     fee = round_half_up(fee)
     last_pmpc = asset_rows["abp"].iloc[-1]
     last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
     if quantity > last_remaining_qt:
-        raise ValidationError(translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
+        raise ValidationError(translator.get("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
     importo_effettivo = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
     costo_rilasciato = quantity * last_pmpc
