@@ -32,7 +32,7 @@ jobs:
         run: uv sync
 
       - name: Build APK
-        run: yes | uv run flet build apk --project Portfolio\ Manager
+        run: (yes || true) | uv run flet build apk --project "Portfolio Manager"
 
       - name: Rename APK
         run: mv build/apk/*.apk build/apk/portfolio-manager.apk
@@ -62,7 +62,7 @@ jobs:
         run: uv sync
 
       - name: Build Linux
-        run: yes | uv run flet build linux --project Portfolio\ Manager
+        run: (yes || true) | uv run flet build linux --project "Portfolio Manager"
 
       - name: Archive Linux build
         working-directory: build/linux
@@ -89,7 +89,7 @@ jobs:
 
       - name: Build Windows
         shell: bash
-        run: yes | uv run flet build windows --project "Portfolio Manager"
+        run: (yes || true) | uv run flet build windows --project "Portfolio Manager"
         env:
           PYTHONIOENCODING: utf-8
 
@@ -116,7 +116,7 @@ jobs:
         run: uv sync
 
       - name: Build macOS
-        run: yes | uv run flet build macos --project Portfolio\ Manager
+        run: (yes || true) | uv run flet build macos --project "Portfolio Manager"
 
       - name: Archive macOS build
         working-directory: build/macos

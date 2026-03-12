@@ -26,11 +26,11 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
 
 | Home                                                                    | Home (Dark theme, Hidden data, English)                                | Settings                                                                |
 | -                                                                       | -                                                                      | -                                                                       |
-| <img src="./media/screenshots/home-light.png" alt="image" width="300"/> | <img src="./media/screenshots/home-dark.png" alt="image" width="300"/> | <img src="./media/screenshots/settings.png" alt="image" width="300"/>   |
+| <img src="./media/screenshots/home-light.png" alt="image" width="333"/> | <img src="./media/screenshots/home-dark.png" alt="image" width="333"/> | <img src="./media/screenshots/settings.png" alt="image" width="333"/>   |
 | **Operations**                                                          | **Transactions**                                                       | **Statistics**                                                          |
-| <img src="./media/screenshots/operations.png" alt="image" width="300"/> | <img src="./media/screenshots/trans.png" alt="image" width="300"/>     | <img src="./media/screenshots/statistics.png" alt="image" width="300"/> |
+| <img src="./media/screenshots/operations.png" alt="image" width="333"/> | <img src="./media/screenshots/trans.png" alt="image" width="333"/>     | <img src="./media/screenshots/statistics.png" alt="image" width="333"/> |
 | **Correlation**                                                         | **Drawdown**                                                           | **Value at Risk**                                                       |
-| <img src="./media/screenshots/corr.png" alt="image" width="300"/>       | <img src="./media/screenshots/drawdown.png" alt="image" width="300"/>  | <img src="./media/screenshots/var.png" alt="image" width="300"/>        |
+| <img src="./media/screenshots/corr.png" alt="image" width="333"/>       | <img src="./media/screenshots/drawdown.png" alt="image" width="333"/>  | <img src="./media/screenshots/var.png" alt="image" width="333"/>        |
 
 
 ## Applicazione
