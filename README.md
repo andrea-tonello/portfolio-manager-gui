@@ -3,14 +3,14 @@
 
 Portfolio Manager è un'applicazione GUI multipiattaforma per la gestione ed analisi di portafogli finanziari (azioni ed ETF), pensata per investitori privati che desiderano tracciare in modo dettagliato le proprie operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
 
-Sono inoltre disponibili numerosi strumenti di analisi: VaR (Monte Carlo), volatilità/Sharpe ratio, correlazione, drawdown, XIRR e TWRR.
+Sono inoltre disponibili strumenti di analisi: VaR (Monte Carlo), volatilità/Sharpe ratio, correlazione, drawdown, XIRR e TWRR.
 
-Realizzata con [Flet](https://flet.dev/) (Flutter per Python), funziona su Desktop (Windows, macOS, Linux), Android e iOS.
+Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobile (Android, iOS), ma supporta anche Linux, macOS, Windows.
 
 
 ## Funzionalità principali
 
-- **Gestione multi-conto**: supporto a più intermediari con alias personalizzabili
+- **Gestione multi-conto**: supporto a più account con alias personalizzabili
 - **Operazioni su liquidità**: depositi, prelievi, dividendi, imposte e commissioni
 - **Operazioni su titoli**: acquisto e vendita di azioni ed ETF, con gestione valuta (EUR/USD), commissioni e TER
 - **Calcolo automatico di**:
@@ -22,50 +22,33 @@ Realizzata con [Flet](https://flet.dev/) (Flutter per Python), funziona su Deskt
 - **Watchlist** di titoli personalizzabile
 - **Esportazione CSV** delle transazioni con intestazioni localizzate
 - **Strumenti di analisi del rischio** (dettagli sotto)
-- **Temi personalizzabili**: chiaro, scuro o automatico, con 8 palette colori
 - **Multilingua**: italiano e inglese
 
-| Panoramica del portafoglio                                           | Statistiche                                                           |
-| -                                                                    | -                                                                     |
-| <img src="./media/screenshots/menu.png" alt="image" width="500"/>    | <img src="./media/screenshots/stats.png" alt="image" width="500"/>    |
-|**Correlazione semplice**                                             |**Correlazione rolling**                                               |
-|<img src="./media/screenshots/corr.png" alt="image" width="500"/>     |<img src="./media/screenshots/corr-roll.png" alt="image" width="500"/> |
-| **Drawdown**                                                         | **Value at Risk**                                                     |
-|<img src="./media/screenshots/drawdown.png" alt="image" width="500"/> | <img src="./media/screenshots/var.png" alt="image" width="500"/>      |
+| Home                                                                    | Home (Dark theme, Hidden data, English)                                | Settings                                                                |
+| -                                                                       | -                                                                      | -                                                                       |
+| <img src="./media/screenshots/home-light.png" alt="image" width="300"/> | <img src="./media/screenshots/home-dark.png" alt="image" width="300"/> | <img src="./media/screenshots/settings.png" alt="image" width="300"/>   |
+| **Operations**                                                          | **Transactions**                                                       | **Statistics**                                                          |
+| <img src="./media/screenshots/operations.png" alt="image" width="300"/> | <img src="./media/screenshots/trans.png" alt="image" width="300"/>     | <img src="./media/screenshots/statistics.png" alt="image" width="300"/> |
+| **Correlation**                                                         | **Drawdown**                                                           | **Value at Risk**                                                       |
+| <img src="./media/screenshots/corr.png" alt="image" width="300"/>       | <img src="./media/screenshots/drawdown.png" alt="image" width="300"/>  | <img src="./media/screenshots/var.png" alt="image" width="300"/>        |
 
 
-## Struttura dell'app
+## Applicazione
 
-L'app presenta quattro schermate principali, accessibili dalla barra di navigazione inferiore, più una schermata di impostazioni:
+Quattro schermate principali:
 
-### Home
-- Selezione del conto (singolo o panoramica di tutti i conti)
-- Posizioni aperte con prezzo corrente, PMC, P&L non realizzato e variazione giornaliera
-- Watchlist con prezzi in tempo reale
-- Possibilità di nascondere i valori
-
-### Operazioni
-- Inserimento guidato di nuove transazioni
-- Tre tab: **Liquidità** (depositi, prelievi, dividendi, imposte), **ETF** (acquisto/vendita), **Azioni** (acquisto/vendita)
-- Selezione valuta (EUR/USD) con tasso di cambio
-- Commissioni e TER (per ETF)
-
-### Transazioni
-- Storico completo delle transazioni per conto o per tutti i conti
-- Filtro per numero di transazioni o per intervallo di giorni
-- Esportazione CSV con intestazioni nella lingua selezionata
-
-### Analisi
-- **Statistiche generali**: NAV, P&L, liquidità impegnata, XIRR (totale e annualizzato), TWRR (totale e annualizzato), volatilità annualizzata, Sharpe ratio
-- **Correlazione**: matrice di correlazione tra gli asset in portafoglio e correlazione rolling tra due asset selezionati
-- **Drawdown**: calcolo e grafico del Maximum Drawdown (MDD)
-- **Value at Risk**: simulazione Monte Carlo (50.000 iterazioni) con intervallo di confidenza e orizzonte temporale personalizzabili
-
-### Impostazioni
-- Lingua (italiano / inglese)
-- Tema (chiaro / scuro / sistema) e palette colori
-- Gestione conti: aggiunta e rimozione intermediari
-- Reset completo dell'applicazione
+- **Home**: Panoramica conto, posizioni aperte, watchlist
+- **Operazioni**: Inserimento di nuove transazioni, supporto EUR/USD
+    - *Liquidità* (depositi, prelievi, dividendi, imposte)
+    - *ETF Azionari* (acquisto/vendita) 
+    - *Azioni* (acquisto/vendita)
+    - In programma: *ETF Monetari / Obbligazionari, Obbligazioni*
+- **Analisi**: strumenti per l'analisi del portafoglio. È presente un tasto Info per ogni strumento, con informazioni a riguardo.
+    - *Statistiche generali*: principali statistiche del portafoglio con grafico
+    - *Correlazione*: correlazione semplice tra asset in portafoglio e correlazione rolling tra due asset selezionati
+    - *Drawdown*: calcolo e grafico del Drawdown del portafoglio
+    - *Value at Risk*: simulazione Monte Carlo su serie storiche con intervallo di confidenza e orizzonte temporale personalizzabili
+- **Transazioni**: storico delle transazioni filtrabile + esportazione in tabella CSV. È presente un tasto Info con informazioni riguardo le colonne del report.
 
 
 ## Primo avvio
@@ -77,18 +60,26 @@ Le transazioni vengono salvate automaticamente ad ogni inserimento.
 
 
 ## Installazione
-#### Download diretto
+### Download diretto
 1. Nella sezione "Releases", scarica il programma per il tuo sistema operativo.
 
-#### Installazione manuale
+### Installazione manuale
 1. Clona la repository
 2. Installa i pacchetti (richiesto Python >= 3.11, testato con 3.13):
-  - `uv`: esegui `uv sync`
-  - `pip`:
+    - `uv`: esegui `uv sync`
+    - `pip`:
 ```sh
 pip install flet flet-charts pandas numpy yfinance python-dateutil
 ```
-3. Esegui `python main.py` oppure `flet run`
+3. (Opzionale) Per testare l'applicazione: 
+  - `uv`: `uv run flet run main.py`
+  - `pip`: `python main.py` oppure `flet run`
+
+4. Build dell'applicazione:
+  - `uv`: `uv run flet build <target> --project "Portfolio Manager"`
+  - `pip`: `flet build <target> --project "Portfolio Manager"`
+  - `<target>` == `apk`, `ios`, `linux`, `macos`, `windows`
+
 
 
 ## Note
@@ -107,8 +98,7 @@ Portfolio Manager is a cross-platform GUI application for managing and analyzing
 
 It also includes several analysis tools: VaR (Monte Carlo), volatility/Sharpe ratio, correlation, drawdown, XIRR and TWRR.
 
-Built with [Flet](https://flet.dev/) (Flutter for Python), it runs on Desktop (Windows, macOS, Linux), Android and iOS.
-
+Built with [Flet](https://flet.dev/), it is mobile-focused (Android, iOS) but it also supporsts Linux, macOS, Windows
 
 ## Main Features
 

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service
-from utils.columns import rename_for_export
+from utils.columns import rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
 from utils.constants import REPORT_PREFIX
 
 
@@ -195,11 +195,16 @@ class TransactionsView:
         if df is None or df.empty:
             return ft.Text("No data", size=14)
 
+        t = self.state.translator
         display_cols = ["date", "account", "operation", "product", "ticker", "qt_exch",
                         "price_eur", "fee", "effective_amount", "pl"]
         available_cols = [c for c in display_cols if c in df.columns]
 
-        columns = [ft.DataColumn(ft.Text(col, size=11, weight=ft.FontWeight.BOLD)) for col in available_cols]
+        col_labels = export_headers(t)
+        op_map = {k: t.get(v).strip() for k, v in OPERATION_LOCALE_KEYS.items()}
+        prod_map = {k: t.get(v).strip() for k, v in PRODUCT_LOCALE_KEYS.items()}
+
+        columns = [ft.DataColumn(ft.Text(col_labels.get(col, col), size=11, weight=ft.FontWeight.BOLD)) for col in available_cols]
         rows = []
         for _, row in df.iterrows():
             cells = []
@@ -207,7 +212,13 @@ class TransactionsView:
                 val = row.get(col, "")
                 if pd.isna(val) or val is None:
                     val = ""
-                cells.append(ft.DataCell(ft.Text(str(val), size=10)))
+                else:
+                    val = str(val)
+                    if col == "operation":
+                        val = op_map.get(val, val)
+                    elif col == "product":
+                        val = prod_map.get(val, val)
+                cells.append(ft.DataCell(ft.Text(val, size=10)))
             rows.append(ft.DataRow(cells=cells))
 
         return ft.Row([

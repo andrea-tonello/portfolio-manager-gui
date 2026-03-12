@@ -1,5 +1,3 @@
-- [VISUAL BUG] "Open Positions" banner only shows for All Accounts, does not show whe selecting single accounts
-- [VISUAL BUG] Transaction view: the report shown in-app (i.e. not the one exported, that one is fine) is the internal one stored in config/ folder, without localization
 - [FEATURE] Manage stock splits
 - [ADV FEATURE] Bonds
 - [ADV FEATURE] Monetary / Bonds ETFs 

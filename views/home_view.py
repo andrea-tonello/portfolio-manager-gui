@@ -340,9 +340,11 @@ class HomeView:
         cards = self._build_stats_cards(nav, cash, assets)
         self._positions_container = ft.Column([], spacing=6)
         watchlist = self._build_watchlist()
+        header = self._open_positions_header()
 
         content = ft.Column([
             cards,
+            header,
             self._positions_container,
             watchlist,
         ], spacing=10)
