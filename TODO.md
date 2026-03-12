@@ -1,3 +1,9 @@
+- [LOCALIZATION] Review legacy/unused documentation from CLI project
+- [UI BUG] Apply button in Transaction is cutoff (mobile only)
+- [UI] Change "OK" SnackBar message to something more appropriate when adding operations
+- [UI] Remove SnackBar messages when adding and removing accounts (also review documentation, remove if not necessary)
 - [FEATURE] Manage stock splits
+- [UI] Add loading screen with version
+- [UI] Add versioning at the bottom of the Settings page + github link + privacy/OSS thingy
 - [ADV FEATURE] Bonds
 - [ADV FEATURE] Monetary / Bonds ETFs 

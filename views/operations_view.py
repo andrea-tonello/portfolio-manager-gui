@@ -474,13 +474,13 @@ class OperationsView:
                 exch = float(tab["exch_rate"].value)
                 if exch <= 0:
                     raise ValueError
-                conv_rate = round_half_up(1.0 / exch, decimal="0.000001")
+                conv_rate = exch
             except (ValueError, TypeError):
                 show_snack(self.page, t.get("stock.exch_rate_error"), error=True)
                 return
             fee_currency = int(tab["fee_currency_dd"].value)
             if fee_currency == CURRENCY_USD:
-                fee = round_half_up(fee / conv_rate, decimal="0.000001")
+                fee = round_half_up(fee * conv_rate, decimal="0.000001")
 
         ter = np.nan
         if product_type == "ETF":

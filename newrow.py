@@ -64,7 +64,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     else:
         results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
 
-    price_eur = price / conv_rate
+    price_eur = price * conv_rate
 
     row = _base_row()
     row.update({
@@ -80,12 +80,12 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
         "qt_exch": f"+{quantity}" if buy else f"-{quantity}",
         "price": round_half_up(price, decimal="0.0001"),
         "price_eur": round_half_up(price_eur, decimal="0.0001"),
-        "nominal_amount": round_half_up(round_half_up(quantity * price) / conv_rate),
+        "nominal_amount": round_half_up(round_half_up(quantity * price) * conv_rate),
         "fee": round_half_up(fee),
         "qt_held": results["qt_held"],
         "abp": round_half_up(results["abp"], decimal="0.0001"),
         "residual_amount": round_half_up(results["residual_amount"]),
-        "effective_amount": round_half_up(round_half_up(quantity * price) / conv_rate) - round_half_up(fee),
+        "effective_amount": round_half_up(round_half_up(quantity * price) * conv_rate) - round_half_up(fee),
         "released_amount": round_half_up(results["released_amount"]),
         "gross_gain": round_half_up(results["gross_gain"]),
         "generated_loss": round_half_up(results["generated_loss"]),

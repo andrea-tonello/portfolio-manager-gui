@@ -310,7 +310,7 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
 
 def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
 
-    price_abs = abs(price) / conv_rate
+    price_abs = abs(price) * conv_rate
     fee = round_half_up(fee)
     pmpc = 0
     current_qt = quantity
@@ -340,7 +340,7 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
         end_date = add_solar_years(ref_date)
         fiscal_credit_aggiornato += minusvalenza_comm
 
-    current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) / conv_rate) - fee
+    current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) * conv_rate) - fee
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
 
@@ -417,7 +417,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
     if quantity > last_remaining_qt:
         raise ValidationError(translator.get("stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
-    importo_effettivo = round_half_up((round_half_up(quantity * price)) / conv_rate) - fee
+    importo_effettivo = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
     costo_rilasciato = quantity * last_pmpc
 
     plusvalenza_lorda = importo_effettivo - costo_rilasciato
