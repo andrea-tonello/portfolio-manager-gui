@@ -1,3 +1,4 @@
+- [README] Set width to 333 (screenshots)
 - [FEATURE] Manage stock splits
 - [ADV FEATURE] Bonds
 - [ADV FEATURE] Monetary / Bonds ETFs 

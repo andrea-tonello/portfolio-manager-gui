@@ -90,6 +90,8 @@ jobs:
       - name: Build Windows
         shell: bash
         run: yes | uv run flet build windows --project "Portfolio Manager"
+        env:
+          PYTHONIOENCODING: utf-8
 
       - name: Archive Windows build
         run: Compress-Archive -Path build\windows\* -DestinationPath portfolio-manager-windows.zip
