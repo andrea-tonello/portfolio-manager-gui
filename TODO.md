@@ -1,15 +1,17 @@
-- [LOCALIZATION] Review legacy/unused documentation from CLI project
-    - [x] nav
-    - [ ] components
-    - [ ] home
-    - [ ] operations
+- [BUG] Snackbar per Ticker non trovato
+- [BUG] Pinpoint why you get "invalid literal for int() with base 10" when adding an operation with some fields missing (check what field/s causes this)
+- swap the "-" with the unicode for the point where necessary
+- [UI BUG] se non ci sono dati per il drawdown, viene visualizzato nan% (brutto)
+- [UI] invece che una linea rossa, mettere un punto per il MDD, e magari una linea tratteggiata sottile grigia per lo Zero
+- [BUG] Esporta plot in CSV: i dati esportati sono quelli dopo l'interpolazione (quindi manca roba)
 - [UI BUG] Apply button in Transaction is cutoff (mobile only)
-- [UI BUG] "Fee currency" dropdown is larger then "Currency" dropdown. Make them equal
-- [UI] Change "OK" SnackBar message to something more appropriate when adding operations
-- [UI] Remove SnackBar messages when adding and removing accounts (also review documentation, remove if not necessary)
-- [LOCALIZATION] Add another example + unicode char for Ticker popup + Yahoo Finance link
-- [FEATURE] Manage stock splits
+- [UI BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
+- [LOCALIZATION] Ticker explanation: Add another example + unicode point char for Ticker popup + Yahoo Finance link
+- [UI] After app reset, bring up initialization screen
 - [UI] Add loading screen with version
 - [UI] Add versioning at the bottom of the Settings page + github link + privacy/OSS thingy
+- [UI ADV] Aggiungi hover al grafico var, con valore in € e densità
+
+- [FEATURE] Manage stock splits
 - [ADV FEATURE] Bonds
 - [ADV FEATURE] Monetary / Bonds ETFs 

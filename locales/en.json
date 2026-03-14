@@ -15,17 +15,21 @@
     "add": "Add",
     "cancel": "Cancel",
     "apply": "Apply",
-    "loading": "Loading...",
-    "export": "Export",
-    "remove_row": "Remove latest transaction"
+    "loading": "Loading..."
   },
 
+  "misc_errors": {
+    "nodate": "Date is missing",
+    "nodates": "No dates available in DataFrame prior to {dt}",
+    "date_sequential": "The date cannot be earlier than the last one recorded",
+    "date_future": "Cannot insert future dates",
+    "date_start_end": "Start date must be before end date"
+  },
+
+
   "home": {
-    "no_account": "No accounts configured. Go to Settings to add one.",
+    "no_account": "No accounts configured. Go to Settings to add one",
     "overview": "All Accounts",
-    "export_success": "File exported successfully",
-    "filter_by_count": "Transaction counts",
-    "filter_by_days": "Days",
     "hidden": "Hidden",
     "open_positions": "Open Positions",
     "open_positions_descr": "Ticker  /  ABP  /  Current price",
@@ -42,10 +46,11 @@
     "watchlist_empty": "No tickers in watchlist"
   },
 
+
   "operations": {
     "select_account": "Select an account...",
-    "operating_on": "Operating on",
     "add_transaction": "Add Transaction",
+    "added_transaction": "Transaction saved",
     "cash": {
       "title": "CASH OPERATIONS",
       "op_deposit": "Deposit",
@@ -66,90 +71,46 @@
       "exch_rate": "EUR-USD rate",
       "exch_rate_error": "The conversion rate must be a number greater than 0",
       "ticker": "Ticker",
+      "ticker_error": "Ticker is missing",
       "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n\t\t\t\t\t\tVWCE, Milan S.E.: VWCE.MI\n\nCheck on Yahoo Finance's website",
       "qt": "Quantity",
-      "qt_error": "Invalid quantity. It must be an integer greater than 0",
+      "qt_error": "The quantity must be an integer greater than 0",
       "op_buy": "Buy",
       "op_sell": "Sell",
       "price": "Unit price",
       "price_error": "The price must be greater than 0",
       "currency_fee": "Fee currency",
       "fee": "Fee amount",
-      "fee_error": "The commission must be a number greater than or equal to 0",
+      "fee_error": "The fee must be a number greater than or equal to 0",
       "ter": "Total Expense Ratio",
       "sell_noitems": "No assets to sell: portfolio is empty",
       "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})"
     },
     "bond": {
-      "title": "\n--- BONDS ---\n\n",
+      "title": "BONDS",
       "not_implemented": "Bonds not yet implemented. Press Enter to continue..."
     }
   },
 
-  "redirect": {
-    "continue": "Press Enter to continue...",
-    "continue_home": "\nPress Enter to return to the Main Menu...",
-    "cancel_home": "CTRL+C to cancel and return to the Main Menu.",
-    "exit": "Exiting program...\n",
-    "invalid_choice": "Invalid choice. Press Enter to retry."
-  },
-
-  "misc": {
-    "wrong_input": "\nThe information entered is incorrect:",
-    "which_error": "ERROR: "
-  },
-
-  "main_menu": {
-    "title": "=================== MAIN MENU ===================",
-    "operating_on": "Operating on: {account_name}\nLoaded file: {file}, with {rows} rows.",
-    "unsaved_changes": "There are some unsaved changes.",
-    "no_changes": "No changes made.",
-    "rows_changed": "Total rows added or removed: {diff}",
-    "rows_changed_zero": "(the number of rows is unchanged, but content may have been modified).",
-    "select_operation": "\n> Select operation.\n",
-    "operations": "    a. Switch account\n\n    1. Cash / Dividends / Charges\n    2. ETFs\n    3. Stocks\n    4. Bonds\n    5. Recent transactions\n    6. Portfolio analysis\n\n    s. Settings\n    e. Export to CSV\n    r. Remove last row\n    i. Info and Glossary\n\n    q. Exit program"
-  },
-
-  "account": {
-    "selection": "\nSelect an account to operate on.\n",
-    "selection_error": "\nERROR: Enter the number corresponding to the account you intend to use.",
-    "filenotfound_error": "\nFile \"{filename}\" not found."
-  },
-
-  "misc_errors": {
-    "nodate": "Enter transaction date",
-    "nodates": "No dates available in DataFrame prior to {dt}",
-    "date_sequential": "The date cannot be earlier than the last one recorded",
-    "date_future": "Cannot insert future dates."
-  },
-
-
-  "review": {
-    "title": "\nRecent Transactions\n\n"
-  },
 
   "analysis": {
-    "title": "\n--- PORTFOLIO ANALYSIS ---\n\n",
     "all_accounts": "All Accounts",
-    "export_csv": "Export CSV",
     "export_plot_csv": "Export CSV data",
     "op_statistics": "STATISTICS",
     "op_correlation": "CORRELATION",
     "op_drawdown": "DRAWDOWN",
     "op_var": "VaR",
     "summary": {
-      "date": "\n  - Date of interest DD-MM-YYYY (\"t\" for today)",
       "account_literal": "Account",
       "portfolio_literal": "Portfolio total ",
-      "no_active_pos": "\n    Could not find any active position.\n    Statistics cannot be calculated.",
       "nav": "\n    NAV (on {dt}): {nav:.2f}€",
-      "cash": "\t- Cash: {current_liq:.2f}€",
-      "assets_value": "\t- Asset Value: {asset_value:.2f}€",
+      "cash": "        - Cash: {current_liq:.2f}€",
+      "assets_value": "        - Asset Value: {asset_value:.2f}€",
       "historic_cash": "    Committed Cash: {historic_liq:.2f}€",
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L including unrealized: {pl_unrealized:.2f}€",
       "return_account": "    Total return (XIRR): {xirr_full:.2%}\n    Annualized return (XIRR): {xirr_ann:.2%}\n",
-      "return_portfolio": "    Return\n\t- Total XIRR: {xirr_full:.2%}\n\t- Annualized XIRR: {xirr_ann:.2%}\n\t- Total TWRR: {twrr_full:.2%}\n\t- Annualized TWRR: {twrr_ann:.2%}\n",
+      "return_portfolio": "    Return\n        - Total XIRR: {xirr_full:.2%}\n        - Annualized XIRR: {xirr_ann:.2%}\n        - Total TWRR: {twrr_full:.2%}\n        - Annualized TWRR: {twrr_ann:.2%}\n",
       "volatility": "    Annualized volatility: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",
       "assets_recap": {
@@ -157,62 +118,56 @@
         "avg_price": "    Avg Cost: ",
         "current_price": "    Current Price: ",
         "value": "    Value: "
-      },
-      "plot1": {
-        "xlabel": "Date",
-        "ylabel": "Value (€)",
-        "window_title": "Portfolio Value | From: {min_date} | To: {dt}"
-      },
-      "exported": "\nPortfolio history exported to {save_path}\n"
+      }
     },
     "corr": {
       "start_dt": "Analysis start date",
       "end_dt": "Analysis end date",
       "simple": "Simple Correlation",
-      "simple_error": "\n    Correlation matrix cannot be calculated: no assets found in portfolio.\n\n",
-      "rolling": "\n--- Rolling correlation between two assets ---\n\n    Enter tickers of the assets of interest.\n    You do not need to own the two assets to perform rolling correlation computation.\n",
-      "rolling_label": "Rolling Correlation",
+      "simple_error": "Correlation matrix cannot be calculated: no assets found in portfolio.",
+      "rolling": "Rolling Correlation",
+      "rolling_nodata": "Not enough data. Take a greater interval or lower the window.",
       "asset1": "Ticker asset 1",
       "asset2": "Ticker asset 2",
+      "ticker_error": "Missing ticker/s",
       "window": "Time window in days",
       "window_error": "The number of days must be an integer greater than 0.",
-      "plot1": {
-        "colorbar": "Correlation",
-        "window_title": "Simple Correlation | From: {start_dt} | To: {end_dt}"
-      },
-      "plot2": {
-        "title": "Interval: {window}d    Assets: {asset1}, {asset2}",
-        "xlabel": "Date",
-        "ylabel": "Correlation coefficient",
-        "window_title": "Rolling Correlation | From: {start_dt} | To: {end_dt}"
-      }
+      "plot_title_simple": "Correlation",
+      "plot_title_rolling": "Interval: {window}d    Assets: {asset1}, {asset2}"
     },
     "drawdown": {
       "start_dt": "Analysis start date",
       "end_dt": "Analysis end date",
-      "result": "\n    Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
-      "error": "\n    No data present in transaction history across all accounts.\n    Drawdown cannot be calculated.",
-      "plot1": {
-        "xlabel": "Date",
-        "legend": "Maximum Drawdown: {mdd:.2f}%",
-        "window_title": "Portfolio Drawdown | From: {start_dt} | To: {end_dt}"
-      }
+      "result": "Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
+      "error": "No data present in transaction history across all accounts.\nDrawdown cannot be calculated.",
+      "legend": "Maximum Drawdown: {mdd:.2f}%"
     },
     "var": {
       "ci": "Confidence Interval",
       "ci_error": "The Confidence Interval is defined between 0 and 1, extrema excluded.",
       "days": "Number of days",
       "days_error": "The number of days for the forecast must be an integer greater than 0",
-      "result": "\n    Portfolio Value at Risk at {ci:.0%} CI over {days} days:    {var:.2f}€",
-      "error": "\n    No open positions found across all accounts.\n    Value at Risk is zero.",
-      "plot1": {
-        "xlabel": "Gain/Loss (€)",
-        "ylabel": "Probability Density",
-        "legend": "VaR at {ci:.0%} CI: {var:.2f}€",
-        "window_title": "Portfolio Gain/Loss Distribution over {days} days"
-      }
+      "result": "Portfolio Value at Risk at {ci:.0%} CI over {days} days:    {var:.2f}€",
+      "error": "No open positions found across all accounts.\nValue at Risk is zero.",
+      "legend": "VaR at {ci:.0%} CI: {var:.2f}€",
+      "axes": "X: Gain/Loss (€)\nY: Probability Density"
     }
   },
+
+
+  "transactions": {
+    "title": "Recent Transactions",
+    "filter_by_count": "Transaction counts",
+    "filter_by_days": "Days",
+    "export_csv": "Export CSV",
+    "export_success": "File exported successfully",
+    "no_data": "No data available, cannot export",
+    "remove_row": "Remove latest transaction",
+    "row_removed": "Last row removed",
+    "no_rows": "No rows to remove",
+    "empty": "No data"
+  },
+
 
   "settings": {
     "new_acc": "Please add a representative alias for each of your accounts",
@@ -220,7 +175,7 @@
     "language": {
       "title": "Language",
       "select": "Select Language",
-      "changed": "\nLanguage set successfully"
+      "changed": "Language set successfully"
     },
     "theme": {
       "title": "Theme",
@@ -243,29 +198,20 @@
       "title": "Manage Accounts",
       "add_account": "Add account...",
       "op_denied": "You must add at least one account.",
-      "saved": "\nSave complete. Accounts saved:\n",
-      "accounts_added": "\nAccounts added. ",
+      "accounts_added": "Account added ",
       "delete_account": "Delete account",
-      "delete_confirm": "Are you sure you want to delete the account \"{account}\"? This will remove all associated data.",
+      "delete_confirm": "Are you sure you want to delete the account\n\"{account}\"?\n\nThis will remove all associated data.",
       "delete_last": "Cannot delete the last remaining account.",
-      "account_deleted": "Account deleted successfully.",
-      "accounts_initialized": "\nAccounts initialized. ",
-      "reset_warning": "\nThis operation is not reversible.\nThe application will be reset, deleting all saved data.",
-      "reset_confirm": "Type \"RESET\" to confirm the deletion",
-      "deletion_error": "Error deleting directory: {e}",
-      "reset_completed": "\nReset completed"
+      "account_deleted": "Account deleted successfully",
+      "accounts_initialized": "Accounts initialized",
+      "reset_title": "Reset application",
+      "reset_warning": "This operation is not reversible.\nThe application will be reset, deleting all saved data.",
+      "reset_confirm": "Type \"RESET\" to confirm",
+      "deletion_error": "Error deleting data: {e}",
+      "reset_completed": "Reset completed"
     }
   },
 
-  "export": {
-    "exported": "\nExported \"{file}\" to {user_folder}",
-    "no_data": "No data available, cannot export"
-  },
-
-  "remove_row": {
-    "row_removed": "\nLast row removed",
-    "no_rows": "\nNo rows to remove"
-  },
 
   "values": {
     "op_deposit": "Deposit",
@@ -373,15 +319,5 @@
       "var_title": "Portfolio Value at Risk (VaR)",
       "var_descr": "Maximum expected loss over a specified time horizon in days, given a confidence interval.\nThe higher the number of projected days, the less reliable the results.\nThe implementation used here is based on the Monte Carlo method, using historical data for return estimates."
     }
-  },
-
-  "yf": {
-    "download_current": "\n    Updating held assets from Yahoo Finance...",
-    "download_historic": "\n    Downloading titles' historic data from Yahoo Finance...",
-    "download_historic_generic": "    Downloading historic data from Yahoo Finance...",
-    "no_tickers": "No tickers to download.",
-    "error_empty_df_na": "Warning: prices_df target index is empty after dropna().",
-    "error_empty_df": "Asset data not available.",
-    "error_generic": "An unexpected error occurred: {e}"
   }
 }

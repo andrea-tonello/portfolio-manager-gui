@@ -98,8 +98,8 @@ class TransactionsView:
             value="count",
             on_change=self._on_filter_mode_change,
             content=ft.Column([
-                ft.Radio(value="count", label=t.get("home.filter_by_count")),
-                ft.Radio(value="days", label=t.get("home.filter_by_days")),
+                ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
+                ft.Radio(value="days", label=t.get("transactions.filter_by_days")),
             ], spacing=10),
         )
         self.tx_filter_field = ft.TextField(
@@ -120,7 +120,7 @@ class TransactionsView:
 
         return ft.Column([
             ft.Container(
-                ft.Text(t.get("review.title").strip(), weight=ft.FontWeight.BOLD, size=20),
+                ft.Text(t.get("transactions.title"), weight=ft.FontWeight.BOLD, size=20),
                 padding=ft.padding.only(left=15, top=10)
             ),
             ft.Container(
@@ -156,11 +156,12 @@ class TransactionsView:
         self.page.update()
 
     def _update_tx_table(self):
+        t = self.state.translator
         df = self._tx_df
         if df is None or df.empty:
             self.tx_table_container.content = ft.Column([
                 ft.Container(height=80),
-                ft.Text("No data", size=16)
+                ft.Text(t.get("transactions.empty"), size=16)
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             return
 
@@ -195,10 +196,10 @@ class TransactionsView:
     # ── Table ──────────────────────────────────────────────────────
 
     def _build_transactions_table(self, df) -> ft.Control:
-        if df is None or df.empty:
-            return ft.Text("No data", size=14)
-
         t = self.state.translator
+        if df is None or df.empty:
+            return ft.Text(t.get("transactions.empty"), size=16)
+
         display_cols = ["date", "account", "operation", "product", "ticker", "qt_exch",
                         "price_eur", "fee", "effective_amount", "pl"]
         available_cols = [c for c in display_cols if c in df.columns]
@@ -247,7 +248,7 @@ class TransactionsView:
 
         buttons = [
             ft.ElevatedButton(
-                t.get("components.export"),
+                t.get("transactions.export_csv"),
                 icon=ft.Icons.SAVE,
                 on_click=export_click,
             ),
@@ -255,7 +256,7 @@ class TransactionsView:
         if idx is not None:
             buttons.append(
                 ft.OutlinedButton(
-                    t.get("components.remove_row"),
+                    t.get("transactions.remove_row"),
                     icon=ft.Icons.UNDO,
                     on_click=lambda e, i=idx: self._on_remove_row(e, i),
                 ),
@@ -284,7 +285,7 @@ class TransactionsView:
         t = self.state.translator
         df = self._tx_df
         if df is None or df.empty:
-            show_snack(self.page, t.get("export.no_data"), error=True)
+            show_snack(self.page, t.get("transactions.no_data"), error=True)
             return
         csv_bytes = self._prepare_export_csv(df)
         await self._save_via_picker(REPORT_PREFIX + "All Accounts.csv", csv_bytes)
@@ -301,7 +302,7 @@ class TransactionsView:
             if not self.page.web and not self.page.platform.is_mobile():
                 with open(path, "wb") as f:
                     f.write(csv_bytes)
-            show_snack(self.page, t.get("home.export_success"))
+            show_snack(self.page, t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
         s = self.state
@@ -309,8 +310,8 @@ class TransactionsView:
         acc = s.get_account(idx)
         if acc and len(acc["df"]) > 1:
             acc["df"] = acc["df"].iloc[:-1]
-            show_snack(self.page, t.get("remove_row.row_removed"))
+            show_snack(self.page, t.get("transactions.row_removed"))
             from views import _rebuild_page
             _rebuild_page(self.page, s, selected_index=3)
         else:
-            show_snack(self.page, t.get("remove_row.no_rows"), error=True)
+            show_snack(self.page, t.get("transactions.no_rows"), error=True)

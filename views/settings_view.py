@@ -272,7 +272,7 @@ class SettingsView:
         t = self.state.translator
         return ft.Container(
             content=ft.Column([
-                ft.Text("Danger Zone", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.RED),
+                ft.Text(t.get("settings.account.reset_title"), size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.RED),
                 ft.Text(t.get("settings.account.reset_warning"), size=12),
                 ft.OutlinedButton(
                     "Reset",
@@ -290,17 +290,31 @@ class SettingsView:
             label=t.get("settings.account.reset_confirm"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            on_change=self._on_reset_field_change,
             expand=True,
         )
+        self._reset_confirm_btn = ft.TextButton(
+            "RESET", on_click=lambda e: self._confirm_reset(), disabled=True,
+        )
+        content = ft.Container(
+            ft.Column([
+                ft.Text(t.get("settings.account.reset_warning")),
+                self.reset_field,
+            ], scroll=ft.ScrollMode.AUTO, tight=True)
+        )
         dlg = ft.AlertDialog(
-            title=ft.Text(t.get("settings.account.reset_warning").strip()),
-            content=self.reset_field,
+            title=ft.Text(t.get("settings.account.reset_title"), color=ft.Colors.RED),
+            content=content,
             actions=[
                 ft.TextButton(t.get("components.cancel"), on_click=lambda e: self.page.pop_dialog()),
-                ft.TextButton("RESET", on_click=lambda e: self._confirm_reset()),
+                self._reset_confirm_btn,
             ],
         )
         self.page.show_dialog(dlg)
+
+    def _on_reset_field_change(self, e):
+        self._reset_confirm_btn.disabled = (e.control.value.strip() != "RESET")
+        self.page.update()
 
     def _confirm_reset(self):
         if self.reset_field.value.strip() == "RESET":

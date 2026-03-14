@@ -281,7 +281,7 @@ def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) 
             alignment=ft.alignment.Alignment.CENTER,
         ))
     scale = ft.Row([
-        ft.Text(translator.get("analysis.corr.plot1.colorbar"), size=10, color=ft.Colors.BLACK),
+        ft.Text(translator.get("analysis.corr.plot_title_simple"), size=10, color=ft.Colors.BLACK),
         *scale_containers,
     ], spacing=4)
 
@@ -305,7 +305,7 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
     """Rolling correlation line chart. Returns a native Flet control."""
     rolling_corr = rolling_corr.dropna()
     if rolling_corr.empty:
-        return ft.Text("No data")
+        return ft.Text(translator.get("analysis.corr.rolling_nodata"), size=14)
 
     # Capture dates before resetting index
     orig_dates = rolling_corr.index.tolist()
@@ -355,7 +355,7 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
     y_max = max(y_vals + [0])
     y_pad = max((y_max - y_min) * 0.1, 0.05)
 
-    title = translator.get("analysis.corr.plot2.title", window=window, asset1=asset1, asset2=asset2)
+    title = translator.get("analysis.corr.plot_title_rolling", window=window, asset1=asset1, asset2=asset2)
 
     chart = fch.LineChart(
         data_series=[corr_line, zero_line],
@@ -474,7 +474,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
     y_min = mdd_pct - 2.5
     y_max = 2.5
 
-    mdd_label = translator.get("analysis.drawdown.plot1.legend", mdd=mdd_pct)
+    mdd_label = translator.get("analysis.drawdown.legend", mdd=mdd_pct)
 
     chart = fch.LineChart(
         data_series=[dd_line, mdd_line],
@@ -577,7 +577,7 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
             ),
         ))
 
-    var_legend = translator.get("analysis.var.plot1.legend", ci=ci, var=var_value)
+    var_legend = translator.get("analysis.var.legend", ci=ci, var=var_value)
 
     chart = fch.BarChart(
         groups=groups,
@@ -606,8 +606,7 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
     )
 
     legend = ft.Text(spans=[
-        ft.TextSpan("■ ", style=ft.TextStyle(color="#BDBDBD", size=10)),
-        ft.TextSpan(translator.get("analysis.var.plot1.xlabel") + "   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan(translator.get("analysis.var.axes") + "       ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
         ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED_300, size=10)),
         ft.TextSpan(var_legend, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
     ])

@@ -1,7 +1,7 @@
 import flet as ft
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service, operations_service
@@ -241,6 +241,9 @@ class OperationsView:
         if self.cash_date_value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
+        if self.cash_date_value > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
         if self._check_date_sequential(df, self.cash_date_value):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
@@ -282,7 +285,7 @@ class OperationsView:
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
-                show_snack(self.page, "OK")
+                show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except (RuntimeError, ValidationError, Exception) as ex:
                 show_snack(self.page, str(ex), error=True)
@@ -457,6 +460,9 @@ class OperationsView:
         if tab["date_value"] is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
+        if tab["date_value"] > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
         if self._check_date_sequential(df, tab["date_value"]):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
@@ -472,7 +478,7 @@ class OperationsView:
             return
 
         if not ticker:
-            show_snack(self.page, "Ticker required", error=True)
+            show_snack(self.page, t.get("operations.stock.ticker_error"), error=True)
             return
         if quantity <= 0:
             show_snack(self.page, t.get("operations.stock.qt_error"), error=True)

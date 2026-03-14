@@ -2,7 +2,7 @@ import io
 import flet as ft
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from components.snack import show_snack
 from services import analysis_service, chart_service
@@ -214,6 +214,9 @@ class AnalysisView:
         if self.sum_date_value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
+        if self.sum_date_value > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
 
         data = self._get_analysis_data()
         if not data:
@@ -259,10 +262,10 @@ class AnalysisView:
             if acc["positions"]:
                 acc_text += "\n" + t.get("analysis.summary.assets_recap.held_assets", dt=dt_str)
                 for pos in acc["positions"]:
-                    acc_text += f"    {pos['ticker']}\n"
-                    acc_text += f"      {t.get('analysis.summary.assets_recap.avg_price')}{pos['pmc']:.4f}\n"
-                    acc_text += f"      {t.get('analysis.summary.assets_recap.current_price')}{pos['price']:.4f}\n"
-                    acc_text += f"      {t.get('analysis.summary.assets_recap.value')}{pos['value']:.2f}\n"
+                    acc_text += f"        {pos['ticker']}\n"
+                    acc_text += f"        {t.get('analysis.summary.assets_recap.avg_price')}{pos['pmc']:.4f}\n"
+                    acc_text += f"        {t.get('analysis.summary.assets_recap.current_price')}{pos['price']:.4f}\n"
+                    acc_text += f"        {t.get('analysis.summary.assets_recap.value')}{pos['value']:.2f}\n"
 
             controls.append(ft.Text(acc_text, size=12, selectable=True))
 
@@ -311,7 +314,7 @@ class AnalysisView:
             value="simple",
             content=ft.Row([
                 ft.Radio(value="simple", label=t.get("analysis.corr.simple")),
-                ft.Radio(value="rolling", label=t.get("analysis.corr.rolling_label")),
+                ft.Radio(value="rolling", label=t.get("analysis.corr.rolling")),
             ], wrap=True),
             on_change=self._on_corr_type_change,
         )
@@ -409,6 +412,9 @@ class AnalysisView:
         self.corr_results.controls = []
         self.corr_heatmap.content = None
         self.corr_rolling_chart.content = None
+        self._corr_matrix = None
+        self._rolling_corr = None
+        self.corr_export_row.visible = False
         self.page.update()
 
     def _open_corr_date_picker(self, e, which):
@@ -450,6 +456,12 @@ class AnalysisView:
         if self.corr_start_value is None or self.corr_end_value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
+        if self.corr_start_value > date.today() or self.corr_end_value > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
+        if self.corr_start_value >= self.corr_end_value:
+            show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
+            return
 
         is_rolling = self.corr_type.value == "rolling"
         asset1 = asset2 = None
@@ -459,7 +471,7 @@ class AnalysisView:
             asset1 = self.corr_asset1.value.strip()
             asset2 = self.corr_asset2.value.strip()
             if not asset1 or not asset2:
-                show_snack(self.page, "Tickers required", error=True)
+                show_snack(self.page, t.get("analysis.corr.ticker_error"), error=True)
                 return
             try:
                 window = int(self.corr_window.value)
@@ -509,7 +521,7 @@ class AnalysisView:
                 self._rolling_corr = None
                 self.corr_export_row.visible = True
             else:
-                controls.append(ft.Text(t.get("analysis.corr.simple_error").strip(), size=12))
+                controls.append(ft.Text(t.get("analysis.corr.simple_error"), size=14))
                 self.corr_heatmap.content = None
                 self._corr_matrix = None
                 self.corr_export_row.visible = False
@@ -634,6 +646,12 @@ class AnalysisView:
         if self.dd_start_value is None or self.dd_end_value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
+        if self.dd_start_value > date.today() or self.dd_end_value > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
+        if self.dd_start_value >= self.dd_end_value:
+            show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
+            return
 
         data = self._get_analysis_data()
         if not data:
@@ -651,7 +669,7 @@ class AnalysisView:
                 result = analysis_service.compute_drawdown(t, data, start_dt, end_dt)
 
                 if not result["has_data"]:
-                    self.dd_result_text.value = t.get("analysis.drawdown.error").strip()
+                    self.dd_result_text.value = t.get("analysis.drawdown.error")
                     self.dd_chart.content = None
                     self._dd_data = None
                     self.dd_export_row.visible = False
@@ -661,7 +679,7 @@ class AnalysisView:
                     self.dd_result_text.value = t.get(
                         "analysis.drawdown.result",
                         start_dt=start_str, end_dt=end_str, mdd=result["mdd"] * 100
-                    ).strip()
+                    )
                     self.dd_chart.content = chart_service.chart_drawdown(
                         t, result["pf_history"], result["drawdown"],
                         result["mdd"], start_str, end_str
@@ -755,7 +773,7 @@ class AnalysisView:
                 result = analysis_service.compute_var_mc(t, data, ci, days)
 
                 if not result["has_positions"]:
-                    self.var_result_text.value = t.get("analysis.var.error").strip()
+                    self.var_result_text.value = t.get("analysis.var.error")
                     self.var_chart.content = None
                     self._var_data = None
                     self.var_export_row.visible = False
@@ -763,7 +781,7 @@ class AnalysisView:
                     self.var_result_text.value = t.get(
                         "analysis.var.result",
                         ci=ci, days=days, var=result["var"]
-                    ).strip()
+                    )
                     self.var_chart.content = chart_service.chart_var_mc(
                         t, result["scenario_return"], result["var"], ci, days
                     )
@@ -795,7 +813,7 @@ class AnalysisView:
             if not self.page.web and not self.page.platform.is_mobile():
                 with open(path, "wb") as f:
                     f.write(csv_bytes)
-            show_snack(self.page, t.get("home.export_success"))
+            show_snack(self.page, t.get("transactions.export_success"))
 
     def _df_to_csv_bytes(self, df):
         buf = io.StringIO()
