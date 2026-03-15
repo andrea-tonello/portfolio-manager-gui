@@ -72,7 +72,7 @@
       "exch_rate_error": "The conversion rate must be a number greater than 0",
       "ticker": "Ticker",
       "ticker_error": "Ticker is missing",
-      "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n\t\t\t\t\t\tVWCE, Milan S.E.: VWCE.MI\n\nCheck on Yahoo Finance's website",
+      "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE\n\nVerify on Yahoo Finance",
       "qt": "Quantity",
       "qt_error": "The quantity must be an integer greater than 0",
       "op_buy": "Buy",
@@ -104,13 +104,13 @@
       "account_literal": "Account",
       "portfolio_literal": "Portfolio total ",
       "nav": "\n    NAV (on {dt}): {nav:.2f}€",
-      "cash": "        - Cash: {current_liq:.2f}€",
-      "assets_value": "        - Asset Value: {asset_value:.2f}€",
+      "cash": "        \u2981 Cash: {current_liq:.2f}€",
+      "assets_value": "        \u2981 Asset Value: {asset_value:.2f}€",
       "historic_cash": "    Committed Cash: {historic_liq:.2f}€",
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L including unrealized: {pl_unrealized:.2f}€",
       "return_account": "    Total return (XIRR): {xirr_full:.2%}\n    Annualized return (XIRR): {xirr_ann:.2%}\n",
-      "return_portfolio": "    Return\n        - Total XIRR: {xirr_full:.2%}\n        - Annualized XIRR: {xirr_ann:.2%}\n        - Total TWRR: {twrr_full:.2%}\n        - Annualized TWRR: {twrr_ann:.2%}\n",
+      "return_portfolio": "    Return\n        \u2981 Total XIRR: {xirr_full:.2%}\n        \u2981 Annualized XIRR: {xirr_ann:.2%}\n        \u2981 Total TWRR: {twrr_full:.2%}\n        \u2981 Annualized TWRR: {twrr_ann:.2%}\n",
       "volatility": "    Annualized volatility: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",
       "assets_recap": {
@@ -140,7 +140,8 @@
       "end_dt": "Analysis end date",
       "result": "Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
       "error": "No data present in transaction history across all accounts.\nDrawdown cannot be calculated.",
-      "legend": "Maximum Drawdown: {mdd:.2f}%"
+      "legend": "Maximum Drawdown: {mdd:.2f}%",
+      "min_range": "The selected date range must be at least 10 days"
     },
     "var": {
       "ci": "Confidence Interval",

@@ -652,7 +652,6 @@ class AnalysisView:
         if self.dd_start_value >= self.dd_end_value:
             show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
             return
-
         data = self._get_analysis_data()
         if not data:
             show_snack(self.page, t.get("operations.select_account"), error=True)
@@ -670,6 +669,12 @@ class AnalysisView:
 
                 if not result["has_data"]:
                     self.dd_result_text.value = t.get("analysis.drawdown.error")
+                    self.dd_chart.content = None
+                    self._dd_data = None
+                    self.dd_export_row.visible = False
+                elif len(result["pf_history"]) < 10:
+                    show_snack(self.page, t.get("analysis.drawdown.min_range"), error=True)
+                    self.dd_result_text.value = ""
                     self.dd_chart.content = None
                     self._dd_data = None
                     self.dd_export_row.visible = False

@@ -72,7 +72,7 @@
       "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0",
       "ticker": "Ticker",
       "ticker_error": "Inserire ticker",
-      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n\t\t\t\t\t\tVWCE, Milano: VWCE.MI\n\nVerificare su Yahoo Finance",
+      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE\n\nVerificare su Yahoo Finance",
       "qt": "Quantità",
       "qt_error": "La quantità deve essere un numero intero maggiore di 0",
       "op_buy": "Acquisto",
@@ -104,13 +104,13 @@
       "account_literal": "Conto",
       "portfolio_literal": "Totale Portafoglio ",
       "nav": "\n    NAV (al {dt}): {nav:.2f}€",
-      "cash": "        - Liquidità: {current_liq:.2f}€",
-      "assets_value": "        - Valore Titoli: {asset_value:.2f}€",
+      "cash": "        \u2981 Liquidità: {current_liq:.2f}€",
+      "assets_value": "        \u2981 Valore Titoli: {asset_value:.2f}€",
       "historic_cash": "    Liquidità Impegnata: {historic_liq:.2f}€",
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L comprendente il non realizzato: {pl_unrealized:.2f}€",
       "return_account": "    Rendimento totale (XIRR): {xirr_full:.2%}\n    Rendimento annualizzato (XIRR): {xirr_ann:.2%}\n",
-      "return_portfolio": "    Rendimento\n        - XIRR totale: {xirr_full:.2%}\n        - XIRR annualizzato: {xirr_ann:.2%}\n        - TWRR totale: {twrr_full:.2%}\n        - TWRR annualizzato: {twrr_ann:.2%}\n",
+      "return_portfolio": "    Rendimento\n        \u2981 XIRR totale: {xirr_full:.2%}\n        \u2981 XIRR annualizzato: {xirr_ann:.2%}\n        \u2981 TWRR totale: {twrr_full:.2%}\n        \u2981 TWRR annualizzato: {twrr_ann:.2%}\n",
       "volatility": "    Volatilità annualizzata: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",
       "assets_recap": {
@@ -140,7 +140,8 @@
       "end_dt": "Data fine analisi",
       "result": "Drawdown massimo del portafoglio tra il {start_dt} ed il {end_dt}: {mdd:.2f}%",
       "error": "Nessun dato presente nello storico delle transazioni, tra tutti i conti. Drawdown non calcolabile.",
-      "legend": "Drawdown massimo: {mdd:.2f}%"
+      "legend": "Drawdown massimo: {mdd:.2f}%",
+      "min_range": "L'intervallo deve essere di almeno 10 giorni"
     },
     "var": {
       "ci": "Intervallo di Confidenza",
