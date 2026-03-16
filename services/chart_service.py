@@ -433,7 +433,11 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
 
     # Downsample for performance
     dd_values = [float(drawdown_pct.iloc[i]) for i in range(n)]
+    mdd_idx = int(drawdown_pct.idxmin())
     _, sample_indices = _downsample_series(dd_values, max_points=150)
+    if mdd_idx not in sample_indices:
+        sample_indices.append(mdd_idx)
+        sample_indices.sort()
 
     # Drawdown line
     points = []
@@ -442,8 +446,13 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
         y = float(drawdown_pct.iloc[idx])
         dt = dates[idx]
         date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
+        pt_marker = (
+            fch.ChartCirclePoint(color=ft.Colors.RED, radius=5)
+            if idx == mdd_idx else False
+        )
         points.append(fch.LineChartDataPoint(
             idx, y,
+            point=pt_marker,
             tooltip=fch.LineChartDataPointTooltip(
                 text=f"{date_str}\nDD: {y:.1f}%",
                 text_style=ft.TextStyle(size=10),
@@ -459,15 +468,15 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
         point=False,
     )
 
-    # MDD horizontal reference line
-    mdd_line = fch.LineChartData(
+    # Zero reference line
+    zero_line = fch.LineChartData(
         points=[
-            fch.LineChartDataPoint(0, mdd_pct, show_tooltip=False),
-            fch.LineChartDataPoint(n - 1, mdd_pct, show_tooltip=False),
+            fch.LineChartDataPoint(0, 0, show_tooltip=False),
+            fch.LineChartDataPoint(n - 1, 0, show_tooltip=False),
         ],
-        color=ft.Colors.RED,
-        stroke_width=2,
-        dash_pattern=[8, 4],
+        color=ft.Colors.with_opacity(0.5, ft.Colors.GREY),
+        stroke_width=1,
+        dash_pattern=[6, 4],
         point=False,
     )
 
@@ -477,7 +486,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
     mdd_label = translator.get("analysis.drawdown.legend", mdd=mdd_pct)
 
     chart = fch.LineChart(
-        data_series=[dd_line, mdd_line],
+        data_series=[dd_line, zero_line],
         min_x=0,
         max_x=n - 1,
         min_y=y_min,
@@ -514,7 +523,9 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
     legend = ft.Text(spans=[
         ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
         ft.TextSpan("Drawdown   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED, size=10)),
+        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.with_opacity(0.5, ft.Colors.GREY), size=10)),
+        ft.TextSpan("Zero   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+        ft.TextSpan("● ", style=ft.TextStyle(color=ft.Colors.RED, size=14)),
         ft.TextSpan(mdd_label, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
     ])
 

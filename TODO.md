@@ -1,15 +1,11 @@
-- [BUG] Snackbar per Ticker non trovato
-- [BUG] Pinpoint why you get "invalid literal for int() with base 10" when adding an operation with some fields missing (check what field/s causes this)
-- [UI BUG] Drawdown: 03-03-2020, 03-03-2021
-- [UI] invece che una linea rossa, mettere un punto per il MDD, e magari una linea tratteggiata sottile grigia per lo Zero
 - [BUG] Esporta plot in CSV: i dati esportati sono quelli dopo l'interpolazione (quindi manca roba)
-- [UI BUG] Apply button in Transaction is cutoff (mobile only)
-- [UI BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
+- [UI-BUG] Apply button in Transaction is cutoff (mobile only)
+- [UI-BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
 - [UI] After app reset, bring up initialization screen
 - [UI] Add loading screen with version
 - [UI] Add versioning at the bottom of the Settings page + github link + privacy/OSS thingy
-- [UI ADV] Aggiungi hover al grafico var, con valore in € e densità
+- [UI-ADV] Aggiungi hover al grafico var, con valore in € e densità
 
 - [FEATURE] Manage stock splits
-- [ADV FEATURE] Bonds
-- [ADV FEATURE] Monetary / Bonds ETFs 
+- [FEATURE-ADV] Bonds
+- [FEATURE-ADV] Monetary / Bonds ETFs 

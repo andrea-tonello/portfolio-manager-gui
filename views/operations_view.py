@@ -467,24 +467,42 @@ class OperationsView:
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
-        try:
-            currency_int = int(tab["currency_dd"].value)
-            ticker = tab["ticker"].value.strip()
-            quantity = int(tab["quantity"].value)
-            price = float(tab["price"].value)
-            fee = float(tab["fee"].value)
-        except (ValueError, TypeError) as ex:
-            show_snack(self.page, str(ex), error=True)
-            return
+        currency_int = int(tab["currency_dd"].value)
 
+        ticker = tab["ticker"].value.strip()
         if not ticker:
             show_snack(self.page, t.get("operations.stock.ticker_error"), error=True)
+            return
+
+        try:
+            quantity = int(tab["quantity"].value)
+        except (ValueError, TypeError):
+            show_snack(self.page, t.get("operations.stock.qt_error"), error=True)
             return
         if quantity <= 0:
             show_snack(self.page, t.get("operations.stock.qt_error"), error=True)
             return
+
+        try:
+            price = float(tab["price"].value)
+        except (ValueError, TypeError):
+            show_snack(self.page, t.get("operations.stock.price_error"), error=True)
+            return
         if price <= 0:
             show_snack(self.page, t.get("operations.stock.price_error"), error=True)
+            return
+
+        fee_raw = tab["fee"].value.strip()
+        if not fee_raw:
+            fee = 0.0
+        else:
+            try:
+                fee = float(fee_raw)
+            except (ValueError, TypeError):
+                show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
+                return
+        if fee < 0:
+            show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
             return
         if tab["es_type"].value == "buy":
             price = -price

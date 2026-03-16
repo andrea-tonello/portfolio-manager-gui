@@ -72,6 +72,8 @@
       "exch_rate_error": "Il tasso di conversione deve essere un numero maggiore di 0",
       "ticker": "Ticker",
       "ticker_error": "Inserire ticker",
+      "ticker_notfound": "Ticker non riconosciuto: \"{ticker}\"",
+      "ticker_nodata": "Non ci sono dati per il ticker: \"{ticker}\"",
       "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE\n\nVerificare su Yahoo Finance",
       "qt": "Quantità",
       "qt_error": "La quantità deve essere un numero intero maggiore di 0",
@@ -141,7 +143,7 @@
       "result": "Drawdown massimo del portafoglio tra il {start_dt} ed il {end_dt}: {mdd:.2f}%",
       "error": "Nessun dato presente nello storico delle transazioni, tra tutti i conti. Drawdown non calcolabile.",
       "legend": "Drawdown massimo: {mdd:.2f}%",
-      "min_range": "L'intervallo deve essere di almeno 10 giorni"
+      "min_range": "L'intervallo deve contenere almeno 10 giorni di storico"
     },
     "var": {
       "ci": "Intervallo di Confidenza",

@@ -46,7 +46,7 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d") 
 
     result = data.get("chart", {}).get("result")
     if not result:
-        raise RuntimeError(f"No data returned for {ticker}")
+        raise RuntimeError("There is no data for this ticker")
     return result[0]
 
 
@@ -91,7 +91,7 @@ def download_close(tickers, start=None, end=None, period=None) -> pd.DataFrame:
     return df
 
 
-def fetch_ticker_name(ticker: str) -> str:
+def fetch_ticker_name(ticker: str, err: str) -> str:
     """Fetch the long name for a ticker symbol."""
     try:
         chart = _fetch_chart(ticker, period="1d")
@@ -101,7 +101,7 @@ def fetch_ticker_name(ticker: str) -> str:
             return name
     except Exception:
         pass
-    raise RuntimeError(f"Could not fetch name for {ticker}")
+    raise RuntimeError(err)
 
 
 def fetch_exchange_rate(ref_date=None) -> float:

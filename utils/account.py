@@ -174,8 +174,9 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
             if not prices_df.empty:
                 if isinstance(prices_df, pd.Series):
                     prices_df_for_calc = prices_df.to_frame(name=only_tickers[0])
+                    prices_df_for_calc = prices_df_for_calc.reindex(columns=only_tickers, fill_value=0.0)
                 else:
-                    prices_df_for_calc = prices_df[only_tickers]
+                    prices_df_for_calc = prices_df.reindex(columns=only_tickers, fill_value=0.0)
 
                 for ticker, currency in total_tickers:
                     if currency == "USD":

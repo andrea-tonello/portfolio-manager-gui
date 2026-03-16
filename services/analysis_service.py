@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 from itertools import chain
 
-from services.market_data import download_close
+from services.market_data import download_close, fetch_ticker_name
 from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
@@ -200,6 +200,16 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
         close_df = download_close([asset1, asset2], start=start_ref_date, end=end_ref_date)
         if isinstance(close_df, pd.Series):
             close_df = close_df.to_frame(name=asset1)
+
+        missing = [t for t in [asset1, asset2] if t not in close_df.columns]
+        if missing:
+            ticker = missing[0]
+            try:
+                fetch_ticker_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
+            except RuntimeError:
+                raise
+            raise RuntimeError(translator.get("operations.stock.ticker_nodata", ticker=ticker))
+
         close_df = close_df.ffill()
         returns_df = close_df.pct_change().dropna()
         rolling_corr = returns_df[asset1].rolling(window=window).corr(returns_df[asset2])

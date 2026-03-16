@@ -72,6 +72,8 @@
       "exch_rate_error": "The conversion rate must be a number greater than 0",
       "ticker": "Ticker",
       "ticker_error": "Ticker is missing",
+      "ticker_notfound": "Ticker not recognized: \"{ticker}\"",
+      "ticker_nodata": "There is no data for ticker: \"{ticker}\"",
       "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE\n\nVerify on Yahoo Finance",
       "qt": "Quantity",
       "qt_error": "The quantity must be an integer greater than 0",
@@ -141,7 +143,7 @@
       "result": "Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
       "error": "No data present in transaction history across all accounts.\nDrawdown cannot be calculated.",
       "legend": "Maximum Drawdown: {mdd:.2f}%",
-      "min_range": "The selected date range must be at least 10 days"
+      "min_range": "The date range must include at least 10 days of history"
     },
     "var": {
       "ci": "Confidence Interval",

@@ -14,7 +14,7 @@ def execute_cash_operation(translator, df, broker, op_kind, date_str, ref_date,
 
     elif op_kind == "dividend":
         if asset_name is None:
-            asset_name = fetch_name(ticker)
+            asset_name = fetch_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
         op_type, product, tk, name = "Dividend", "Dividend", ticker, asset_name
 
     elif op_kind == "charge":
@@ -37,7 +37,7 @@ def execute_etf_stock(translator, df, broker, date_str, ref_date,
     buy = price < 0
 
     if asset_name is None:
-        asset_name = fetch_name(ticker)
+        asset_name = fetch_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
 
     return newrow_etf_stock(translator, df, date_str, ref_date, broker,
                             currency_code, product_type, ticker, quantity,
