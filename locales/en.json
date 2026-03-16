@@ -212,7 +212,10 @@
       "reset_confirm": "Type \"RESET\" to confirm",
       "deletion_error": "Error deleting data: {e}",
       "reset_completed": "Reset completed"
-    }
+    },
+    "privacy_policy": "Privacy Policy",
+    "contacts": "Contacts and Feedback",
+    "repo": "This project is Open Source!"
   },
 
 

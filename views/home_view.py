@@ -98,6 +98,7 @@ class HomeView:
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             on_click=self._toggle_watchlist,
             padding=ft.padding.only(left=16, right=16, top=10, bottom=14),
+            border_radius=15,
             ink=True,
         )
 

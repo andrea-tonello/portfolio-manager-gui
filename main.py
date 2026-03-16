@@ -26,30 +26,34 @@ def _apply_theme(page: ft.Page, state):
     page.dark_theme = ft.Theme(color_scheme_seed=color)
 
 
-def main(page: ft.Page):
-    page.title = "Portfolio Manager"
-    page.padding = 10
-    page.window.width = 420
-    page.window.height = 800
-
+def _do_restart(page: ft.Page):
+    page.appbar = None
+    page.navigation_bar = None
     state = AppState(base_path=".")
     state.load_config()
     _apply_theme(page, state)
 
-    # First boot: no language set
     if state.lang_code is None:
         _show_language_picker(page, state)
         return
 
-    # First boot: no brokers
     if not state.brokers:
         _show_broker_onboarding(page, state)
         return
 
     state.ensure_defaults()
     state.load_all_accounts()
-
     _rebuild_page(page, state)
+
+
+def main(page: ft.Page):
+    page.title = "Portfolio Manager"
+    page.padding = 10
+    page.window.width = 420
+    page.window.height = 800
+    page.data = {"restart": lambda: _do_restart(page)}
+
+    _do_restart(page)
 
 
 def _show_language_picker(page: ft.Page, state: AppState):

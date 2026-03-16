@@ -21,6 +21,9 @@ class SettingsView:
             self._build_accounts_section(),
             ft.Divider(),
             self._build_reset_section(),
+            ft.Divider(),
+            self._build_info_section(),
+            ft.Container(height=120)
         ], spacing=5, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── Theming ──────────────────────────────────────────────────────
@@ -322,17 +325,60 @@ class SettingsView:
             self.page.pop_dialog()
             try:
                 config_service.reset_application(s.config_folder)
-                show_snack(self.page, s.translator.get("settings.account.reset_completed"))
-                import os
-                os.makedirs(s.config_res_folder, exist_ok=True)
-                s.brokers = {}
-                s.accounts = {}
-                s.all_accounts = []
-                s.ops_acc_idx = None
-                s.analysis_acc_idx = None
-                s.home_selection = "overview"
-                s.tx_selection = "overview"
-                from views import _show_settings
-                _show_settings(self.page, s)
+                self.page.data["restart"]()
             except OSError as ex:
                 show_snack(self.page, s.translator.get("settings.account.deletion_error", e=str(ex)), error=True)
+
+    # ── Policies / Contacts ─────────────────────────────────────────────────────────
+
+    def _build_info_section(self) -> ft.Control:
+        t = self.state.translator
+
+        privacy_policy = ft.Container(
+            ft.Row([
+                ft.Text(t.get("settings.privacy_policy"), size=16, weight=ft.FontWeight.BOLD),
+            ], expand=True),
+            #on_click=
+            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            border_radius=15,
+            ink=True,
+        )
+
+        contact_us = ft.Container(
+            ft.Row([
+                ft.Text(t.get("settings.contacts"), size=16, weight=ft.FontWeight.BOLD),
+            ], expand=True),
+            #on_click=
+            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            border_radius=15,
+            ink=True,
+        )
+
+        github_icon = ft.Image(
+            src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            width=30,
+            height=30,
+            fit="contain",
+            col={"xs": 1, "md": 1}
+        )
+
+        github_repo = ft.Container(
+            content=ft.ResponsiveRow([
+                github_icon,
+                ft.Text(t.get("settings.repo"), size=16, weight=ft.FontWeight.BOLD, col={"xs": 9, "md": 9}),
+                ft.Icon(ft.Icons.OPEN_IN_NEW, col={"xs": 2, "md": 2}),
+            ], spacing=15, alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            url="https://github.com/andrea-tonello/portfolio-manager-gui",
+            border_radius=15,
+            ink=True
+        )
+
+        return ft.Container(
+            content=ft.Column([
+                privacy_policy,
+                contact_us,
+                github_repo,
+            ], spacing=7),
+            padding=10
+        )
