@@ -570,7 +570,10 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
                 width=max(2, 400 / num_bins),
                 color=color,
                 border_radius=0,
-                show_tooltip=False,
+                tooltip=fch.BarChartRodTooltip(
+                    text=f"{bin_center:,.2f}€",
+                    text_style=ft.TextStyle(size=10, color=ft.Colors.BLACK),
+                ),
             )],
         ))
 
@@ -614,6 +617,14 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
             show_max=False,
         ),
         interactive=True,
+        tooltip=fch.BarChartTooltip(
+            bgcolor="#E0E0E0",
+            border_radius=8,
+            padding=ft.Padding.all(8),
+            max_width=160,
+            fit_inside_horizontally=True,
+            fit_inside_vertically=True,
+        ),
     )
 
     legend = ft.Text(spans=[
