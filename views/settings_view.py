@@ -2,7 +2,7 @@ import flet as ft
 
 from components.snack import show_snack
 from services import config_service, account_service
-from utils.constants import LANG
+from utils.constants import LANG, APP_VERSION
 from utils.other_utils import create_defaults
 
 
@@ -334,12 +334,22 @@ class SettingsView:
     def _build_info_section(self) -> ft.Control:
         t = self.state.translator
 
+        def open_popup(title_key):
+            def handler(e):
+                dlg = ft.AlertDialog(
+                    title=ft.Text(t.get(title_key)),
+                    content=ft.Text(""),
+                    actions=[ft.TextButton("OK", on_click=lambda _: (setattr(dlg, "open", False), self.page.update()))],
+                )
+                self.page.show_dialog(dlg)
+            return handler
+
         privacy_policy = ft.Container(
             ft.Row([
                 ft.Text(t.get("settings.privacy_policy"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            #on_click=
-            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            on_click=open_popup("settings.privacy_policy"),
+            padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
@@ -348,30 +358,35 @@ class SettingsView:
             ft.Row([
                 ft.Text(t.get("settings.contacts"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            #on_click=
-            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            on_click=open_popup("settings.contacts"),
+            padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
 
-        github_icon = ft.Image(
-            src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-            width=30,
-            height=30,
-            fit="contain",
-            col={"xs": 1, "md": 1}
+        github_icon = ft.CircleAvatar(
+            foreground_image_src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            radius=20,
+            col={"xs": 2, "md": 2},
         )
+
 
         github_repo = ft.Container(
             content=ft.ResponsiveRow([
                 github_icon,
                 ft.Text(t.get("settings.repo"), size=16, weight=ft.FontWeight.BOLD, col={"xs": 9, "md": 9}),
-                ft.Icon(ft.Icons.OPEN_IN_NEW, col={"xs": 2, "md": 2}),
+                ft.Icon(ft.Icons.OPEN_IN_NEW, col={"xs": 1, "md": 1}),
             ], spacing=15, alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.only(left=16, right=16, top=10, bottom=10),
+            padding=ft.padding.only(left=16, right=16, top=4, bottom=4),
             url="https://github.com/andrea-tonello/portfolio-manager-gui",
             border_radius=15,
             ink=True
+        )
+
+        version_text = ft.Container(
+            ft.Text(f"Portfolio Manager {APP_VERSION}", size=12, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+            alignment=ft.alignment.Alignment.CENTER,
+            padding=ft.padding.only(top=15),
         )
 
         return ft.Container(
@@ -379,6 +394,7 @@ class SettingsView:
                 privacy_policy,
                 contact_us,
                 github_repo,
+                version_text,
             ], spacing=7),
             padding=10
         )

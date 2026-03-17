@@ -17,6 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stamp version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,6 +53,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stamp version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
 
       - uses: actions/setup-python@v5
         with:
@@ -78,6 +92,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stamp version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -105,6 +127,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stamp version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          sed -i '' "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
+          sed -i '' "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
 
       - uses: actions/setup-python@v5
         with:

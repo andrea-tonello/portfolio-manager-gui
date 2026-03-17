@@ -2,7 +2,6 @@
 - [UI-BUG] Apply button in Transaction is cutoff (mobile only)
 - [UI-BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
 - [UI] Add loading screen with version
-- [UI] Add versioning at the bottom of the Settings page + github link + privacy/OSS thingy
 
 - [FEATURE-ADV] Live Yahoo Finance tickers
 - [FEATURE-ADV] Manage stock splits

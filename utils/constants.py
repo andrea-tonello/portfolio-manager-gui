@@ -1,3 +1,5 @@
+APP_VERSION = "0.1.0"
+
 DATE_FORMAT = "%d-%m-%Y"
 REPORT_PREFIX = "Report "
 LANG = {1: ("en", "English"), 2: ("it", "Italiano")}
