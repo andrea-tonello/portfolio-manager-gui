@@ -461,7 +461,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
 
     current_liq = float(df["cash_held"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
-    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price)
+    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
 
     return {
         "operation": "Sell",
