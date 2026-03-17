@@ -335,6 +335,7 @@ class OperationsView:
             col={"xs": 6, "md": 4},
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
         )
         exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
                                  keyboard_type=ft.KeyboardType.NUMBER,
@@ -370,12 +371,13 @@ class OperationsView:
             visible=False, col={"xs": 6, "md": 4},
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
         )
         fee_field = ft.TextField(label=t.get("operations.stock.fee"),
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
-                                 col={"xs": 6, "md": 3})
+                                 col={"xs": 6, "md": 4})
         ter_field = ft.TextField(label="TER (%)",
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),

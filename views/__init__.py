@@ -24,8 +24,16 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
 
     page_title = t.get(_NAV_LABELS[selected_index])
 
+    if selected_index == 0:
+        appbar_title = ft.Row([
+            ft.Image(src="icon.png", width=32, height=32),
+            ft.Text("Portfolio Manager"),
+        ], spacing=10)
+    else:
+        appbar_title = ft.Text(page_title)
+
     page.appbar = ft.AppBar(
-        title=ft.Text(page_title),
+        title=appbar_title,
         actions=[
             ft.Container(
                 ft.IconButton(

@@ -1,9 +1,11 @@
-- [BUG] Esporta plot in CSV: i dati esportati sono quelli dopo il downsampling (quindi manca roba)
-- [UI-BUG] Apply button in Transaction is cutoff (mobile only)
-- [UI-BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
-- [UI] Add loading screen with version
+- [x] [UI-BUG] Apply button in Transaction is cutoff (mobile only)
+- [x] [UI-BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
+- [x] [UI] Add splash screen: assets/splash.png (optional: splash_dark.png, splash_android.png, splash_ios.png)
+- [x] [UI] Replace "Home" in AppBar with "(icon) Portfolio Manager"
+- [ ] Privacy policy
+- [ ] Contact us
 
-- [FEATURE-ADV] Live Yahoo Finance tickers
-- [FEATURE-ADV] Manage stock splits
-- [FEATURE-ADV] Bonds
-- [FEATURE-ADV] Monetary / Bonds ETFs 
+- [ ] [FEATURE-ADV] Live Yahoo Finance tickers
+- [ ] [FEATURE-ADV] Manage stock splits
+- [ ] [FEATURE-ADV] Bonds
+- [ ] [FEATURE-ADV] Monetary / Bonds ETFs 

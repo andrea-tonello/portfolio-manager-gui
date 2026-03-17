@@ -365,7 +365,7 @@ class SettingsView:
         )
 
         github_icon = ft.CircleAvatar(
-            foreground_image_src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            foreground_image_src="github-logo.png",
             radius=20,
             col={"xs": 2, "md": 2},
         )

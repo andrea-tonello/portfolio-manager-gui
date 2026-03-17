@@ -105,7 +105,7 @@ class TransactionsView:
         self.tx_filter_field = ft.TextField(
             value="5",
             keyboard_type=ft.KeyboardType.NUMBER,
-            width=80,
+            width=70,
             height=45,
             on_submit=self._on_filter_apply,
             border_radius=ft.border_radius.all(15),
@@ -129,7 +129,7 @@ class TransactionsView:
                     self.tx_filter_field,
                     filter_btn,
                 ], spacing=25, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.padding.only(left=15)
+                padding=ft.padding.only(left=15, right=15)
             ),
             self._build_action_buttons(acc_idx),
             self.tx_table_container,

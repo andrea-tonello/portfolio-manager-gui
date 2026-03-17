@@ -212,7 +212,10 @@
       "reset_confirm": "Digitare \"RESET\" per confermare",
       "deletion_error": "Errore nella rimozione dei dati: {e}",
       "reset_completed": "Reset completato"
-    }
+    },
+    "privacy_policy": "Privacy Policy",
+    "contacts": "Contatti e Feedback",
+    "repo": "Questa app è Open Source!"
   },
 
 
