@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 
 from components.snack import show_snack
+from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
 from utils.date_utils import parse_date_input
@@ -349,12 +350,14 @@ class AnalysisView:
         )
         self.corr_end_value = None
 
-        self.corr_asset1 = ft.TextField(
+        self.corr_asset1 = TickerSearchField(
+            self.page,
             label=t.get("analysis.corr.asset1"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 4})
-        self.corr_asset2 = ft.TextField(
+        self.corr_asset2 = TickerSearchField(
+            self.page,
             label=t.get("analysis.corr.asset2"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
@@ -367,7 +370,7 @@ class AnalysisView:
             col={"xs": 12, "md": 4})
 
         self.corr_rolling_fields = ft.ResponsiveRow(
-            [self.corr_asset1, self.corr_asset2, self.corr_window],
+            [self.corr_asset1.control, self.corr_asset2.control, self.corr_window],
             visible=False,
         )
 

@@ -129,3 +129,26 @@ def fetch_exchange_rate(ref_date=None) -> float:
         raise RuntimeError("No valid exchange rate data")
 
     return round_half_up(valid[-1], decimal="0.000001")
+
+
+def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:
+    """Search Yahoo Finance for matching tickers.
+
+    Returns list of dicts with keys: symbol, name, exchange, type.
+    """
+    url = (
+        f"https://query2.finance.yahoo.com/v1/finance/search"
+        f"?q={urllib.request.quote(query)}&quotesCount={quotes_count}&newsCount=0"
+    )
+    req = urllib.request.Request(url, headers=_HEADERS)
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    results = []
+    for q in data.get("quotes", []):
+        results.append({
+            "symbol": q.get("symbol", ""),
+            "name": q.get("shortname") or q.get("longname", ""),
+            "exchange": q.get("exchDisp", ""),
+            "type": q.get("typeDisp", ""),
+        })
+    return results

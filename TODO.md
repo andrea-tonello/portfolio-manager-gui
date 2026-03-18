@@ -5,7 +5,7 @@
 - [ ] Privacy policy
 - [ ] Contact us
 
-- [ ] [FEATURE-ADV] Live Yahoo Finance tickers
+- [x] [FEATURE-ADV] Live Yahoo Finance tickers
 - [ ] [FEATURE-ADV] Manage stock splits
 - [ ] [FEATURE-ADV] Bonds
 - [ ] [FEATURE-ADV] Monetary / Bonds ETFs 

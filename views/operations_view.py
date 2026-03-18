@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 
 from components.snack import show_snack
+from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
 from utils.other_utils import round_half_up, ValidationError
 from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
@@ -158,16 +159,19 @@ class OperationsView:
                                         border_radius=ft.border_radius.all(15),
                                         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         col={"xs": 12, "md": 6})
-        self.cash_ticker = ft.TextField(label=t.get("operations.stock.ticker"),
-                                        border_radius=ft.border_radius.all(15),
-                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                        expand=True)
+        self.cash_ticker = TickerSearchField(
+            self.page,
+            label=t.get("operations.stock.ticker"),
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
+        )
         self.cash_ticker_help = ft.FilledTonalIconButton(
             icon=ft.Icons.HELP_OUTLINE,
             on_click=self._show_ticker_help,
         )
         self.cash_ticker_row = ft.Row(
-            [self.cash_ticker, self.cash_ticker_help],
+            [self.cash_ticker.control, self.cash_ticker_help],
             visible=False, col={"xs": 12, "md": 6},
         )
         self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_verbose"),
@@ -342,15 +346,18 @@ class OperationsView:
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  visible=False, col={"xs": 6, "md": 4})
-        ticker_field = ft.TextField(label="Ticker",
-                                    border_radius=ft.border_radius.all(15),
-                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                    expand=True)
+        ticker_field = TickerSearchField(
+            self.page,
+            label="Ticker",
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
+        )
         ticker_help = ft.FilledTonalIconButton(
             icon=ft.Icons.HELP_OUTLINE,
             on_click=self._show_ticker_help,
         )
-        ticker_row = ft.Row([ticker_field, ticker_help], col={"xs": 12, "md": 6})
+        ticker_row = ft.Row([ticker_field.control, ticker_help], col={"xs": 12, "md": 6})
         quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
                                      border_radius=ft.border_radius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,

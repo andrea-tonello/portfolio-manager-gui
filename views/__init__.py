@@ -9,8 +9,10 @@ from views.settings_view import SettingsView
 
 _NAV_LABELS = ["nav.home", "nav.operations", "nav.analysis", "nav.transactions"]
 _VIEW_BUILDERS = [HomeView, OperationsView, AnalysisView, TransactionsView]
-_TAB_TO_GLOSSARY = {0: 2, 1: 3, 2: 4, 3: 5}
 
+# analysis:   tab 0 -> glossary page 2,   tab 1 -> page 3, etc.
+_TRANSACTIONS_GLOSSARY_PAGE = 1
+_ANALYSIS_GLOSSARY_PAGE_OFFSET = 2  
 
 def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     t = state.translator
@@ -64,11 +66,11 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     if selected_index in (2, 3):
         if selected_index == 2:
             def _info_click(_):
-                p = _TAB_TO_GLOSSARY.get(getattr(state, "_analysis_tab_index", 0), 2)
+                p = getattr(state, "_analysis_tab_index", 0) + _ANALYSIS_GLOSSARY_PAGE_OFFSET
                 _show_glossary(page, state, p)
             info_handler = _info_click
         else:
-            info_handler = lambda _: _show_glossary(page, state, 1)
+            info_handler = lambda _: _show_glossary(page, state, _TRANSACTIONS_GLOSSARY_PAGE)
         current_view = ft.Stack([
             ft.Column([current_view], expand=True),
             ft.Container(

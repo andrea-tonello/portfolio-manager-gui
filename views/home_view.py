@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 from components.snack import show_snack
+from components.ticker_search import TickerSearchField
 from services import config_service
 from services.market_data import download_close
 from utils.other_utils import round_half_up
@@ -102,16 +103,17 @@ class HomeView:
             ink=True,
         )
 
-        self._watchlist_ticker_field = ft.TextField(
+        self._watchlist_ticker_search = TickerSearchField(
+            self.page,
             label=t.get("home.watchlist_add"),
-            border_radius=ft.border_radius.all(15),
             expand=True,
-            on_submit=self._on_watchlist_add,
+            border_radius=ft.border_radius.all(15),
             height=40,
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
+        self._watchlist_ticker_search.on_submit = self._on_watchlist_add
         add_row = ft.Row([
-            self._watchlist_ticker_field,
+            self._watchlist_ticker_search.control,
             ft.IconButton(
                 icon=ft.Icons.ADD_CIRCLE_OUTLINE,
                 on_click=self._on_watchlist_add,
@@ -150,16 +152,15 @@ class HomeView:
 
     def _on_watchlist_add(self, e):
         t = self.state.translator
-        ticker = self._watchlist_ticker_field.value.strip().upper()
+        ticker = self._watchlist_ticker_search.value.strip().upper()
         if not ticker:
             return
         if ticker in self.state.watchlist:
-            show_snack(self.page, t.get("home.watchlist_duplicate"))
+            show_snack(self.page, t.get("home.watchlist_duplicate"), error=True)
             return
         self.state.watchlist.append(ticker)
         config_service.save_watchlist(self.state.config_folder, self.state.watchlist)
-        self._watchlist_ticker_field.value = ""
-        show_snack(self.page, t.get("home.watchlist_added"))
+        self._watchlist_ticker_search.value = ""
         self._fetch_watchlist_prices()
         self.page.update()
 
@@ -168,7 +169,6 @@ class HomeView:
         if ticker in self.state.watchlist:
             self.state.watchlist.remove(ticker)
             config_service.save_watchlist(self.state.config_folder, self.state.watchlist)
-            show_snack(self.page, t.get("home.watchlist_removed"))
             self._fetch_watchlist_prices()
             self.page.update()
 
