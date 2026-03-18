@@ -508,9 +508,6 @@ class OperationsView:
             return
         if tab["es_type"].value == "buy":
             price = -price
-        if fee < 0:
-            show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
-            return
 
         conv_rate = 1.0
         if currency_int == CURRENCY_USD:
@@ -548,7 +545,7 @@ class OperationsView:
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
-                show_snack(self.page, "OK")
+                show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except (RuntimeError, ValidationError, Exception) as ex:
                 show_snack(self.page, str(ex), error=True)

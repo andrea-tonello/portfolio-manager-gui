@@ -1,18 +1,12 @@
 import json
 import os
-import sys
 
 
 class Translator:
     def __init__(self, language_code="en", locales_dir=None):
         self.language_code = language_code
         self.strings = {}
-        if locales_dir:
-            self.locales_dir = locales_dir
-        elif getattr(sys, "frozen", False):
-            self.locales_dir = os.path.join(sys._MEIPASS, "locales")
-        else:
-            self.locales_dir = os.path.join(os.getcwd(), "locales")
+        self.locales_dir = locales_dir or os.path.join(os.getcwd(), "locales")
         self.load_language(language_code)
 
     def load_language(self, language_code):

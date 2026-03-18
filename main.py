@@ -3,25 +3,14 @@ import flet as ft
 from app_state import AppState
 from services import config_service
 from views import _rebuild_page
+from views.settings_view import PALETTE_COLORS
 from utils.constants import LANG
-
-
-_PALETTE_COLORS = {
-    "blue": ft.Colors.BLUE,
-    "teal": ft.Colors.TEAL,
-    "green": ft.Colors.GREEN,
-    "yellow": ft.Colors.YELLOW,
-    "orange": ft.Colors.ORANGE,
-    "red": ft.Colors.RED,
-    "purple": ft.Colors.PURPLE,
-    "indigo": ft.Colors.INDIGO,
-}
 
 
 def _apply_theme(page: ft.Page, state):
     mode_map = {"system": ft.ThemeMode.SYSTEM, "light": ft.ThemeMode.LIGHT, "dark": ft.ThemeMode.DARK}
     page.theme_mode = mode_map.get(state.theme_mode, ft.ThemeMode.SYSTEM)
-    color = _PALETTE_COLORS.get(state.color_seed, ft.Colors.BLUE)
+    color = PALETTE_COLORS.get(state.color_seed, ft.Colors.BLUE)
     page.theme = ft.Theme(color_scheme_seed=color)
     page.dark_theme = ft.Theme(color_scheme_seed=color)
 

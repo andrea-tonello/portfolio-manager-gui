@@ -166,8 +166,8 @@
     "export_success": "File exported successfully",
     "no_data": "No data available, cannot export",
     "remove_row": "Remove latest transaction",
-    "row_removed": "Last row removed",
-    "no_rows": "No rows to remove",
+    "row_removed": "Transaction removed",
+    "no_rows": "No transactions to remove",
     "empty": "No data"
   },
 

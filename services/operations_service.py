@@ -1,9 +1,8 @@
 import numpy as np
 
 from newrow import newrow_cash, newrow_etf_stock
-from utils.fetch_utils import fetch_name
-from utils.other_utils import round_half_up
-from utils.constants import CURRENCY_EUR, CURRENCY_USD, CURRENCY_CHOICES
+from services.market_data import fetch_ticker_name as fetch_name
+from utils.constants import CURRENCY_CHOICES
 
 
 def execute_cash_operation(translator, df, broker, op_kind, date_str, ref_date,

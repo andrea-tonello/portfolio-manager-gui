@@ -144,16 +144,16 @@ def compute_summary(translator, brokers, data, ref_date, dt_str):
         if pf_history_df is not None and not pf_history_df.empty:
             trading_days = 252
             days_twrr = len(pf_history_df)
-            twrr_total = pf_history_df["TWRR Cumulativo"].iloc[-1]
+            twrr_total = pf_history_df["cumulative_twrr"].iloc[-1]
             twrr_ann = (1 + twrr_total) ** (trading_days / days_twrr) - 1
 
             # Sharpe
             risk_free_rate = 0.02
             risk_free_daily = (1 + risk_free_rate) ** (1 / trading_days) - 1
-            excess_returns = pf_history_df["TWRR Giornaliero"] - risk_free_daily
+            excess_returns = pf_history_df["daily_twrr"] - risk_free_daily
             sharpe_ratio = np.sqrt(trading_days) * (excess_returns.mean() / excess_returns.std())
 
-            volatility = pf_history_df["TWRR Giornaliero"].std() * np.sqrt(trading_days)
+            volatility = pf_history_df["daily_twrr"].std() * np.sqrt(trading_days)
 
     return {
         "accounts": account_results,
@@ -287,7 +287,7 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
 
     for account in data:
         df_copy = account[1].copy()
-        positions = get_asset_value(translator, df_copy, ref_date=end_dt, suppress_progress=True)
+        positions = get_asset_value(translator, df_copy, ref_date=end_dt)
         total_positions.extend(positions)
 
         df_valid, _ = get_pf_date(translator, df_copy, end_dt, end_dt)

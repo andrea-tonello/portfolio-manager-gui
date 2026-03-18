@@ -166,8 +166,8 @@
     "export_success": "File esportato con successo",
     "no_data": "Nessun dato disponibile, impossibile esportare",
     "remove_row": "Rimuovi ultima transaz.",
-    "row_removed": "Ultima riga rimossa",
-    "no_rows": "Nessuna riga da rimuovere",
+    "row_removed": "Transazione rimossa",
+    "no_rows": "Nessuna transazione da rimuovere",
     "empty": "Nessun dato disponibile"
   },
 

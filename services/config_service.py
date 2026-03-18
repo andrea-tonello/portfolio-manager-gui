@@ -3,72 +3,66 @@ import configparser
 import shutil
 
 
-def save_language(config_folder: str, lang_code: str):
+def _load_config(config_folder: str):
+    """Read config.ini and return (path, ConfigParser)."""
     path = os.path.join(config_folder, "config.ini")
     config = configparser.ConfigParser()
     if os.path.exists(path):
         config.read(path)
-    if not config.has_section("Language"):
-        config.add_section("Language")
-    config.set("Language", "code", lang_code)
+    return path, config
+
+
+def _save_config(path: str, config: configparser.ConfigParser):
+    """Write config back to disk."""
     with open(path, "w", encoding="utf-8") as f:
         config.write(f)
+
+
+def _ensure_section(config: configparser.ConfigParser, section: str):
+    if not config.has_section(section):
+        config.add_section(section)
+
+
+def save_language(config_folder: str, lang_code: str):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Language")
+    config.set("Language", "code", lang_code)
+    _save_config(path, config)
 
 
 def save_theme(config_folder: str, mode: str, color: str):
-    path = os.path.join(config_folder, "config.ini")
-    config = configparser.ConfigParser()
-    if os.path.exists(path):
-        config.read(path)
-    if not config.has_section("Theme"):
-        config.add_section("Theme")
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Theme")
     config.set("Theme", "mode", mode)
     config.set("Theme", "color", color)
-    with open(path, "w", encoding="utf-8") as f:
-        config.write(f)
+    _save_config(path, config)
 
 
 def save_watchlist(config_folder: str, tickers: list[str]):
-    path = os.path.join(config_folder, "config.ini")
-    config = configparser.ConfigParser()
-    if os.path.exists(path):
-        config.read(path)
-    if not config.has_section("Watchlist"):
-        config.add_section("Watchlist")
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Watchlist")
     config.set("Watchlist", "tickers", ",".join(tickers))
-    with open(path, "w", encoding="utf-8") as f:
-        config.write(f)
+    _save_config(path, config)
 
 
 def save_brokers(config_folder: str, brokers: dict[int, str], reset: bool = False):
-    path = os.path.join(config_folder, "config.ini")
-    config = configparser.ConfigParser()
-    if os.path.exists(path):
-        config.read(path)
+    path, config = _load_config(config_folder)
     if reset and config.has_section("Brokers"):
         config.remove_section("Brokers")
-    if not config.has_section("Brokers"):
-        config.add_section("Brokers")
-    # Clear existing broker entries when resetting
+    _ensure_section(config, "Brokers")
     if reset:
         for key in list(config["Brokers"].keys()):
             config.remove_option("Brokers", key)
     for idx, name in brokers.items():
         config.set("Brokers", str(idx), name)
-    with open(path, "w", encoding="utf-8") as f:
-        config.write(f)
+    _save_config(path, config)
 
 
 def save_home_hidden(config_folder: str, hidden: bool):
-    path = os.path.join(config_folder, "config.ini")
-    config = configparser.ConfigParser()
-    if os.path.exists(path):
-        config.read(path)
-    if not config.has_section("Home"):
-        config.add_section("Home")
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Home")
     config.set("Home", "hidden", str(hidden).lower())
-    with open(path, "w", encoding="utf-8") as f:
-        config.write(f)
+    _save_config(path, config)
 
 
 def reset_application(config_folder: str):

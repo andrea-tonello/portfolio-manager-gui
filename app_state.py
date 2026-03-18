@@ -1,6 +1,5 @@
 import os
 import configparser
-import pandas as pd
 
 from utils.translator import Translator
 from utils.constants import LANG
@@ -32,9 +31,6 @@ class AppState:
         # Per-account storage: {broker_idx: {"df", "file", "path", "len_df_init", "edited_flag"}}
         self.accounts: dict[int, dict] = {}
 
-        # All accounts list (for format_accounts backward compat)
-        self.all_accounts: list[dict] = []
-
         # Per-page selection
         self.home_selection: str = "overview"  # "overview" or str(broker_idx)
         self.ops_acc_idx: int | None = None
@@ -52,20 +48,6 @@ class AppState:
 
         # Navigation state
         self._last_nav_index: int = 0
-
-        # Backward compat (kept for existing view code during transition)
-        self.acc_idx: int | None = None
-        self.df: pd.DataFrame | None = None
-        self.file: str | None = None
-        self.path: str | None = None
-        self.len_df_init: int = 0
-        self.edited_flag: bool = False
-
-    @property
-    def is_edited(self) -> bool:
-        if self.df is not None:
-            return len(self.df) != self.len_df_init or self.edited_flag
-        return False
 
     def load_config(self):
         """Read config.ini and populate lang_code and brokers."""
@@ -95,15 +77,13 @@ class AppState:
             create_defaults(self.config_res_folder, broker_name)
 
     def load_all_accounts(self):
-        """Load all broker accounts into self.accounts and self.all_accounts."""
+        """Load all broker accounts into self.accounts."""
         from services import account_service
         self.accounts = {}
-        self.all_accounts = []
         for idx in sorted(self.brokers.keys()):
             try:
                 acc = account_service.load_single_account(self.brokers, self.config_res_folder, idx)
                 self.accounts[idx] = acc
-                self.all_accounts.append(acc)
             except FileNotFoundError:
                 pass
 
@@ -122,17 +102,3 @@ class AppState:
         if acc:
             acc["len_df_init"] = len(acc["df"])
             acc["edited_flag"] = False
-
-    # Backward compat
-    def set_active_account(self, acc_idx: int, df: pd.DataFrame, file: str, path: str):
-        self.acc_idx = acc_idx
-        self.df = df
-        self.file = file
-        self.path = path
-        self.len_df_init = len(df)
-        self.edited_flag = False
-
-    def mark_saved(self):
-        if self.df is not None:
-            self.len_df_init = len(self.df)
-        self.edited_flag = False

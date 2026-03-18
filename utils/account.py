@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 import warnings
@@ -6,22 +5,9 @@ import warnings
 from services.market_data import download_close
 from utils.other_utils import round_half_up, round_down, ValidationError
 from utils.date_utils import add_solar_years
-from utils.fetch_utils import fetch_exchange_rate
+from services.market_data import fetch_exchange_rate
 from utils.constants import DATE_FORMAT
 warnings.simplefilter(action='ignore', category=Warning)
-
-
-def format_accounts(df, acc_idx, all_accounts, non_active_only=False):
-    non_active_accounts = [acc for acc in all_accounts if acc["acc_idx"] != acc_idx]
-    data = [(acc["acc_idx"], acc["df"]) for acc in non_active_accounts]
-
-    if non_active_only:
-        data = sorted(data, key=lambda x: x[0])
-    else:
-        data.append((acc_idx, df))
-        data = sorted(data, key=lambda x: x[0])
-    data = [list(t) for t in data]
-    return data
 
 
 def get_tickers(translator, data):
@@ -135,7 +121,7 @@ def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date)
 def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
     try:
         portfolio_data = final_df.copy()
-        portfolio_data.drop(columns=["curr"])
+        portfolio_data = portfolio_data.drop(columns=["curr"])
         portfolio_data = portfolio_data.sort_values(by='date', kind="mergesort")
 
         liquidity_sparse = portfolio_data.dropna(subset=['cash_total'])
@@ -187,19 +173,19 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
                 portfolio_history_df.index.rename("Date", inplace=True)
 
             portfolio_history_df['nav'] = portfolio_history_df['assets_value'] + portfolio_history_df['cash']
-            portfolio_history_df["Cash Flow"] = portfolio_history_df["committed_cash"].diff()
+            portfolio_history_df["cash_flow"] = portfolio_history_df["committed_cash"].diff()
 
             previous_nav = portfolio_history_df['nav'].shift(1)
-            portfolio_history_df["TWRR Giornaliero"] = (
-                portfolio_history_df['nav'] - previous_nav - portfolio_history_df['Cash Flow']
+            portfolio_history_df["daily_twrr"] = (
+                portfolio_history_df['nav'] - previous_nav - portfolio_history_df['cash_flow']
             ) / previous_nav
 
             portfolio_history_df = portfolio_history_df.iloc[1:]
-            portfolio_history_df["TWRR Cumulativo"] = (1 + portfolio_history_df["TWRR Giornaliero"]).cumprod() - 1
+            portfolio_history_df["cumulative_twrr"] = (1 + portfolio_history_df["daily_twrr"]).cumprod() - 1
             portfolio_history_df = portfolio_history_df.reset_index()
 
         else:
-            final_columns_complete = ["Date"] + total_tickers + ["cash", "committed_cash", "assets_value", "nav", "TWRR Giornaliero", "TWRR Cumulativo"]
+            final_columns_complete = ["Date"] + total_tickers + ["cash", "committed_cash", "assets_value", "nav", "daily_twrr", "cumulative_twrr"]
             portfolio_history_df = pd.DataFrame(columns=final_columns_complete)
         return portfolio_history_df
 
@@ -251,7 +237,7 @@ def aggregate_positions(total_positions):
     return aggr_positions
 
 
-def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False, suppress_progress=False):
+def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False):
 
     df_copy = df.copy()
     df_copy["date"] = pd.to_datetime(df_copy["date"], format=DATE_FORMAT)

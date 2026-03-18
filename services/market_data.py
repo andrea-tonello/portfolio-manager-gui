@@ -114,8 +114,10 @@ def fetch_exchange_rate(ref_date=None) -> float:
     if ref_dt == date.today():
         chart = _fetch_chart("USDEUR=X", period="2d", interval="1m")
     else:
+        # Widen window to cover weekends and holidays
+        start_day = (ref_dt - timedelta(days=5)).strftime("%Y-%m-%d")
         next_day = (ref_dt + timedelta(days=1)).strftime("%Y-%m-%d")
-        chart = _fetch_chart("USDEUR=X", start=ref_date, end=next_day)
+        chart = _fetch_chart("USDEUR=X", start=start_day, end=next_day)
 
     closes = chart.get("indicators", {}).get("quote", [{}])[0].get("close", [])
     if not closes:

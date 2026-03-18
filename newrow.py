@@ -4,7 +4,6 @@ import numpy as np
 import utils.account as aop
 from utils.columns import COLUMNS
 from utils.other_utils import round_half_up
-from utils.fetch_utils import fetch_name
 
 
 def _base_row():
@@ -55,7 +54,9 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
 
-    name = asset_name_override if asset_name_override else fetch_name(ticker)
+    if not asset_name_override:
+        raise ValueError(f"asset_name_override is required for ticker '{ticker}'")
+    name = asset_name_override
     asset_rows = df[df["ticker"] == ticker]
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell"])]
 

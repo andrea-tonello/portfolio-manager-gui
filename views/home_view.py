@@ -410,7 +410,7 @@ class HomeView:
                             continue
                         total_cash += float(df.iloc[-1].get("cash_held", 0) or 0)
                         total_committed += float(df.iloc[-1].get("committed_cash", 0) or 0)
-                        positions = get_asset_value(t, df, ref_date=ref_date, suppress_progress=True)
+                        positions = get_asset_value(t, df, ref_date=ref_date)
                         if positions:
                             total_assets += round_half_up(sum(p["value"] for p in positions))
                             for p in positions:
@@ -446,7 +446,7 @@ class HomeView:
                     df = acc["df"]
                     cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
                     total_committed = float(df.iloc[-1].get("committed_cash", 0) or 0) if not df.empty else 0
-                    positions = get_asset_value(t, df, ref_date=ref_date, suppress_progress=True)
+                    positions = get_asset_value(t, df, ref_date=ref_date)
                     assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
                     nav = cash + assets
                     nav_num = nav

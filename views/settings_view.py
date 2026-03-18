@@ -6,6 +6,18 @@ from utils.constants import LANG, APP_VERSION
 from utils.other_utils import create_defaults
 
 
+PALETTE_COLORS = {
+    "blue": ft.Colors.BLUE,
+    "teal": ft.Colors.TEAL,
+    "green": ft.Colors.GREEN,
+    "yellow": ft.Colors.YELLOW,
+    "orange": ft.Colors.ORANGE,
+    "red": ft.Colors.RED,
+    "purple": ft.Colors.PURPLE,
+    "indigo": ft.Colors.INDIGO,
+}
+
+
 class SettingsView:
     def __init__(self, page: ft.Page, state):
         self.page = page
@@ -30,16 +42,6 @@ class SettingsView:
 
     _THEME_MODES = ["system", "light", "dark"]
     _PALETTE_KEYS = ["blue", "teal", "green", "yellow", "orange", "red", "purple", "indigo"]
-    _PALETTE_COLORS = {
-        "blue": ft.Colors.BLUE,
-        "teal": ft.Colors.TEAL,
-        "green": ft.Colors.GREEN,
-        "yellow": ft.Colors.YELLOW,
-        "orange": ft.Colors.ORANGE,
-        "red": ft.Colors.RED,
-        "purple": ft.Colors.PURPLE,
-        "indigo": ft.Colors.INDIGO,
-    }
 
     def _build_theming_section(self) -> ft.Control:
         t = self.state.translator
@@ -123,7 +125,7 @@ class SettingsView:
         t = s.translator
         mode_map = {"system": ft.ThemeMode.SYSTEM, "light": ft.ThemeMode.LIGHT, "dark": ft.ThemeMode.DARK}
         self.page.theme_mode = mode_map.get(s.theme_mode, ft.ThemeMode.SYSTEM)
-        color = self._PALETTE_COLORS.get(s.color_seed, ft.Colors.BLUE)
+        color = PALETTE_COLORS.get(s.color_seed, ft.Colors.BLUE)
         self.page.theme = ft.Theme(color_scheme_seed=color)
         self.page.dark_theme = ft.Theme(color_scheme_seed=color)
 

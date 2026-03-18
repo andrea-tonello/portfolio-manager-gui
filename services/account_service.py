@@ -24,13 +24,6 @@ def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> di
     }
 
 
-def load_all_accounts(brokers: dict, save_folder: str) -> list[dict]:
-    accounts = []
-    for idx in sorted(brokers.keys()):
-        accounts.append(load_single_account(brokers, save_folder, idx))
-    return accounts
-
-
 def save_account(df: pd.DataFrame, path: str):
     """Save account DataFrame to its internal config path."""
     df.to_csv(path, index=False)

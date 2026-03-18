@@ -179,20 +179,6 @@ class TransactionsView:
         df_sorted = df_sorted.drop(columns=["_date_parsed", "_orig_idx"])
         self.tx_table_container.content = self._build_transactions_table(df_sorted)
 
-    # ── Info / Glossary ─────────────────────────────────────────────
-
-    def _build_info_button(self) -> ft.Control:
-        return ft.IconButton(
-            icon=ft.Icons.INFO_OUTLINE,
-            icon_size=24,
-            tooltip="Info",
-            on_click=lambda e: self._show_glossary(1),
-        )
-
-    def _show_glossary(self, page_num):
-        from views import _show_glossary
-        _show_glossary(self.page, self.state, page_num)
-
     # ── Table ──────────────────────────────────────────────────────
 
     def _build_transactions_table(self, df) -> ft.Control:
@@ -310,6 +296,7 @@ class TransactionsView:
         acc = s.get_account(idx)
         if acc and len(acc["df"]) > 1:
             acc["df"] = acc["df"].iloc[:-1]
+            account_service.save_account(acc["df"], acc["path"])
             show_snack(self.page, t.get("transactions.row_removed"))
             from views import _rebuild_page
             _rebuild_page(self.page, s, selected_index=3)
