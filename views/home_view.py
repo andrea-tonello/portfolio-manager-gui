@@ -270,7 +270,7 @@ class HomeView:
             content=ft.Row([
                 ft.Column([
                     ft.Text(t.get("home.open_positions"), size=16, weight=ft.FontWeight.BOLD),
-                    ft.Text(t.get("home.open_positions_descr"), size=11, color=ft.Colors.GREY_400),
+                    ft.Text(t.get("home.open_positions_descr"), size=11, color=ft.Colors.GREY_500),
                 ], spacing=1),
                 self._pos_mode_btn,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -661,7 +661,7 @@ class HomeView:
             chip = ft.Container(
                 content=ft.Column([
                     ft.Text(ticker, weight=ft.FontWeight.BOLD, size=13),
-                    ft.Text("\u00d7"+qty_str, size=11, color=ft.Colors.GREY_400),
+                    ft.Text("\u00d7"+qty_str, size=11, color=ft.Colors.GREY_500),
                 ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
                 border_radius=10,

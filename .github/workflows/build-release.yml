@@ -6,10 +6,6 @@ on:
       version:
         description: 'Version to release (e.g., v0.1.5)'
         required: true
-      notes:
-        description: 'Custom release notes (optional)'
-        required: false
-        type: string
 
 jobs:
   build-apk:
@@ -162,10 +158,29 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          # Extract the section between ## [VERSION] and the next ## [ (or EOF)
+          NOTES=$(awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]")) { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md)
+          # Write to file to preserve multiline content
+          echo "$NOTES" > /tmp/release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -176,6 +191,5 @@ jobs:
             artifacts/portfolio-manager-windows/portfolio-manager-windows.zip
             artifacts/portfolio-manager-macos/portfolio-manager-macos.zip
           tag_name: ${{ github.event.inputs.version }}
-          name: "Release ${{ github.event.inputs.version }}"
-          generate_release_notes: true
-          body: ${{ github.event.inputs.notes }}
+          name: ${{ github.event.inputs.version }}
+          body_path: /tmp/release_notes.md

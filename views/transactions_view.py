@@ -100,7 +100,7 @@ class TransactionsView:
             content=ft.Column([
                 ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
                 ft.Radio(value="days", label=t.get("transactions.filter_by_days")),
-            ], spacing=10),
+            ], spacing=5),
         )
         self.tx_filter_field = ft.TextField(
             value="5",
@@ -120,20 +120,23 @@ class TransactionsView:
 
         return ft.Column([
             ft.Container(
-                ft.Text(t.get("transactions.title"), weight=ft.FontWeight.BOLD, size=20),
-                padding=ft.padding.only(left=15, top=10)
+                ft.Column([
+                    ft.Text(t.get("transactions.title"), weight=ft.FontWeight.BOLD, size=20),
+                    ft.Text(t.get("transactions.filter_by"), size=15, color=ft.Colors.GREY_500),
+                ]), 
+                padding=ft.padding.only(left=15, right=10, top=20)
             ),
             ft.Container(
                 ft.Row([
                     self.filter_radio,
                     self.tx_filter_field,
                     filter_btn,
-                ], spacing=25, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.padding.only(left=15, right=15)
+                ], spacing=35, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.padding.only(left=15, right=10)
             ),
             self._build_action_buttons(acc_idx),
             self.tx_table_container,
-        ], spacing=20)
+        ], spacing=15)
 
     def _on_filter_mode_change(self, e):
         self._tx_filter_mode = self.filter_radio.value

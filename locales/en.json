@@ -160,7 +160,8 @@
 
   "transactions": {
     "title": "Recent Transactions",
-    "filter_by_count": "Transaction counts",
+    "filter_by": "Filter by",
+    "filter_by_count": "Transactions",
     "filter_by_days": "Days",
     "export_csv": "Export CSV",
     "export_success": "File exported successfully",

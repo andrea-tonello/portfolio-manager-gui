@@ -160,6 +160,7 @@
 
   "transactions": {
     "title": "Ultimi Movimenti",
+    "filter_by": "Filtra per",
     "filter_by_count": "Transazioni",
     "filter_by_days": "Giorni",
     "export_csv": "Esporta CSV",
