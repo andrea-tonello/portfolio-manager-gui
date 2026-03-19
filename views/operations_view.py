@@ -174,7 +174,7 @@ class OperationsView:
             [self.cash_ticker.control, self.cash_ticker_help],
             visible=False, col={"xs": 12, "md": 6},
         )
-        self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_verbose"),
+        self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_descr"),
                                        border_radius=ft.border_radius.all(15),
                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
@@ -305,13 +305,33 @@ class OperationsView:
         t = self.state.translator
 
         no_account = self.state.ops_acc_idx is None
-        es_type = ft.RadioGroup(
-            value="buy",
-            disabled=no_account,
-            content=ft.Row([
-                ft.Radio(value="buy", label=t.get("operations.stock.op_buy"), disabled=no_account),
-                ft.Radio(value="sell", label=t.get("operations.stock.op_sell"), disabled=no_account),
-            ], wrap=True, opacity=0.4 if no_account else 1.0),
+        buy_label = ft.Text(t.get("operations.stock.op_buy"), weight=ft.FontWeight.BOLD)
+        sell_label = ft.Text(t.get("operations.stock.op_sell"))
+
+        def _on_switch_toggle(e, bl=buy_label, sl=sell_label):
+            is_sell = e.control.value
+            bl.weight = ft.FontWeight.NORMAL if is_sell else ft.FontWeight.BOLD
+            sl.weight = ft.FontWeight.BOLD if is_sell else ft.FontWeight.NORMAL
+            e.control.thumb_icon = ft.Icons.REMOVE if is_sell else ft.Icons.ADD
+            self.page.update()
+
+        es_type = ft.Row(
+            [
+                buy_label,
+                ft.Switch(
+                    value=False, disabled=no_account, on_change=_on_switch_toggle,
+                    thumb_color={
+                        ft.ControlState.DEFAULT: ft.Colors.PRIMARY,
+                        ft.ControlState.SELECTED: ft.Colors.SURFACE,
+                    },
+                    track_color=ft.Colors.PRIMARY_CONTAINER,
+                    track_outline_color=ft.Colors.TRANSPARENT,
+                    thumb_icon=ft.Icons.ADD,
+                ),
+                sell_label,
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            opacity=0.4 if no_account else 1.0,
         )
 
         date_field = ft.TextField(
@@ -404,19 +424,92 @@ class OperationsView:
             self._es_tabs = {}
         self._es_tabs[product_type] = tab_data
 
-        col = ft.Column([
+        stock_etf_form = ft.Column([
             es_type,
+            ft.Container(height=5),
             ft.Row([date_field, date_icon]),
             ft.ResponsiveRow([currency_dd, exch_rate]),
             ft.ResponsiveRow([ticker_row, quantity_field, price_field]),
             ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
             loading,
             ft.Container(height=80),
+        ], spacing=12)
+
+        if product_type != "ETF":
+            stock_etf_form.scroll = ft.ScrollMode.AUTO
+
+            async def on_focus_stock(e):
+                if hasattr(e.control, "key") and e.control.key:
+                    await stock_etf_form.scroll_to(scroll_key=e.control.key, duration=300)
+
+            for name, field in [
+                ("date", date_field), ("exch_rate", exch_rate),
+                ("ticker", ticker_field), ("quantity", quantity_field),
+                ("price", price_field), ("fee", fee_field), ("ter", ter_field),
+            ]:
+                field.key = f"{product_type}_{name}"
+                field.on_focus = on_focus_stock
+            return ft.Container(content=stock_etf_form, padding=20, expand=True)
+
+        # ── ETF sub-type selector ───────────────────────────────
+        mm_placeholder = ft.Container(
+            ft.Text("\n\nMoney Market ETFs\n\nComing soon", size=16, text_align=ft.TextAlign.CENTER),
+            alignment=ft.alignment.Alignment.CENTER, expand=True, visible=False,
+        )
+        bond_text = ft.Text("\n\nBonds ETFs Rolling Maturity\n\nComing soon", size=16,
+                            text_align=ft.TextAlign.CENTER)
+        bond_placeholder = ft.Container(
+            bond_text, alignment=ft.alignment.Alignment.CENTER, expand=True, visible=False,
+        )
+
+        def _on_bond_maturity_toggle(e):
+            if e.control.value:
+                bond_text.value = "\n\nBonds ETFs Fixed Maturity\n\nComing soon"
+            else:
+                bond_text.value = "\n\nBonds ETFs Rolling Maturity\n\nComing soon"
+            tab_data["bond_fixed_maturity"] = e.control.value
+            self.page.update()
+
+        bond_maturity_switch = ft.Switch(label="Fixed Maturity", value=False,
+                                         disabled=True,
+                                         label_position=ft.LabelPosition.LEFT,
+                                         on_change=_on_bond_maturity_toggle)
+
+        def _on_etf_subtype_change(e):
+            val = e.control.value
+            stock_etf_form.visible = val == "stock_etf"
+            mm_placeholder.visible = val == "mm_etf"
+            bond_placeholder.visible = val == "bond_etf"
+            bond_maturity_switch.disabled = val != "bond_etf"
+            tab_data["etf_subtype"] = val
+            self.page.update()
+
+        etf_subtype_group = ft.RadioGroup(
+            value="stock_etf",
+            on_change=_on_etf_subtype_change,
+            content=ft.Row([
+                ft.Radio(value="stock_etf", label="Stock ETFs"),
+                ft.Radio(value="mm_etf", label="Money Market ETFs"),
+                ft.Row([
+                    ft.Radio(value="bond_etf", label="Bonds ETFs"),
+                    ft.Container(width=70),
+                    bond_maturity_switch,
+                ], spacing=0),
+            ], wrap=True, spacing=4),
+        )
+        tab_data["etf_subtype"] = "stock_etf"
+        tab_data["bond_fixed_maturity"] = False
+
+        outer = ft.Column([
+            etf_subtype_group,
+            stock_etf_form,
+            mm_placeholder,
+            bond_placeholder,
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
+        async def on_focus_etf(e):
             if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
+                await outer.scroll_to(scroll_key=e.control.key, duration=300)
 
         for name, field in [
             ("date", date_field), ("exch_rate", exch_rate),
@@ -424,9 +517,9 @@ class OperationsView:
             ("price", price_field), ("fee", fee_field), ("ter", ter_field),
         ]:
             field.key = f"{product_type}_{name}"
-            field.on_focus = on_focus
+            field.on_focus = on_focus_etf
 
-        return ft.Container(content=col, padding=20, expand=True)
+        return ft.Container(content=outer, padding=20, expand=True)
 
     def _open_es_date_picker(self, e, product_type):
         dp = ft.DatePicker(
@@ -460,6 +553,9 @@ class OperationsView:
         s = self.state
         t = s.translator
         tab = self._es_tabs[product_type]
+        if product_type == "ETF" and tab.get("etf_subtype", "stock_etf") != "stock_etf":
+            show_snack(self.page, "Not yet implemented", error=True)
+            return
         df = self._get_ops_df()
         broker = self._get_ops_broker()
         if df is None or broker is None:
@@ -513,7 +609,7 @@ class OperationsView:
         if fee < 0:
             show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
             return
-        if tab["es_type"].value == "buy":
+        if not tab["es_type"].controls[1].value:  # Switch off = Buy
             price = -price
 
         conv_rate = 1.0

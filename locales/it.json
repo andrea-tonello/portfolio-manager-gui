@@ -74,7 +74,7 @@
       "ticker_error": "Inserire ticker",
       "ticker_notfound": "Ticker non riconosciuto: \"{ticker}\"",
       "ticker_nodata": "Non ci sono dati per il ticker: \"{ticker}\"",
-      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE\n\nVerificare su Yahoo Finance",
+      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
       "qt": "Quantità",
       "qt_error": "La quantità deve essere un numero intero maggiore di 0",
       "op_buy": "Acquisto",

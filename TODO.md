@@ -1,11 +1,8 @@
-- [x] [UI-BUG] Apply button in Transaction is cutoff (mobile only)
-- [x] [UI-BUG] "Fee currency" dropdown is wider then "Currency" dropdown. Make them equal
-- [x] [UI] Add splash screen: assets/splash.png (optional: splash_dark.png, splash_android.png, splash_ios.png)
-- [x] [UI] Replace "Home" in AppBar with "(icon) Portfolio Manager"
 - [ ] Privacy policy
 - [ ] Contact us
-
-- [x] [FEATURE-ADV] Live Yahoo Finance tickers
-- [ ] [FEATURE-ADV] Manage stock splits
-- [ ] [FEATURE-ADV] Bonds
-- [ ] [FEATURE-ADV] Monetary / Bonds ETFs 
+- [ ] [FEATURE] Manage stock splits
+- [ ] [FEATURE] Bonds
+- [ ] [FEATURE] Monetary / Bonds ETFs
+- [ ] Import / Export configs
+- [ ] Add sanitization to check if tickers are stocks / etfs / etc.
+- [ ] Align watchlist tickers
