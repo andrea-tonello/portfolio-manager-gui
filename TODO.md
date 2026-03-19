@@ -5,4 +5,4 @@
 - [ ] [FEATURE] Monetary / Bonds ETFs
 - [ ] Import / Export configs
 - [ ] Add sanitization to check if tickers are stocks / etfs / etc.
-- [ ] Align watchlist tickers
+- [ ] General, reusable interface for haptic feedback

@@ -1,14 +1,15 @@
-## [0.1.5] (2026-03-18)
+## [0.1.5] (XXXX-XX-XX)
 
 ### Bug Fixes
 
 - **[LOCALE]** Fixed missing key for Charges in OperationsView
+- **[UI]** Fixing watchlist items' value misalignments
 
 
 ### Features
 
-- [UI] Changed Buy/Sell Radio buttons to a Switch
-- [UI] Added ETF type selection Radio buttons in the ETF tab, to enable future support of Money Market ETFs and Bonds ETFs
+- **[UI]** Changed Buy/Sell Radio buttons to a Switch
+- **[UI]** Added ETF type selection Radio buttons in the ETF tab, to enable future support of Money Market ETFs and Bonds ETFs
 
 
 

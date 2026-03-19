@@ -241,10 +241,11 @@ class HomeView:
         return ft.Container(
             content=ft.Row([
                 chip,
-                ft.Column([price_text, indicator], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.END),
+                ft.Container(expand=True),
+                ft.Column([price_text, indicator], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Container(width=70),
                 delete_btn,
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-               vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.padding.only(left=4),
         )
 
