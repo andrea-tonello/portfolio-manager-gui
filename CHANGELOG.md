@@ -1,16 +1,16 @@
-## [0.1.5] (XXXX-XX-XX)
+## [0.1.5] (2026-03-20)
 
 ### Bug Fixes
 
 - **[LOCALE]** Fixed missing key for Charges in OperationsView
-- **[UI]** Fixing watchlist items' value misalignments
+- **[UI]** Fixed watchlist items value misalignment
 
 
 ### Features
 
-- **[UI]** Changed Buy/Sell Radio buttons to a Switch
-- **[UI]** Added ETF type selection Radio buttons in the ETF tab, to enable future support of Money Market ETFs and Bonds ETFs
-
+- **[FUNCTIONAL] NEW** Added Import Data and Export Data buttons in the Settings menu. The data includes every application setting and every account-related data, acting as an overall snapshot. This was added as a way to manage backups
+- **[UI]** Added ETF type selection Radio buttons in the ETF tab, to enable future support for Money Market ETFs and Bonds ETFs
+- **[UI]** Replaced Buy/Sell Radio buttons with a custom Switch
 
 
 

@@ -25,12 +25,20 @@ class SettingsView:
 
     def build(self) -> ft.Control:
         t = self.state.translator
+        self.file_picker = ft.FilePicker()
+        self.page.services[:] = [
+            s for s in self.page.services if not isinstance(s, ft.FilePicker)
+        ]
+        self.page.services.append(self.file_picker)
+
         return ft.Column([
             self._build_theming_section(),
             ft.Divider(),
             self._build_language_section(),
             ft.Divider(),
             self._build_accounts_section(),
+            ft.Divider(),
+            self._build_backup_section(),
             ft.Divider(),
             self._build_reset_section(),
             ft.Divider(),
@@ -196,7 +204,7 @@ class SettingsView:
 
         return ft.Container(
             content=ft.Column([
-                ft.Text(t.get("settings.account.title").strip(), size=16, weight=ft.FontWeight.BOLD),
+                ft.Text(t.get("settings.account.title"), size=16, weight=ft.FontWeight.BOLD),
                 *broker_tiles,
                 ft.Row([
                     self.new_broker_field,
@@ -234,7 +242,8 @@ class SettingsView:
         broker_name = s.brokers[idx]
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("settings.account.delete_account")),
-            content=ft.Text(t.get("settings.account.delete_confirm", account=broker_name)),
+            content=ft.Text(t.get("settings.account.delete_confirm", account=broker_name) + 
+                            t.get("settings.account.suggest_backup")),
             actions=[
                 ft.TextButton(t.get("components.cancel"), on_click=lambda e: self.page.pop_dialog()),
                 ft.TextButton(
@@ -271,6 +280,105 @@ class SettingsView:
         except Exception as ex:
             show_snack(self.page, str(ex), error=True)
 
+    # ── Backup ────────────────────────────────────────────────────────
+
+    def _build_backup_section(self) -> ft.Control:
+        t = self.state.translator
+        export_btn = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.UPLOAD_FILE, size=32),
+                ft.Text(t.get("settings.account.export_backup"), text_align=ft.TextAlign.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+            padding=20,
+            border_radius=15,
+            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY),
+            on_click=self._on_export_backup,
+            ink=True,
+            expand=True,
+        )
+        import_btn = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.DOWNLOAD, size=32),
+                ft.Text(t.get("settings.account.import_backup"), text_align=ft.TextAlign.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+            padding=20,
+            border_radius=15,
+            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY),
+            on_click=self._on_import_backup,
+            ink=True,
+            expand=True,
+        )
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(t.get("settings.account.backup_title"), size=16, weight=ft.FontWeight.BOLD),
+                ft.Text(t.get("settings.account.backup_descr"), size=12),
+                ft.Row([export_btn, import_btn], spacing=12),
+            ], spacing=10),
+            padding=20,
+        )
+
+    async def _on_export_backup(self, e):
+        t = self.state.translator
+        zip_bytes = config_service.export_backup(self.state.config_folder)
+        path = await self.file_picker.save_file(
+            file_name="portfolio_backup.zip",
+            allowed_extensions=["zip"],
+            src_bytes=zip_bytes,
+        )
+        if path:
+            if not self.page.web and not self.page.platform.is_mobile():
+                with open(path, "wb") as f:
+                    f.write(zip_bytes)
+            show_snack(self.page, t.get("settings.account.export_backup") + " ✓")
+
+    async def _on_import_backup(self, e):
+        t = self.state.translator
+        files = await self.file_picker.pick_files(
+            allowed_extensions=["zip"], allow_multiple=False,
+        )
+        if not files:
+            return
+        picked = files[0]
+        if not self.page.web and not self.page.platform.is_mobile():
+            with open(picked.path, "rb") as f:
+                zip_bytes = f.read()
+        else:
+            zip_bytes = picked.bytes
+
+        valid, err = config_service.validate_backup(zip_bytes)
+        if not valid:
+            show_snack(self.page, err, error=True)
+            return
+
+        self._pending_import = zip_bytes
+        self._show_import_confirm_dialog()
+
+    def _show_import_confirm_dialog(self):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("settings.account.import_backup")),
+            content=ft.Text(t.get("settings.account.import_warning") +
+                            t.get("settings.account.suggest_backup")),
+            actions=[
+                ft.TextButton(t.get("components.cancel"),
+                              on_click=lambda e: self.page.pop_dialog()),
+                ft.TextButton(
+                    t.get("settings.account.import_backup"),
+                    style=ft.ButtonStyle(color=ft.Colors.RED),
+                    on_click=lambda e: self._confirm_import(),
+                ),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def _confirm_import(self):
+        self.page.pop_dialog()
+        try:
+            config_service.import_backup(self.state.config_folder, self._pending_import)
+            self.page.data["restart"]()
+        except Exception as ex:
+            show_snack(self.page, str(ex), error=True)
+
     # ── Reset ─────────────────────────────────────────────────────────
 
     def _build_reset_section(self) -> ft.Control:
@@ -303,7 +411,8 @@ class SettingsView:
         )
         content = ft.Container(
             ft.Column([
-                ft.Text(t.get("settings.account.reset_warning")),
+                ft.Text(t.get("settings.account.reset_warning") + 
+                        t.get("settings.account.suggest_backup")),
                 self.reset_field,
             ], scroll=ft.ScrollMode.AUTO, tight=True)
         )
