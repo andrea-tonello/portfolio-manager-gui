@@ -19,6 +19,8 @@ exclude = [
     ".venv",
     "*.csv",
     "*.md",
+    "media",
+    "assets/*-old*",
 ]
 
 [tool.flet.compile]
