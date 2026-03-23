@@ -369,6 +369,7 @@ class OperationsView:
         ticker_field = TickerSearchField(
             self.page,
             label="Ticker",
+            type_filter="etf" if product_type == "ETF" else "equity",
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
@@ -639,8 +640,22 @@ class OperationsView:
         tab["loading"].visible = True
         self.page.update()
 
+        expected_type = "etf" if product_type == "ETF" else "equity"
+
         def worker():
             try:
+                from services.market_data import search_tickers as _search
+                results = _search(ticker, quotes_count=1)
+                if results and results[0]["symbol"].upper() == ticker.upper():
+                    actual_type = results[0]["type"]
+                    if actual_type != expected_type:
+                        label = "an ETF" if expected_type == "etf" else "a Stock"
+                        msg = t.get("operations.stock.ticker_wrong_type")
+                        show_snack(self.page, msg, error=True)
+                        tab["loading"].visible = False
+                        self.page.update()
+                        return
+
                 new_df = operations_service.execute_etf_stock(
                     t, df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,

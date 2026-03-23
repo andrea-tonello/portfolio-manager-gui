@@ -73,6 +73,7 @@
       "ticker": "Ticker",
       "ticker_error": "Ticker is missing",
       "ticker_notfound": "Ticker not recognized: \"{ticker}\"",
+      "ticker_wrong_type": "This Ticker is not comprised in this asset class",
       "ticker_nodata": "There is no data for ticker: \"{ticker}\"",
       "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n      \u2981 VWCE, Milan: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
       "qt": "Quantity",
@@ -221,6 +222,7 @@
     },
     "privacy_policy": "Privacy Policy",
     "contacts": "Contacts and Feedback",
+    "contacts_content": "If you have any questions, or you want to report bugs, suggest new features, or provide general feedback, you can contact us by writing to\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",
     "repo": "This project is Open Source!"
   },
 

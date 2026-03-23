@@ -10,9 +10,10 @@ class TickerSearchField:
     """TextField with live Yahoo Finance ticker search suggestions."""
 
     def __init__(self, page: ft.Page, *, label: str = "Ticker",
-                 on_select=None, **kwargs):
+                 on_select=None, type_filter=None, **kwargs):
         self._page = page
         self._on_select = on_select
+        self._type_filter = type_filter  # e.g. "etf", "equity", or None for no filter
         self._req_id = 0
         self._lock = threading.Lock()
         self._picking = False
@@ -40,7 +41,6 @@ class TickerSearchField:
                 offset=ft.Offset(0, 4),
             ),
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            height=200,
             visible=False,
         )
 
@@ -123,6 +123,11 @@ class TickerSearchField:
         self._page.run_thread(_delayed)
 
     def _show_results(self, results):
+        if self._type_filter:
+            results = [r for r in results if r["type"] == self._type_filter]
+        if not results:
+            self._hide()
+            return
         tiles = []
         for r in results:
             symbol = r["symbol"]
@@ -148,6 +153,7 @@ class TickerSearchField:
                 )
             )
         self._suggestions.controls = tiles
+        self._overlay.height = min(len(tiles) * 52, 260)
         self._overlay.visible = True
         self._page.update()
 

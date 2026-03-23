@@ -1,7 +1,3 @@
-- [ ] Privacy policy
-- [ ] Contact us
 - [ ] [FEATURE] Manage stock splits
 - [ ] [FEATURE] Bonds
 - [ ] [FEATURE] Monetary / Bonds ETFs
-- [ ] Add sanitization to check if tickers are stocks / etfs / etc.
-- [ ] General, reusable interface for haptic feedback

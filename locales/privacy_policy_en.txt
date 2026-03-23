@@ -1,0 +1,65 @@
+*Last updated: 2026-03-23*
+
+## 1. Introduction
+
+Portfolio Manager ("the App") is developed by Andrea Tonello. This policy explains how the App handles your data.
+
+
+## 2. Data We Collect
+
+### 2a. Data Stored Locally on Your Device
+
+Portfolio transactions (tickers, prices, quantities, dates), account and broker names, and app preferences (language, theme, watchlist). All this data is stored exclusively on your device and is never transmitted to external servers.
+
+### 2b. Market Data
+
+The App retrieves publicly available market data (prices, exchange rates) from third-party financial data providers. These requests contain ticker symbols only — no personal data is sent.
+
+### 2c. Advertising (if applicable)
+
+The App may display ads provided by third-party ad networks. The ad provider may collect device identifiers, IP address, and usage data according to their own privacy policy. You can opt out of personalized ads in your device settings.
+
+### 2d. Purchases (if applicable)
+
+Purchases are processed entirely by Google Play or Apple App Store. We do not collect or store any payment information.
+
+
+## 3. Data Sharing
+
+We do not sell, share, or transfer your personal data to third parties, except as described in section 2c regarding ad providers, if applicable.
+
+
+## 4. Data Storage and Security
+
+All portfolio data is stored locally on your device. We do not operate servers or cloud storage. You are responsible for backing up your data using the App's export feature. Deleting the App removes all stored data.
+
+
+## 5. Your Rights (GDPR)
+
+If you are in the EU/EEA, you have the right to:
+
+- **Access** your data — available via the App's export feature
+- **Delete** your data — use the App's reset feature or uninstall the App
+- **Data portability** — available via CSV and backup export
+
+For any data-related requests, contact the address listed in section 9.
+
+
+## 6. Children's Privacy
+
+The App is not directed at children under 13 (or under 16 in certain EU member states). We do not knowingly collect data from children.
+
+
+## 7. Changes to This Policy
+
+We may update this policy from time to time. Changes will be reflected in the App with an updated date.
+
+
+## 8. Licensing and Open Source
+
+As a further commitment to privacy, the App is Free and Open Source Software, under the GPLv3 License. This grants the end user free and total access to the App's source code, available on [GitHub](https://github.com/andrea-tonello/portfolio-manager-gui)
+
+
+## 9. Contacts
+
+Andrea Tonello — [andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)

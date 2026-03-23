@@ -20,6 +20,7 @@ def _do_restart(page: ft.Page):
     page.navigation_bar = None
     state = AppState(base_path=".")
     state.load_config()
+    state.init_haptic(page)
     _apply_theme(page, state)
 
     if state.lang_code is None:

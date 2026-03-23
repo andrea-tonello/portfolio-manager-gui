@@ -1,6 +1,8 @@
 import os
 import configparser
 
+import flet as ft
+
 from utils.translator import Translator
 from utils.constants import LANG
 from utils.other_utils import create_defaults
@@ -46,8 +48,25 @@ class AppState:
         self._home_nav_count: int = 0
         self._home_nav_threshold: int = 10
 
+        # Haptic feedback
+        self._haptic: ft.HapticFeedback | None = None
+
         # Navigation state
         self._last_nav_index: int = 0
+
+    def init_haptic(self, page: ft.Page):
+        """Register the HapticFeedback service once, reuse on rebuilds."""
+        existing = [s for s in page.services if isinstance(s, ft.HapticFeedback)]
+        if existing:
+            self._haptic = existing[0]
+        else:
+            self._haptic = ft.HapticFeedback()
+            page.services.append(self._haptic)
+
+    def haptic(self, page: ft.Page):
+        """Fire a heavy-impact haptic. Safe to call from any view."""
+        if self._haptic:
+            page.run_task(self._haptic.heavy_impact)
 
     def load_config(self):
         """Read config.ini and populate lang_code and brokers."""

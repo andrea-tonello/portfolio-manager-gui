@@ -1,3 +1,18 @@
+## [0.1.6] (2026-03-23)
+
+### Bug Fixes
+
+- **[PERFORMANCE]** Reduced assets size
+- **[SANITIZATION]** Added asset class checks for Tickers. For example, trying to add an AAPL operation in the ETF tab will now result in an error, since Apple is a stock
+- **[UI]** Made the Ticker suggestion field dynamic in height
+
+### Features
+
+- Added GPLv3 license
+- Filled Privacy Policy popup
+- Filled Contacts popup
+- Made the Haptic Feedback interface a reusable component in AppState, now accessible to each view
+
 ## [0.1.5] (2026-03-20)
 
 ### Bug Fixes

@@ -17,13 +17,6 @@ class HomeView:
 
     def build(self) -> ft.Control:
         t = self.state.translator
-        # Reuse existing HapticFeedback service or create one
-        existing = [s for s in self.page.services if isinstance(s, ft.HapticFeedback)]
-        if existing:
-            self._haptic = existing[0]
-        else:
-            self._haptic = ft.HapticFeedback()
-            self.page.services.append(self._haptic)
         if not self.state.brokers:
             return ft.Column([ft.Text(t.get("home.no_account"), size=16)])
 
@@ -139,7 +132,7 @@ class HomeView:
         ], spacing=0)
 
     def _toggle_watchlist(self, e):
-        self.page.run_task(self._haptic.heavy_impact)
+        self.state.haptic(self.page)
         expanded = not getattr(self.state, '_watchlist_expanded', False)
         self.state._watchlist_expanded = expanded
         self._watchlist_body.visible = expanded
@@ -281,7 +274,7 @@ class HomeView:
         return header
 
     def _cycle_pos_display(self, e):
-        self.page.run_task(self._haptic.heavy_impact)
+        self.state.haptic(self.page)
         self._pos_display_mode = (self._pos_display_mode + 1) % 3
         self._pos_mode_btn.content = ft.Text(self._pos_mode_labels[self._pos_display_mode])
         hidden = getattr(self.state, '_home_values_hidden', False)
@@ -560,7 +553,7 @@ class HomeView:
             ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.padding.symmetric(horizontal=12, vertical=8),
             border_radius=10,
-            bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.SECONDARY),
+            bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.SECONDARY),
             shadow=ft.BoxShadow(
                 spread_radius=0, blur_radius=1, offset=ft.Offset(3, 3),
                 color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
@@ -600,7 +593,7 @@ class HomeView:
         ], spacing=4)
 
     def _toggle_visibility(self, e):
-        self.page.run_task(self._haptic.heavy_impact)
+        self.state.haptic(self.page)
         hidden = not self.state._home_values_hidden
         self.state._home_values_hidden = hidden
         config_service.save_home_hidden(self.state.config_folder, hidden)
@@ -637,7 +630,7 @@ class HomeView:
             self._pnl_value.color = self._current_tpnl_color
 
     def _cycle_pnl_mode(self, e):
-        self.page.run_task(self._haptic.heavy_impact)
+        self.state.haptic(self.page)
         self._pnl_mode = (self._pnl_mode + 1) % 2
         hidden = getattr(self.state, '_home_values_hidden', False)
         if not hidden:

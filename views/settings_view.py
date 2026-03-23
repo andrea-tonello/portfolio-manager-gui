@@ -1,3 +1,5 @@
+import os
+
 import flet as ft
 
 from components.snack import show_snack
@@ -445,31 +447,54 @@ class SettingsView:
     def _build_info_section(self) -> ft.Control:
         t = self.state.translator
 
-        def open_popup(title_key):
-            def handler(e):
-                dlg = ft.AlertDialog(
-                    title=ft.Text(t.get(title_key)),
-                    content=ft.Text(""),
-                    actions=[ft.TextButton("OK", on_click=lambda _: (setattr(dlg, "open", False), self.page.update()))],
-                )
-                self.page.show_dialog(dlg)
-            return handler
+        def _open_privacy_policy(e):
+            lang = self.state.lang_code or "en"
+            pp_path = os.path.join("locales", f"privacy_policy_{lang}.txt")
+            try:
+                with open(pp_path, encoding="utf-8") as f:
+                    pp_text = f.read()
+            except FileNotFoundError:
+                pp_text = "Privacy policy not available."
+            dlg = ft.AlertDialog(
+                title=ft.Text(t.get("settings.privacy_policy")),
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Markdown(pp_text, auto_follow_links=True,
+                                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
+                    ], scroll=ft.ScrollMode.AUTO, tight=True),
+                    width=450,
+                    height=450,
+                ),
+                actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
+            )
+            self.page.show_dialog(dlg)
+            
 
         privacy_policy = ft.Container(
             ft.Row([
                 ft.Text(t.get("settings.privacy_policy"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            on_click=open_popup("settings.privacy_policy"),
+            on_click=_open_privacy_policy,
             padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
 
+        def _open_contacts(e):
+            dlg = ft.AlertDialog(
+                title=ft.Text(t.get("settings.contacts")),
+                content=ft.Markdown(t.get("settings.contacts_content"),
+                                    auto_follow_links=True,
+                                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
+                actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
+            )
+            self.page.show_dialog(dlg)
+
         contact_us = ft.Container(
             ft.Row([
                 ft.Text(t.get("settings.contacts"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            on_click=open_popup("settings.contacts"),
+            on_click=_open_contacts,
             padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
@@ -480,7 +505,6 @@ class SettingsView:
             radius=20,
             col={"xs": 2, "md": 2},
         )
-
 
         github_repo = ft.Container(
             content=ft.ResponsiveRow([
