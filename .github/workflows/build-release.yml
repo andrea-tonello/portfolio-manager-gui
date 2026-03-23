@@ -34,8 +34,17 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.jks
+
       - name: Build APK
-        run: (yes || true) | uv run flet build apk --project "Portfolio Manager"
+        run: |
+          (yes || true) | uv run flet build apk \
+            --project "Portfolio Manager" \
+            --android-signing-key-store /tmp/release.jks \
+            --android-signing-key-store-password "${{ secrets.KEYSTORE_PASSWORD }}" \
+            --android-signing-key-password "${{ secrets.KEY_PASSWORD }}" \
+            --android-signing-key-alias upload
 
       - name: Rename APK
         run: mv build/apk/*.apk build/apk/portfolio-manager.apk
