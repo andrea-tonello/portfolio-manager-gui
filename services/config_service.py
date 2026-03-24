@@ -88,11 +88,11 @@ def export_backup(config_folder: str) -> bytes:
     return buf.getvalue()
 
 
-def validate_backup(zip_bytes: bytes) -> tuple[bool, str]:
+def validate_backup(zip_bytes: bytes, t) -> tuple[bool, str]:
     try:
         zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
-    except zipfile.BadZipFile:
-        return False, "Invalid ZIP file."
+    except Exception:
+        return False, t.get("settings.account.import_error")
 
     names = zf.namelist()
 

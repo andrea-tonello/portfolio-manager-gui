@@ -7,6 +7,19 @@ from services import config_service, account_service
 from utils.constants import LANG, APP_VERSION
 from utils.other_utils import create_defaults
 
+# Workaround: Flet's Android client sends a 'bytes' field in pick_files
+# results, but FilePickerFile doesn't declare it. Patch to accept and store it.
+_orig_fpf_init = ft.FilePickerFile.__init__
+
+
+def _patched_fpf_init(self, *args, **kwargs):
+    file_bytes = kwargs.pop("bytes", None)
+    _orig_fpf_init(self, *args, **kwargs)
+    self.file_bytes = file_bytes
+
+
+ft.FilePickerFile.__init__ = _patched_fpf_init
+
 
 PALETTE_COLORS = {
     "blue": ft.Colors.BLUE,
@@ -322,16 +335,18 @@ class SettingsView:
     async def _on_export_backup(self, e):
         t = self.state.translator
         zip_bytes = config_service.export_backup(self.state.config_folder)
+        filename = "portfolio_backup.zip"
         path = await self.file_picker.save_file(
-            file_name="portfolio_backup.zip",
+            file_name=filename,
             allowed_extensions=["zip"],
             src_bytes=zip_bytes,
         )
+        # On Android/iOS, save_file returns None (OS handles the save via src_bytes).
+        # On desktop, it returns the chosen path and we must write manually.
         if path:
-            if not self.page.web and not self.page.platform.is_mobile():
-                with open(path, "wb") as f:
-                    f.write(zip_bytes)
-            show_snack(self.page, t.get("settings.account.export_backup") + " ✓")
+            with open(path, "wb") as f:
+                f.write(zip_bytes)
+        show_snack(self.page, t.get("settings.account.export_success", filename=filename))
 
     async def _on_import_backup(self, e):
         t = self.state.translator
@@ -341,13 +356,22 @@ class SettingsView:
         if not files:
             return
         picked = files[0]
-        if not self.page.web and not self.page.platform.is_mobile():
-            with open(picked.path, "rb") as f:
-                zip_bytes = f.read()
-        else:
-            zip_bytes = picked.bytes
 
-        valid, err = config_service.validate_backup(zip_bytes)
+        # On Android, bytes come via the patched file_bytes attribute.
+        # On desktop, read from the file path.
+        zip_bytes = getattr(picked, "file_bytes", None)
+        if not zip_bytes and picked.path:
+            try:
+                with open(picked.path, "rb") as f:
+                    zip_bytes = f.read()
+            except OSError:
+                pass
+
+        if not zip_bytes:
+            show_snack(self.page, t.get("settings.account.import_error"), error=True)
+            return
+
+        valid, err = config_service.validate_backup(zip_bytes, t)
         if not valid:
             show_snack(self.page, err, error=True)
             return

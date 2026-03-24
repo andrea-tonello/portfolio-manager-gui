@@ -1,3 +1,12 @@
+## [0.1.7] (2026-03-24)
+
+### Bug Fixes
+
+- **[LOGIC] CRITICAL** Android: fixed ZIP corruption error on import
+
+
+
+
 ## [0.1.6] (2026-03-23)
 
 ### Bug Fixes
@@ -13,13 +22,15 @@
 - Filled Contacts popup
 - Made the Haptic Feedback interface a reusable component in AppState, now accessible to each view
 
+
+
+
 ## [0.1.5] (2026-03-20)
 
 ### Bug Fixes
 
 - **[LOCALE]** Fixed missing key for Charges in OperationsView
 - **[UI]** Fixed watchlist items value misalignment
-
 
 ### Features
 
@@ -45,7 +56,6 @@
 - [LOGIC] **Changed _TAB_TO_GLOSSARY from an hardcoded mapping to a dynamic update**. Before: `_TAB_TO_GLOSSARY = {0: 2, 1: 3, 2: 4, 3: 5}`, mapping analysis tab indices to glossary page numbers. Now: dynamic index + 2 (offset)
 - [UI] **Fixed "Apply" button** in TransactionsView being cutoff (mobile only)
 - [UI] **Fixed "Fee currency" dropdown being wider then "Currency" dropdown** in OperationsView
-
 
 ### Features
 
