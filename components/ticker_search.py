@@ -25,6 +25,7 @@ class TickerSearchField:
             label=label,
             on_change=self._on_change,
             on_blur=self._on_blur,
+            capitalization=ft.TextCapitalization.CHARACTERS,
             **kwargs,
         )
 

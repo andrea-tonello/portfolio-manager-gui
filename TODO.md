@@ -3,3 +3,12 @@
 - [FEATURE] Monetary / Bonds ETFs
 - [LOGIC] Decimal
 - Table in TransactionView: with many items, the view slows down
+- Table in TransactionView: center the table (ugly on tablet)
+- Table in TransactionView: add column filtering options. Options must be saved.
+- TransactionView: fix count/days Textfield height
+- [UI] OperationsView: fix Textfields placements on tablet
+- [UI] Restrict on-screen keyboard: . , / -
+- [UI] OperationsVie: replace ✓ button with a next/tab button on the on-screen keyboard 
+- [UI] Fix loading circle clipping
+- [UI] Fadein/Fadeout when expanding/selecting dropdown menu
+- [UI] View transitions

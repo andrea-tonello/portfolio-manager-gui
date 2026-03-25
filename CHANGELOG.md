@@ -1,3 +1,14 @@
+# [0.1.9] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[SANITIZATION]** Enabled auto-capitalization in Ticker fields
+
+### Features
+
+
+
+
 ## [0.1.8] (2026-03-25)
 
 ### Bug Fixes
