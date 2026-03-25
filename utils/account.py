@@ -82,8 +82,8 @@ def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date)
     fallback_index = pd.date_range(start=start_ref_date, end=end_ref_date)
 
     try:
-        prices_df = download_close(only_tickers, start=start_ref_date, end=end_ref_date)
-        exch_series = download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
+        prices_df, _ = download_close(only_tickers, start=start_ref_date, end=end_ref_date)
+        exch_series, _ = download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
 
         if isinstance(prices_df, pd.Series):
             prices_df = prices_df.to_frame(name=only_tickers[0] if len(only_tickers) == 1 else "Close")
@@ -275,7 +275,7 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
 
-    data = download_close(tickers, start=start_date, end=end_date)
+    data, names = download_close(tickers, start=start_date, end=end_date)
     if isinstance(data, pd.Series):
         data = data.to_frame(name=tickers[0])
     data_valid = (
@@ -291,6 +291,7 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
         item["price"] = price
         item["value"] = item["quantity"] * price
         item["prev_close"] = data_prev[ticker] * item["exchange_rate"]
+        item["name"] = names.get(ticker, ticker)
 
     return positions
 

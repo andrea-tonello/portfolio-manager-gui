@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from components.snack import show_snack
-from services import account_service
+from services import account_service, config_service
 from utils.columns import rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
 from utils.constants import REPORT_PREFIX
 
@@ -89,13 +89,14 @@ class TransactionsView:
         t = self.state.translator
 
         self._tx_df = df
-        self._tx_filter_mode = "count"
-        self._tx_filter_value = 5
+        saved_mode, saved_value = config_service.load_tx_filter(self.state.config_folder)
+        self._tx_filter_mode = saved_mode
+        self._tx_filter_value = saved_value
 
         self.tx_table_container = ft.Container()
 
         self.filter_radio = ft.RadioGroup(
-            value="count",
+            value=saved_mode,
             on_change=self._on_filter_mode_change,
             content=ft.Column([
                 ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
@@ -103,7 +104,7 @@ class TransactionsView:
             ], spacing=5),
         )
         self.tx_filter_field = ft.TextField(
-            value="5",
+            value=str(saved_value),
             keyboard_type=ft.KeyboardType.NUMBER,
             width=70,
             height=45,
@@ -141,9 +142,12 @@ class TransactionsView:
     def _on_filter_mode_change(self, e):
         self._tx_filter_mode = self.filter_radio.value
         if self.filter_radio.value == "count":
+            self._tx_filter_value = 5
             self.tx_filter_field.value = "5"
         else:
+            self._tx_filter_value = 90
             self.tx_filter_field.value = "90"
+        config_service.save_tx_filter(self.state.config_folder, self._tx_filter_mode, self._tx_filter_value)
         self._update_tx_table()
         self.page.update()
 
@@ -155,6 +159,7 @@ class TransactionsView:
             self._tx_filter_value = val
         except (ValueError, TypeError):
             return
+        config_service.save_tx_filter(self.state.config_folder, self._tx_filter_mode, self._tx_filter_value)
         self._update_tx_table()
         self.page.update()
 

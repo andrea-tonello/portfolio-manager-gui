@@ -10,6 +10,17 @@ from utils.other_utils import round_half_up
 from utils.account import get_asset_value
 
 
+def _longpress_tooltip(control: ft.Control, name: str) -> ft.Control:
+    """Add a long-press tooltip showing the product's full name to a control."""
+    control.tooltip = ft.Tooltip(
+        message=name,
+        trigger_mode=ft.TooltipTriggerMode.LONG_PRESS,
+        enable_feedback=True,
+        prefer_below=False,
+    )
+    return control
+
+
 class HomeView:
     def __init__(self, page: ft.Page, state):
         self.page = page
@@ -113,7 +124,10 @@ class HomeView:
             ),
         ], spacing=8)
 
-        self._watchlist_items_container = ft.Column([], spacing=4)
+        self._watchlist_items_container = ft.ReorderableListView(
+            [], spacing=4, on_reorder=self._on_watchlist_reorder,
+            show_default_drag_handles=False, expand=True,
+        )
         self._watchlist_loading = ft.ProgressRing(visible=False, width=14, height=14)
 
         self._watchlist_body = ft.Column([
@@ -165,6 +179,17 @@ class HomeView:
             self._fetch_watchlist_prices()
             self.page.update()
 
+    def _on_watchlist_reorder(self, e):
+        old_idx, new_idx = e.old_index, e.new_index
+        wl = self.state.watchlist
+        item = wl.pop(old_idx)
+        wl.insert(new_idx, item)
+        config_service.save_watchlist(self.state.config_folder, wl)
+        # Sync the controls list to match
+        ctrls = self._watchlist_items_container.controls
+        ctrl = ctrls.pop(old_idx)
+        ctrls.insert(new_idx, ctrl)
+
     def _fetch_watchlist_prices(self):
         tickers = self.state.watchlist[:]
         if not tickers:
@@ -175,20 +200,21 @@ class HomeView:
 
         def worker():
             try:
-                data = download_close(tickers, period="2d")
+                data, names = download_close(tickers, period="2d")
                 if isinstance(data, pd.Series):
                     data = data.to_frame(name=tickers[0])
                 data = data.dropna(how="all")
 
                 rows = []
                 for tk in tickers:
+                    name = names.get(tk, tk)
                     if tk not in data.columns or data[tk].dropna().empty:
-                        rows.append(self._build_watchlist_item(tk, None, None))
+                        rows.append(self._build_watchlist_item(tk, None, None, name))
                         continue
                     series = data[tk].dropna()
                     price = float(series.iloc[-1])
                     prev_close = float(series.iloc[-2]) if len(series) >= 2 else None
-                    rows.append(self._build_watchlist_item(tk, price, prev_close))
+                    rows.append(self._build_watchlist_item(tk, price, prev_close, name))
 
                 self._watchlist_items_container.controls = rows
             except Exception:
@@ -201,12 +227,23 @@ class HomeView:
 
         self.page.run_thread(worker)
 
-    def _build_watchlist_item(self, ticker: str, price, prev_close) -> ft.Control:
+    def _build_watchlist_item(self, ticker: str, price, prev_close,
+                              name: str = "") -> ft.Control:
         chip = ft.Container(
             content=ft.Text(ticker, weight=ft.FontWeight.BOLD, size=13),
             bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
             border_radius=10,
             padding=ft.padding.symmetric(vertical=8, horizontal=14),
+        )
+        chip_with_tooltip = _longpress_tooltip(chip, name or ticker)
+
+        # Full name on tablets, empty spacer on phones
+        wide = bool(name and self.page.width and self.page.width >= 600)
+        name_text = ft.Text(
+            name if wide else "", size=12, max_lines=1,
+            overflow=ft.TextOverflow.ELLIPSIS,
+            color=ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE),
+            expand=True,
         )
 
         if price is not None:
@@ -231,15 +268,21 @@ class HomeView:
             on_click=lambda e, tk=ticker: self._on_watchlist_remove(tk),
         )
 
+        drag_handle = ft.ReorderableDragHandle(
+            content=ft.Icon(ft.Icons.DRAG_INDICATOR, size=20,
+                            color=ft.Colors.with_opacity(0.4, ft.Colors.ON_SURFACE)),
+        )
+
         return ft.Container(
             content=ft.Row([
-                chip,
-                ft.Container(expand=True),
-                ft.Column([price_text, indicator], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                ft.Container(width=70),
+                drag_handle,
+                chip_with_tooltip,
+                name_text,
+                ft.Column([price_text, indicator], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.END),
                 delete_btn,
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.padding.only(left=4),
+            key=ticker,
         )
 
     # ── Overview ──────────────────────────────────────────────────────
@@ -418,6 +461,7 @@ class HomeView:
                                         "total_cost": p["quantity"] * p["pmc"],
                                         "price": p["price"],
                                         "prev_close": p.get("prev_close", p["price"]),
+                                        "name": p.get("name", tk),
                                     }
                     for tk, d in aggr.items():
                         all_positions.append({
@@ -426,6 +470,7 @@ class HomeView:
                             "pmc": d["total_cost"] / d["quantity"] if d["quantity"] else 0,
                             "price": d["price"],
                             "prev_close": d["prev_close"],
+                            "name": d["name"],
                         })
                     total_nav = total_cash + total_assets
                     nav_num = total_nav
@@ -450,7 +495,8 @@ class HomeView:
                     all_positions = [
                         {"ticker": p["ticker"], "quantity": p["quantity"],
                          "pmc": p["pmc"], "price": p["price"],
-                         "prev_close": p.get("prev_close", p["price"])}
+                         "prev_close": p.get("prev_close", p["price"]),
+                         "name": p.get("name", p["ticker"])}
                         for p in (positions or [])
                     ]
 
@@ -647,6 +693,7 @@ class HomeView:
         rows = []
         for pos in positions:
             ticker = pos["ticker"]
+            name = pos.get("name", ticker)
             qty = pos["quantity"]
             pmc = pos["pmc"]
             price = pos["price"]
@@ -676,8 +723,9 @@ class HomeView:
                 pct = (price - prev_close) / prev_close * 100 if prev_close else 0
                 clr = ft.Colors.GREEN if pct >= 0 else ft.Colors.RED
                 extra_ctrl = ft.Text(f"{pct:+.2f}%", size=14, weight=ft.FontWeight.BOLD, color=clr)
+            chip_with_tooltip = _longpress_tooltip(chip, name)
             row = ft.Row([
-                ft.Container(chip, expand=4, padding=ft.padding.only(left=10, right=10)),
+                ft.Container(chip_with_tooltip, expand=4, padding=ft.padding.only(left=10, right=10)),
                 ft.Container(ft.Text(f"{pmc:.3f}", size=14), expand=2),
                 ft.Container(ft.Text(f"{price:.3f}", size=14), expand=2),
                 ft.Container(extra_ctrl, expand=3, padding=ft.padding.only(left=22, right=10)),

@@ -28,7 +28,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
 
     if selected_index == 0:
         appbar_title = ft.Row([
-            ft.Image(src="icon.png", width=44, height=44, border_radius=30),
+            ft.Image(src="appbar-icon.jpg", width=44, height=44, border_radius=30),
             ft.Text("Portfolio Manager"),
         ], spacing=10)
     else:

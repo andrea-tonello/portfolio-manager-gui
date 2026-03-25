@@ -67,6 +67,30 @@ def save_home_hidden(config_folder: str, hidden: bool):
     _save_config(path, config)
 
 
+def save_tx_filter(config_folder: str, mode: str, value: int):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Transactions")
+    config.set("Transactions", "filter_mode", mode)
+    config.set("Transactions", "filter_value", str(value))
+    _save_config(path, config)
+
+
+def load_tx_filter(config_folder: str) -> tuple[str, int]:
+    _, config = _load_config(config_folder)
+    if not config.has_section("Transactions"):
+        return "count", 5
+    mode = config.get("Transactions", "filter_mode", fallback="count")
+    if mode not in ("count", "days"):
+        mode = "count"
+    try:
+        value = int(config.get("Transactions", "filter_value", fallback="5"))
+        if value <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        value = 5 if mode == "count" else 90
+    return mode, value
+
+
 def reset_application(config_folder: str):
     if os.path.exists(config_folder):
         shutil.rmtree(config_folder)

@@ -50,12 +50,11 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d") 
     return result[0]
 
 
-def download_close(tickers, start=None, end=None, period=None) -> pd.DataFrame:
+def download_close(tickers, start=None, end=None, period=None):
     """Fetch closing prices for one or more tickers.
 
-    Returns a DataFrame with DatetimeIndex and one column per ticker,
-    matching the shape of yf.download(...)["Close"].
-    For a single ticker, returns a pd.Series.
+    Returns (DataFrame_or_Series, dict[str, str]) where the second element
+    maps ticker symbols to their full product names.
     """
     if isinstance(tickers, str):
         tickers = [tickers]
@@ -63,6 +62,8 @@ def download_close(tickers, start=None, end=None, period=None) -> pd.DataFrame:
     def _fetch_one(ticker):
         try:
             chart = _fetch_chart(ticker, start=start, end=end, period=period)
+            meta = chart.get("meta", {})
+            name = meta.get("longName") or meta.get("shortName") or ticker
             timestamps = chart.get("timestamp", [])
             closes = chart.get("indicators", {}).get("quote", [{}])[0].get("close", [])
             if not timestamps or not closes:
@@ -70,25 +71,27 @@ def download_close(tickers, start=None, end=None, period=None) -> pd.DataFrame:
             dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_localize(None).normalize()
             s = pd.Series(closes, index=dates, name=ticker, dtype=float)
             s = s[~s.index.duplicated(keep="last")]
-            return (ticker, s)
+            return (ticker, s, name)
         except Exception:
             return None
 
     all_series = {}
+    names = {}
     with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as pool:
         for result in pool.map(_fetch_one, tickers):
             if result is not None:
                 all_series[result[0]] = result[1]
+                names[result[0]] = result[2]
 
     if not all_series:
-        return pd.DataFrame()
+        return pd.DataFrame(), names
 
     df = pd.DataFrame(all_series)
     df.index.name = "Date"
 
     if len(tickers) == 1 and tickers[0] in df.columns:
-        return df[tickers[0]]
-    return df
+        return df[tickers[0]], names
+    return df, names
 
 
 def fetch_ticker_name(ticker: str, err: str) -> str:

@@ -1,3 +1,19 @@
+## [0.1.8] (2026-03-25)
+
+### Bug Fixes
+
+- **[UI]** Fixed cropping issues with splash screen and icons
+
+### Features
+
+- **[UX]** Now, table filtering preferences are saved between sessions in TransactionView 
+- **[UX] NEW** HomeView, Watchlist: watchlist entries are now reorganizable
+- **[UX] NEW** HomeView, Watchlist and Open Position list: by long-pressing on the Ticker chip, the full name of the product is now shown inside a tooltip
+- **[UI] NEW** HomeView, Watchlist: on tablets, the full name of the product is now shown next to the Ticker chip
+
+
+
+
 ## [0.1.7] (2026-03-24)
 
 ### Bug Fixes

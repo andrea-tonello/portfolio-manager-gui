@@ -1,3 +1,5 @@
-- [ ] [FEATURE] Manage stock splits
-- [ ] [FEATURE] Bonds
-- [ ] [FEATURE] Monetary / Bonds ETFs
+- [FEATURE] Manage stock splits
+- [FEATURE] Bonds
+- [FEATURE] Monetary / Bonds ETFs
+- [LOGIC] Decimal
+- Table in TransactionView: with many items, the view slows down
