@@ -3,7 +3,11 @@ import numpy as np
 import pandas as pd
 from datetime import date, datetime, timedelta
 
+from components.focus_chain import chain_focus
 from components.snack import show_snack
+
+_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
+_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
 from utils.other_utils import round_half_up, ValidationError
@@ -145,6 +149,7 @@ class OperationsView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=self._on_cash_date_typed,
             expand=True,
         )
@@ -156,6 +161,7 @@ class OperationsView:
 
         self.cash_amount = ft.TextField(label=t.get("operations.cash.amount"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
+                                        input_filter=_DECIMAL_FILTER,
                                         border_radius=ft.border_radius.all(15),
                                         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         col={"xs": 12, "md": 6})
@@ -179,6 +185,16 @@ class OperationsView:
                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
         self.cash_loading = ft.ProgressRing(visible=False, width=30, height=30)
+
+        # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
+        # Tuples: (field_to_focus, control_to_check_visibility)
+        cash_fields = [
+            self.cash_date_field,
+            self.cash_amount,
+            (self.cash_ticker._field, self.cash_ticker_row),
+            (self.cash_descr, self.cash_descr),
+        ]
+        chain_focus(cash_fields)
 
         col = ft.Column([
             self.cash_type,
@@ -340,6 +356,7 @@ class OperationsView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=lambda e, pt=product_type: self._on_es_date_typed(e, pt),
             expand=True,
         )
@@ -363,6 +380,7 @@ class OperationsView:
         )
         exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
                                  keyboard_type=ft.KeyboardType.NUMBER,
+                                 input_filter=_DECIMAL_FILTER,
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  visible=False, col={"xs": 6, "md": 4})
@@ -382,12 +400,14 @@ class OperationsView:
         quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
                                      border_radius=ft.border_radius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,
+                                     input_filter=_DECIMAL_FILTER,
                                      border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                      col={"xs": 6, "md": 3})
         price_field = ft.TextField(label=t.get("operations.stock.price"),
                                    border_radius=ft.border_radius.all(15),
                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                    keyboard_type=ft.KeyboardType.NUMBER,
+                                   input_filter=_DECIMAL_FILTER,
                                    col={"xs": 6, "md": 3})
         fee_currency_dd = ft.Dropdown(
             label=t.get("operations.stock.currency_fee"),
@@ -405,13 +425,22 @@ class OperationsView:
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
+                                 input_filter=_DECIMAL_FILTER,
                                  col={"xs": 6, "md": 4})
         ter_field = ft.TextField(label="TER (%)",
                                  border_radius=ft.border_radius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+                                 input_filter=_DECIMAL_FILTER,
                                  visible=(product_type == "ETF"),
                                  col={"xs": 6, "md": 3})
         loading = ft.ProgressRing(visible=False, width=30, height=30)
+
+        # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
+        es_fields = [
+            date_field, ticker_field._field, exch_rate,
+            quantity_field, price_field, fee_field, ter_field,
+        ]
+        chain_focus(es_fields)
 
         tab_data = {
             "es_type": es_type,

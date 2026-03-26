@@ -106,8 +106,9 @@ class TransactionsView:
         self.tx_filter_field = ft.TextField(
             value=str(saved_value),
             keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=ft.NumbersOnlyInputFilter(),
             width=70,
-            height=45,
+            #height=45,
             on_submit=self._on_filter_apply,
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),

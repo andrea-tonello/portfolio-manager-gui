@@ -4,7 +4,12 @@ import numpy as np
 import pandas as pd
 from datetime import date, datetime, timedelta
 
+from components.focus_chain import chain_focus
 from components.snack import show_snack
+
+_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
+_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
+_INT_FILTER = ft.NumbersOnlyInputFilter()
 from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
@@ -156,6 +161,7 @@ class AnalysisView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=self._on_sum_date_typed,
             expand=True,
         )
@@ -326,6 +332,7 @@ class AnalysisView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=lambda e: self._on_corr_date_typed(e, "start"),
             expand=True,
         )
@@ -341,6 +348,7 @@ class AnalysisView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=lambda e: self._on_corr_date_typed(e, "end"),
             expand=True,
         )
@@ -366,13 +374,22 @@ class AnalysisView:
             label=t.get("analysis.corr.window"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.NUMBER, value="100",
+            keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="100",
             col={"xs": 12, "md": 4})
 
         self.corr_rolling_fields = ft.ResponsiveRow(
             [self.corr_asset1.control, self.corr_asset2.control, self.corr_window],
             visible=False,
         )
+
+        # Chain on_submit for keyboard "next field" navigation
+        chain_focus([
+            self.corr_start_field,
+            self.corr_end_field,
+            (self.corr_asset1._field, self.corr_rolling_fields),
+            (self.corr_asset2._field, self.corr_rolling_fields),
+            (self.corr_window, self.corr_rolling_fields),
+        ])
 
         self.corr_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.corr_results = ft.Column([], spacing=5)
@@ -557,6 +574,7 @@ class AnalysisView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=lambda e: self._on_dd_date_typed(e, "start"),
             expand=True,
         )
@@ -572,6 +590,7 @@ class AnalysisView:
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
             on_change=lambda e: self._on_dd_date_typed(e, "end"),
             expand=True,
         )
@@ -580,6 +599,9 @@ class AnalysisView:
             on_click=lambda e: self._open_dd_date_picker(e, "end"),
         )
         self.dd_end_value = None
+
+        # Chain on_submit for keyboard "next field" navigation
+        chain_focus([self.dd_start_field, self.dd_end_field])
 
         self.dd_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.dd_result_text = ft.Text("", size=14, selectable=True)
@@ -713,14 +735,17 @@ class AnalysisView:
             label=t.get("analysis.var.ci"),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             border_radius=ft.border_radius.all(15),
-            keyboard_type=ft.KeyboardType.NUMBER, value="0.99",
+            keyboard_type=ft.KeyboardType.NUMBER, input_filter=_DECIMAL_FILTER, value="0.99",
             col={"xs": 6, "md": 4})
         self.var_days = ft.TextField(
             label=t.get("analysis.var.days"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.NUMBER, value="10",
+            keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="10",
             col={"xs": 6, "md": 4})
+        # Chain on_submit for keyboard "next field" navigation
+        chain_focus([self.var_ci, self.var_days])
+
         self.var_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.var_result_text = ft.Text("", size=14, selectable=True)
         self.var_chart = ft.Container()

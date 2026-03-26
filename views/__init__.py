@@ -89,6 +89,14 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
         ft.SafeArea(ft.Column([current_view], expand=True), expand=True)
     )
     page.navigation_bar = nav_bar
+
+    # Hide navigation bar when the on-screen keyboard is open
+    def _on_keyboard_visibility(e):
+        keyboard_open = page.media.view_insets.bottom > 0
+        nav_bar.visible = not keyboard_open
+        page.update()
+    page.on_media_change = _on_keyboard_visibility
+
     page.update()
 
 

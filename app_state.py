@@ -66,7 +66,12 @@ class AppState:
     def haptic(self, page: ft.Page):
         """Fire a heavy-impact haptic. Safe to call from any view."""
         if self._haptic:
-            page.run_task(self._haptic.heavy_impact)
+            async def _safe_haptic():
+                try:
+                    await self._haptic.heavy_impact()
+                except RuntimeError:
+                    pass
+            page.run_task(_safe_haptic)
 
     def load_config(self):
         """Read config.ini and populate lang_code and brokers."""

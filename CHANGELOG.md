@@ -1,11 +1,15 @@
-# [0.1.9] (XXXX-XX-XX)
+# [0.1.9] (2026-03-26)
 
 ### Bug Fixes
 
 - **[SANITIZATION]** Enabled auto-capitalization in Ticker fields
+- **[SANITIZATION]** Sanitized on-screen keyboard keys with respect to field type (e.g., in a date field only 0-9 and "-" are enabled, "/", ":" are disabled)
+- **[UX]** The NavigationBar now disappears when the on-screen keyboard is open, decluttering the view when typing
+- **[CRASH]** Fixed unhandled exception regarding haptic feedback
 
 ### Features
 
+- **[UX]** Tapping the "done" button on the on-screen keyboard now brings you to the next relevant text field automatically
 
 
 
