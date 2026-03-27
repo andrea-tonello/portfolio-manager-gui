@@ -473,7 +473,7 @@ class SettingsView:
 
         def _open_privacy_policy(e):
             lang = self.state.lang_code or "en"
-            pp_path = os.path.join("locales", f"privacy_policy_{lang}.txt")
+            pp_path = os.path.join(os.path.dirname(__file__), "..", "locales", f"privacy_policy_{lang}.txt")
             try:
                 with open(pp_path, encoding="utf-8") as f:
                     pp_text = f.read()

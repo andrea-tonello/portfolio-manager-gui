@@ -1,6 +1,9 @@
+import os
 import flet as ft
 
 from app_state import AppState
+
+_DATA_DIR = os.getenv("FLET_APP_STORAGE_DATA", ".")
 from services import config_service
 from views import _rebuild_page
 from views.settings_view import PALETTE_COLORS
@@ -18,7 +21,7 @@ def _apply_theme(page: ft.Page, state):
 def _do_restart(page: ft.Page):
     page.appbar = None
     page.navigation_bar = None
-    state = AppState(base_path=".")
+    state = AppState(base_path=_DATA_DIR)
     state.load_config()
     state.init_haptic(page)
     _apply_theme(page, state)

@@ -135,12 +135,12 @@ class OperationsView:
         self.cash_type = ft.RadioGroup(
             value="deposit",
             disabled=no_account,
-            content=ft.Row([
+            content=ft.Column([
                 ft.Radio(value="deposit", label=t.get("operations.cash.op_deposit"), disabled=no_account),
                 ft.Radio(value="withdrawal", label=t.get("operations.cash.op_withdrawal"), disabled=no_account),
                 ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
                 ft.Radio(value="charge", label=t.get("operations.cash.op_charge"), disabled=no_account),
-            ], wrap=True, opacity=0.4 if no_account else 1.0),
+            ], spacing=0, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
         )
         self.cash_date_field = ft.TextField(
@@ -176,8 +176,8 @@ class OperationsView:
             icon=ft.Icons.HELP_OUTLINE,
             on_click=self._show_ticker_help,
         )
-        self.cash_ticker_row = ft.Row(
-            [self.cash_ticker.control, self.cash_ticker_help],
+        self.cash_ticker_row = ft.Container(
+            content=ft.Row([self.cash_ticker.control, self.cash_ticker_help]),
             visible=False, col={"xs": 12, "md": 6},
         )
         self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_descr"),
@@ -200,7 +200,7 @@ class OperationsView:
             self.cash_type,
             ft.Row([self.cash_date_field, self.cash_date_icon]),
             ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr]),
-            self.cash_loading,
+            ft.Row([ft.Container(width=5), self.cash_loading]),
             ft.Container(height=80),
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
 
@@ -364,26 +364,12 @@ class OperationsView:
             icon=ft.Icons.CALENDAR_MONTH,
             on_click=lambda e, pt=product_type: self._open_es_date_picker(e, pt),
         )
-
-        currency_dd = ft.Dropdown(
-            label=t.get("operations.stock.currency"),
-            options=[
-                ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
-                ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
-            ],
-            value=str(CURRENCY_EUR),
-            on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
-            col={"xs": 6, "md": 4},
-            border_radius=ft.border_radius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            expand=True,
+        date_row = ft.Container(
+            content=ft.Row([date_field, date_icon]),
+            col={"xs": 12, "md": 6},
         )
-        exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
-                                 keyboard_type=ft.KeyboardType.NUMBER,
-                                 input_filter=_DECIMAL_FILTER,
-                                 border_radius=ft.border_radius.all(15),
-                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                 visible=False, col={"xs": 6, "md": 4})
+
+
         ticker_field = TickerSearchField(
             self.page,
             label="Ticker",
@@ -396,19 +382,57 @@ class OperationsView:
             icon=ft.Icons.HELP_OUTLINE,
             on_click=self._show_ticker_help,
         )
-        ticker_row = ft.Row([ticker_field.control, ticker_help], col={"xs": 12, "md": 6})
+        ticker_row = ft.Container(
+            content=ft.Row([ticker_field.control, ticker_help]),
+            col={"xs": 12, "md": 6},
+        )
+
+
+        ter_field = ft.TextField(label="TER (%)",
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            input_filter=_DECIMAL_FILTER,
+            visible=(product_type == "ETF"),
+            col={"xs":12, "md": 12}
+        )
+
+
+        currency_dd = ft.Dropdown(
+            label=t.get("operations.stock.currency"),
+            options=[
+                ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
+                ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
+            ],
+            value=str(CURRENCY_EUR),
+            on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
+            col={"xs": 6, "md": 6},
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
+        )
+        exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=_DECIMAL_FILTER,
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            visible=False, col={"xs": 6, "md": 6}
+        )
+        
+        
         quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
                                      border_radius=ft.border_radius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,
                                      input_filter=_DECIMAL_FILTER,
                                      border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                     col={"xs": 6, "md": 3})
+                                     col={"xs": 6, "md": 6})
         price_field = ft.TextField(label=t.get("operations.stock.price"),
                                    border_radius=ft.border_radius.all(15),
                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                    keyboard_type=ft.KeyboardType.NUMBER,
                                    input_filter=_DECIMAL_FILTER,
-                                   col={"xs": 6, "md": 3})
+                                   col={"xs": 6, "md": 6})
+        
+        
         fee_currency_dd = ft.Dropdown(
             label=t.get("operations.stock.currency_fee"),
             options=[
@@ -416,7 +440,7 @@ class OperationsView:
                 ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
             ],
             value=str(CURRENCY_EUR),
-            visible=False, col={"xs": 6, "md": 4},
+            visible=False, col={"xs": 6, "md": 6},
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
@@ -426,13 +450,9 @@ class OperationsView:
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
                                  input_filter=_DECIMAL_FILTER,
-                                 col={"xs": 6, "md": 4})
-        ter_field = ft.TextField(label="TER (%)",
-                                 border_radius=ft.border_radius.all(15),
-                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                 input_filter=_DECIMAL_FILTER,
-                                 visible=(product_type == "ETF"),
-                                 col={"xs": 6, "md": 3})
+                                 col={"xs": 6, "md": 6})
+
+
         loading = ft.ProgressRing(visible=False, width=30, height=30)
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
@@ -457,11 +477,12 @@ class OperationsView:
         stock_etf_form = ft.Column([
             es_type,
             ft.Container(height=5),
-            ft.Row([date_field, date_icon]),
+            ft.ResponsiveRow([date_row, ticker_row]),
             ft.ResponsiveRow([currency_dd, exch_rate]),
-            ft.ResponsiveRow([ticker_row, quantity_field, price_field]),
-            ft.ResponsiveRow([fee_currency_dd, fee_field, ter_field]),
-            loading,
+            ft.ResponsiveRow([quantity_field, price_field]),
+            ft.ResponsiveRow([fee_currency_dd, fee_field]),
+            ft.ResponsiveRow([ter_field]),
+            ft.Row([ft.Container(width=5), loading]),
             ft.Container(height=80),
         ], spacing=12)
 
@@ -517,15 +538,15 @@ class OperationsView:
         etf_subtype_group = ft.RadioGroup(
             value="stock_etf",
             on_change=_on_etf_subtype_change,
-            content=ft.Row([
+            content=ft.Column([
                 ft.Radio(value="stock_etf", label="Stock ETFs"),
-                ft.Radio(value="mm_etf", label="Money Market ETFs"),
+                ft.Radio(value="mm_etf", label="Money Market ETFs",),
                 ft.Row([
-                    ft.Radio(value="bond_etf", label="Bonds ETFs"),
+                    ft.Radio(value="bond_etf", label="Bonds ETFs",),
                     ft.Container(width=70),
                     bond_maturity_switch,
                 ], spacing=0),
-            ], wrap=True, spacing=4),
+            ], spacing=0, opacity=0.4 if no_account else 1.0),
         )
         tab_data["etf_subtype"] = "stock_etf"
         tab_data["bond_fixed_maturity"] = False

@@ -5,8 +5,4 @@
 - Table in TransactionView: with many items, the view slows down
 - Table in TransactionView: center the table (ugly on tablet)
 - Table in TransactionView: add column filtering options. Options must be saved.
-- [UI] OperationsView: fix Textfields placements on tablet
-- [UI] Fix loading circle clipping
-- [UI] Fix clipping in upper part of the screen when confirming analysis computations
-- [UI] Fadein/Fadeout when expanding/selecting dropdown menu
 - [UI] View transitions

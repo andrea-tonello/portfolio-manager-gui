@@ -1,4 +1,15 @@
-# [0.1.9] (2026-03-26)
+## [0.2.0] (2026-03-27)
+
+### Bug Fixes
+
+- **[DATA]** Preferences are now saved between app updates, using `FLET_APP_STORAGE_DATA` 
+- **[UI]** Reduced spacing between Radio entries to declutter
+- **[UI]** Reorganized OperationsView fields + fixed their alignment for larger screens
+- **[UI]** Fixed ProgressRing being cut off-screen in OperationsView, AnalysisView
+- **[UI]** Fixed clipping in upper part of the screen when confirming computations in AnalysisView
+
+
+## [0.1.9] (2026-03-26)
 
 ### Bug Fixes
 

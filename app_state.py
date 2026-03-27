@@ -20,7 +20,7 @@ class AppState:
         self.config_path = os.path.join(self.config_folder, "config.ini")
         self.config = configparser.ConfigParser()
 
-        locales_dir = os.path.join(base_path, "locales")
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales")
         self.translator = Translator(language_code=LANG[1][0], locales_dir=locales_dir)
         self.lang_code: str | None = None
 

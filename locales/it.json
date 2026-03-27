@@ -75,7 +75,7 @@
       "ticker_notfound": "Ticker non riconosciuto: \"{ticker}\"",
       "ticker_wrong_type": "Il Ticker inserito non appartiene a questa asset class",
       "ticker_nodata": "Non ci sono dati per il ticker: \"{ticker}\"",
-      "ticker_explained": "È richiesto il Ticker completo, secondo lo standard Yahoo Finance, che comprende anche la Borsa di riferimento. Esempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
+      "ticker_explained": "È richiesto il Ticker completo secondo lo standard Yahoo Finance, che potrebbe comprendere anche la Borsa di riferimento.\nEsempio:\n\n      \u2981 VWCE, Milano: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
       "qt": "Quantità",
       "qt_error": "La quantità deve essere un numero intero maggiore di 0",
       "op_buy": "Acquisto",
@@ -126,7 +126,7 @@
     "corr": {
       "start_dt": "Data inizio analisi",
       "end_dt": "Data fine analisi",
-      "simple": "Correlazione semplice",
+      "simple": "Correlazione Semplice",
       "simple_error": "Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.",
       "rolling": "Correlazione Rolling",
       "rolling_nodata": "Dati insufficienti. Prendi un intervallo più grande o diminuisci la finestra.",
@@ -160,7 +160,6 @@
 
 
   "transactions": {
-    "title": "Ultimi Movimenti",
     "filter_by": "Filtra per",
     "filter_by_count": "Transazioni",
     "filter_by_days": "Giorni",

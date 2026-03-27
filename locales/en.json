@@ -75,7 +75,7 @@
       "ticker_notfound": "Ticker not recognized: \"{ticker}\"",
       "ticker_wrong_type": "This Ticker is not comprised in this asset class",
       "ticker_nodata": "There is no data for ticker: \"{ticker}\"",
-      "ticker_explained": "The full Ticker is required, following the Yahoo Finance standard, comprising the Stock Exchange of reference. Example:\n\n      \u2981 VWCE, Milan: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
+      "ticker_explained": "The full Ticker is required, which could include the Stock Exchange of reference, following the Yahoo Finance standard.\nExample:\n\n      \u2981 VWCE, Milan: VWCE.MI\n      \u2981 VWCE, XETRA: VWCE.DE",
       "qt": "Quantity",
       "qt_error": "The quantity must be an integer greater than 0",
       "op_buy": "Buy",
@@ -160,7 +160,6 @@
 
 
   "transactions": {
-    "title": "Recent Transactions",
     "filter_by": "Filter by",
     "filter_by_count": "Transactions",
     "filter_by_days": "Days",

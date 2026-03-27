@@ -46,7 +46,8 @@ class TickerSearchField:
         )
 
         self.control = ft.Container(
-            content=ft.Column([self._field, self._overlay], spacing=2, tight=True),
+            content=ft.Column([self._field, self._overlay], spacing=2, tight=True,
+                              horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
             expand=expand,
             col=col,
         )

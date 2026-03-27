@@ -93,7 +93,7 @@ class TransactionsView:
         self._tx_filter_mode = saved_mode
         self._tx_filter_value = saved_value
 
-        self.tx_table_container = ft.Container()
+        self.tx_table_container = ft.Container(padding=ft.padding.only(top=10))
 
         self.filter_radio = ft.RadioGroup(
             value=saved_mode,
@@ -101,7 +101,7 @@ class TransactionsView:
             content=ft.Column([
                 ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
                 ft.Radio(value="days", label=t.get("transactions.filter_by_days")),
-            ], spacing=5),
+            ], spacing=0),
         )
         self.tx_filter_field = ft.TextField(
             value=str(saved_value),
@@ -122,11 +122,8 @@ class TransactionsView:
 
         return ft.Column([
             ft.Container(
-                ft.Column([
-                    ft.Text(t.get("transactions.title"), weight=ft.FontWeight.BOLD, size=20),
-                    ft.Text(t.get("transactions.filter_by"), size=15, color=ft.Colors.GREY_500),
-                ]), 
-                padding=ft.padding.only(left=15, right=10, top=20)
+                ft.Text(t.get("transactions.filter_by"), size=15, color=ft.Colors.GREY_500),
+                padding=ft.padding.only(left=15, right=10, top=30)
             ),
             ft.Container(
                 ft.Row([

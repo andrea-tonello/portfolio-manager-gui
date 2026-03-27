@@ -179,8 +179,9 @@ class AnalysisView:
         ], visible=False)
 
         col = ft.Column([
+            ft.Container(height=5),
             ft.Row([self.sum_date_field, self.sum_date_icon]),
-            self.sum_loading,
+            ft.Row([ft.Container(width=5), self.sum_loading]),
             self.sum_results,
             self.sum_chart,
             self.sum_export_row,
@@ -319,10 +320,10 @@ class AnalysisView:
 
         self.corr_type = ft.RadioGroup(
             value="simple",
-            content=ft.Row([
+            content=ft.Column([
                 ft.Radio(value="simple", label=t.get("analysis.corr.simple")),
                 ft.Radio(value="rolling", label=t.get("analysis.corr.rolling")),
-            ], wrap=True),
+            ], spacing=0),
             on_change=self._on_corr_type_change,
         )
 
@@ -402,10 +403,11 @@ class AnalysisView:
 
         col = ft.Column([
             self.corr_type,
+            ft.Container(height=5),
             ft.Row([self.corr_start_field, self.corr_start_icon]),
             ft.Row([self.corr_end_field, self.corr_end_icon]),
             self.corr_rolling_fields,
-            self.corr_loading,
+            ft.Row([ft.Container(width=5), self.corr_loading]),
             self.corr_results,
             self.corr_heatmap,
             self.corr_rolling_chart,
@@ -612,9 +614,10 @@ class AnalysisView:
         ], visible=False)
 
         col = ft.Column([
+            ft.Container(height=5),
             ft.Row([self.dd_start_field, self.dd_start_icon]),
             ft.Row([self.dd_end_field, self.dd_end_icon]),
-            self.dd_loading,
+            ft.Row([ft.Container(width=5), self.dd_loading]),
             self.dd_result_text,
             self.dd_chart,
             self.dd_export_row,
@@ -755,8 +758,9 @@ class AnalysisView:
         ], visible=False)
 
         col = ft.Column([
+            ft.Container(height=5),
             ft.ResponsiveRow([self.var_ci, self.var_days]),
-            self.var_loading,
+            ft.Row([ft.Container(width=5), self.var_loading]),
             self.var_result_text,
             self.var_chart,
             self.var_export_row,
