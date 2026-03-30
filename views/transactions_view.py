@@ -45,7 +45,8 @@ class TransactionsView:
             self._build_transactions_section(df, acc_idx),
         ]
 
-        return ft.Column(children, scroll=ft.ScrollMode.AUTO, expand=True)
+        return ft.Column(children, scroll=ft.ScrollMode.AUTO, expand=True,
+                         horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _build_dropdown(self) -> ft.Control:
         t = self.state.translator
@@ -110,7 +111,7 @@ class TransactionsView:
         return ft.Column([
             self._build_button_row(acc_idx),
             self.tx_table_container,
-        ], spacing=15)
+        ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _build_button_row(self, acc_idx) -> ft.Control:
         t = self.state.translator
@@ -127,7 +128,7 @@ class TransactionsView:
             on_click=self._on_open_filters,
             ink=True,
             #expand=True,
-            col={"xs": 4, "md": 2},
+            col={"xs": 4, "md": 4},
         )
 
         if acc_idx is not None:
@@ -144,7 +145,7 @@ class TransactionsView:
             icon=ft.Icons.SAVE,
             on_click=export_click,
             height=40,
-            width=300,
+            width=600,
             expand=True,
         )
         remove_btn = ft.OutlinedButton(
@@ -153,14 +154,14 @@ class TransactionsView:
             on_click=remove_click,
             disabled=(acc_idx is None),
             height=40,
-            width=300,
+            width=600,
             expand=True,
         )
 
         right_col = ft.Column([export_btn, remove_btn], spacing=8, expand=True, col={"xs": 8, "md": 8},)
 
         return ft.Container(
-            ft.ResponsiveRow([filters_btn, right_col], spacing=20, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.ResponsiveRow([filters_btn, right_col], spacing=20, width=400, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.padding.only(left=20, right=20, top=30),
         )
 
@@ -182,7 +183,7 @@ class TransactionsView:
             value=str(self._tx_filter_value),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.NumbersOnlyInputFilter(),
-            width=70,
+            width=100,
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
@@ -239,7 +240,7 @@ class TransactionsView:
                     ft.Row([
                         dlg_radio,
                         dlg_filter_field,
-                    ], spacing=20, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     ft.Divider(),
                     ft.Text(t.get("transactions.filter_columns"), size=14, weight=ft.FontWeight.BOLD),
                     ft.Column([checkboxes[col] for col in _ALL_COLS], spacing=0),
@@ -319,7 +320,7 @@ class TransactionsView:
                 horizontal_lines=ft.BorderSide(1, ft.Colors.GREY_300),
                 column_spacing=12,
             ),
-        ], scroll=ft.ScrollMode.ALWAYS)
+        ], scroll=ft.ScrollMode.ALWAYS,)
 
     # ── Export / Remove ───────────────────────────────────────────────
 

@@ -31,6 +31,8 @@
     "no_account": "No accounts configured. Go to Settings to add one",
     "overview": "All Accounts",
     "hidden": "Hidden",
+    "subt_assets": "Assets",
+    "subt_cash": "Cash",
     "open_positions": "Open Positions",
     "open_positions_descr": "Ticker  /  ABP  /  Current price",
     "pnl_unrealized": "Unrealized P&L",
@@ -162,7 +164,7 @@
   "transactions": {
     "filter_by": "Filter by",
     "filter_by_count": "Transactions",
-    "filter_by_days": "Days",
+    "filter_by_days": "Days                      ",
     "export_csv": "Export CSV",
     "export_success": "File exported successfully",
     "no_data": "No data available, cannot export",

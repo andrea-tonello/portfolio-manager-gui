@@ -31,6 +31,8 @@
     "no_account": "Nessun conto configurato. Vai alle Impostazioni per aggiungerne uno",
     "overview": "Tutti i Conti",
     "hidden": "Nascosto",
+    "subt_assets": "Strumenti",
+    "subt_cash": "Liquidità",
     "open_positions": "Posizioni Aperte",
     "open_positions_descr": "Ticker  /  PMC  /  Prezzo attuale",
     "pnl_unrealized": "P&L Non Realiz.",
@@ -161,8 +163,8 @@
 
   "transactions": {
     "filter_by": "Filtra per",
-    "filter_by_count": "Transazioni",
-    "filter_by_days": "Giorni",
+    "filter_by_count": "Transazioni  ",
+    "filter_by_days": "Giorni                    ",
     "export_csv": "Esporta CSV",
     "export_success": "File esportato con successo",
     "no_data": "Nessun dato disponibile, impossibile esportare",
@@ -299,7 +301,7 @@
       "tax_amount_descr": "Imposta pagata, calcolata sulla plusvalenza imponibile.\n",
       "pl_title": "P&L",
       "pl_descr": "Profit & Loss della vendita. Calcolata come\nPlusv. Lorda - Imposta.\n",
-      "cash_held_title": "Liquidità Attuale",
+      "cash_held_title": "Liquidit\u00e0 Attuale",
       "cash_held_descr": "Liquidità disponibile nel conto dopo l'operazione.\n",
       "assets_value_title": "Valore Titoli",
       "assets_value_descr": "Valore dei titoli detenuti nel conto dopo l'operazione.\n",

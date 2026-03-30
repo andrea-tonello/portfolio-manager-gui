@@ -1,3 +1,14 @@
+## [0.2.2] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UI]** HomeView, TransactionsView: fixed alignment and other visual tweaks for big screens
+
+### Features
+
+
+
+
 ## [0.2.1] (2026-03-30)
 
 ### Bug Fixes
@@ -8,6 +19,8 @@
 - **[UX] NEW** TransactionsView: added column-filtering options for the Data Table 
 - **[UI]** Every Dropdown's expanded menu has now the appropriate border radius
 - **[UI]** Revised filtering/export options in TransactionViews
+
+
 
 
 ## [0.2.0] (2026-03-27)

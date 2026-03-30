@@ -9,6 +9,10 @@ from services.market_data import download_close
 from utils.other_utils import round_half_up
 from utils.account import get_asset_value
 
+WIDTH_CARD = 600
+WIDTH_POSITIONS = 800
+WIDTH_WATCHLIST = 800
+
 
 def _longpress_tooltip(control: ft.Control, name: str) -> ft.Control:
     """Add a long-press tooltip showing the product's full name to a control."""
@@ -44,7 +48,7 @@ class HomeView:
                 padding=ft.padding.only(top=5, left=5, right=5),
             ),
             self._build_content(),
-        ], scroll=ft.ScrollMode.AUTO, expand=True)
+        ], scroll=ft.ScrollMode.AUTO, expand=True,)
 
     def _build_dropdown(self) -> ft.Control:
         t = self.state.translator
@@ -106,6 +110,7 @@ class HomeView:
             on_click=self._toggle_watchlist,
             padding=ft.padding.only(left=16, right=16, top=10, bottom=14),
             border_radius=15,
+            width=WIDTH_WATCHLIST,
             ink=True,
         )
 
@@ -136,16 +141,17 @@ class HomeView:
             add_row,
             ft.Row([self._watchlist_loading], alignment=ft.MainAxisAlignment.CENTER),
             self._watchlist_items_container,
-        ], spacing=8, visible=expanded)
+        ], spacing=8, visible=expanded, width=WIDTH_WATCHLIST, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         if expanded and self.state.watchlist:
             self._fetch_watchlist_prices()
 
         return ft.Column([
-            ft.Divider(),
+            ft.Container(padding=ft.padding.only(top=15)),
+            ft.Container(ft.Divider(), width=950, padding=ft.padding.only(bottom=10)),
             header,
             ft.Container(self._watchlist_body, padding=ft.padding.only(left=16, right=16, bottom=8)),
-        ], spacing=0)
+        ], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _toggle_watchlist(self, e):
         self.state.haptic(self.page)
@@ -312,7 +318,7 @@ class HomeView:
                     ft.Text(t.get("home.open_positions_descr"), size=11, color=ft.Colors.GREY_500),
                 ], spacing=1),
                 self._pos_mode_btn,
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, width=WIDTH_POSITIONS),
             padding=ft.padding.symmetric(horizontal=16, vertical=8),
             ink=True,
         )
@@ -347,7 +353,7 @@ class HomeView:
                 total_assets += float(last_row.get("assets_value", 0) or 0)
 
         cards = self._build_stats_cards(total_nav, total_cash, total_assets)
-        self._positions_container = ft.Column([], spacing=6)
+        self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
         watchlist = self._build_watchlist()
         header = self._open_positions_header()
 
@@ -356,7 +362,7 @@ class HomeView:
             header,
             self._positions_container,
             watchlist,
-        ], spacing=10)
+        ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         self._auto_fetch_or_restore()
 
@@ -387,7 +393,7 @@ class HomeView:
             header,
             self._positions_container,
             watchlist,
-        ], spacing=10)
+        ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         self._auto_fetch_or_restore()
 
@@ -407,6 +413,7 @@ class HomeView:
             self._fetch_live_values()
 
     def _restore_from_cache(self, cache):
+        t = self.state.translator
         """Populate widgets from cached data without network fetch."""
         self._current_nav_str = cache["nav_str"]
         self._current_assets_str = cache["assets_str"]
@@ -419,8 +426,8 @@ class HomeView:
         hidden = self.state._home_values_hidden
         if not hidden:
             self._nav_text.value = self._current_nav_str
-            self._assets_text.value = f"Assets   {self._current_assets_str}"
-            self._cash_text.value = f"Cash   {self._current_cash_str}"
+            self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
+            self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
             self._update_pnl_display()
 
         self._update_positions(cache["positions"], hidden)
@@ -518,8 +525,8 @@ class HomeView:
                 hidden = getattr(s, '_home_values_hidden', False)
                 if not hidden:
                     self._nav_text.value = self._current_nav_str
-                    self._assets_text.value = f"Assets   {self._current_assets_str}"
-                    self._cash_text.value = f"Cash   {self._current_cash_str}"
+                    self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
+                    self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
                     self._update_pnl_display()
 
                 self._update_positions(all_positions, hidden)
@@ -580,11 +587,11 @@ class HomeView:
             visible=hidden,
         )
         self._assets_text = ft.Text(
-            f"Assets   {hidden_mask if hidden else loading_str}",
+            t.get("home.subt_assets") + f"   {hidden_mask if hidden else loading_str}",
             size=14,
         )
         self._cash_text = ft.Text(
-            f"Cash   {hidden_mask if hidden else loading_str}",
+            t.get("home.subt_cash") + f"   {hidden_mask if hidden else loading_str}",
             size=14,
         )
         self._pnl_label = ft.Text(
@@ -638,9 +645,10 @@ class HomeView:
                 ),
             ),
             ft.Row([self._refresh_loading], alignment=ft.MainAxisAlignment.CENTER),
-        ], spacing=4)
+        ], spacing=4, width=WIDTH_CARD,)
 
     def _toggle_visibility(self, e):
+        t = self.state.translator
         self.state.haptic(self.page)
         hidden = not self.state._home_values_hidden
         self.state._home_values_hidden = hidden
@@ -652,15 +660,15 @@ class HomeView:
         self._visibility_btn.icon = ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY
 
         if hidden:
-            self._assets_text.value = f"Assets   {hidden_mask}"
-            self._cash_text.value = f"Cash   {hidden_mask}"
+            self._assets_text.value = t.get("home.subt_assets") + f"   {hidden_mask}",
+            self._cash_text.value = t.get("home.subt_cash") + f"   {hidden_mask}",
             self._pnl_value.value = hidden_mask
             self._pnl_value.color = None
             self._positions_container.visible = False
         else:
             self._nav_text.value = self._current_nav_str
-            self._assets_text.value = f"Assets   {self._current_assets_str}"
-            self._cash_text.value = f"Cash   {self._current_cash_str}"
+            self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
+            self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
             self._update_pnl_display()
             self._positions_container.visible = True
         self.page.update()
