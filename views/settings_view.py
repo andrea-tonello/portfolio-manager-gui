@@ -105,7 +105,7 @@ class SettingsView:
             content=ft.Column([
                 ft.Radio(value=m, label=t.get(f"settings.theme.{m}"))
                 for m in self._THEME_MODES
-            ], spacing=4, tight=True),
+            ], spacing=0, tight=True),
         )
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("settings.theme.title")),
@@ -128,7 +128,7 @@ class SettingsView:
             content=ft.Column([
                 ft.Radio(value=k, label=t.get(f"settings.palette.{k}"))
                 for k in self._PALETTE_KEYS
-            ], spacing=4, tight=True),
+            ], spacing=0, tight=True),
         )
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("settings.palette.title")),
@@ -169,6 +169,9 @@ class SettingsView:
             content=ft.Column([
                 ft.Text(t.get("settings.language.title"), size=16, weight=ft.FontWeight.BOLD),
                 ft.Dropdown(
+                    menu_style=ft.MenuStyle(
+                        shape=ft.RoundedRectangleBorder(radius=15),
+                    ),
                     value=current,
                     options=options,
                     on_select=self._on_language_change,
@@ -306,7 +309,7 @@ class SettingsView:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
             padding=20,
             border_radius=15,
-            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY),
+            bgcolor=ft.Colors.SECONDARY_CONTAINER,
             on_click=self._on_export_backup,
             ink=True,
             expand=True,
@@ -318,7 +321,7 @@ class SettingsView:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
             padding=20,
             border_radius=15,
-            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY),
+            bgcolor=ft.Colors.SECONDARY_CONTAINER,
             on_click=self._on_import_backup,
             ink=True,
             expand=True,

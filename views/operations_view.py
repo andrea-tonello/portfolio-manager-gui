@@ -79,6 +79,9 @@ class OperationsView:
             for k, v in sorted(self.state.brokers.items())
         ]
         return ft.Dropdown(
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             hint_text=t.get("operations.select_account"),
             hint_style=ft.TextStyle(color=ft.Colors.GREY_500),
             value=str(self.state.ops_acc_idx) if self.state.ops_acc_idx is not None else None,
@@ -398,6 +401,9 @@ class OperationsView:
 
 
         currency_dd = ft.Dropdown(
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             label=t.get("operations.stock.currency"),
             options=[
                 ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
@@ -434,6 +440,9 @@ class OperationsView:
         
         
         fee_currency_dd = ft.Dropdown(
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             label=t.get("operations.stock.currency_fee"),
             options=[
                 ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),

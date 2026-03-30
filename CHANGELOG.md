@@ -1,12 +1,29 @@
+## [0.2.1] (2026-03-30)
+
+### Bug Fixes
+
+### Features
+
+- **[UI] NEW** Added animated transitions between pages
+- **[UX] NEW** TransactionsView: added column-filtering options for the Data Table 
+- **[UI]** Every Dropdown's expanded menu has now the appropriate border radius
+- **[UI]** Revised filtering/export options in TransactionViews
+
+
 ## [0.2.0] (2026-03-27)
 
 ### Bug Fixes
 
-- **[DATA]** Preferences are now saved between app updates, using `FLET_APP_STORAGE_DATA` 
 - **[UI]** Reduced spacing between Radio entries to declutter
 - **[UI]** Reorganized OperationsView fields + fixed their alignment for larger screens
 - **[UI]** Fixed ProgressRing being cut off-screen in OperationsView, AnalysisView
 - **[UI]** Fixed clipping in upper part of the screen when confirming computations in AnalysisView
+
+### Features
+
+- **[DATA]** Preferences are now saved between app updates, using `FLET_APP_STORAGE_DATA` 
+
+
 
 
 ## [0.1.9] (2026-03-26)

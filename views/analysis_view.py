@@ -102,6 +102,9 @@ class AnalysisView:
             current = str(self.state.analysis_acc_idx)
 
         return ft.Dropdown(
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             value=current,
             options=options,
             on_select=self._on_account_selected,

@@ -169,7 +169,9 @@
     "remove_row": "Remove latest transaction",
     "row_removed": "Transaction removed",
     "no_rows": "No transactions to remove",
-    "empty": "No data"
+    "empty": "No data",
+    "filters": "Filters",
+    "filter_columns": "Filter columns"
   },
 
 
@@ -332,7 +334,7 @@
     "page_5": {
       "title": "Value at Risk",
       "var_title": "Portfolio Value at Risk (VaR)",
-      "var_descr": "Maximum expected loss over a specified time horizon in days, given a confidence interval.\nThe higher the number of projected days, the less reliable the results.\nThe implementation used here is based on the Monte Carlo method, using historical data for return estimates."
+      "var_descr": "Maximum expected loss over a specified time horizon in days, given a confidence interval. The higher the number of projected days, the less reliable the results.\nThe implementation used here is based on the Monte Carlo method, using historical data for return estimates."
     }
   }
 }

@@ -91,6 +91,21 @@ def load_tx_filter(config_folder: str) -> tuple[str, int]:
     return mode, value
 
 
+def save_tx_columns(config_folder: str, visible_cols: list[str]):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Transactions")
+    config.set("Transactions", "visible_columns", ",".join(visible_cols))
+    _save_config(path, config)
+
+
+def load_tx_columns(config_folder: str) -> list[str] | None:
+    _, config = _load_config(config_folder)
+    raw = config.get("Transactions", "visible_columns", fallback=None)
+    if raw is None:
+        return None
+    return [c.strip() for c in raw.split(",") if c.strip()]
+
+
 def reset_application(config_folder: str):
     if os.path.exists(config_folder):
         shutil.rmtree(config_folder)

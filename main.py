@@ -10,12 +10,20 @@ from views.settings_view import PALETTE_COLORS
 from utils.constants import LANG
 
 
+_PAGE_TRANSITIONS = ft.PageTransitionsTheme(
+    android=ft.PageTransitionTheme.CUPERTINO,
+    ios=ft.PageTransitionTheme.CUPERTINO,
+    linux=ft.PageTransitionTheme.CUPERTINO,
+    macos=ft.PageTransitionTheme.CUPERTINO,
+    windows=ft.PageTransitionTheme.CUPERTINO,
+)
+
 def _apply_theme(page: ft.Page, state):
     mode_map = {"system": ft.ThemeMode.SYSTEM, "light": ft.ThemeMode.LIGHT, "dark": ft.ThemeMode.DARK}
     page.theme_mode = mode_map.get(state.theme_mode, ft.ThemeMode.SYSTEM)
     color = PALETTE_COLORS.get(state.color_seed, ft.Colors.BLUE)
-    page.theme = ft.Theme(color_scheme_seed=color)
-    page.dark_theme = ft.Theme(color_scheme_seed=color)
+    page.theme = ft.Theme(color_scheme_seed=color, page_transitions=_PAGE_TRANSITIONS)
+    page.dark_theme = ft.Theme(color_scheme_seed=color, page_transitions=_PAGE_TRANSITIONS)
 
 
 def _do_restart(page: ft.Page):
@@ -56,6 +64,9 @@ def _show_language_picker(page: ft.Page, state: AppState):
         for _, (code, name) in sorted(LANG.items())
     ]
     dd = ft.Dropdown(
+        menu_style=ft.MenuStyle(
+            shape=ft.RoundedRectangleBorder(radius=15),
+        ),
         label=t.get("settings.language.title"),
         options=options,
         border_radius=ft.border_radius.all(15),

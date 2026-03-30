@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 
 from views.home_view import HomeView
@@ -84,48 +85,73 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
             ),
         ], expand=True)
 
-    page.controls.clear()
-    page.controls.append(
-        ft.SafeArea(ft.Column([current_view], expand=True), expand=True)
-    )
-    page.navigation_bar = nav_bar
+    # Persistent wrapper with animate_opacity + animate_scale for zoom-fade transitions
+    wrapper = page.data.get("_nav_wrapper")
 
-    # Hide navigation bar when the on-screen keyboard is open
-    def _on_keyboard_visibility(e):
-        keyboard_open = page.media.view_insets.bottom > 0
-        nav_bar.visible = not keyboard_open
-        page.update()
-    page.on_media_change = _on_keyboard_visibility
+    if wrapper is None:
+        # First call — build the full page structure
+        wrapper = ft.Container(
+            content=current_view,
+            opacity=1,
+            scale=1,
+            animate_opacity=ft.Animation(70, ft.AnimationCurve.EASE_OUT),
+            animate_scale=ft.Animation(70, ft.AnimationCurve.EASE_OUT),
+            expand=True,
+        )
+        page.data["_nav_wrapper"] = wrapper
+        page.controls.clear()
+        page.controls.append(
+            ft.SafeArea(ft.Column([wrapper], expand=True), expand=True)
+        )
+        page.navigation_bar = nav_bar
+
+        # Hide navigation bar when the on-screen keyboard is open
+        def _on_keyboard_visibility(e):
+            keyboard_open = page.media.view_insets.bottom > 0
+            page.navigation_bar.visible = not keyboard_open
+            page.update()
+        page.on_media_change = _on_keyboard_visibility
+    else:
+        # Subsequent calls — swap content and fade in
+        wrapper.content = current_view
+        wrapper.opacity = 1
+        wrapper.scale = 1
+        page.navigation_bar.selected_index = selected_index
 
     page.update()
 
 
 def _show_settings(page: ft.Page, state):
-    """Show the settings page with a back button in the AppBar."""
+    """Show the settings page as a pushed View with a theme transition."""
     t = state.translator
 
-    def _go_back(e):
+    def _go_back(e=None):
+        if len(page.views) > 1:
+            page.views.pop()
+        page.update()
         _rebuild_page(page, state, selected_index=state._last_nav_index)
 
-    page.on_view_pop = _go_back
-    if page.views:
-        page.views[0].can_pop = False
-        page.views[0].on_confirm_pop = _go_back
-    page.appbar = ft.AppBar(
-        leading=ft.IconButton(
-            icon=ft.Icons.ARROW_BACK,
-            on_click=_go_back,
+    page.on_view_pop = lambda _: _go_back()
+
+    settings_content = SettingsView(page, state).build()
+
+    settings_view = ft.View(
+        route="/settings",
+        appbar=ft.AppBar(
+            leading=ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                on_click=lambda _: _go_back(),
+            ),
+            title=ft.Text(t.get("nav.settings")),
         ),
-        title=ft.Text(t.get("nav.settings")),
+        controls=[
+            ft.SafeArea(ft.Column([settings_content], expand=True), expand=True)
+        ],
     )
-
-    settings_view = SettingsView(page, state).build()
-
-    page.controls.clear()
-    page.controls.append(
-        ft.SafeArea(ft.Column([settings_view], expand=True), expand=True)
-    )
-    page.navigation_bar = None
+    # Replace existing settings view if already on settings (e.g. language change)
+    if len(page.views) > 1 and getattr(page.views[-1], "route", None) == "/settings":
+        page.views.pop()
+    page.views.append(settings_view)
     page.update()
 
 
@@ -148,7 +174,9 @@ def _show_glossary(page, state, page_num):
             controls.append(ft.Text(value, size=12, selectable=True))
     dlg = ft.AlertDialog(
         title=ft.Text(page_data.get("title", "")),
-        content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
+        content=ft.Container(
+            content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
+        height=300 if page_num in [2, 3] else 150, width=600),
         actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
     )
     page.show_dialog(dlg)
@@ -158,4 +186,17 @@ def _on_nav_change(e, page, state):
     idx = e.control.selected_index
     if idx != 0:
         state._home_nav_count += 1
-    _rebuild_page(page, state, selected_index=idx)
+
+    wrapper = page.data.get("_nav_wrapper")
+    if wrapper is not None:
+        # Fade out + scale down, then swap content
+        wrapper.opacity = 0
+        wrapper.scale = 0.96
+        page.update()
+
+        async def _finish():
+            await asyncio.sleep(0.15)
+            _rebuild_page(page, state, selected_index=idx)
+        page.run_task(_finish)
+    else:
+        _rebuild_page(page, state, selected_index=idx)

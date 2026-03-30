@@ -3,6 +3,3 @@
 - [FEATURE] Monetary / Bonds ETFs
 - [LOGIC] Decimal
 - Table in TransactionView: with many items, the view slows down
-- Table in TransactionView: center the table (ugly on tablet)
-- Table in TransactionView: add column filtering options. Options must be saved.
-- [UI] View transitions

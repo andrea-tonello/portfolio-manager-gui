@@ -58,7 +58,9 @@ class HomeView:
             options.append(ft.dropdown.Option(key=str(k), text=v))
 
         return ft.Dropdown(
-            #label=t.get("nav.home"),
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             value=self.state.home_selection,
             options=options,
             on_select=self._on_selection_change,

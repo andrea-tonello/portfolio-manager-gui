@@ -4,8 +4,15 @@ from datetime import datetime, timedelta
 
 from components.snack import show_snack
 from services import account_service, config_service
-from utils.columns import rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
+from utils.columns import COLUMNS, rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
 from utils.constants import REPORT_PREFIX
+
+_DEFAULT_DISPLAY_COLS = [
+    "date", "account", "operation", "product", "ticker", "qt_exch",
+    "price_eur", "fee", "effective_amount", "pl",
+]
+
+_ALL_COLS = COLUMNS
 
 
 class TransactionsView:
@@ -49,6 +56,9 @@ class TransactionsView:
             options.append(ft.dropdown.Option(key=str(k), text=v))
 
         return ft.Dropdown(
+            menu_style=ft.MenuStyle(
+                shape=ft.RoundedRectangleBorder(radius=15),
+            ),
             value=self.state.tx_selection,
             options=options,
             on_select=self._on_selection_change,
@@ -83,83 +93,168 @@ class TransactionsView:
             df = acc["df"]
             return df.iloc[1:].copy() if len(df) > 1 else None
 
-    # ── Transactions Section (filter + table) ─────────────────────────
+    # ── Transactions Section ─────────────────────────────────────────
 
     def _build_transactions_section(self, df, acc_idx=None) -> ft.Control:
         t = self.state.translator
 
         self._tx_df = df
+        self._acc_idx = acc_idx
         saved_mode, saved_value = config_service.load_tx_filter(self.state.config_folder)
         self._tx_filter_mode = saved_mode
         self._tx_filter_value = saved_value
 
         self.tx_table_container = ft.Container(padding=ft.padding.only(top=10))
+        self._update_tx_table()
 
-        self.filter_radio = ft.RadioGroup(
-            value=saved_mode,
-            on_change=self._on_filter_mode_change,
+        return ft.Column([
+            self._build_button_row(acc_idx),
+            self.tx_table_container,
+        ], spacing=15)
+
+    def _build_button_row(self, acc_idx) -> ft.Control:
+        t = self.state.translator
+
+        filters_btn = ft.Container(
+            content=ft.Column([
+                ft.Icon(ft.Icons.FILTER_LIST, size=32),
+                ft.Text(t.get("transactions.filters"), text_align=ft.TextAlign.CENTER),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+            padding=15,
+            border_radius=15,
+            height=90,
+            bgcolor=ft.Colors.SECONDARY_CONTAINER,
+            on_click=self._on_open_filters,
+            ink=True,
+            #expand=True,
+            col={"xs": 4, "md": 2},
+        )
+
+        if acc_idx is not None:
+            async def on_export(e):
+                await self._on_export(e, acc_idx)
+            export_click = on_export
+            remove_click = lambda e, i=acc_idx: self._on_remove_row(e, i)
+        else:
+            export_click = self._on_export_overview
+            remove_click = None
+
+        export_btn = ft.FilledButton(
+            t.get("transactions.export_csv"),
+            icon=ft.Icons.SAVE,
+            on_click=export_click,
+            height=40,
+            width=300,
+            expand=True,
+        )
+        remove_btn = ft.OutlinedButton(
+            t.get("transactions.remove_row"),
+            icon=ft.Icons.UNDO,
+            on_click=remove_click,
+            disabled=(acc_idx is None),
+            height=40,
+            width=300,
+            expand=True,
+        )
+
+        right_col = ft.Column([export_btn, remove_btn], spacing=8, expand=True, col={"xs": 8, "md": 8},)
+
+        return ft.Container(
+            ft.ResponsiveRow([filters_btn, right_col], spacing=20, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.padding.only(left=20, right=20, top=30),
+        )
+
+    # ── Filters Dialog ────────────────────────────────────────────────
+
+    def _on_open_filters(self, e):
+        t = self.state.translator
+        col_labels = export_headers(t)
+
+        # Row filter controls
+        dlg_radio = ft.RadioGroup(
+            value=self._tx_filter_mode,
             content=ft.Column([
                 ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
                 ft.Radio(value="days", label=t.get("transactions.filter_by_days")),
             ], spacing=0),
         )
-        self.tx_filter_field = ft.TextField(
-            value=str(saved_value),
+        dlg_filter_field = ft.TextField(
+            value=str(self._tx_filter_value),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.NumbersOnlyInputFilter(),
             width=70,
-            #height=45,
-            on_submit=self._on_filter_apply,
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
-        filter_btn = ft.FilledButton(
-            content=t.get("components.apply"),
-            on_click=self._on_filter_apply,
-        )
 
-        self._update_tx_table()
+        def on_radio_change(ev):
+            if dlg_radio.value == "count":
+                dlg_filter_field.value = "5"
+            else:
+                dlg_filter_field.value = "90"
+            self.page.update()
+        dlg_radio.on_change = on_radio_change
 
-        return ft.Column([
-            ft.Container(
-                ft.Text(t.get("transactions.filter_by"), size=15, color=ft.Colors.GREY_500),
-                padding=ft.padding.only(left=15, right=10, top=30)
-            ),
-            ft.Container(
-                ft.Row([
-                    self.filter_radio,
-                    self.tx_filter_field,
-                    filter_btn,
-                ], spacing=35, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.padding.only(left=15, right=10)
-            ),
-            self._build_action_buttons(acc_idx),
-            self.tx_table_container,
-        ], spacing=15)
+        # Column visibility checkboxes (all 29 columns)
+        saved_cols = config_service.load_tx_columns(self.state.config_folder)
+        visible_set = set(saved_cols) if saved_cols else set(_DEFAULT_DISPLAY_COLS)
 
-    def _on_filter_mode_change(self, e):
-        self._tx_filter_mode = self.filter_radio.value
-        if self.filter_radio.value == "count":
-            self._tx_filter_value = 5
-            self.tx_filter_field.value = "5"
-        else:
-            self._tx_filter_value = 90
-            self.tx_filter_field.value = "90"
-        config_service.save_tx_filter(self.state.config_folder, self._tx_filter_mode, self._tx_filter_value)
-        self._update_tx_table()
-        self.page.update()
+        checkboxes = {}
+        for col in _ALL_COLS:
+            label = col_labels.get(col, col)
+            cb = ft.Checkbox(label=label, value=(col in visible_set))
+            checkboxes[col] = cb
 
-    def _on_filter_apply(self, e):
-        try:
-            val = int(self.tx_filter_field.value)
-            if val <= 0:
-                raise ValueError
+        def on_cancel(ev):
+            self.page.pop_dialog()
+
+        def on_apply(ev):
+            # Save row filter
+            mode = dlg_radio.value
+            try:
+                val = int(dlg_filter_field.value)
+                if val <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                val = 5 if mode == "count" else 90
+            self._tx_filter_mode = mode
             self._tx_filter_value = val
-        except (ValueError, TypeError):
-            return
-        config_service.save_tx_filter(self.state.config_folder, self._tx_filter_mode, self._tx_filter_value)
-        self._update_tx_table()
-        self.page.update()
+            config_service.save_tx_filter(self.state.config_folder, mode, val)
+
+            # Save column visibility
+            visible = [col for col, cb in checkboxes.items() if cb.value]
+            if not visible:
+                visible = list(_DEFAULT_DISPLAY_COLS)
+            config_service.save_tx_columns(self.state.config_folder, visible)
+
+            self.page.pop_dialog()
+            self._update_tx_table()
+            self.page.update()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("transactions.filters")),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text(t.get("transactions.filter_by"), size=14, weight=ft.FontWeight.BOLD),
+                    ft.Row([
+                        dlg_radio,
+                        dlg_filter_field,
+                    ], spacing=20, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ft.Divider(),
+                    ft.Text(t.get("transactions.filter_columns"), size=14, weight=ft.FontWeight.BOLD),
+                    ft.Column([checkboxes[col] for col in _ALL_COLS], spacing=0),
+                ], scroll=ft.ScrollMode.AUTO, spacing=10),
+                height=400,
+                width=400,
+            ),
+            actions=[
+                ft.TextButton(t.get("components.cancel"), on_click=on_cancel),
+                ft.FilledButton(t.get("components.apply"), on_click=on_apply),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    # ── Table update ──────────────────────────────────────────────────
 
     def _update_tx_table(self):
         t = self.state.translator
@@ -192,8 +287,8 @@ class TransactionsView:
         if df is None or df.empty:
             return ft.Text(t.get("transactions.empty"), size=16)
 
-        display_cols = ["date", "account", "operation", "product", "ticker", "qt_exch",
-                        "price_eur", "fee", "effective_amount", "pl"]
+        saved_cols = config_service.load_tx_columns(self.state.config_folder)
+        display_cols = saved_cols if saved_cols else list(_DEFAULT_DISPLAY_COLS)
         available_cols = [c for c in display_cols if c in df.columns]
 
         col_labels = export_headers(t)
@@ -226,37 +321,7 @@ class TransactionsView:
             ),
         ], scroll=ft.ScrollMode.ALWAYS)
 
-    # ── Action Buttons ────────────────────────────────────────────
-
-    def _build_action_buttons(self, idx) -> ft.Control:
-        t = self.state.translator
-
-        if idx is not None:
-            async def on_export(e):
-                await self._on_export(e, idx)
-            export_click = on_export
-        else:
-            export_click = self._on_export_overview
-
-        buttons = [
-            ft.ElevatedButton(
-                t.get("transactions.export_csv"),
-                icon=ft.Icons.SAVE,
-                on_click=export_click,
-            ),
-        ]
-        if idx is not None:
-            buttons.append(
-                ft.OutlinedButton(
-                    t.get("transactions.remove_row"),
-                    icon=ft.Icons.UNDO,
-                    on_click=lambda e, i=idx: self._on_remove_row(e, i),
-                ),
-            )
-        return ft.Container(
-            ft.Row(buttons, wrap=True),
-            padding=ft.padding.only(left=10, right=10, top=10)
-        )
+    # ── Export / Remove ───────────────────────────────────────────────
 
     def _prepare_export_csv(self, df):
         """Sort df by date descending, rename to locale headers, return CSV bytes."""

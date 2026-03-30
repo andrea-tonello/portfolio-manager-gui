@@ -169,7 +169,9 @@
     "remove_row": "Rimuovi ultima transaz.",
     "row_removed": "Transazione rimossa",
     "no_rows": "Nessuna transazione da rimuovere",
-    "empty": "Nessun dato disponibile"
+    "empty": "Nessun dato disponibile",
+    "filters": "Filtri",
+    "filter_columns": "Filtra colonne"
   },
 
 
@@ -332,7 +334,7 @@
     "page_5": {
       "title": "Value at Risk",
       "var_title": "Value at Risk del Portafoglio (VaR)",
-      "var_descr": "Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza.\nPiù l'orizzonte è lungo, meno attendibili saranno i risultati.\nL'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni."
+      "var_descr": "Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza. Più l'orizzonte è lungo, meno attendibili saranno i risultati.\nL'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni."
     }
   }
 }
