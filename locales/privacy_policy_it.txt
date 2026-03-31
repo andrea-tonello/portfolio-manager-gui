@@ -1,27 +1,27 @@
-*Ultimo aggiornamento: 23/03/2026*
+*Ultimo aggiornamento: 31/03/2026*
 
 ## 1. Introduzione
 
-Portfolio Manager ("l'App") e' sviluppata da Andrea Tonello. La presente informativa spiega come l'App gestisce i tuoi dati.
+Portfolio Manager ("l'App") è sviluppata da Andrea Tonello. La presente informativa spiega come l'App gestisce i tuoi dati.
 
 
-## 2. Dati Raccolti
+## 2. Dati raccolti
 
-### 2a. Dati Memorizzati Localmente sul Dispositivo
+### 2a. Dati memorizzati localmente sul dispositivo
 
-Transazioni del portafoglio (ticker, prezzi, quantita', date), nomi di conti e broker, e preferenze dell'app (lingua, tema, watchlist). Tutti questi dati sono memorizzati esclusivamente sul tuo dispositivo e non vengono mai trasmessi a server esterni.
+Transazioni del portafoglio (ticker, prezzi, quantità, date), nomi di conti e broker, e preferenze dell'app (lingua, tema, watchlist). Tutti questi dati sono memorizzati esclusivamente sul tuo dispositivo e non vengono mai trasmessi a server esterni.
 
-### 2b. Dati di Mercato
+### 2b. Dati di mercato
 
 L'App recupera dati di mercato pubblicamente disponibili (prezzi, tassi di cambio) da fornitori di dati finanziari terzi. Queste richieste contengono solo simboli ticker — nessun dato personale viene inviato.
 
-### 2c. Pubblicita' (se applicabile)
+### 2c. Pubblicità (se applicabile)
 
 L'App potrebbe mostrare annunci pubblicitari forniti da reti pubblicitarie di terze parti. Il fornitore di annunci potrebbe raccogliere identificatori del dispositivo, indirizzo IP e dati di utilizzo secondo la propria informativa sulla privacy. Puoi disattivare gli annunci personalizzati nelle impostazioni del tuo dispositivo.
 
 ### 2d. Acquisti (se applicabile)
 
-Gli acquisti sono gestiti interamente da Google Play o Apple App Store. Non raccogliamo ne' memorizziamo alcuna informazione di pagamento.
+Gli acquisti sono gestiti interamente da Google Play o Apple App Store. Non raccogliamo né memorizziamo alcuna informazione di pagamento.
 
 
 ## 3. Condivisione dei Dati
@@ -29,33 +29,33 @@ Gli acquisti sono gestiti interamente da Google Play o Apple App Store. Non racc
 Non vendiamo, condividiamo o trasferiamo i tuoi dati personali a terze parti, salvo quanto descritto nella sezione 2c riguardo i fornitori pubblicitari, se applicabile.
 
 
-## 4. Archiviazione e Sicurezza dei Dati
+## 4. Archiviazione e sicurezza dei Dati
 
 Tutti i dati del portafoglio sono memorizzati localmente sul tuo dispositivo. Non utilizziamo server o archiviazione cloud. Sei responsabile del backup dei tuoi dati tramite la funzione di esportazione dell'App. La disinstallazione dell'App rimuove tutti i dati memorizzati.
 
 
-## 5. I Tuoi Diritti (GDPR)
+## 5. I tuoi diritti (GDPR)
 
-Se ti trovi nell'UE/SEE, hai il diritto di:
+Se ti trovi nell'UE/SEE, puoi esercitare il diritto di:
 
 - **Accesso** ai tuoi dati — disponibile tramite la funzione di esportazione dell'App
 - **Cancellazione** dei tuoi dati — utilizza la funzione di reset dell'App o disinstallala
-- **Portabilita' dei dati** — disponibile tramite esportazione CSV e backup
+- **Portabilità dei dati** — disponibile tramite esportazione CSV e backup
 
 Per qualsiasi richiesta relativa ai dati, contatta l'indirizzo indicato nella sezione 9.
 
 
-## 6. Privacy dei Minori
+## 6. Privacy dei minori
 
-L'App non e' destinata a minori di 13 anni (o di 16 anni in alcuni stati membri dell'UE). Non raccogliamo consapevolmente dati da minori.
+L'App non è destinata a minori di 13 anni (o di 16 anni in alcuni stati membri dell'UE). Non raccogliamo consapevolmente dati da minori.
 
 
-## 7. Modifiche a Questa Informativa
+## 7. Modifiche a questa informativa
 
 Potremmo aggiornare questa informativa di tanto in tanto. Le modifiche saranno riportate nell'App con una data aggiornata.
 
 
-## 8. Licensing and Open Source
+## 8. Licenza ed Open Source
 
 A sostegno del nostro impegno verso la Privacy, l'App è Free and Open Source Software, sotto la licenza GPLv3. Questo permette all'utente finale di leggere liberamente e controllare il codice sorgente, reperibile su [GitHub](https://github.com/andrea-tonello/portfolio-manager-gui)
 

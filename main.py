@@ -28,6 +28,9 @@ def _apply_theme(page: ft.Page, state):
 def _do_restart(page: ft.Page):
     page.appbar = None
     page.navigation_bar = None
+    # Clear stale nav transition wrapper so _rebuild_page creates a fresh one
+    if isinstance(page.data, dict):
+        page.data.pop("_nav_wrapper", None)
     state = AppState(base_path=_DATA_DIR)
     state.load_config()
     state.init_haptic(page)
@@ -53,7 +56,6 @@ def main(page: ft.Page):
     page.window.width = 420
     page.window.height = 800
     page.data = {"restart": lambda: _do_restart(page)}
-
     _do_restart(page)
 
 

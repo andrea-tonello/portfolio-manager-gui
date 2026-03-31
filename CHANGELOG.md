@@ -1,3 +1,17 @@
+## [0.2.3] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UI]** Fixed inconsistent height in some AlertDialogs with big screens
+- **[UI]** FIxed NavigationBar not updating correctly after a successful backup Import
+- **[LOCALE]** Updated column descriptions
+- **[LOCALE]** Fixed some capitalization errors in privacy policy
+
+### Features
+
+
+
+
 ## [0.2.2] (2026-03-31)
 
 ### Bug Fixes

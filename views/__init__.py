@@ -159,6 +159,7 @@ def _show_settings(page: ft.Page, state):
 def _show_glossary(page, state, page_num):
     t = state.translator
     page_data = t.strings.get("glossary", {}).get(f"page_{page_num}", {})
+
     controls = []
     has_title = False
     for key, value in page_data.items():
@@ -177,7 +178,8 @@ def _show_glossary(page, state, page_num):
         title=ft.Text(page_data.get("title", "")),
         content=ft.Container(
             content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
-        height=300 if page_num in [2, 3] else 150, width=600),
+        height=320 if page_num in [1, 2, 3] else 150, 
+        width=550),
         actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
     )
     page.show_dialog(dlg)

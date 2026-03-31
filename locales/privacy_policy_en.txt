@@ -1,13 +1,13 @@
-*Last updated: 2026-03-23*
+*Last updated: 31/03/2026*
 
 ## 1. Introduction
 
 Portfolio Manager ("the App") is developed by Andrea Tonello. This policy explains how the App handles your data.
 
 
-## 2. Data We Collect
+## 2. Data we collect
 
-### 2a. Data Stored Locally on Your Device
+### 2a. Data stored locally on your device
 
 Portfolio transactions (tickers, prices, quantities, dates), account and broker names, and app preferences (language, theme, watchlist). All this data is stored exclusively on your device and is never transmitted to external servers.
 
@@ -24,17 +24,17 @@ The App may display ads provided by third-party ad networks. The ad provider may
 Purchases are processed entirely by Google Play or Apple App Store. We do not collect or store any payment information.
 
 
-## 3. Data Sharing
+## 3. Data sharing
 
 We do not sell, share, or transfer your personal data to third parties, except as described in section 2c regarding ad providers, if applicable.
 
 
-## 4. Data Storage and Security
+## 4. Data storage and security
 
 All portfolio data is stored locally on your device. We do not operate servers or cloud storage. You are responsible for backing up your data using the App's export feature. Deleting the App removes all stored data.
 
 
-## 5. Your Rights (GDPR)
+## 5. Your rights (GDPR)
 
 If you are in the EU/EEA, you have the right to:
 
@@ -45,12 +45,12 @@ If you are in the EU/EEA, you have the right to:
 For any data-related requests, contact the address listed in section 9.
 
 
-## 6. Children's Privacy
+## 6. Children's privacy
 
 The App is not directed at children under 13 (or under 16 in certain EU member states). We do not knowingly collect data from children.
 
 
-## 7. Changes to This Policy
+## 7. Changes to this policy
 
 We may update this policy from time to time. Changes will be reflected in the App with an updated date.
 
