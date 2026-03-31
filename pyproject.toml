@@ -51,6 +51,9 @@ package_files = [
     "**/*.hpp",
 ]
 
+[tool.flet.flutter.pubspec.dependency_overrides]
+connectivity_plus = "7.0.0"
+
 [tool.flet.android]
 target_arch = ["arm64-v8a"]
 
