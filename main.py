@@ -9,7 +9,6 @@ from views import _rebuild_page
 from views.settings_view import PALETTE_COLORS
 from utils.constants import LANG
 
-
 _PAGE_TRANSITIONS = ft.PageTransitionsTheme(
     android=ft.PageTransitionTheme.CUPERTINO,
     ios=ft.PageTransitionTheme.CUPERTINO,
@@ -49,6 +48,7 @@ def _do_restart(page: ft.Page):
 
 def main(page: ft.Page):
     page.title = "Portfolio Manager"
+    page.adaptive = False
     page.padding = 10
     page.window.width = 420
     page.window.height = 800

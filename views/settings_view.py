@@ -1,11 +1,12 @@
 import os
-
 import flet as ft
 
 from components.snack import show_snack
 from services import config_service, account_service
 from utils.constants import LANG, APP_VERSION
 from utils.other_utils import create_defaults
+
+PAGE_WIDTH = 720
 
 # Workaround: Flet's Android client sends a 'bytes' field in pick_files
 # results, but FilePickerFile doesn't declare it. Patch to accept and store it.
@@ -46,20 +47,29 @@ class SettingsView:
         ]
         self.page.services.append(self.file_picker)
 
-        return ft.Column([
-            self._build_theming_section(),
-            ft.Divider(),
-            self._build_language_section(),
-            ft.Divider(),
-            self._build_accounts_section(),
-            ft.Divider(),
-            self._build_backup_section(),
-            ft.Divider(),
-            self._build_reset_section(),
-            ft.Divider(),
-            self._build_info_section(),
-            ft.Container(height=120)
-        ], spacing=5, scroll=ft.ScrollMode.AUTO, expand=True)
+
+        return ft.Row([
+            ft.Column([
+                self._build_theming_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_language_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_accounts_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_backup_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_reset_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_info_section(),
+                ft.Container(height=120)
+            ], 
+            spacing=5, scroll=ft.ScrollMode.AUTO, expand=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        ], 
+        alignment=ft.MainAxisAlignment.CENTER, 
+        expand=True,
+        )
+    
 
     # ── Theming ──────────────────────────────────────────────────────
 
@@ -95,6 +105,7 @@ class SettingsView:
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ], spacing=12),
             padding=20,
+            width=PAGE_WIDTH,
         )
 
     def _open_theme_dialog(self, e):
@@ -181,6 +192,7 @@ class SettingsView:
                 ),
             ], spacing=10),
             padding=20,
+            width=PAGE_WIDTH,
         )
 
     def _on_language_change(self, e):
@@ -234,6 +246,7 @@ class SettingsView:
                 ]),
             ], spacing=10),
             padding=20,
+            width=PAGE_WIDTH,
         )
 
     def _on_add_broker(self, e):
@@ -333,6 +346,7 @@ class SettingsView:
                 ft.Row([export_btn, import_btn], spacing=12),
             ], spacing=10),
             padding=20,
+            width=PAGE_WIDTH,
         )
 
     async def _on_export_backup(self, e):
@@ -424,6 +438,7 @@ class SettingsView:
                 ),
             ], spacing=10),
             padding=20,
+            width=PAGE_WIDTH,
         )
 
     def _on_reset_click(self, e):
@@ -527,18 +542,14 @@ class SettingsView:
             ink=True,
         )
 
-        github_icon = ft.CircleAvatar(
-            foreground_image_src="github-logo.png",
-            radius=20,
-            col={"xs": 2, "md": 2},
-        )
+        github_icon = ft.Image(src="github-logo.png", width=44, height=44, border_radius=30)
+        icon_and_text = ft.Row([github_icon, ft.Text(t.get("settings.repo"), size=16, weight=ft.FontWeight.BOLD),])
 
         github_repo = ft.Container(
-            content=ft.ResponsiveRow([
-                github_icon,
-                ft.Text(t.get("settings.repo"), size=16, weight=ft.FontWeight.BOLD, col={"xs": 9, "md": 9}),
-                ft.Icon(ft.Icons.OPEN_IN_NEW, col={"xs": 1, "md": 1}),
-            ], spacing=15, alignment=ft.MainAxisAlignment.START, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            content=ft.Row([
+                icon_and_text,
+                ft.Icon(ft.Icons.OPEN_IN_NEW),
+            ], spacing=15, alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.padding.only(left=16, right=16, top=4, bottom=4),
             url="https://github.com/andrea-tonello/portfolio-manager-gui",
             border_radius=15,
@@ -558,5 +569,6 @@ class SettingsView:
                 github_repo,
                 version_text,
             ], spacing=7),
-            padding=10
+            padding=10,
+            width=PAGE_WIDTH,
         )

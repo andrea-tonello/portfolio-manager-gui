@@ -68,6 +68,10 @@
     },
     "stock": {
       "title_etf": "ETF",
+      "stock_etf": "ETF Azionari",
+      "mm_etf": "ETF Monetari",
+      "bonds_etf": "ETF Obbligazionari",
+      "fixed": "A Scadenza",
       "title_stock": "AZIONI",
       "currency": "Valuta",
       "exch_rate": "Tasso EUR-USD",

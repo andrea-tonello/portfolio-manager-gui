@@ -42,7 +42,7 @@ class AnalysisView:
 
         has_account = self.state.analysis_acc_idx is not None or len(self.state.accounts) > 0
 
-        self.form_container = ft.Container(disabled=not has_account, expand=True)
+        self.form_container = ft.Container(disabled=not has_account, expand=True, width=800)
 
         summary_content = self._build_summary_tab()
         corr_content = self._build_correlation_tab()
@@ -76,16 +76,28 @@ class AnalysisView:
             disabled=not has_account,
             style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
         )
+
         return ft.Stack([
-            ft.Column([
-                ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
-                self.form_container,
-            ], expand=True),
+            # 1. Wrap the main Column in a Row to force full-screen width
+            ft.Row(
+                controls=[
+                    ft.Column([
+                        ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                        self.form_container,
+                    ], 
+                    expand=True, 
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                ],
+                alignment=ft.MainAxisAlignment.CENTER, # 2. Force the inner Column dead center
+                expand=True # 3. Ensure the Row takes up the entire horizontal space
+            ),
+            # Add button remains pinned to the bottom
             ft.Container(
                 ft.Row([confirm_btn], alignment=ft.MainAxisAlignment.CENTER),
                 left=0, right=0, bottom=20,
             ),
         ], expand=True)
+
 
     def _build_account_dropdown(self) -> ft.Control:
         t = self.state.translator
@@ -742,13 +754,13 @@ class AnalysisView:
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             border_radius=ft.border_radius.all(15),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_DECIMAL_FILTER, value="0.99",
-            col={"xs": 6, "md": 4})
+            col={"xs": 6, "md": 6})
         self.var_days = ft.TextField(
             label=t.get("analysis.var.days"),
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="10",
-            col={"xs": 6, "md": 4})
+            col={"xs": 6, "md": 6})
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([self.var_ci, self.var_days])
 

@@ -1,8 +1,12 @@
-## [0.2.2] (XXXX-XX-XX)
+## [0.2.2] (2026-03-31)
 
 ### Bug Fixes
 
-- **[UI]** HomeView, TransactionsView: fixed alignment and other visual tweaks for big screens
+- **[UI]** HomeView: better tablet scaling, fixed Open Positions' entries alignment
+- **[UI]** OperationsView: better tablet scaling
+- **[UI]** AnalysisView: better tablet scaling, Info button is now dynamic based on screen size
+- **[UI]** TransactionsView: better tablet scaling, centered table, Info button is now dynamic based on screen size
+- **[UI]** SettingsView: better tablet scaling, fixed github png not displaying correctly on tablets
 
 ### Features
 

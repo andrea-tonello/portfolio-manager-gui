@@ -35,7 +35,6 @@ app_files = [
     "**/__pycache__",
     "**/*.md",
     "**/*.rst",
-    "**/*.txt",
 ]
 package_files = [
     "**/*.pyi",

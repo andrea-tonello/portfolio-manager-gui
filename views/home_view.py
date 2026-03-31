@@ -734,11 +734,14 @@ class HomeView:
                 clr = ft.Colors.GREEN if pct >= 0 else ft.Colors.RED
                 extra_ctrl = ft.Text(f"{pct:+.2f}%", size=14, weight=ft.FontWeight.BOLD, color=clr)
             chip_with_tooltip = _longpress_tooltip(chip, name)
-            row = ft.Row([
-                ft.Container(chip_with_tooltip, expand=4, padding=ft.padding.only(left=10, right=10)),
-                ft.Container(ft.Text(f"{pmc:.3f}", size=14), expand=2),
-                ft.Container(ft.Text(f"{price:.3f}", size=14), expand=2),
-                ft.Container(extra_ctrl, expand=3, padding=ft.padding.only(left=22, right=10)),
+            row = ft.ResponsiveRow([
+                ft.Container(chip_with_tooltip, width=100, col={"xs": 4, "md": 4},
+                             padding=ft.padding.only(left=10, right=10)),
+                ft.ResponsiveRow([
+                    ft.Container(ft.Text(f"{pmc:.3f}", size=14), col={"xs": 3, "md": 3}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                    ft.Container(ft.Text(f"{price:.3f}", size=14), col={"xs": 4, "md": 4}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                    ft.Container(extra_ctrl, padding=ft.padding.only(right=10), col={"xs": 5, "md": 5}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                ], col={"xs": 8, "md": 8})
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
             rows.append(row)
         self._positions_container.controls = rows

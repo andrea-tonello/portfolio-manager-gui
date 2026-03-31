@@ -18,6 +18,7 @@ _ANALYSIS_GLOSSARY_PAGE_OFFSET = 2
 def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     t = state.translator
     state._last_nav_index = selected_index
+    is_small_screen = page.width < 600
     page.on_view_pop = None
     if page.views:
         page.views[0].can_pop = True
@@ -77,7 +78,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
             ft.Container(
                 content=ft.FloatingActionButton(
                     icon=ft.Icons.INFO_OUTLINE,
-                    mini=True,
+                    mini=is_small_screen,
                     on_click=info_handler,
                 ),
                 right=16,

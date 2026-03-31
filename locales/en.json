@@ -68,6 +68,10 @@
     },
     "stock": {
       "title_etf": "ETFs",
+      "stock_etf": "Stocks ETFs",
+      "mm_etf": "Money Market ETFs",
+      "bonds_etf": "Bonds ETFs",
+      "fixed": "Fixed Maturity",
       "title_stock": "STOCKS",
       "currency": "Currency",
       "exch_rate": "EUR-USD rate",

@@ -20,6 +20,7 @@ class OperationsView:
         self.page = page
         self.state = state
 
+
     def build(self) -> ft.Control:
         t = self.state.translator
         if not self.state.brokers:
@@ -27,7 +28,7 @@ class OperationsView:
 
         has_account = self.state.ops_acc_idx is not None
         self._ops_tab_index = 0
-        self.form_container = ft.Container(disabled=not has_account, expand=True)
+        self.form_container = ft.Container(disabled=not has_account, expand=True, width=800,)
 
         cash_content = self._build_cash_tab()
         etf_content = self._build_etf_stock_tab("ETF")
@@ -62,15 +63,28 @@ class OperationsView:
         )
 
         return ft.Stack([
-            ft.Column([
-                ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
-                self.form_container,
-            ], expand=True),
+            # 1. Wrap the main Column in a Row to force full-screen width
+            ft.Row(
+                controls=[
+                    ft.Column([
+                        # Added width=600 here so the dropdown matches the form width
+                        ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                        self.form_container,
+                    ], 
+                    expand=True, 
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+                ],
+                alignment=ft.MainAxisAlignment.CENTER, # 2. Force the inner Column dead center
+                expand=True # 3. Ensure the Row takes up the entire horizontal space
+            ),
+            # Add button remains pinned to the bottom
             ft.Container(
                 ft.Row([add_btn], alignment=ft.MainAxisAlignment.CENTER),
                 left=0, right=0, bottom=20,
             ),
         ], expand=True)
+
+
 
     def _build_account_dropdown(self) -> ft.Control:
         t = self.state.translator
@@ -201,8 +215,8 @@ class OperationsView:
 
         col = ft.Column([
             self.cash_type,
-            ft.Row([self.cash_date_field, self.cash_date_icon]),
-            ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr]),
+            ft.Row([self.cash_date_field, self.cash_date_icon],),
+            ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr],),
             ft.Row([ft.Container(width=5), self.cash_loading]),
             ft.Container(height=80),
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
@@ -530,7 +544,7 @@ class OperationsView:
             tab_data["bond_fixed_maturity"] = e.control.value
             self.page.update()
 
-        bond_maturity_switch = ft.Switch(label="Fixed Maturity", value=False,
+        bond_maturity_switch = ft.Switch(label=t.get("operations.stock.fixed"), value=False,
                                          disabled=True,
                                          label_position=ft.LabelPosition.LEFT,
                                          on_change=_on_bond_maturity_toggle)
@@ -548,10 +562,10 @@ class OperationsView:
             value="stock_etf",
             on_change=_on_etf_subtype_change,
             content=ft.Column([
-                ft.Radio(value="stock_etf", label="Stock ETFs"),
-                ft.Radio(value="mm_etf", label="Money Market ETFs",),
+                ft.Radio(value="stock_etf", label=t.get("operations.stock.stock_etf")),
+                ft.Radio(value="mm_etf", label=t.get("operations.stock.mm_etf"),),
                 ft.Row([
-                    ft.Radio(value="bond_etf", label="Bonds ETFs",),
+                    ft.Radio(value="bond_etf", label=t.get("operations.stock.bonds_etf"),),
                     ft.Container(width=70),
                     bond_maturity_switch,
                 ], spacing=0),
