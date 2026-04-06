@@ -1,5 +1,7 @@
-- [FEATURE] Manage stock splits
-- [FEATURE] Bonds
-- [FEATURE] Monetary / Bonds ETFs
-- [LOGIC] Decimal
+- Manage stock splits
+- Bonds
+- Bonds ETFs
+- Monetary ETFs
+- Decimal
 - Table in TransactionView: with many items, the view slows down
+- Asset allocation

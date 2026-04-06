@@ -47,7 +47,10 @@ class HomeView:
                 ]),
                 padding=ft.padding.only(top=5, left=5, right=5),
             ),
-            self._build_content(),
+            ft.Container(
+                content=self._build_content(),
+                alignment=ft.alignment.Alignment.TOP_CENTER,
+            ),
         ], scroll=ft.ScrollMode.AUTO, expand=True,)
 
     def _build_dropdown(self) -> ft.Control:
@@ -91,28 +94,78 @@ class HomeView:
         else:
             idx = int(sel)
             return self._build_single_account(idx)
-        
-    # ── Watchlist (independent of Overview vs. specific account) ──────
 
-    def _build_watchlist(self) -> ft.Control:
+    # ── Section Tab Switcher ─────────────────────────────────────────
+
+    def _build_section_tabs(self) -> ft.Control:
         t = self.state.translator
-        expanded = getattr(self.state, '_watchlist_expanded', False)
+        self._active_section_tab = 0
+        self._watchlist_fetched = False
 
-        self._watchlist_toggle_icon = ft.Icon(
-            ft.Icons.KEYBOARD_ARROW_DOWN if expanded else ft.Icons.KEYBOARD_ARROW_RIGHT,
-            size=24,
+        self._tab_positions_text = ft.Text(
+            t.get("home.open_positions"), size=14,
+            weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER,
         )
-        header = ft.Container(
-            content=ft.Row([
-                ft.Text(t.get("home.watchlist"), size=16, weight=ft.FontWeight.BOLD),
-                self._watchlist_toggle_icon,
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            on_click=self._toggle_watchlist,
-            padding=ft.padding.only(left=16, right=16, top=10, bottom=14),
-            border_radius=15,
-            width=WIDTH_WATCHLIST,
+        self._tab_watchlist_text = ft.Text(
+            t.get("home.watchlist"), size=14,
+            text_align=ft.TextAlign.CENTER,
+        )
+
+        self._tab_positions = ft.Container(
+            content=self._tab_positions_text,
+            bgcolor=ft.Colors.SECONDARY_CONTAINER,
+            border_radius=12,
+            padding=ft.padding.symmetric(horizontal=20, vertical=10),
+            on_click=lambda _: self._switch_section_tab(0),
             ink=True,
+            expand=True,
+            alignment=ft.alignment.Alignment.CENTER,
         )
+        self._tab_watchlist = ft.Container(
+            content=self._tab_watchlist_text,
+            bgcolor=None,
+            border_radius=12,
+            padding=ft.padding.symmetric(horizontal=20, vertical=10),
+            on_click=lambda _: self._switch_section_tab(1),
+            ink=True,
+            expand=True,
+            alignment=ft.alignment.Alignment.CENTER,
+        )
+
+        return ft.Container(
+            ft.Row([self._tab_positions, self._tab_watchlist], spacing=8),
+            width=WIDTH_POSITIONS,
+            padding=ft.padding.only(top=10, right=20, left=20),
+        )
+
+    def _switch_section_tab(self, tab_idx):
+        if tab_idx == self._active_section_tab:
+            return
+        self.state.haptic(self.page)
+        self._active_section_tab = tab_idx
+        is_pos = (tab_idx == 0)
+
+        # Update tab styling
+        self._tab_positions.bgcolor = ft.Colors.SECONDARY_CONTAINER if is_pos else None
+        self._tab_positions_text.weight = ft.FontWeight.BOLD if is_pos else None
+        self._tab_watchlist.bgcolor = ft.Colors.SECONDARY_CONTAINER if not is_pos else None
+        self._tab_watchlist_text.weight = ft.FontWeight.BOLD if not is_pos else None
+
+        # Toggle section visibility
+        self._positions_section.visible = is_pos
+        self._watchlist_section.visible = not is_pos
+
+        # Lazy-load watchlist prices on first switch
+        if not is_pos and self.state.watchlist and not self._watchlist_fetched:
+            self._watchlist_fetched = True
+            self._fetch_watchlist_prices()
+
+        self.page.update()
+
+    # ── Watchlist ────────────────────────────────────────────────────
+
+    def _build_watchlist_content(self) -> ft.Control:
+        t = self.state.translator
 
         self._watchlist_ticker_search = TickerSearchField(
             self.page,
@@ -133,43 +186,23 @@ class HomeView:
 
         self._watchlist_items_container = ft.ReorderableListView(
             [], spacing=4, on_reorder=self._on_watchlist_reorder,
-            show_default_drag_handles=False, expand=True,
+            show_default_drag_handles=False,
         )
         self._watchlist_loading = ft.ProgressRing(visible=False, width=14, height=14)
 
-        self._watchlist_body = ft.Column([
+        return ft.Column([
             add_row,
             ft.Row([self._watchlist_loading], alignment=ft.MainAxisAlignment.CENTER),
             self._watchlist_items_container,
-        ], spacing=8, visible=expanded, width=WIDTH_WATCHLIST, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-
-        if expanded and self.state.watchlist:
-            self._fetch_watchlist_prices()
-
-        return ft.Column([
-            ft.Container(padding=ft.padding.only(top=15)),
-            ft.Container(ft.Divider(), width=950, padding=ft.padding.only(bottom=10)),
-            header,
-            ft.Container(self._watchlist_body, padding=ft.padding.only(left=16, right=16, bottom=8)),
-        ], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-
-    def _toggle_watchlist(self, e):
-        self.state.haptic(self.page)
-        expanded = not getattr(self.state, '_watchlist_expanded', False)
-        self.state._watchlist_expanded = expanded
-        self._watchlist_body.visible = expanded
-        self._watchlist_toggle_icon.icon = (
-            ft.Icons.KEYBOARD_ARROW_DOWN if expanded else ft.Icons.KEYBOARD_ARROW_RIGHT
-        )
-        if expanded and self.state.watchlist:
-            self._fetch_watchlist_prices()
-        self.page.update()
+        ], spacing=8, width=WIDTH_WATCHLIST,
+           horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _on_watchlist_add(self, e):
         t = self.state.translator
         ticker = self._watchlist_ticker_search.value.strip().upper()
         if not ticker:
             return
+        self.state.haptic(self.page)
         if ticker in self.state.watchlist:
             show_snack(self.page, t.get("home.watchlist_duplicate"), error=True)
             return
@@ -314,8 +347,7 @@ class HomeView:
         header = ft.Container(
             content=ft.Row([
                 ft.Column([
-                    ft.Text(t.get("home.open_positions"), size=16, weight=ft.FontWeight.BOLD),
-                    ft.Text(t.get("home.open_positions_descr"), size=11, color=ft.Colors.GREY_500),
+                    ft.Text(t.get("home.open_positions_descr"), size=12, color=ft.Colors.GREY_500),
                 ], spacing=1),
                 self._pos_mode_btn,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, width=WIDTH_POSITIONS),
@@ -353,15 +385,23 @@ class HomeView:
                 total_assets += float(last_row.get("assets_value", 0) or 0)
 
         cards = self._build_stats_cards(total_nav, total_cash, total_assets)
+        tabs = self._build_section_tabs()
         self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
-        watchlist = self._build_watchlist()
         header = self._open_positions_header()
+        watchlist_content = self._build_watchlist_content()
+
+        self._positions_section = ft.Column([header, self._positions_container], spacing=6)
+        self._watchlist_section = ft.Container(
+            content=watchlist_content,
+            visible=False,
+            padding=ft.padding.only(left=16, right=16, bottom=8),
+        )
 
         content = ft.Column([
             cards,
-            header,
-            self._positions_container,
-            watchlist,
+            tabs,
+            self._positions_section,
+            self._watchlist_section,
         ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         self._auto_fetch_or_restore()
@@ -384,15 +424,23 @@ class HomeView:
         assets = float(df.iloc[-1].get("assets_value", 0) or 0) if not df.empty else 0
 
         cards = self._build_stats_cards(nav, cash, assets)
-        self._positions_container = ft.Column([], spacing=6)
-        watchlist = self._build_watchlist()
+        tabs = self._build_section_tabs()
+        self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
         header = self._open_positions_header()
+        watchlist_content = self._build_watchlist_content()
+
+        self._positions_section = ft.Column([header, self._positions_container], spacing=6)
+        self._watchlist_section = ft.Container(
+            content=watchlist_content,
+            visible=False,
+            padding=ft.padding.only(left=16, right=16, bottom=8),
+        )
 
         content = ft.Column([
             cards,
-            header,
-            self._positions_container,
-            watchlist,
+            tabs,
+            self._positions_section,
+            self._watchlist_section,
         ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
         self._auto_fetch_or_restore()

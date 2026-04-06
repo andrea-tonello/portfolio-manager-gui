@@ -1,14 +1,15 @@
-## [0.2.3] (XXXX-XX-XX)
+## [0.2.3] (2026-04-06)
 
 ### Bug Fixes
 
 - **[UI]** Fixed inconsistent height in some AlertDialogs with big screens
-- **[UI]** FIxed NavigationBar not updating correctly after a successful backup Import
+- **[UI]** Fixed NavigationBar not updating correctly after a successful backup Import
 - **[LOCALE]** Updated column descriptions
 - **[LOCALE]** Fixed some capitalization errors in privacy policy
 
 ### Features
 
+- **[UI]** Reworked Open Positions and Watchlist display in HomeView. Now they get two separate section instead of being stacked vertically.
 
 
 
