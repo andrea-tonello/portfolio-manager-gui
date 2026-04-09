@@ -111,6 +111,95 @@ def reset_application(config_folder: str):
         shutil.rmtree(config_folder)
 
 
+# ── Multi-user management ────────────────────────────────────
+
+def save_users(config_folder: str, users: dict[int, str]):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Users")
+    for key in list(config["Users"].keys()):
+        config.remove_option("Users", key)
+    for idx, name in users.items():
+        config.set("Users", str(idx), name)
+    _save_config(path, config)
+
+
+def load_users(config_folder: str) -> dict[int, str]:
+    _, config = _load_config(config_folder)
+    if not config.has_section("Users"):
+        return {}
+    return {int(k): v for k, v in config.items("Users")}
+
+
+def save_active_user(config_folder: str, user_idx: int):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Active")
+    config.set("Active", "user", str(user_idx))
+    _save_config(path, config)
+
+
+def load_active_user(config_folder: str) -> int | None:
+    _, config = _load_config(config_folder)
+    raw = config.get("Active", "user", fallback=None)
+    return int(raw) if raw else None
+
+
+def get_user_folder(config_folder: str, username: str) -> str:
+    return os.path.join(config_folder, "users", username)
+
+
+def get_user_res_folder(config_folder: str, username: str) -> str:
+    return os.path.join(config_folder, "users", username, "resources")
+
+
+def delete_user(config_folder: str, users: dict[int, str], user_idx: int):
+    username = users[user_idx]
+    user_folder = get_user_folder(config_folder, username)
+    if os.path.exists(user_folder):
+        shutil.rmtree(user_folder)
+    del users[user_idx]
+    save_users(config_folder, users)
+
+
+def needs_user_migration(config_folder: str) -> bool:
+    _, config = _load_config(config_folder)
+    return config.has_section("Brokers") and not config.has_section("Users")
+
+
+def migrate_to_multi_user(config_folder: str, username: str):
+    path, config = _load_config(config_folder)
+
+    user_folder = get_user_folder(config_folder, username)
+    user_res = get_user_res_folder(config_folder, username)
+    os.makedirs(user_res, exist_ok=True)
+
+    # Move per-user sections into a separate config.ini
+    user_config = configparser.ConfigParser()
+    for section in ("Brokers", "Watchlist", "Transactions", "Home"):
+        if config.has_section(section):
+            user_config.add_section(section)
+            for k, v in config.items(section):
+                user_config.set(section, k, v)
+            config.remove_section(section)
+
+    user_config_path = os.path.join(user_folder, "config.ini")
+    with open(user_config_path, "w", encoding="utf-8") as f:
+        user_config.write(f)
+
+    # Move resources/ contents into user subfolder
+    old_res = os.path.join(config_folder, "resources")
+    if os.path.exists(old_res):
+        for fname in os.listdir(old_res):
+            shutil.move(os.path.join(old_res, fname), os.path.join(user_res, fname))
+        shutil.rmtree(old_res)
+
+    # Add [Users] and [Active] to root config
+    _ensure_section(config, "Users")
+    config.set("Users", "1", username)
+    _ensure_section(config, "Active")
+    config.set("Active", "user", "1")
+    _save_config(path, config)
+
+
 # ── Backup export / import ─────────────────────────────────────
 
 _CRITICAL_COLUMNS = {"date", "account", "operation", "product"}
@@ -139,38 +228,63 @@ def validate_backup(zip_bytes: bytes, t) -> tuple[bool, str]:
     if "config.ini" not in names:
         return False, "Missing config.ini in backup."
 
-    # config.ini must be parseable with a Brokers section
     config = configparser.ConfigParser()
     try:
         config.read_string(zf.read("config.ini").decode("utf-8"))
     except Exception:
         return False, "config.ini is not a valid configuration file."
 
-    if not config.has_section("Brokers") or not config.options("Brokers"):
-        return False, "config.ini has no broker entries."
-
-    # resources/ must have CSV files
-    csv_names = [n for n in names if n.startswith("resources/") and n.endswith(".csv")]
-    if not csv_names:
-        return False, "No CSV files found in resources/."
-
-    # every broker must have a matching CSV
-    for key in config.options("Brokers"):
-        broker_name = config.get("Brokers", key)
-        expected = f"resources/Report {broker_name}.csv"
-        if expected not in names:
-            return False, f"Missing CSV for broker '{broker_name}': {expected}"
-
-    # each CSV must contain critical columns
-    for csv_name in csv_names:
-        try:
-            header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
-            columns = {c.strip() for c in header_line.split(",")}
-        except Exception:
-            return False, f"Cannot read header of {csv_name}."
-        missing = _CRITICAL_COLUMNS - columns
-        if missing:
-            return False, f"{csv_name} is missing columns: {', '.join(sorted(missing))}"
+    # Multi-user backup: root config has [Users], per-user configs have [Brokers]
+    if config.has_section("Users") and config.options("Users"):
+        for key in config.options("Users"):
+            username = config.get("Users", key)
+            user_config_path = f"users/{username}/config.ini"
+            if user_config_path not in names:
+                return False, f"Missing config for user '{username}'."
+            user_config = configparser.ConfigParser()
+            try:
+                user_config.read_string(zf.read(user_config_path).decode("utf-8"))
+            except Exception:
+                return False, f"Cannot parse config for user '{username}'."
+            if not user_config.has_section("Brokers") or not user_config.options("Brokers"):
+                return False, f"User '{username}' has no broker entries."
+            for bkey in user_config.options("Brokers"):
+                broker_name = user_config.get("Brokers", bkey)
+                expected = f"users/{username}/resources/Report {broker_name}.csv"
+                if expected not in names:
+                    return False, f"Missing CSV for broker '{broker_name}' (user '{username}')."
+            csv_names = [n for n in names
+                         if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
+            for csv_name in csv_names:
+                try:
+                    header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
+                    columns = {c.strip() for c in header_line.split(",")}
+                except Exception:
+                    return False, f"Cannot read header of {csv_name}."
+                missing = _CRITICAL_COLUMNS - columns
+                if missing:
+                    return False, f"{csv_name} is missing columns: {', '.join(sorted(missing))}"
+    elif config.has_section("Brokers") and config.options("Brokers"):
+        # Legacy single-user backup
+        csv_names = [n for n in names if n.startswith("resources/") and n.endswith(".csv")]
+        if not csv_names:
+            return False, "No CSV files found in resources/."
+        for key in config.options("Brokers"):
+            broker_name = config.get("Brokers", key)
+            expected = f"resources/Report {broker_name}.csv"
+            if expected not in names:
+                return False, f"Missing CSV for broker '{broker_name}': {expected}"
+        for csv_name in csv_names:
+            try:
+                header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
+                columns = {c.strip() for c in header_line.split(",")}
+            except Exception:
+                return False, f"Cannot read header of {csv_name}."
+            missing = _CRITICAL_COLUMNS - columns
+            if missing:
+                return False, f"{csv_name} is missing columns: {', '.join(sorted(missing))}"
+    else:
+        return False, "config.ini has no user or broker entries."
 
     zf.close()
     return True, ""

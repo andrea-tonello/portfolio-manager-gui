@@ -229,9 +229,20 @@
       "deletion_error": "Errore nella rimozione dei dati: {e}",
       "reset_completed": "Reset completato"
     },
+    "user": "Utente",
+    "user_mgmt": {
+      "add_title": "Aggiungi utente",
+      "username_hint": "Il tuo nome utente...",
+      "add_later": "Potrai aggiungere e\ngestire altri utenti in seguito",
+      "duplicate": "Nome utente già esistente",
+      "active": "Attivo",
+      "delete_title": "Elimina utente",
+      "delete_confirm": "Eliminare permanentemente l'utente \"{username}\" e tutti i suoi conti?",
+      "switch_confirm": "Passare a {username}?"
+    },
     "privacy_policy": "Privacy Policy",
     "contacts": "Contatti e Feedback",
-    "contacts_content": "Se hai una domanda, o vorresti riportare un bug, suggerire una nuova feature, o semplicemente darci un feedback, puoi farlo scrivendo a\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",
+    "contacts_content": "Se hai una domanda, vorresti riportare un bug, suggerire una nuova feature, o semplicemente darci un feedback, puoi farlo scrivendo a\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",
     "repo": "Questa app è Open Source!"
   },
 

@@ -101,7 +101,7 @@ class TransactionsView:
 
         self._tx_df = df
         self._acc_idx = acc_idx
-        saved_mode, saved_value = config_service.load_tx_filter(self.state.config_folder)
+        saved_mode, saved_value = config_service.load_tx_filter(self.state.user_config_folder)
         self._tx_filter_mode = saved_mode
         self._tx_filter_value = saved_value
 
@@ -200,7 +200,7 @@ class TransactionsView:
         dlg_radio.on_change = on_radio_change
 
         # Column visibility checkboxes (all 29 columns)
-        saved_cols = config_service.load_tx_columns(self.state.config_folder)
+        saved_cols = config_service.load_tx_columns(self.state.user_config_folder)
         visible_set = set(saved_cols) if saved_cols else set(_DEFAULT_DISPLAY_COLS)
 
         checkboxes = {}
@@ -223,13 +223,13 @@ class TransactionsView:
                 val = 5 if mode == "count" else 90
             self._tx_filter_mode = mode
             self._tx_filter_value = val
-            config_service.save_tx_filter(self.state.config_folder, mode, val)
+            config_service.save_tx_filter(self.state.user_config_folder, mode, val)
 
             # Save column visibility
             visible = [col for col, cb in checkboxes.items() if cb.value]
             if not visible:
                 visible = list(_DEFAULT_DISPLAY_COLS)
-            config_service.save_tx_columns(self.state.config_folder, visible)
+            config_service.save_tx_columns(self.state.user_config_folder, visible)
 
             self.page.pop_dialog()
             self._update_tx_table()
@@ -291,7 +291,7 @@ class TransactionsView:
         if df is None or df.empty:
             return ft.Text(t.get("transactions.empty"), size=16)
 
-        saved_cols = config_service.load_tx_columns(self.state.config_folder)
+        saved_cols = config_service.load_tx_columns(self.state.user_config_folder)
         display_cols = saved_cols if saved_cols else list(_DEFAULT_DISPLAY_COLS)
         available_cols = [c for c in display_cols if c in df.columns]
 

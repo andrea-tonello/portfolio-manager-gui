@@ -207,7 +207,7 @@ class HomeView:
             show_snack(self.page, t.get("home.watchlist_duplicate"), error=True)
             return
         self.state.watchlist.append(ticker)
-        config_service.save_watchlist(self.state.config_folder, self.state.watchlist)
+        config_service.save_watchlist(self.state.user_config_folder, self.state.watchlist)
         self._watchlist_ticker_search.value = ""
         self._fetch_watchlist_prices()
         self.page.update()
@@ -216,7 +216,7 @@ class HomeView:
         t = self.state.translator
         if ticker in self.state.watchlist:
             self.state.watchlist.remove(ticker)
-            config_service.save_watchlist(self.state.config_folder, self.state.watchlist)
+            config_service.save_watchlist(self.state.user_config_folder, self.state.watchlist)
             self._fetch_watchlist_prices()
             self.page.update()
 
@@ -225,7 +225,7 @@ class HomeView:
         wl = self.state.watchlist
         item = wl.pop(old_idx)
         wl.insert(new_idx, item)
-        config_service.save_watchlist(self.state.config_folder, wl)
+        config_service.save_watchlist(self.state.user_config_folder, wl)
         # Sync the controls list to match
         ctrls = self._watchlist_items_container.controls
         ctrl = ctrls.pop(old_idx)
@@ -701,7 +701,7 @@ class HomeView:
         self.state.haptic(self.page)
         hidden = not self.state._home_values_hidden
         self.state._home_values_hidden = hidden
-        config_service.save_home_hidden(self.state.config_folder, hidden)
+        config_service.save_home_hidden(self.state.user_config_folder, hidden)
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
 
         self._nav_text.visible = not hidden

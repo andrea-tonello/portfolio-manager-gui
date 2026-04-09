@@ -7,6 +7,7 @@ from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
 from utils.constants import APP_VERSION
+from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager, build_github_repo
 
 
 _NAV_LABELS = ["nav.home", "nav.operations", "nav.analysis", "nav.transactions"]
@@ -32,44 +33,50 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     async def handle_show_drawer():
         await page.show_end_drawer()
 
-    async def handle_change(e: ft.Event[ft.NavigationDrawer]):
-        if e.control.selected_index == 0:
-            _show_settings(page, state)
-        elif e.control.selected_index == 1:
-            _show_settings(page, state)
-        print(f"Selected Index changed: {e.control.selected_index}")
+    async def _drawer_tap(action):
         await page.close_end_drawer()
+        action()
 
     page.end_drawer = ft.NavigationDrawer(
-        on_change=handle_change,
         selected_index=None,
         controls=[
-            ft.Container(height=15),
-            ft.NavigationDrawerDestination(
-                icon=ft.Icons.SETTINGS,
-                label=t.get("nav.settings"),
+            ft.Container(height=5),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.SETTINGS),
+                trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
+                title=ft.Text(t.get("nav.settings")),
+                on_click=lambda _: page.run_task(_drawer_tap, lambda: _show_settings(page, state)),
+                min_height=55,
             ),
-            ft.NavigationDrawerDestination(
-                icon=ft.Icon(ft.Icons.PERSON),
-                label="User/Utente",
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.PERSON),
+                title=ft.Text(state.active_user_name or t.get("settings.user")),
+                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_user_manager(page, state)),
+                min_height=55,
             ),
-            ft.NavigationDrawerDestination(
-                icon=ft.Icon(ft.Icons.PRIVACY_TIP),
-                label=t.get("settings.privacy_policy"),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.PRIVACY_TIP),
+                title=ft.Text(t.get("settings.privacy_policy")),
+                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_privacy_policy(page, state)),
+                min_height=55,
             ),
-            ft.NavigationDrawerDestination(
-                icon=ft.Icon(ft.Icons.COMMENT),
-                label=t.get("settings.contacts"),
-            ),
-            ft.NavigationDrawerDestination(
-                icon=ft.Icon(ft.Icons.OPEN_IN_NEW),
-                label=t.get("settings.repo"),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.COMMENT),
+                title=ft.Text(t.get("settings.contacts")),
+                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_contacts(page, state)),
+                min_height=55,
             ),
             ft.Divider(),
+            ft.ListTile(
+                trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
+                title=ft.Text(t.get("settings.repo")),
+                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_contacts(page, state)),
+                min_height=55,
+            ),
             ft.Container(
                 ft.Text(f"Portfolio Manager {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                 alignment=ft.alignment.Alignment.CENTER,
-                padding=ft.padding.only(top=15),
+                padding=ft.padding.only(top=10),
             )
         ],
     )

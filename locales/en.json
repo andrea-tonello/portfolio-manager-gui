@@ -229,6 +229,17 @@
       "deletion_error": "Error deleting data: {e}",
       "reset_completed": "Reset completed"
     },
+    "user": "User",
+    "user_mgmt": {
+      "add_title": "Add User account",
+      "username_hint": "Your username...",
+      "add_later": "You can add and\nmanage other users later",
+      "duplicate": "Username already exists",
+      "active": "Active",
+      "delete_title": "Delete user",
+      "delete_confirm": "Permanently delete user \"{username}\" and all their accounts?",
+      "switch_confirm": "Switch to {username}?"
+    },
     "privacy_policy": "Privacy Policy",
     "contacts": "Contacts and Feedback",
     "contacts_content": "If you have any questions, or you want to report bugs, suggest new features, or provide general feedback, you can contact us by writing to\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",

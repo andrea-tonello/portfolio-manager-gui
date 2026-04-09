@@ -4,6 +4,7 @@ import flet as ft
 from components.snack import show_snack
 from services import config_service, account_service
 from utils.constants import LANG, APP_VERSION
+from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
 from utils.other_utils import create_defaults
 
 PAGE_WIDTH = 720
@@ -259,7 +260,7 @@ class SettingsView:
         s = self.state
         next_idx = max(s.brokers.keys(), default=0) + 1
         s.brokers[next_idx] = name
-        config_service.save_brokers(s.config_folder, s.brokers, reset=False)
+        config_service.save_brokers(s.user_config_folder, s.brokers, reset=False)
         create_defaults(s.config_res_folder, name)
         s.load_all_accounts()
         show_snack(self.page, s.translator.get("settings.account.accounts_added"))
@@ -296,7 +297,7 @@ class SettingsView:
         try:
             account_service.delete_account_files(broker_name, s.config_res_folder)
             del s.brokers[idx]
-            config_service.save_brokers(s.config_folder, s.brokers, reset=True)
+            config_service.save_brokers(s.user_config_folder, s.brokers, reset=True)
             s.accounts.pop(idx, None)
             s.load_all_accounts()
             # Reset per-page selections if they pointed to this account
@@ -498,71 +499,24 @@ class SettingsView:
     def _build_info_section(self) -> ft.Control:
         t = self.state.translator
 
-        def _open_privacy_policy(e):
-            lang = self.state.lang_code or "en"
-            pp_path = os.path.join(os.path.dirname(__file__), "..", "locales", f"privacy_policy_{lang}.txt")
-            try:
-                with open(pp_path, encoding="utf-8") as f:
-                    pp_text = f.read()
-            except FileNotFoundError:
-                pp_text = "Privacy policy not available."
-            dlg = ft.AlertDialog(
-                title=ft.Text(t.get("settings.privacy_policy")),
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Markdown(pp_text, auto_follow_links=True,
-                                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
-                    ], scroll=ft.ScrollMode.AUTO, tight=True),
-                    width=450,
-                    height=450,
-                ),
-                actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
-            )
-            self.page.show_dialog(dlg)
-            
-
         privacy_policy = ft.Container(
             ft.Row([
                 ft.Text(t.get("settings.privacy_policy"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            on_click=_open_privacy_policy,
+            on_click=lambda _: show_privacy_policy(self.page, self.state),
             padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
-
-        def _open_contacts(e):
-            dlg = ft.AlertDialog(
-                title=ft.Text(t.get("settings.contacts")),
-                content=ft.Markdown(t.get("settings.contacts_content"),
-                                    auto_follow_links=True,
-                                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
-                actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
-            )
-            self.page.show_dialog(dlg)
 
         contact_us = ft.Container(
             ft.Row([
                 ft.Text(t.get("settings.contacts"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
-            on_click=_open_contacts,
+            on_click=lambda _: show_contacts(self.page, self.state),
             padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
-        )
-
-        github_icon = ft.Image(src="github-logo.png", width=44, height=44, border_radius=30)
-        icon_and_text = ft.Row([github_icon, ft.Text(t.get("settings.repo"), size=16, weight=ft.FontWeight.BOLD),])
-
-        github_repo = ft.Container(
-            content=ft.Row([
-                icon_and_text,
-                ft.Icon(ft.Icons.OPEN_IN_NEW),
-            ], spacing=15, alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.only(left=16, right=16, top=4, bottom=4),
-            url="https://github.com/andrea-tonello/portfolio-manager-gui",
-            border_radius=15,
-            ink=True
         )
 
         version_text = ft.Container(
@@ -575,7 +529,7 @@ class SettingsView:
             content=ft.Column([
                 privacy_policy,
                 contact_us,
-                github_repo,
+                build_github_repo(self.state, img_size=44, font_size=16, font_bold=True),
                 version_text,
             ], spacing=7),
             padding=10,

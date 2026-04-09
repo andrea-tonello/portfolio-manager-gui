@@ -6,6 +6,8 @@
 
 ### Features
 
+- **[UX] NEW** Added multi-user support
+
 
 
 

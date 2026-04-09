@@ -3,6 +3,7 @@ import configparser
 
 import flet as ft
 
+from services import config_service
 from utils.translator import Translator
 from utils.constants import LANG
 from utils.other_utils import create_defaults
@@ -14,8 +15,7 @@ class AppState:
     def __init__(self, base_path: str):
         self.base_path = base_path
         self.config_folder = os.path.join(base_path, "config")
-        self.config_res_folder = os.path.join(self.config_folder, "resources")
-        os.makedirs(self.config_res_folder, exist_ok=True)
+        os.makedirs(self.config_folder, exist_ok=True)
 
         self.config_path = os.path.join(self.config_folder, "config.ini")
         self.config = configparser.ConfigParser()
@@ -23,6 +23,13 @@ class AppState:
         locales_dir = os.path.join(os.path.dirname(__file__), "locales")
         self.translator = Translator(language_code=LANG[1][0], locales_dir=locales_dir)
         self.lang_code: str | None = None
+
+        # Multi-user
+        self.users: dict[int, str] = {}
+        self.active_user_idx: int | None = None
+        self.active_user_name: str | None = None
+        self.user_config_folder: str | None = None   # per-user config dir
+        self.config_res_folder: str | None = None     # per-user resources dir
 
         self.brokers: dict[int, str] = {}
 
@@ -74,7 +81,8 @@ class AppState:
             page.run_task(_safe_haptic)
 
     def load_config(self):
-        """Read config.ini and populate lang_code and brokers."""
+        """Read root config.ini for global settings, then load active user's per-user config."""
+        self.config = configparser.ConfigParser()
         if os.path.exists(self.config_path):
             self.config.read(self.config_path)
             if "Language" in self.config and "Code" in self.config["Language"]:
@@ -82,18 +90,52 @@ class AppState:
             if "Theme" in self.config:
                 self.theme_mode = self.config.get("Theme", "mode", fallback="system")
                 self.color_seed = self.config.get("Theme", "color", fallback="blue")
-            if "Watchlist" in self.config:
-                tickers_str = self.config.get("Watchlist", "tickers", fallback="")
-                self.watchlist = [t.strip() for t in tickers_str.split(",") if t.strip()]
-            if "Home" in self.config:
-                self._home_values_hidden = self.config.get("Home", "hidden", fallback="false") == "true"
-            if "Brokers" in self.config:
-                try:
-                    self.brokers = {int(k): v for k, v in self.config.items("Brokers")}
-                except ValueError:
-                    pass
+
         if self.lang_code:
             self.translator.load_language(self.lang_code)
+
+        # Load users from root config
+        self.users = config_service.load_users(self.config_folder)
+        self.active_user_idx = config_service.load_active_user(self.config_folder)
+
+        if self.active_user_idx and self.active_user_idx in self.users:
+            self.active_user_name = self.users[self.active_user_idx]
+            self.user_config_folder = config_service.get_user_folder(
+                self.config_folder, self.active_user_name
+            )
+            self.config_res_folder = config_service.get_user_res_folder(
+                self.config_folder, self.active_user_name
+            )
+            os.makedirs(self.config_res_folder, exist_ok=True)
+
+            # Load per-user settings
+            user_config = configparser.ConfigParser()
+            user_config_path = os.path.join(self.user_config_folder, "config.ini")
+            if os.path.exists(user_config_path):
+                user_config.read(user_config_path)
+            if user_config.has_section("Brokers"):
+                try:
+                    self.brokers = {int(k): v for k, v in user_config.items("Brokers")}
+                except ValueError:
+                    self.brokers = {}
+            else:
+                self.brokers = {}
+            if user_config.has_section("Watchlist"):
+                tickers_str = user_config.get("Watchlist", "tickers", fallback="")
+                self.watchlist = [t.strip() for t in tickers_str.split(",") if t.strip()]
+            else:
+                self.watchlist = []
+            if user_config.has_section("Home"):
+                self._home_values_hidden = user_config.get("Home", "hidden", fallback="false") == "true"
+            else:
+                self._home_values_hidden = False
+        else:
+            self.active_user_name = None
+            self.user_config_folder = None
+            self.config_res_folder = None
+            self.brokers = {}
+            self.watchlist = []
+            self._home_values_hidden = False
 
     def ensure_defaults(self):
         """Create default CSV files for each broker if missing."""
