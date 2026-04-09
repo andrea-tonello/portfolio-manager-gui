@@ -5,3 +5,4 @@
 - Decimal
 - Table in TransactionView: with many items, the view slows down
 - Asset allocation
+- NavigationBar does not update language in real time

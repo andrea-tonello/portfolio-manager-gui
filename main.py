@@ -53,8 +53,8 @@ def main(page: ft.Page):
     page.title = "Portfolio Manager"
     page.adaptive = False
     page.padding = 10
-    page.window.width = 420
-    page.window.height = 800
+    page.window.width = 440
+    page.window.height = 780
     page.data = {"restart": lambda: _do_restart(page)}
     _do_restart(page)
 

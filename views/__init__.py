@@ -6,6 +6,7 @@ from views.operations_view import OperationsView
 from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
+from utils.constants import APP_VERSION
 
 
 _NAV_LABELS = ["nav.home", "nav.operations", "nav.analysis", "nav.transactions"]
@@ -26,8 +27,58 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
 
     current_view = _VIEW_BUILDERS[selected_index](page, state).build()
 
-    page_title = t.get(_NAV_LABELS[selected_index])
+# ── Right Drawer menu ────────────────────────────────────
 
+    async def handle_show_drawer():
+        await page.show_end_drawer()
+
+    async def handle_change(e: ft.Event[ft.NavigationDrawer]):
+        if e.control.selected_index == 0:
+            _show_settings(page, state)
+        elif e.control.selected_index == 1:
+            _show_settings(page, state)
+        print(f"Selected Index changed: {e.control.selected_index}")
+        await page.close_end_drawer()
+
+    page.end_drawer = ft.NavigationDrawer(
+        on_change=handle_change,
+        selected_index=None,
+        controls=[
+            ft.Container(height=15),
+            ft.NavigationDrawerDestination(
+                icon=ft.Icons.SETTINGS,
+                label=t.get("nav.settings"),
+            ),
+            ft.NavigationDrawerDestination(
+                icon=ft.Icon(ft.Icons.PERSON),
+                label="User/Utente",
+            ),
+            ft.NavigationDrawerDestination(
+                icon=ft.Icon(ft.Icons.PRIVACY_TIP),
+                label=t.get("settings.privacy_policy"),
+            ),
+            ft.NavigationDrawerDestination(
+                icon=ft.Icon(ft.Icons.COMMENT),
+                label=t.get("settings.contacts"),
+            ),
+            ft.NavigationDrawerDestination(
+                icon=ft.Icon(ft.Icons.OPEN_IN_NEW),
+                label=t.get("settings.repo"),
+            ),
+            ft.Divider(),
+            ft.Container(
+                ft.Text(f"Portfolio Manager {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+                alignment=ft.alignment.Alignment.CENTER,
+                padding=ft.padding.only(top=15),
+            )
+        ],
+    )
+
+
+# ── AppBar ────────────────────────────────────────────
+
+    page_title = t.get(_NAV_LABELS[selected_index])
+    
     if selected_index == 0:
         appbar_title = ft.Row([
             ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
@@ -41,14 +92,16 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
         actions=[
             ft.Container(
                 ft.IconButton(
-                    icon=ft.Icons.SETTINGS,
-                    tooltip=t.get("nav.settings"),
-                    on_click=lambda e: _show_settings(page, state),
+                    icon=ft.Icons.MENU,
+                    on_click=handle_show_drawer,
                 ),
                 padding=ft.padding.only(right=8),
             ),
         ],
     )
+
+
+# ── NavigationBar ────────────────────────────────────
 
     nav_bar = ft.NavigationBar(
         selected_index=selected_index,
@@ -63,6 +116,8 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
         ],
         on_change=lambda e: _on_nav_change(e, page, state),
     )
+
+# ──────────────────────────────────────────────────
 
     # Wrap analysis/transactions views in a Stack with a floating info button
     if selected_index in (2, 3):
