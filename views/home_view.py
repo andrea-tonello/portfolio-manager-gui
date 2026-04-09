@@ -135,7 +135,7 @@ class HomeView:
         return ft.Container(
             ft.Row([self._tab_positions, self._tab_watchlist], spacing=8),
             width=WIDTH_POSITIONS,
-            padding=ft.padding.only(top=10, right=20, left=20),
+            padding=ft.padding.only(top=10, right=5, left=5, bottom=15),
         )
 
     def _switch_section_tab(self, tab_idx):
@@ -343,11 +343,12 @@ class HomeView:
             on_click=self._cycle_pos_display,
             style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=12, vertical=6)),
             height=35,
+            elevation=2,
         )
         header = ft.Container(
             content=ft.Row([
                 ft.Column([
-                    ft.Text(t.get("home.open_positions_descr"), size=12, color=ft.Colors.GREY_500),
+                    ft.Text(t.get("home.open_positions_descr"), size=14, color=ft.Colors.GREY_500),
                 ], spacing=1),
                 self._pos_mode_btn,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, width=WIDTH_POSITIONS),
@@ -649,20 +650,19 @@ class HomeView:
             hidden_mask if hidden else loading_str,
             size=14, weight=ft.FontWeight.BOLD,
         )
-        self._pnl_container = ft.Container(
-            content=ft.Column([
-                self._pnl_label,
-                self._pnl_value,
-            ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.symmetric(horizontal=12, vertical=8),
-            border_radius=10,
-            bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.SECONDARY),
-            shadow=ft.BoxShadow(
-                spread_radius=0, blur_radius=1, offset=ft.Offset(3, 3),
-                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        self._pnl_container = ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    self._pnl_label,
+                    self._pnl_value,
+                ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                border_radius=10,
+                bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.SECONDARY),
+                on_click=self._cycle_pnl_mode,
+                ink=True,
             ),
-            on_click=self._cycle_pnl_mode,
-            ink=True,
+            elevation=3,
         )
         self._visibility_btn = ft.IconButton(
             icon=ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY,
@@ -691,9 +691,10 @@ class HomeView:
                     ], spacing=15),
                     padding=20,
                 ),
+                elevation=5,
             ),
             ft.Row([self._refresh_loading], alignment=ft.MainAxisAlignment.CENTER),
-        ], spacing=4, width=WIDTH_CARD,)
+        ], spacing=5, width=WIDTH_CARD,)
 
     def _toggle_visibility(self, e):
         t = self.state.translator

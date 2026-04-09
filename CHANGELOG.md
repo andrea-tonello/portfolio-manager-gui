@@ -1,3 +1,14 @@
+## [0.2.4] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UI]** Better shadow effects for all container-like buttons, FilledTonalButtons, ElevatedButtons
+
+### Features
+
+
+
+
 ## [0.2.3] (2026-04-06)
 
 ### Bug Fixes

@@ -116,18 +116,21 @@ class TransactionsView:
     def _build_button_row(self, acc_idx) -> ft.Control:
         t = self.state.translator
 
-        filters_btn = ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.FILTER_LIST, size=32),
-                ft.Text(t.get("transactions.filters"), text_align=ft.TextAlign.CENTER),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-            padding=15,
-            border_radius=15,
-            height=90,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-            on_click=self._on_open_filters,
-            ink=True,
-            #expand=True,
+        filters_btn = ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.FILTER_LIST, size=32),
+                    ft.Text(t.get("transactions.filters"), text_align=ft.TextAlign.CENTER),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+                padding=15,
+                border_radius=15,
+                height=90,
+                bgcolor=ft.Colors.SECONDARY_CONTAINER,
+                on_click=self._on_open_filters,
+                ink=True,
+                #expand=True,
+            ),
+            elevation=3,
             col={"xs": 4, "md": 4},
         )
 

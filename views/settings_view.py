@@ -86,11 +86,13 @@ class SettingsView:
             theme_label,
             width=140,
             on_click=self._open_theme_dialog,
+            elevation=2,
         )
         self._palette_btn = ft.FilledTonalButton(
             palette_label,
             width=140,
             on_click=self._open_palette_dialog,
+            elevation=2,
         )
 
         return ft.Container(
@@ -242,6 +244,7 @@ class SettingsView:
                         t.get("components.confirm"),
                         icon=ft.Icons.ADD,
                         on_click=self._on_add_broker,
+                        elevation=2,
                     ),
                 ]),
             ], spacing=10),
@@ -315,28 +318,34 @@ class SettingsView:
 
     def _build_backup_section(self) -> ft.Control:
         t = self.state.translator
-        export_btn = ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.UPLOAD_FILE, size=32),
-                ft.Text(t.get("settings.account.export_backup"), text_align=ft.TextAlign.CENTER),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-            padding=20,
-            border_radius=15,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-            on_click=self._on_export_backup,
-            ink=True,
+        export_btn = ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.UPLOAD_FILE, size=32),
+                    ft.Text(t.get("settings.account.export_backup"), text_align=ft.TextAlign.CENTER),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+                padding=20,
+                border_radius=15,
+                bgcolor=ft.Colors.SECONDARY_CONTAINER,
+                on_click=self._on_export_backup,
+                ink=True,
+            ),
+            elevation=3,
             expand=True,
         )
-        import_btn = ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.DOWNLOAD, size=32),
-                ft.Text(t.get("settings.account.import_backup"), text_align=ft.TextAlign.CENTER),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-            padding=20,
-            border_radius=15,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-            on_click=self._on_import_backup,
-            ink=True,
+        import_btn = ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.Icons.DOWNLOAD, size=32),
+                    ft.Text(t.get("settings.account.import_backup"), text_align=ft.TextAlign.CENTER),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+                padding=20,
+                border_radius=15,
+                bgcolor=ft.Colors.SECONDARY_CONTAINER,
+                on_click=self._on_import_backup,
+                ink=True,
+            ),
+            elevation=3,
             expand=True,
         )
         return ft.Container(
