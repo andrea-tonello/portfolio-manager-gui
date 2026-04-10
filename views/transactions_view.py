@@ -13,6 +13,7 @@ _DEFAULT_DISPLAY_COLS = [
 ]
 
 _ALL_COLS = COLUMNS
+_PAGE_SIZE = 30
 
 
 class TransactionsView:
@@ -260,7 +261,7 @@ class TransactionsView:
 
     # ── Table update ──────────────────────────────────────────────────
 
-    def _update_tx_table(self):
+    def _update_tx_table(self, reset_page=True):
         t = self.state.translator
         df = self._tx_df
         if df is None or df.empty:
@@ -282,7 +283,52 @@ class TransactionsView:
             df_sorted = df_sorted.head(self._tx_filter_value)
 
         df_sorted = df_sorted.drop(columns=["_date_parsed", "_orig_idx"])
-        self.tx_table_container.content = self._build_transactions_table(df_sorted)
+        self._tx_filtered_df = df_sorted
+
+        if reset_page:
+            self._tx_page = 0
+
+        self._render_page()
+
+    def _render_page(self):
+        df = self._tx_filtered_df
+        total = len(df)
+        total_pages = max(1, (total + _PAGE_SIZE - 1) // _PAGE_SIZE)
+        self._tx_page = min(self._tx_page, total_pages - 1)
+
+        start = self._tx_page * _PAGE_SIZE
+        page_df = df.iloc[start:start + _PAGE_SIZE]
+
+        table = self._build_transactions_table(page_df)
+
+        if total_pages > 1:
+            pagination = ft.Row([
+                ft.IconButton(
+                    ft.Icons.CHEVRON_LEFT,
+                    on_click=self._on_prev_page,
+                    disabled=self._tx_page == 0,
+                ),
+                ft.Text(f"{self._tx_page + 1} / {total_pages}", size=13),
+                ft.IconButton(
+                    ft.Icons.CHEVRON_RIGHT,
+                    on_click=self._on_next_page,
+                    disabled=self._tx_page >= total_pages - 1,
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=4)
+            self.tx_table_container.content = ft.Column([table, pagination], spacing=5)
+        else:
+            self.tx_table_container.content = table
+
+    def _on_prev_page(self, e):
+        if self._tx_page > 0:
+            self._tx_page -= 1
+            self._render_page()
+            self.page.update()
+
+    def _on_next_page(self, e):
+        self._tx_page += 1
+        self._render_page()
+        self.page.update()
 
     # ── Table ──────────────────────────────────────────────────────
 

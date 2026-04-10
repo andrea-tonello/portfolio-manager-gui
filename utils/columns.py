@@ -12,7 +12,7 @@ COLUMNS = [
     "ter", "curr", "conv_rate", "qt_exch", "price", "price_eur",
     "nominal_amount", "fee", "qt_held", "abp", "residual_amount",
     "effective_amount", "released_amount", "gross_gain", "generated_loss",
-    "expiry", "carryforward", "taxable_gain", "tax", "pl",
+    "expiry", "carryforward", "taxable_gain", "tax_bracket", "tax", "pl",
     "cash_held", "assets_value", "nav", "committed_cash",
 ]
 
@@ -42,6 +42,7 @@ GLOSSARY_KEYS = [
     "glossary.page_1.exp_date_title",
     "glossary.page_1.backpack_title",
     "glossary.page_1.cap_gain_tax_title",
+    "glossary.page_1.tax_bracket_title",
     "glossary.page_1.tax_amount_title",
     "glossary.page_1.pl_title",
     "glossary.page_1.cash_held_title",
@@ -76,6 +77,7 @@ OLD_TO_NEW = {
     "Scadenza": "expiry",
     "Zainetto Fiscale": "carryforward",
     "Plusv. Imponibile": "taxable_gain",
+    "Aliquota Fiscale": "tax_bracket",
     "Imposta": "tax",
     "P&L": "pl",
     "Liquidita Attuale": "cash_held",

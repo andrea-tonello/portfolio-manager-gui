@@ -405,12 +405,42 @@ class OperationsView:
         )
 
 
-        ter_field = ft.TextField(label="TER (%)",
+        ter_field = ft.TextField(
+            label=t.get("operations.stock.ter"),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=_DECIMAL_FILTER,
             border_radius=ft.border_radius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            input_filter=_DECIMAL_FILTER,
+            col={"xs":12, "md": 6},
+            expand=True
+        )
+        ter_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_ter_help,
+        )
+        ter_row = ft.Container(
+            content=ft.Row([ter_field, ter_help]),
+            col={"xs": 12, "md": 6},
             visible=(product_type == "ETF"),
-            col={"xs":12, "md": 12}
+        )
+
+        tax_bracket_field = ft.TextField(
+            label=t.get("operations.stock.tax_bracket"),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=_DECIMAL_FILTER,
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            col={"xs": 12, "md": 6},
+            expand=True
+        )
+        tax_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_tax_help,
+        )
+        tax_row = ft.Container(
+            content=ft.Row([tax_bracket_field, tax_help]),
+            col={"xs": 12, "md": 6},
+            visible=False,
         )
 
 
@@ -491,6 +521,7 @@ class OperationsView:
             "currency_dd": currency_dd, "exch_rate": exch_rate,
             "ticker": ticker_field, "quantity": quantity_field, "price": price_field,
             "fee_currency_dd": fee_currency_dd, "fee": fee_field, "ter": ter_field,
+            "tax_bracket": tax_bracket_field,
             "loading": loading, "product_type": product_type,
         }
         if not hasattr(self, "_es_tabs"):
@@ -503,8 +534,7 @@ class OperationsView:
             ft.ResponsiveRow([date_row, ticker_row]),
             ft.ResponsiveRow([currency_dd, exch_rate]),
             ft.ResponsiveRow([quantity_field, price_field]),
-            ft.ResponsiveRow([fee_currency_dd, fee_field]),
-            ft.ResponsiveRow([ter_field]),
+            ft.ResponsiveRow([fee_currency_dd, fee_field, ter_row, tax_row]),
             ft.Row([ft.Container(width=5), loading]),
             ft.Container(height=80),
         ], spacing=12)
@@ -526,10 +556,6 @@ class OperationsView:
             return ft.Container(content=stock_etf_form, padding=20, expand=True)
 
         # ── ETF sub-type selector ───────────────────────────────
-        mm_placeholder = ft.Container(
-            ft.Text("\n\nMoney Market ETFs\n\nComing soon", size=16, text_align=ft.TextAlign.CENTER),
-            alignment=ft.alignment.Alignment.CENTER, expand=True, visible=False,
-        )
         bond_text = ft.Text("\n\nBonds ETFs Rolling Maturity\n\nComing soon", size=16,
                             text_align=ft.TextAlign.CENTER)
         bond_placeholder = ft.Container(
@@ -551,10 +577,11 @@ class OperationsView:
 
         def _on_etf_subtype_change(e):
             val = e.control.value
-            stock_etf_form.visible = val == "stock_etf"
-            mm_placeholder.visible = val == "mm_etf"
+            stock_etf_form.visible = val in ("stock_etf", "mm_etf")
             bond_placeholder.visible = val == "bond_etf"
             bond_maturity_switch.disabled = val != "bond_etf"
+            #ter_field.visible = val in ("stock_etf", "mm_etf")
+            tax_row.visible = val == "mm_etf"
             tab_data["etf_subtype"] = val
             self.page.update()
 
@@ -577,7 +604,6 @@ class OperationsView:
         outer = ft.Column([
             etf_subtype_group,
             stock_etf_form,
-            mm_placeholder,
             bond_placeholder,
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
@@ -627,7 +653,7 @@ class OperationsView:
         s = self.state
         t = s.translator
         tab = self._es_tabs[product_type]
-        if product_type == "ETF" and tab.get("etf_subtype", "stock_etf") != "stock_etf":
+        if product_type == "ETF" and tab.get("etf_subtype", "stock_etf") not in ("stock_etf", "mm_etf"):
             show_snack(self.page, "Not yet implemented", error=True)
             return
         df = self._get_ops_df()
@@ -706,6 +732,17 @@ class OperationsView:
             if ter_val:
                 ter = ter_val.strip().rstrip("%") + "%"
 
+        tax_rate = 0.26
+        if product_type == "ETF" and tab.get("etf_subtype") == "mm_etf":
+            try:
+                tax_rate = float(tab["tax_bracket"].value)
+                if not (0 <= tax_rate <= 100):
+                    raise ValueError
+                tax_rate = tax_rate / 100
+            except (ValueError, TypeError):
+                show_snack(self.page, t.get("operations.stock.tax_bracket_error"), error=True)
+                return
+
         date_str = tab["date_value"].strftime(DATE_FORMAT)
         ref_date = tab["date_value"]
         acc_idx = s.ops_acc_idx
@@ -732,7 +769,7 @@ class OperationsView:
                 new_df = operations_service.execute_etf_stock(
                     t, df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,
-                    fee, ter, product_type,
+                    fee, ter, product_type, tax_rate=tax_rate,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
@@ -751,6 +788,24 @@ class OperationsView:
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("operations.stock.ticker")),
             content=ft.Text(t.get("operations.stock.ticker_explained")),
+            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
+
+    def _show_ter_help(self, e):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.stock.ter")),
+            content=ft.Text(t.get("operations.stock.ter_explained")),
+            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
+
+    def _show_tax_help(self, e):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.stock.tax_bracket")),
+            content=ft.Text(t.get("operations.stock.tax_explained")),
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)

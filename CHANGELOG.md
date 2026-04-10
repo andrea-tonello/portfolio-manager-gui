@@ -1,3 +1,16 @@
+## [0.2.5] (2026-04-10)
+
+### Bug Fixes
+
+- **[PERFORMANCE]** Fixed table performance in TransactionsView by adding pages
+
+### Features
+
+- **[FEATURE] NEW** Added support for Money Market ETFs
+
+
+
+
 ## [0.2.4] (2026-04-10)
 
 ### Bug Fixes

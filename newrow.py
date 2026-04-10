@@ -49,7 +49,7 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     return _append_row(df, row)
 
 
-def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None):
+def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None, tax_rate=0.26):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -63,7 +63,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     if buy:
         results = aop.buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
     else:
-        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
+        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate)
 
     price_eur = price * conv_rate
 
@@ -93,6 +93,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
         "expiry": results["expiry"],
         "carryforward": round_half_up(results["carryforward"]),
         "taxable_gain": round_half_up(results["taxable_gain"]),
+        "tax_bracket": tax_rate * 100,
         "tax": round_half_up(results["tax"]),
         "pl": round_half_up(results["pl"]),
         "cash_held": round_half_up(results["cash_held"]),

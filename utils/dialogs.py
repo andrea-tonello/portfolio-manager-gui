@@ -145,7 +145,7 @@ def show_user_manager(page: ft.Page, state):
             width=300,
             height=240,
             bgcolor=ft.Colors.SURFACE_DIM,
-            padding=5,
+            padding=ft.padding.only(top=8, bottom=9, left=7, right=7),
             border_radius=15,
         ),
         actions=[

@@ -91,9 +91,13 @@
       "currency_fee": "Valuta commissione",
       "fee": "Commissione",
       "fee_error": "La commissione deve essere un numero maggiore o uguale a 0",
-      "ter": "Total Expense Ratio",
+      "ter": "TER (%)",
+      "ter_explained": "Total Expense Ratio in percentuale, e.g., 0.20%.\n\nQuesto costo annuo è già incluso nel prezzo finale dell'ETF da parte dell'Emittente. Questo campo ha solo lo scopo di riportarne il valore.",
       "sell_noitems": "Nessun titolo da vendere: portafoglio vuoto",
-      "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})"
+      "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})",
+      "tax_bracket": "Aliquota fiscale (%)",
+      "tax_explained": "Aliquota fiscale dello strumento, e.g., 13.8%.\n\nLa legislazione Italiana tassa le Obbligazioni al 12.5% e le Azioni al 26%.\nStrumenti come ETF Monetari, che possono includere entrambi nel sottostante, sono tassati in proporzione.\n\nEsempio: XEON, swap-based, 90% obblig., 10% azioni:\n    \u2981 12.5*0.90 + 26*0.10 = 13.85%\n\nLe proporzioni del sottostante dovrebbero essere comunicate dall'Emittente ed aggiornate ogni sei mesi.",
+      "tax_bracket_error": "L'aliquota fiscale deve essere un numero compreso tra 0 e 100"
     },
     "bond": {
       "title": "OBBLIGAZIONI",
@@ -313,6 +317,7 @@
       "backpack_descr": "Tiene conto del totale delle minusvalenze ancora da compensare, e provvede a rimuoverle eventualmente a scadenza\n",
       "cap_gain_tax_title": "Plusv. Imponibile",
       "cap_gain_tax_descr": "Plusvalenza sul quale si andrà effettivamente a pagare l'imposta. Si riduce in caso di minusvalenze da compensare.\nSupponendo plus=20€, zainetto=5€, si andrà a pagare l'imposta solo su 20-5 = 15€, invece che su 20€\n",
+      "tax_bracket_title": "Aliquota Fiscale",
       "tax_amount_title": "Imposta",
       "tax_amount_descr": "Imposta pagata, calcolata sulla plusvalenza imponibile\n",
       "pl_title": "P&L",

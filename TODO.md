@@ -1,7 +1,5 @@
 - Manage stock splits
 - Bonds
 - Bonds ETFs
-- Monetary ETFs
 - Decimal
-- Table in TransactionView: with many items, the view slows down
 - Asset allocation

@@ -91,9 +91,13 @@
       "currency_fee": "Fee currency",
       "fee": "Fee amount",
       "fee_error": "The fee must be a number greater than or equal to 0",
-      "ter": "Total Expense Ratio",
+      "ter": "TER (%)",
+      "ter_explained": "Total Expense Ratio in percentage, e.g., 0.20%.\n\nThis cost is already included in the ETF's price by the Issuer. This field serves only as a reminder of the product's TER",
       "sell_noitems": "No assets to sell: portfolio is empty",
-      "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})"
+      "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})",
+      "tax_bracket": "Tax bracket (%)",
+      "tax_explained": "Tax bracket of the product, e.g., 13.8%.\n\nItalian legislation taxes Bonds at 12.5% and Stocks at 26%.\nProducts like Money Market ETFs, which may be built with a mix of underlying assets, are then taxed accordingly.\n\nExample: XEON, swap-based, 90% bonds, 10% stocks:\n    \u2981 12.5*0.90 + 26*0.10 = 13.85%\n\nThe underlying proportions should be disclosed by the product Issuer and updated every six months.",
+      "tax_bracket_error": "The tax bracket must be a number between 0 and 100"
     },
     "bond": {
       "title": "BONDS",
@@ -313,6 +317,7 @@
       "backpack_descr": "Tracks total capital losses yet to be offset, and handles removing them upon expiration\n",
       "cap_gain_tax_title": "Taxable Cap Gain",
       "cap_gain_tax_descr": "Capital gain on which tax will actually be paid. Reduced by the Tax Carryforward in case of offsettable capital losses.\nAssuming gain=20€, carryforward=5€, tax is paid only on 20-5 = 15€, instead of 20€\n",
+      "tax_bracket_title": "Tax Bracket",
       "tax_amount_title": "Tax",
       "tax_amount_descr": "Tax actually paid, calculated on the taxable capital gain\n",
       "pl_title": "P&L",
