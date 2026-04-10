@@ -33,42 +33,38 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     async def handle_show_drawer():
         await page.show_end_drawer()
 
-    async def _drawer_tap(action):
-        await page.close_end_drawer()
-        action()
-
     page.end_drawer = ft.NavigationDrawer(
         selected_index=None,
         controls=[
-            ft.Container(height=5),
+            ft.Container(height=10),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.SETTINGS),
                 trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
                 title=ft.Text(t.get("nav.settings")),
                 on_click=lambda: _show_settings(page, state),
                 min_height=60,
-                content_padding=ft.padding.only(left=20, right=15),
+                content_padding=ft.padding.only(left=25, right=15),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.PERSON),
                 title=ft.Text(state.active_user_name or t.get("settings.user")),
                 on_click=lambda: show_user_manager(page, state),
                 min_height=60,
-                content_padding=ft.padding.only(left=20),
+                content_padding=ft.padding.only(left=25),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.PRIVACY_TIP),
                 title=ft.Text(t.get("settings.privacy_policy")),
                 on_click=lambda: show_privacy_policy(page, state),
                 min_height=60,
-                content_padding=ft.padding.only(left=20),
+                content_padding=ft.padding.only(left=25),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.COMMENT),
                 title=ft.Text(t.get("settings.contacts")),
                 on_click=lambda: show_contacts(page, state),
                 min_height=60,
-                content_padding=ft.padding.only(left=20),
+                content_padding=ft.padding.only(left=25),
             ),
             ft.Divider(),
             ft.ListTile(
@@ -76,7 +72,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                 title=ft.Text(t.get("settings.repo")),
                 url="https://github.com/andrea-tonello/portfolio-manager-gui",
                 min_height=60,
-                content_padding=ft.padding.only(left=20, right=15),
+                content_padding=ft.padding.only(left=25, right=15),
             ),
             ft.Container(
                 ft.Text(f"Portfolio Manager {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
@@ -175,6 +171,8 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
 
         # Hide navigation bar when the on-screen keyboard is open
         def _on_keyboard_visibility(e):
+            if page.navigation_bar is None:
+                return
             keyboard_open = page.media.view_insets.bottom > 0
             page.navigation_bar.visible = not keyboard_open
             page.update()

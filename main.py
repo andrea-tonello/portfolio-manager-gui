@@ -125,7 +125,7 @@ def _show_language_picker(page: ft.Page, state: AppState):
     page.update()
 
 
-def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_complete=None, first_time=True):
+def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_complete=None, first_time=True, on_cancel=None):
     """User creation screen. Used at first boot, migration, and when adding users in-app."""
     t = state.translator
     username_field = ft.TextField(
@@ -165,18 +165,26 @@ def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_comp
             page.controls.clear()
             _show_broker_onboarding(page, state)
 
+    close_btn = ft.IconButton(
+        icon=ft.Icons.CLOSE,
+        icon_size=28,
+        on_click=lambda _: on_cancel(),
+        visible=on_cancel is not None,
+    )
+
     page.controls.clear()
     page.controls.append(
         ft.SafeArea(
             ft.Container(
                 ft.Column([
-                    ft.Container(height=80),
+                    ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
+                    ft.Container(height=40),
                     ft.Icon(ft.Icons.PERSON, size=80),
                     ft.Container(height=30),
                     ft.Text(t.get("settings.user_mgmt.add_title"), size=20, weight=ft.FontWeight.BOLD),
                     username_field,
                     ft.Container(expand=True),
-                    ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"), 
+                    ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
                             size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                     ft.Container(height=20),
                     ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
@@ -191,7 +199,7 @@ def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_comp
     page.update()
 
 
-def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None):
+def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on_cancel=None):
     t = state.translator
     broker_field = ft.TextField(
         label=t.get("settings.account.add_account"),
@@ -245,11 +253,19 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None):
             page.controls.clear()
             main(page)
 
+    close_btn = ft.IconButton(
+        icon=ft.Icons.CLOSE,
+        icon_size=28,
+        on_click=lambda _: on_cancel(),
+        visible=on_cancel is not None,
+    )
+
     page.controls.clear()
     page.controls.append(
         ft.SafeArea(
             ft.Column([
-                ft.Container([], height=100),
+                ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
+                ft.Container([], height=60),
                 ft.Text(t.get("settings.new_acc", username=state.active_user_name or ""), size=20),
                 ft.Text(t.get("settings.new_acc_example"), size=14),
                 ft.ResponsiveRow([

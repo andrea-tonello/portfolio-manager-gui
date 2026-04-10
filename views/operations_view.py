@@ -593,7 +593,7 @@ class OperationsView:
                 ft.Radio(value="mm_etf", label=t.get("operations.stock.mm_etf"),),
                 ft.Row([
                     ft.Radio(value="bond_etf", label=t.get("operations.stock.bonds_etf"),),
-                    ft.Container(width=70),
+                    ft.Container(expand=True),
                     bond_maturity_switch,
                 ], spacing=0),
             ], spacing=0, opacity=0.4 if no_account else 1.0),

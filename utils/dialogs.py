@@ -117,7 +117,7 @@ def show_user_manager(page: ft.Page, state):
         config_service.save_active_user(state.config_folder, user_idx)
         page.data["restart"]()
 
-    def _on_add_user(_):
+    def _on_add_user():
         page.pop_dialog()
         # Take over full screen: hide appbar and navbar
         page.appbar = None
@@ -127,14 +127,34 @@ def show_user_manager(page: ft.Page, state):
 
         show_user_creation = page.data.get("show_user_creation")
         show_broker_onboarding = page.data.get("show_broker_onboarding")
+        restart = page.data["restart"]
+        original_user_idx = state.active_user_idx
+
+        def _restore_and_restart():
+            config_service.save_active_user(state.config_folder, original_user_idx)
+            state.load_config()
+            restart()
+
+        def cancel_broker(created_idx):
+            config_service.delete_user(state.config_folder, state.users, created_idx)
+            _restore_and_restart()
 
         def after_user_created():
+            created_idx = state.active_user_idx
             page.controls.clear()
-            show_broker_onboarding(page, state, on_complete=lambda: page.data["restart"]())
+            show_broker_onboarding(
+                page, state,
+                on_complete=lambda: page.data["restart"](),
+                on_cancel=lambda: cancel_broker(created_idx),
+            )
 
-        show_user_creation(page, state, on_complete=after_user_created, first_time=False)
+        show_user_creation(page, state, on_complete=after_user_created, first_time=False, on_cancel=_restore_and_restart)
 
     user_rows = _build_user_list()
+
+    async def _drawer_tap(action):
+        await page.close_end_drawer()
+        action()
 
     dlg = ft.AlertDialog(
         title=ft.Column([
@@ -149,7 +169,7 @@ def show_user_manager(page: ft.Page, state):
             border_radius=15,
         ),
         actions=[
-            ft.IconButton(icon=ft.Icons.ADD, icon_size=32, on_click=_on_add_user),
+            ft.IconButton(icon=ft.Icons.ADD, icon_size=32, on_click=lambda _: page.run_task(_drawer_tap, _on_add_user)),
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER,
     )

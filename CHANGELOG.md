@@ -1,3 +1,15 @@
+## [0.2.6] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UI]** Fixed Bonds ETFs switch being cut off-screen by long locales
+
+### Features
+
+- **[UX]** Added a cancel (x) button for the user onboarding procedure
+
+
+
 ## [0.2.5] (2026-04-10)
 
 ### Bug Fixes
