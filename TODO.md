@@ -3,3 +3,6 @@
 - Bonds ETFs
 - Decimal
 - Asset allocation
+- Bonds ETF switch cut off with italian locale
+- iOS UI
+    - NavigationBar

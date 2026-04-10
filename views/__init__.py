@@ -45,33 +45,38 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                 leading=ft.Icon(ft.Icons.SETTINGS),
                 trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
                 title=ft.Text(t.get("nav.settings")),
-                on_click=lambda _: page.run_task(_drawer_tap, lambda: _show_settings(page, state)),
-                min_height=55,
+                on_click=lambda: _show_settings(page, state),
+                min_height=60,
+                content_padding=ft.padding.only(left=20, right=15),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.PERSON),
                 title=ft.Text(state.active_user_name or t.get("settings.user")),
-                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_user_manager(page, state)),
-                min_height=55,
+                on_click=lambda: show_user_manager(page, state),
+                min_height=60,
+                content_padding=ft.padding.only(left=20),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.PRIVACY_TIP),
                 title=ft.Text(t.get("settings.privacy_policy")),
-                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_privacy_policy(page, state)),
-                min_height=55,
+                on_click=lambda: show_privacy_policy(page, state),
+                min_height=60,
+                content_padding=ft.padding.only(left=20),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.COMMENT),
                 title=ft.Text(t.get("settings.contacts")),
-                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_contacts(page, state)),
-                min_height=55,
+                on_click=lambda: show_contacts(page, state),
+                min_height=60,
+                content_padding=ft.padding.only(left=20),
             ),
             ft.Divider(),
             ft.ListTile(
                 trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
                 title=ft.Text(t.get("settings.repo")),
-                on_click=lambda _: page.run_task(_drawer_tap, lambda: show_contacts(page, state)),
-                min_height=55,
+                url="https://github.com/andrea-tonello/portfolio-manager-gui",
+                min_height=60,
+                content_padding=ft.padding.only(left=20, right=15),
             ),
             ft.Container(
                 ft.Text(f"Portfolio Manager {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
@@ -196,7 +201,7 @@ def _show_settings(page: ft.Page, state):
         page.update()
         _rebuild_page(page, state, selected_index=state._last_nav_index)
 
-    page.on_view_pop = lambda _: _go_back()
+    page.on_view_pop = lambda _: _go_back(),
 
     settings_content = SettingsView(page, state).build()
 

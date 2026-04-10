@@ -13,7 +13,7 @@ _DEFAULT_DISPLAY_COLS = [
 ]
 
 _ALL_COLS = COLUMNS
-_PAGE_SIZE = 30
+_PAGE_SIZE = 20
 
 
 class TransactionsView:
