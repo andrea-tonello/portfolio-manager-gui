@@ -125,7 +125,7 @@ def _show_language_picker(page: ft.Page, state: AppState):
     page.update()
 
 
-def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_complete=None):
+def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_complete=None, first_time=True):
     """User creation screen. Used at first boot, migration, and when adding users in-app."""
     t = state.translator
     username_field = ft.TextField(
@@ -176,8 +176,8 @@ def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_comp
                     ft.Text(t.get("settings.user_mgmt.add_title"), size=20, weight=ft.FontWeight.BOLD),
                     username_field,
                     ft.Container(expand=True),
-                    ft.Text(t.get("settings.user_mgmt.add_later"), size=14, color=ft.Colors.GREY,
-                            text_align=ft.TextAlign.CENTER),
+                    ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"), 
+                            size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                     ft.Container(height=20),
                     ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
                                     width=150, height=50, on_click=on_submit),
@@ -250,7 +250,7 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None):
         ft.SafeArea(
             ft.Column([
                 ft.Container([], height=100),
-                ft.Text(t.get("settings.new_acc"), size=20),
+                ft.Text(t.get("settings.new_acc", username=state.active_user_name or ""), size=20),
                 ft.Text(t.get("settings.new_acc_example"), size=14),
                 ft.ResponsiveRow([
                     broker_field,

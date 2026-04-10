@@ -182,7 +182,7 @@
 
 
   "settings": {
-    "new_acc": "Si prega di aggiungere un alias per ciascuno dei propri conti",
+    "new_acc": "Ciao, {username}.\n\nSi prega di aggiungere un alias per ciascuno dei propri conti",
     "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",
     "language": {
       "title": "Lingua",
@@ -234,6 +234,7 @@
       "add_title": "Aggiungi utente",
       "username_hint": "Il tuo nome utente...",
       "add_later": "Potrai aggiungere e\ngestire altri utenti in seguito",
+      "duplicate_hint": "È possibile inserire nomi\nche non siano già in uso",
       "duplicate": "Nome utente già esistente",
       "active": "Attivo",
       "delete_title": "Elimina utente",

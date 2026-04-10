@@ -1,11 +1,13 @@
-## [0.2.4] (XXXX-XX-XX)
+## [0.2.4] (2026-04-10)
 
 ### Bug Fixes
 
 - **[UI]** Better shadow effects for all container-like buttons, FilledTonalButtons, ElevatedButtons
+- **[LOCALE]** NavigationBar locales now update in real time 
 
 ### Features
 
+- **[UX] NEW** Added a lateral navigation drawer to quickly access important settings
 - **[UX] NEW** Added multi-user support
 
 
@@ -23,6 +25,7 @@
 ### Features
 
 - **[UI]** Reworked Open Positions and Watchlist display in HomeView. Now they get two separate section instead of being stacked vertically.
+
 
 
 

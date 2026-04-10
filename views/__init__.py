@@ -191,6 +191,8 @@ def _show_settings(page: ft.Page, state):
     def _go_back(e=None):
         if len(page.views) > 1:
             page.views.pop()
+        # Force full rebuild so navbar/drawer pick up any locale changes
+        page.data.pop("_nav_wrapper", None)
         page.update()
         _rebuild_page(page, state, selected_index=state._last_nav_index)
 

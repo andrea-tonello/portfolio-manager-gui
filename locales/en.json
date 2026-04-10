@@ -182,7 +182,7 @@
 
 
   "settings": {
-    "new_acc": "Please add a representative alias for each of your accounts",
+    "new_acc": "Hello, {username}.\n\nPlease add a representative alias for each of your accounts",
     "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",
     "language": {
       "title": "Language",
@@ -234,6 +234,7 @@
       "add_title": "Add User account",
       "username_hint": "Your username...",
       "add_later": "You can add and\nmanage other users later",
+      "duplicate_hint": "You can only add a\nname not already in use",
       "duplicate": "Username already exists",
       "active": "Active",
       "delete_title": "Delete user",

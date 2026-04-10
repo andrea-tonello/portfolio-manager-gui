@@ -52,17 +52,17 @@ def show_user_manager(page: ft.Page, state):
             if is_active:
                 row = ft.Container(
                     ft.Row([
-                        ft.Text(name, size=16, expand=True),
-                        ft.Text(t.get("settings.user_mgmt.active"), size=14, color=ft.Colors.GREY),
+                        ft.Text(name, size=16, expand=True, color=ft.Colors.ON_PRIMARY),
+                        ft.Text(t.get("settings.user_mgmt.active"), size=14, color=ft.Colors.SURFACE_CONTAINER),
                     ]),
-                    bgcolor=ft.Colors.SECONDARY_CONTAINER,
+                    bgcolor=ft.Colors.PRIMARY,
                     border_radius=10,
                     padding=ft.padding.symmetric(horizontal=16, vertical=12),
                 )
             else:
                 row = ft.Container(
                     ft.Row([
-                        ft.Text(name, size=16, expand=True),
+                        ft.Text(name, size=16, expand=True, ),
                         ft.IconButton(
                             icon=ft.Icons.DELETE,
                             icon_color=ft.Colors.RED,
@@ -95,7 +95,8 @@ def show_user_manager(page: ft.Page, state):
         page.show_dialog(confirm_dlg)
 
     def _do_delete(user_idx):
-        page.pop_dialog()
+        page.pop_dialog()  # pop confirm dialog
+        page.pop_dialog()  # pop stale user manager underneath
         config_service.delete_user(state.config_folder, state.users, user_idx)
         state.load_config()
         show_user_manager(page, state)
@@ -131,7 +132,7 @@ def show_user_manager(page: ft.Page, state):
             page.controls.clear()
             show_broker_onboarding(page, state, on_complete=lambda: page.data["restart"]())
 
-        show_user_creation(page, state, on_complete=after_user_created)
+        show_user_creation(page, state, on_complete=after_user_created, first_time=False)
 
     user_rows = _build_user_list()
 
@@ -142,7 +143,10 @@ def show_user_manager(page: ft.Page, state):
         content=ft.Container(
             ft.Column(user_rows, scroll=ft.ScrollMode.AUTO, spacing=4),
             width=300,
-            height=250,
+            height=240,
+            bgcolor=ft.Colors.SURFACE_DIM,
+            padding=5,
+            border_radius=15,
         ),
         actions=[
             ft.IconButton(icon=ft.Icons.ADD, icon_size=32, on_click=_on_add_user),
