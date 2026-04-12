@@ -49,7 +49,7 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     return _append_row(df, row)
 
 
-def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None, tax_rate=0.26):
+def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None, tax_rate=0.26, fee_mode="abp"):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -61,9 +61,9 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell"])]
 
     if buy:
-        results = aop.buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker)
+        results = aop.buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
     else:
-        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate)
+        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
 
     price_eur = price * conv_rate
 

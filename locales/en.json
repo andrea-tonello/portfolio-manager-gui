@@ -97,7 +97,10 @@
       "sell_noqt": "Quantity sold ({quantity}) exceeds available quantity ({last_remaining_qt})",
       "tax_bracket": "Tax bracket (%)",
       "tax_explained": "Tax bracket of the product, e.g., 13.8%.\n\nItalian legislation taxes Bonds at 12.5% and Stocks at 26%.\nProducts like Money Market ETFs, which may be built with a mix of underlying assets, are then taxed accordingly.\n\nExample: XEON, swap-based, 90% bonds, 10% stocks:\n    \u2981 12.5*0.90 + 26*0.10 = 13.85%\n\nThe underlying proportions should be disclosed by the product Issuer and updated every six months.",
-      "tax_bracket_error": "The tax bracket must be a number between 0 and 100"
+      "tax_bracket_error": "The tax bracket must be a number between 0 and 100",
+      "fee_mode_abp": "Fee included in average buy price",
+      "fee_mode_buy_loss": "Fee as deductible loss (on buy)",
+      "fee_mode_sell_loss": "Fee as deductible loss (on sell)"
     },
     "bond": {
       "title": "BONDS",

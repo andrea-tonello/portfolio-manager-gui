@@ -296,21 +296,23 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     return positions
 
 
-def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker):
+def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
 
     price_abs = abs(price) * conv_rate
     fee = round_half_up(fee)
     pmpc = 0
     current_qt = quantity
 
+    fee_in_cost = fee if fee_mode == "abp" else 0
+
     if asset_rows.empty:
-        pmpc = (price_abs * quantity + fee) / quantity
+        pmpc = (price_abs * quantity + fee_in_cost) / quantity
     else:
         last_pmpc = asset_rows["abp"].iloc[-1]
         last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
         old_cost = last_pmpc * last_remaining_qt
-        new_cost = price_abs * quantity + fee
+        new_cost = price_abs * quantity + fee_in_cost
         current_qt = last_remaining_qt + quantity
 
         pmpc = ((old_cost + new_cost) / current_qt)
@@ -323,7 +325,7 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
     minusvalenza_comm = np.nan
     end_date = np.nan
 
-    if product == "ETF":
+    if product == "ETF" and fee_mode == "buy_loss":
         minusvalenza_comm = fee
         end_date = add_solar_years(ref_date)
         fiscal_credit_aggiornato += minusvalenza_comm
@@ -393,7 +395,7 @@ def compute_backpack(df, data_operazione, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26):
+def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26, fee_mode="abp"):
 
     if asset_rows.empty:
         raise ValidationError(translator.get("operations.stock.sell_noitems"))
@@ -440,7 +442,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
     importo_residuo = last_pmpc * current_qt
     pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
 
-    if product == "ETF":
+    if product == "ETF" and fee_mode == "sell_loss":
         minusvalenza_comm = fee
         fiscal_credit_aggiornato += minusvalenza_comm
         end_date = add_solar_years(ref_date)

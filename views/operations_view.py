@@ -506,6 +506,20 @@ class OperationsView:
                                  col={"xs": 6, "md": 6})
 
 
+        fee_mode_group = ft.RadioGroup(
+            value="abp",
+            content=ft.Column([
+                ft.Radio(value="abp", label=t.get("operations.stock.fee_mode_abp")),
+                ft.Radio(value="buy_loss", label=t.get("operations.stock.fee_mode_buy_loss")),
+                ft.Radio(value="sell_loss", label=t.get("operations.stock.fee_mode_sell_loss")),
+            ], spacing=0),
+        )
+        fee_mode_container = ft.Container(
+            content=fee_mode_group,
+            padding=ft.padding.only(top=5),
+            visible=(product_type == "ETF"),
+        )
+
         loading = ft.ProgressRing(visible=False, width=30, height=30)
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
@@ -522,6 +536,7 @@ class OperationsView:
             "ticker": ticker_field, "quantity": quantity_field, "price": price_field,
             "fee_currency_dd": fee_currency_dd, "fee": fee_field, "ter": ter_field,
             "tax_bracket": tax_bracket_field,
+            "fee_mode": fee_mode_group,
             "loading": loading, "product_type": product_type,
         }
         if not hasattr(self, "_es_tabs"):
@@ -535,6 +550,7 @@ class OperationsView:
             ft.ResponsiveRow([currency_dd, exch_rate]),
             ft.ResponsiveRow([quantity_field, price_field]),
             ft.ResponsiveRow([fee_currency_dd, fee_field, ter_row, tax_row]),
+            fee_mode_container,
             ft.Row([ft.Container(width=5), loading]),
             ft.Container(height=80),
         ], spacing=12)
@@ -743,6 +759,10 @@ class OperationsView:
                 show_snack(self.page, t.get("operations.stock.tax_bracket_error"), error=True)
                 return
 
+        fee_mode = "abp"
+        if product_type == "ETF":
+            fee_mode = tab["fee_mode"].value
+
         date_str = tab["date_value"].strftime(DATE_FORMAT)
         ref_date = tab["date_value"]
         acc_idx = s.ops_acc_idx
@@ -769,7 +789,7 @@ class OperationsView:
                 new_df = operations_service.execute_etf_stock(
                     t, df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,
-                    fee, ter, product_type, tax_rate=tax_rate,
+                    fee, ter, product_type, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])

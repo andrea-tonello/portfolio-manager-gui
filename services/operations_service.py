@@ -31,7 +31,7 @@ def execute_cash_operation(translator, df, broker, op_kind, date_str, ref_date,
 
 def execute_etf_stock(translator, df, broker, date_str, ref_date,
                       currency_int, conv_rate, ticker, quantity, price,
-                      fee, ter, product_type, asset_name=None, tax_rate=0.26):
+                      fee, ter, product_type, asset_name=None, tax_rate=0.26, fee_mode="abp"):
     currency_code = CURRENCY_CHOICES[currency_int]
     buy = price < 0
 
@@ -41,4 +41,4 @@ def execute_etf_stock(translator, df, broker, date_str, ref_date,
     return newrow_etf_stock(translator, df, date_str, ref_date, broker,
                             currency_code, product_type, ticker, quantity,
                             price, conv_rate, ter, fee, buy,
-                            asset_name_override=asset_name, tax_rate=tax_rate)
+                            asset_name_override=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
