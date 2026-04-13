@@ -1,4 +1,4 @@
-## [0.2.6] (XXXX-XX-XX)
+## [0.2.6] (2026-04-13)
 
 ### Bug Fixes
 
@@ -6,6 +6,7 @@
 
 ### Features
 
+- **[LOGIC]** The user is now required to specify how transaction fees are managed for ETFs (added to ABP or treated as capital loss and added to the Tax Carryforward)
 - **[UX]** Added a cancel (x) button for the user onboarding procedure
 
 

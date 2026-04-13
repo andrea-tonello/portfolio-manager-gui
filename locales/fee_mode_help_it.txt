@@ -1,0 +1,10 @@
+Gli ETF possono avere modi diversi di conteggiare le commissioni, in base al tuo intermediario. Esistono tre opzioni:
+
+1. In acquisto, la commissione è aggiunta al Prezzo Medio di Carico, aumentandolo leggermente (come per le Azioni)
+2. La commissione non si aggiunge al PMC. È invece registrata come minusvalenza nello Zainetto Fiscale, in acquisto
+3. La commissione non si aggiunge al PMC. È invece registrata come minusvalenza nello Zainetto Fiscale, al momento della vendita
+
+**Nota:** questa scelta non avrà ovviamente importanza se le commissioni sono 0.
+
+[Questo articolo](https://www.capitalmente.it/perche-le-commissioni-degli-etf-generano-minusvalenze/) offre una spiegazione più dettagliata.
+Se non sei sicuro, chiedi al tuo intermediario.

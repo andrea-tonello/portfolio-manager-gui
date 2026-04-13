@@ -1,6 +1,7 @@
 import flet as ft
 import numpy as np
 import pandas as pd
+import os
 from datetime import date, datetime, timedelta
 
 from components.focus_chain import chain_focus
@@ -506,17 +507,34 @@ class OperationsView:
                                  col={"xs": 6, "md": 6})
 
 
+        fee_mode_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_fee_help,
+        )
+        fee_mode_title = ft.Row([
+            ft.Container(width=1),
+            ft.Text(t.get("operations.stock.fee_mode_title"), size=16,
+                    opacity=0.4 if no_account else 1.0),
+            fee_mode_help
+        ])
         fee_mode_group = ft.RadioGroup(
-            value="abp",
+            value=None,
+            disabled=no_account,
             content=ft.Column([
                 ft.Radio(value="abp", label=t.get("operations.stock.fee_mode_abp")),
                 ft.Radio(value="buy_loss", label=t.get("operations.stock.fee_mode_buy_loss")),
                 ft.Radio(value="sell_loss", label=t.get("operations.stock.fee_mode_sell_loss")),
-            ], spacing=0),
+            ], spacing=0, opacity=0.4 if no_account else 1.0),
         )
         fee_mode_container = ft.Container(
-            content=fee_mode_group,
-            padding=ft.padding.only(top=5),
+            content=ft.Column([
+                fee_mode_title,
+                fee_mode_group,
+            ], spacing=10,),
+            border=ft.Border.all(width=1, 
+                color=ft.Colors.with_opacity(0.20, ft.Colors.GREY) if no_account else ft.Colors.with_opacity(0.40, ft.Colors.GREY)),
+            border_radius=15,
+            padding=10,
             visible=(product_type == "ETF"),
         )
 
@@ -762,6 +780,9 @@ class OperationsView:
         fee_mode = "abp"
         if product_type == "ETF":
             fee_mode = tab["fee_mode"].value
+            if not fee_mode:
+                show_snack(self.page, t.get("operations.stock.fee_mode_error"), error=True)
+                return
 
         date_str = tab["date_value"].strftime(DATE_FORMAT)
         ref_date = tab["date_value"]
@@ -827,6 +848,27 @@ class OperationsView:
             title=ft.Text(t.get("operations.stock.tax_bracket")),
             content=ft.Text(t.get("operations.stock.tax_explained")),
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
+
+    def _show_fee_help(self, e):
+        t = self.state.translator
+        lang = self.state.lang_code or "en"
+        fee_help_path = os.path.join(os.path.dirname(__file__), "..", "locales", f"fee_mode_help_{lang}.txt")
+        try:
+            with open(fee_help_path, encoding="utf-8") as f:
+                fee_help_text = f.read()
+        except FileNotFoundError:
+            fee_help_text = "Fee mode description not available."
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.stock.fee_mode_title"), size=21),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Markdown(fee_help_text, auto_follow_links=True,
+                                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
+                ], scroll=ft.ScrollMode.AUTO, tight=True),
+            ),
+            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
 

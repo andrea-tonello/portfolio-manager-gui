@@ -443,7 +443,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
     pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
 
     if product == "ETF" and fee_mode == "sell_loss":
-        minusvalenza_comm = fee
+        minusvalenza_comm = fee if plusvalenza_lorda > 0 else 0
         fiscal_credit_aggiornato += minusvalenza_comm
         end_date = add_solar_years(ref_date)
         minusvalenza_generata += minusvalenza_comm
