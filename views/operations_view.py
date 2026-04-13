@@ -44,7 +44,7 @@ class OperationsView:
                     ft.Tab(label=t.get("operations.cash.title")),
                     ft.Tab(label=t.get("operations.stock.title_etf")),
                     ft.Tab(label=t.get("operations.stock.title_stock")),
-                ], scrollable=True),
+                ], scrollable=True, splash_border_radius=ft.BorderRadius.only(top_left=10, top_right=10)),
                 ft.TabBarView(
                     controls=[cash_content, etf_content, stock_content],
                     expand=True,
@@ -512,11 +512,10 @@ class OperationsView:
             on_click=self._show_fee_help,
         )
         fee_mode_title = ft.Row([
-            ft.Container(width=1),
-            ft.Text(t.get("operations.stock.fee_mode_title"), size=16,
+            ft.Text("  " + t.get("operations.stock.fee_mode_title"), size=18,
                     opacity=0.4 if no_account else 1.0),
             fee_mode_help
-        ])
+        ], expand=True, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
         fee_mode_group = ft.RadioGroup(
             value=None,
             disabled=no_account,
@@ -784,6 +783,13 @@ class OperationsView:
                 show_snack(self.page, t.get("operations.stock.fee_mode_error"), error=True)
                 return
 
+        # Resolve stored product value from UI tab type + ETF subtype
+        _ETF_SUBTYPE_TO_PRODUCT = {"stock_etf": "ETF-S", "mm_etf": "ETF-M", "bond_etf": "ETF-B"}
+        if product_type == "ETF":
+            stored_product = _ETF_SUBTYPE_TO_PRODUCT[tab.get("etf_subtype", "stock_etf")]
+        else:
+            stored_product = product_type  # "Stock"
+
         date_str = tab["date_value"].strftime(DATE_FORMAT)
         ref_date = tab["date_value"]
         acc_idx = s.ops_acc_idx
@@ -810,7 +816,7 @@ class OperationsView:
                 new_df = operations_service.execute_etf_stock(
                     t, df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,
-                    fee, ter, product_type, tax_rate=tax_rate, fee_mode=fee_mode,
+                    fee, ter, stored_product, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
@@ -828,7 +834,10 @@ class OperationsView:
         t = self.state.translator
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("operations.stock.ticker")),
-            content=ft.Text(t.get("operations.stock.ticker_explained")),
+            content=ft.Container(
+                content=ft.Text(t.get("operations.stock.ticker_explained")),
+                width=450,
+            ),
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
@@ -837,7 +846,10 @@ class OperationsView:
         t = self.state.translator
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("operations.stock.ter")),
-            content=ft.Text(t.get("operations.stock.ter_explained")),
+            content=ft.Container(
+                content=ft.Text(t.get("operations.stock.ter_explained")),
+                width=450,
+            ),
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
@@ -846,7 +858,10 @@ class OperationsView:
         t = self.state.translator
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("operations.stock.tax_bracket")),
-            content=ft.Text(t.get("operations.stock.tax_explained")),
+            content=ft.Container(
+                content=ft.Text(t.get("operations.stock.tax_explained")),
+                width=450,
+            ),
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
@@ -867,6 +882,7 @@ class OperationsView:
                     ft.Markdown(fee_help_text, auto_follow_links=True,
                                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
                 ], scroll=ft.ScrollMode.AUTO, tight=True),
+                width=450,
             ),
             actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
         )

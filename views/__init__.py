@@ -199,7 +199,7 @@ def _show_settings(page: ft.Page, state):
         page.update()
         _rebuild_page(page, state, selected_index=state._last_nav_index)
 
-    page.on_view_pop = lambda _: _go_back(),
+    page.on_view_pop = lambda _: _go_back()
 
     settings_content = SettingsView(page, state).build()
 

@@ -6,7 +6,7 @@ from services.market_data import download_close
 from utils.other_utils import round_half_up, round_down, ValidationError
 from utils.date_utils import add_solar_years
 from services.market_data import fetch_exchange_rate
-from utils.constants import DATE_FORMAT
+from utils.constants import DATE_FORMAT, ETF_PRODUCTS
 warnings.simplefilter(action='ignore', category=Warning)
 
 
@@ -325,7 +325,7 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
     minusvalenza_comm = np.nan
     end_date = np.nan
 
-    if product == "ETF" and fee_mode == "buy_loss":
+    if product in ETF_PRODUCTS and fee_mode == "buy_loss":
         minusvalenza_comm = fee
         end_date = add_solar_years(ref_date)
         fiscal_credit_aggiornato += minusvalenza_comm
@@ -422,7 +422,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
 
     if plusvalenza_lorda > 0:
         plusvalenza_da_compensare = plusvalenza_lorda
-        if fiscal_credit_iniziale > 0 and product != "ETF":
+        if fiscal_credit_iniziale > 0 and product not in ETF_PRODUCTS:
             credito_utilizzato = min(plusvalenza_da_compensare, fiscal_credit_iniziale)
             plusvalenza_da_compensare -= credito_utilizzato
             fiscal_credit_aggiornato -= credito_utilizzato
@@ -442,7 +442,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
     importo_residuo = last_pmpc * current_qt
     pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
 
-    if product == "ETF" and fee_mode == "sell_loss":
+    if product in ETF_PRODUCTS and fee_mode == "sell_loss":
         minusvalenza_comm = fee if plusvalenza_lorda > 0 else 0
         fiscal_credit_aggiornato += minusvalenza_comm
         end_date = add_solar_years(ref_date)

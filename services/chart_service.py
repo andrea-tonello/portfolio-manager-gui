@@ -644,3 +644,63 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
             color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
         ),
     )
+
+
+_ALLOC_COLORS = {
+    "Stock": ft.Colors.BLUE,
+    "ETF-S": ft.Colors.LIGHT_BLUE_200,
+    "Bond": ft.Colors.AMBER,
+    "ETF-B": ft.Colors.YELLOW,
+    "ETF-M": ft.Colors.LIGHT_GREEN,
+    "Cash": ft.Colors.BLUE_GREY,
+}
+
+
+def chart_allocation(allocation, translator):
+    """Build a PieChart from an allocation dict {product_type: value}."""
+    from utils.columns import PRODUCT_LOCALE_KEYS
+
+    total = sum(allocation.values())
+    if total <= 0:
+        return ft.Text("No data")
+
+    sections = []
+    legend_items = []
+    for i, (product, value) in enumerate(sorted(allocation.items(), key=lambda x: -x[1])):
+        pct = value / total * 100
+        color = _ALLOC_COLORS.get(product, ft.Colors.GREY)
+        locale_key = PRODUCT_LOCALE_KEYS.get(product)
+        label = translator.get(locale_key).strip() if locale_key else product
+        sections.append(fch.PieChartSection(
+            value=value,
+            title=f"{pct:.1f}%",
+            title_style=ft.TextStyle(size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+            title_position=0.5,
+            color=color,
+            radius=110,
+        ))
+        legend_items.append(
+            ft.Row([
+                ft.Container(width=14, height=14, bgcolor=color, border_radius=3),
+                ft.Text(f"{label}  ({pct:.1f}%)", size=12),
+            ], spacing=6)
+        )
+
+    pie = fch.PieChart(
+        sections=sections,
+        sections_space=2,
+        center_space_radius=0,
+        width=250,
+        height=250,
+    )
+
+    legend = ft.Column(legend_items, spacing=4)
+
+    return ft.Container(
+        ft.Column([
+            ft.Row([pie], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=10),
+            legend,
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
+        padding=15,
+    )

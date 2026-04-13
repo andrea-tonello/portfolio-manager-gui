@@ -44,24 +44,26 @@ class AnalysisView:
 
         self.form_container = ft.Container(disabled=not has_account, expand=True, width=800)
 
+        alloc_content = self._build_allocation_tab()
         summary_content = self._build_summary_tab()
         corr_content = self._build_correlation_tab()
         dd_content = self._build_drawdown_tab()
         var_content = self._build_var_tab()
 
         self.form_container.content = ft.Tabs(
-            length=4,
+            length=5,
             selected_index=getattr(self.state, "_analysis_tab_index", 0),
             on_change=self._on_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
+                    ft.Tab(label=t.get("analysis.op_allocation")),
                     ft.Tab(label=t.get("analysis.op_statistics")),
                     ft.Tab(label=t.get("analysis.op_correlation")),
                     ft.Tab(label=t.get("analysis.op_drawdown")),
                     ft.Tab(label=t.get("analysis.op_var")),
-                ], scrollable=True),
+                ], scrollable=True, splash_border_radius=ft.BorderRadius.only(top_left=10, top_right=10)),
                 ft.TabBarView(
-                    controls=[summary_content, corr_content, dd_content, var_content],
+                    controls=[alloc_content, summary_content, corr_content, dd_content, var_content],
                     expand=True,
                 ),
             ], expand=True),
@@ -133,12 +135,14 @@ class AnalysisView:
     def _on_analysis_confirm(self, e):
         idx = getattr(self.state, "_analysis_tab_index", 0)
         if idx == 0:
-            self._submit_summary(e)
+            self._submit_allocation(e)
         elif idx == 1:
-            self._submit_correlation(e)
+            self._submit_summary(e)
         elif idx == 2:
+            self._submit_correlation(e)
+        elif idx == 3:
             self._submit_drawdown(e)
-        else:
+        elif idx == 4:
             self._submit_var(e)
 
     def _on_account_selected(self, e):
@@ -848,6 +852,89 @@ class AnalysisView:
                 show_snack(self.page, str(ex), error=True)
             finally:
                 self.var_loading.visible = False
+                self.page.update()
+
+        self.page.run_thread(worker)
+
+    # ── Allocation Tab ───────────────────────────────────────────────
+
+    def _build_allocation_tab(self) -> ft.Control:
+        t = self.state.translator
+        self.alloc_date_field = ft.TextField(
+            label=t.get("components.pick_date"),
+            hint_text=t.get("components.date_format_hint"),
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            keyboard_type=ft.KeyboardType.DATETIME,
+            input_filter=_DATE_FILTER,
+            on_change=self._on_alloc_date_typed,
+            expand=True,
+        )
+        self.alloc_date_icon = ft.FilledTonalIconButton(
+            icon=ft.Icons.CALENDAR_MONTH,
+            on_click=self._open_alloc_date_picker,
+        )
+        self.alloc_date_value = None
+        self.alloc_loading = ft.ProgressRing(visible=False, width=30, height=30)
+        self.alloc_chart = ft.Container()
+
+        col = ft.Column([
+            ft.Container(height=5),
+            ft.Row([self.alloc_date_field, self.alloc_date_icon]),
+            ft.Row([ft.Container(width=5), self.alloc_loading]),
+            self.alloc_chart,
+            ft.Container(height=80),
+        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+
+        self.alloc_date_field.key = "alloc_date"
+
+        return ft.Container(content=col, padding=10, expand=True)
+
+    def _open_alloc_date_picker(self, e):
+        dp = ft.DatePicker(
+            first_date=datetime(2000, 1, 1),
+            last_date=datetime.now(),
+            on_change=self._on_alloc_date_picked,
+        )
+        self.page.show_dialog(dp)
+
+    def _on_alloc_date_typed(self, e):
+        self.alloc_date_value = parse_date_input(e.control.value)
+
+    def _on_alloc_date_picked(self, e):
+        picked = e.control.value
+        if isinstance(picked, datetime):
+            picked = (picked + timedelta(hours=12)).date()
+        self.alloc_date_value = picked
+        self.alloc_date_field.value = picked.strftime(DATE_FORMAT)
+        self.page.update()
+
+    def _submit_allocation(self, e):
+        s = self.state
+        t = s.translator
+        if self.alloc_date_value is None:
+            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
+            return
+        if self.alloc_date_value > date.today():
+            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+            return
+
+        data = self._get_analysis_data()
+        if not data:
+            show_snack(self.page, t.get("operations.select_account"), error=True)
+            return
+
+        self.alloc_loading.visible = True
+        self.page.update()
+
+        def worker():
+            try:
+                allocation = analysis_service.compute_allocation(t, data, self.alloc_date_value)
+                self.alloc_chart.content = chart_service.chart_allocation(allocation, t)
+            except Exception as ex:
+                show_snack(self.page, str(ex), error=True)
+            finally:
+                self.alloc_loading.visible = False
                 self.page.update()
 
         self.page.run_thread(worker)

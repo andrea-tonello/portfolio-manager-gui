@@ -119,8 +119,10 @@ OPERATION_LOCALE_KEYS = {
 # Maps internal English product values → locale keys for export.
 PRODUCT_LOCALE_KEYS = {
     "Cash": "values.prod_cash",
-    "ETF": "values.prod_etf",
     "Stock": "values.prod_stock",
+    "ETF-S": "values.prod_stock_etf",
+    "ETF-M": "values.prod_mm_etf",
+    "ETF-B": "values.prod_bond_etf",
     "Dividend": "values.prod_dividend",
     "Tax": "values.prod_tax",
 }

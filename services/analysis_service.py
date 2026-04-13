@@ -395,3 +395,32 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
         "portfolio_value": portfolio_value,
         "has_positions": True,
     }
+
+
+def compute_allocation(translator, data, ref_date):
+    """Compute asset allocation by product type across accounts.
+
+    Returns dict mapping product type → market value in EUR.
+    Categories: Stock, Stock ETF, MM ETF, Bond ETF, Cash.
+    """
+    ref_date = pd.Timestamp(ref_date)
+    allocation = {}
+
+    for account in data:
+        df = account[1].copy()
+
+        # Cash from latest row
+        cash = round_half_up(float(df.iloc[-1]["cash_held"]))
+        allocation["Cash"] = allocation.get("Cash", 0) + cash
+
+        # Active positions with product type
+        positions = get_asset_value(translator, df, ref_date=ref_date)
+        df_copy = df.copy()
+        df_copy = df_copy[df_copy["operation"].isin(["Buy", "Sell"])]
+        product_by_ticker = df_copy.groupby("ticker")["product"].last().to_dict()
+
+        for pos in positions:
+            product = product_by_ticker.get(pos["ticker"], "Stock")
+            allocation[product] = allocation.get(product, 0) + pos["value"]
+
+    return allocation

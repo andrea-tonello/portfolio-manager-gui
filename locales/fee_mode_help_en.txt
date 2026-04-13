@@ -1,6 +1,6 @@
  ETFs may have different ways to count fees, depending on your broker. There are three approaches:
 
-1. On buy, the fee is added to your Average Buy Price, raising it up a bit (this is how Stocks behave)
+1. On buy, the fee is added to your Average Buy Price, raising it up a bit. For reference, this is how Stocks are managed
 2. The fee does not raise your ABP. It is instead added to your Tax Carryforward (Zainetto Fiscale) on buy
 3. The fee does not raise your ABP. It is instead added to your Tax Carryforward when selling
 

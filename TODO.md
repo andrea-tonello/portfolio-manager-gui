@@ -2,6 +2,5 @@
 - Bonds
 - Bonds ETFs
 - Decimal
-- Asset allocation
 - iOS UI
     - NavigationBar

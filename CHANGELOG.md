@@ -1,3 +1,17 @@
+## [0.2.7] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UX]** Fixed bug with back gesture from the SettingsView preventing further access to the NavigationDrawer
+- **[UI]** Help dialogs in OperationsView are now properly scaled for big screens
+
+### Features
+
+- **[FEATURE] NEW** Added Asset Allocation tab in AnalysisView
+
+
+
+
 ## [0.2.6] (2026-04-13)
 
 ### Bug Fixes
@@ -8,6 +22,7 @@
 
 - **[LOGIC]** The user is now required to specify how transaction fees are managed for ETFs (added to ABP or treated as capital loss and added to the Tax Carryforward)
 - **[UX]** Added a cancel (x) button for the user onboarding procedure
+
 
 
 

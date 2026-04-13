@@ -33,9 +33,14 @@ def show_contacts(page: ft.Page, state):
     t = state.translator
     dlg = ft.AlertDialog(
         title=ft.Text(t.get("settings.contacts")),
-        content=ft.Markdown(t.get("settings.contacts_content"),
-                            auto_follow_links=True,
-                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
+        content=ft.Container(
+            content=ft.Markdown(
+                t.get("settings.contacts_content"),
+                auto_follow_links=True,
+                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB
+            ),
+            width=450,
+        ),
         actions=[ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
     )
     page.show_dialog(dlg)
