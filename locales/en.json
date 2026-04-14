@@ -15,7 +15,8 @@
     "add": "Add",
     "cancel": "Cancel",
     "apply": "Apply",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "version": "Version"
   },
 
   "misc_errors": {

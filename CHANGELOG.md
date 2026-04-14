@@ -7,6 +7,7 @@
 
 ### Features
 
+- **[UI]** The AppBar now displays the active account name as title, moved app branding to NavigationDrawer
 - **[FEATURE] NEW** Added Asset Allocation tab in AnalysisView
 
 

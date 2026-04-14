@@ -36,7 +36,14 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     page.end_drawer = ft.NavigationDrawer(
         selected_index=None,
         controls=[
-            ft.Container(height=10),
+            ft.Container(
+                content=ft.Row([
+                    ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
+                    ft.Text("Portfolio Manager", size=20),
+                ], spacing=10, expand=True),
+                padding=ft.padding.only(left=15, top=10)
+            ),
+            ft.Divider(),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.SETTINGS),
                 trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
@@ -75,7 +82,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                 content_padding=ft.padding.only(left=25, right=15),
             ),
             ft.Container(
-                ft.Text(f"Portfolio Manager {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+                ft.Text(t.get("components.version") + f" {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                 alignment=ft.alignment.Alignment.CENTER,
                 padding=ft.padding.only(top=10),
             )
@@ -88,10 +95,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     page_title = t.get(_NAV_LABELS[selected_index])
     
     if selected_index == 0:
-        appbar_title = ft.Row([
-            ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
-            ft.Text("Portfolio Manager"),
-        ], spacing=10)
+        appbar_title = ft.Text(state.active_user_name or t.get("settings.user"))
     else:
         appbar_title = ft.Text(page_title)
 

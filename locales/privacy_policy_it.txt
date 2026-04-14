@@ -1,4 +1,4 @@
-*Ultimo aggiornamento: 31/03/2026*
+*Ultimo aggiornamento: 14/04/2026*
 
 ## 1. Introduzione
 
@@ -9,7 +9,7 @@ Portfolio Manager ("l'App") è sviluppata da Andrea Tonello. La presente informa
 
 ### 2a. Dati memorizzati localmente sul dispositivo
 
-Transazioni del portafoglio (ticker, prezzi, quantità, date), nomi di conti e broker, e preferenze dell'app (lingua, tema, watchlist). Tutti questi dati sono memorizzati esclusivamente sul tuo dispositivo e non vengono mai trasmessi a server esterni.
+Transazioni del portafoglio (ticker, prezzi, quantità, date), utenti, nomi di conti e broker, e preferenze dell'app (lingua, tema, watchlist). Tutti questi dati sono memorizzati esclusivamente sul tuo dispositivo e non vengono mai trasmessi a server esterni.
 
 ### 2b. Dati di mercato
 

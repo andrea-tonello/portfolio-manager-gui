@@ -1,4 +1,4 @@
-*Last updated: 31/03/2026*
+*Last updated: 14/04/2026*
 
 ## 1. Introduction
 
@@ -9,7 +9,7 @@ Portfolio Manager ("the App") is developed by Andrea Tonello. This policy explai
 
 ### 2a. Data stored locally on your device
 
-Portfolio transactions (tickers, prices, quantities, dates), account and broker names, and app preferences (language, theme, watchlist). All this data is stored exclusively on your device and is never transmitted to external servers.
+Portfolio transactions (tickers, prices, quantities, dates), users, account and broker names, and app preferences (language, theme, watchlist). All this data is stored exclusively on your device and is never transmitted to external servers.
 
 ### 2b. Market Data
 
