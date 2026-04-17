@@ -79,6 +79,12 @@ class AnalysisView:
             style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
         )
 
+        btn_container = ft.Container(
+            ft.Row([confirm_btn], alignment=ft.MainAxisAlignment.CENTER),
+            left=0, right=0, bottom=20,
+        )
+        self.page.data["_floating_btn"] = btn_container
+
         return ft.Stack([
             # 1. Wrap the main Column in a Row to force full-screen width
             ft.Row(
@@ -86,18 +92,15 @@ class AnalysisView:
                     ft.Column([
                         ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
                         self.form_container,
-                    ], 
-                    expand=True, 
+                    ],
+                    expand=True,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER)
                 ],
                 alignment=ft.MainAxisAlignment.CENTER, # 2. Force the inner Column dead center
                 expand=True # 3. Ensure the Row takes up the entire horizontal space
             ),
             # Add button remains pinned to the bottom
-            ft.Container(
-                ft.Row([confirm_btn], alignment=ft.MainAxisAlignment.CENTER),
-                left=0, right=0, bottom=20,
-            ),
+            btn_container,
         ], expand=True)
 
 
