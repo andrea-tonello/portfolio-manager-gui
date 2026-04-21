@@ -22,7 +22,6 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     state._last_nav_index = selected_index
     is_small_screen = page.width < 600
     page.on_view_pop = None
-    page.data.pop("_floating_btn", None)
     if page.views:
         page.views[0].can_pop = True
         page.views[0].on_confirm_pop = None
@@ -178,11 +177,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
         def _on_keyboard_visibility(e):
             if page.navigation_bar is None:
                 return
-            keyboard_open = page.media.view_insets.bottom > 0
-            page.navigation_bar.visible = not keyboard_open
-            floating_btn = page.data.get("_floating_btn")
-            if floating_btn is not None:
-                floating_btn.visible = not keyboard_open
+            page.navigation_bar.visible = page.media.view_insets.bottom == 0
             page.update()
         page.on_media_change = _on_keyboard_visibility
     else:

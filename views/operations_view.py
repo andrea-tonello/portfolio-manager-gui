@@ -53,40 +53,18 @@ class OperationsView:
             expand=True,
         )
 
-        add_btn = ft.FilledButton(
-            t.get("operations.add_transaction"),
-            icon=ft.Icons.ADD,
-            on_click=self._on_add_transaction,
-            disabled=not has_account,
-            style=ft.ButtonStyle(
-                padding=ft.padding.symmetric(horizontal=32, vertical=18),
-            ),
-        )
-
-        btn_container = ft.Container(
-            ft.Row([add_btn], alignment=ft.MainAxisAlignment.CENTER),
-            left=0, right=0, bottom=20,
-        )
-        self.page.data["_floating_btn"] = btn_container
-
-        return ft.Stack([
-            # 1. Wrap the main Column in a Row to force full-screen width
-            ft.Row(
-                controls=[
-                    ft.Column([
-                        # Added width=600 here so the dropdown matches the form width
-                        ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
-                        self.form_container,
-                    ],
-                    expand=True,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        return ft.Row(
+            controls=[
+                ft.Column([
+                    ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                    self.form_container,
                 ],
-                alignment=ft.MainAxisAlignment.CENTER, # 2. Force the inner Column dead center
-                expand=True # 3. Ensure the Row takes up the entire horizontal space
-            ),
-            # Add button remains pinned to the bottom
-            btn_container,
-        ], expand=True)
+                expand=True,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            expand=True,
+        )
 
 
 
@@ -120,14 +98,6 @@ class OperationsView:
 
     def _on_ops_tab_change(self, e):
         self._ops_tab_index = e.control.selected_index
-
-    def _on_add_transaction(self, e):
-        if self._ops_tab_index == 0:
-            self._submit_cash(e)
-        elif self._ops_tab_index == 1:
-            self._submit_es(e, "ETF")
-        else:
-            self._submit_es(e, "Stock")
 
     def _get_ops_df(self):
         """Get the df for the currently selected operations account."""
@@ -217,12 +187,21 @@ class OperationsView:
         ]
         chain_focus(cash_fields)
 
+        cash_submit_btn = ft.FilledButton(
+            t.get("operations.add_transaction"),
+            icon=ft.Icons.ADD,
+            on_click=self._submit_cash,
+            disabled=no_account,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             self.cash_type,
             ft.Row([self.cash_date_field, self.cash_date_icon],),
             ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr],),
             ft.Row([ft.Container(width=5), self.cash_loading]),
-            ft.Container(height=80),
+            ft.Row([cash_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=20),
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
 
         async def on_focus(e):
@@ -563,6 +542,14 @@ class OperationsView:
             self._es_tabs = {}
         self._es_tabs[product_type] = tab_data
 
+        es_submit_btn = ft.FilledButton(
+            t.get("operations.add_transaction"),
+            icon=ft.Icons.ADD,
+            on_click=lambda ev, pt=product_type: self._submit_es(ev, pt),
+            disabled=no_account,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         stock_etf_form = ft.Column([
             es_type,
             ft.Container(height=5),
@@ -572,7 +559,8 @@ class OperationsView:
             ft.ResponsiveRow([fee_currency_dd, fee_field, ter_row, tax_row]),
             fee_mode_container,
             ft.Row([ft.Container(width=5), loading]),
-            ft.Container(height=80),
+            ft.Row([es_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=20),
         ], spacing=12)
 
         if product_type != "ETF":

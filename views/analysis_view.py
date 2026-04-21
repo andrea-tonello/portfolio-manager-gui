@@ -70,38 +70,18 @@ class AnalysisView:
             expand=True,
         )
 
-        confirm_btn = ft.FilledButton(
-            ft.Row([
-                    ft.Text(t.get("components.calculate")),
-                    ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),]),
-            on_click=self._on_analysis_confirm,
-            disabled=not has_account,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
-        )
-
-        btn_container = ft.Container(
-            ft.Row([confirm_btn], alignment=ft.MainAxisAlignment.CENTER),
-            left=0, right=0, bottom=20,
-        )
-        self.page.data["_floating_btn"] = btn_container
-
-        return ft.Stack([
-            # 1. Wrap the main Column in a Row to force full-screen width
-            ft.Row(
-                controls=[
-                    ft.Column([
-                        ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
-                        self.form_container,
-                    ],
-                    expand=True,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        return ft.Row(
+            controls=[
+                ft.Column([
+                    ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                    self.form_container,
                 ],
-                alignment=ft.MainAxisAlignment.CENTER, # 2. Force the inner Column dead center
-                expand=True # 3. Ensure the Row takes up the entire horizontal space
-            ),
-            # Add button remains pinned to the bottom
-            btn_container,
-        ], expand=True)
+                expand=True,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            expand=True,
+        )
 
 
     def _build_account_dropdown(self) -> ft.Control:
@@ -134,19 +114,6 @@ class AnalysisView:
 
     def _on_tab_change(self, e):
         self.state._analysis_tab_index = e.control.selected_index
-
-    def _on_analysis_confirm(self, e):
-        idx = getattr(self.state, "_analysis_tab_index", 0)
-        if idx == 0:
-            self._submit_allocation(e)
-        elif idx == 1:
-            self._submit_summary(e)
-        elif idx == 2:
-            self._submit_correlation(e)
-        elif idx == 3:
-            self._submit_drawdown(e)
-        elif idx == 4:
-            self._submit_var(e)
 
     def _on_account_selected(self, e):
         val = e.control.value
@@ -200,14 +167,24 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_sum_csv)),
         ], visible=False)
 
+        sum_submit_btn = ft.FilledButton(
+            ft.Row([
+                ft.Text(t.get("components.calculate")),
+                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+            ]),
+            on_click=self._submit_summary,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             ft.Container(height=5),
             ft.Row([self.sum_date_field, self.sum_date_icon]),
             ft.Row([ft.Container(width=5), self.sum_loading]),
+            ft.Row([sum_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.sum_results,
             self.sum_chart,
             self.sum_export_row,
-            ft.Container(height=80),
+            ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         async def on_focus(e):
@@ -423,6 +400,15 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_corr_csv)),
         ], visible=False)
 
+        corr_submit_btn = ft.FilledButton(
+            ft.Row([
+                ft.Text(t.get("components.calculate")),
+                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+            ]),
+            on_click=self._submit_correlation,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             self.corr_type,
             ft.Container(height=5),
@@ -430,11 +416,12 @@ class AnalysisView:
             ft.Row([self.corr_end_field, self.corr_end_icon]),
             self.corr_rolling_fields,
             ft.Row([ft.Container(width=5), self.corr_loading]),
+            ft.Row([corr_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.corr_results,
             self.corr_heatmap,
             self.corr_rolling_chart,
             self.corr_export_row,
-            ft.Container(height=80),
+            ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         async def on_focus(e):
@@ -635,15 +622,25 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_dd_csv)),
         ], visible=False)
 
+        dd_submit_btn = ft.FilledButton(
+            ft.Row([
+                ft.Text(t.get("components.calculate")),
+                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+            ]),
+            on_click=self._submit_drawdown,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             ft.Container(height=5),
             ft.Row([self.dd_start_field, self.dd_start_icon]),
             ft.Row([self.dd_end_field, self.dd_end_icon]),
             ft.Row([ft.Container(width=5), self.dd_loading]),
+            ft.Row([dd_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.dd_result_text,
             self.dd_chart,
             self.dd_export_row,
-            ft.Container(height=80),
+            ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         async def on_focus(e):
@@ -779,14 +776,24 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_var_csv)),
         ], visible=False)
 
+        var_submit_btn = ft.FilledButton(
+            ft.Row([
+                ft.Text(t.get("components.calculate")),
+                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+            ]),
+            on_click=self._submit_var,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             ft.Container(height=5),
             ft.ResponsiveRow([self.var_ci, self.var_days]),
             ft.Row([ft.Container(width=5), self.var_loading]),
+            ft.Row([var_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.var_result_text,
             self.var_chart,
             self.var_export_row,
-            ft.Container(height=80),
+            ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         async def on_focus(e):
@@ -881,12 +888,22 @@ class AnalysisView:
         self.alloc_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.alloc_chart = ft.Container()
 
+        alloc_submit_btn = ft.FilledButton(
+            ft.Row([
+                ft.Text(t.get("components.calculate")),
+                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+            ]),
+            on_click=self._submit_allocation,
+            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+        )
+
         col = ft.Column([
             ft.Container(height=5),
             ft.Row([self.alloc_date_field, self.alloc_date_icon]),
             ft.Row([ft.Container(width=5), self.alloc_loading]),
+            ft.Row([alloc_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.alloc_chart,
-            ft.Container(height=80),
+            ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         self.alloc_date_field.key = "alloc_date"
