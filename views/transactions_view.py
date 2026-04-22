@@ -315,7 +315,10 @@ class TransactionsView:
                     disabled=self._tx_page >= total_pages - 1,
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=4)
-            self.tx_table_container.content = ft.Column([table, pagination], spacing=5)
+            self.tx_table_container.content = ft.Column(
+                [table, pagination], spacing=5,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            )
         else:
             self.tx_table_container.content = table
 

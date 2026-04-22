@@ -67,6 +67,13 @@ def save_home_hidden(config_folder: str, hidden: bool):
     _save_config(path, config)
 
 
+def save_home_pnl_mode(config_folder: str, mode: int):
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "Home")
+    config.set("Home", "pnl_mode", str(mode))
+    _save_config(path, config)
+
+
 def save_tx_filter(config_folder: str, mode: str, value: int):
     path, config = _load_config(config_folder)
     _ensure_section(config, "Transactions")

@@ -471,12 +471,16 @@ class HomeView:
         self._current_upnl_color = cache["upnl_color"]
         self._current_tpnl_str = cache["tpnl_str"]
         self._current_tpnl_color = cache["tpnl_color"]
+        self._current_dpnl_str = cache.get("dpnl_str", "---")
+        self._current_dpnl_color = cache.get("dpnl_color")
+        self._current_upnl_pct_str = cache.get("upnl_pct_str", "---")
+        self._current_tpnl_pct_str = cache.get("tpnl_pct_str", "---")
+        self._current_dpnl_pct_str = cache.get("dpnl_pct_str", "---")
 
         hidden = self.state._home_values_hidden
+        self._apply_subtotals()
         if not hidden:
-            self._nav_text.value = self._current_nav_str
-            self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
-            self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
+            self._set_nav_value(self._current_nav_str)
             self._update_pnl_display()
 
         self._update_positions(cache["positions"], hidden)
@@ -571,11 +575,29 @@ class HomeView:
                 self._current_tpnl_str = f"{total_pnl:+,.2f}\u20ac"
                 self._current_tpnl_color = ft.Colors.GREEN if total_pnl >= 0 else ft.Colors.RED
 
+                # Daily unrealized P&L = sum of qty * (price - prev_close)
+                daily_pnl = sum(
+                    p["quantity"] * (p["price"] - p["prev_close"])
+                    for p in all_positions
+                )
+                self._current_dpnl_str = f"{daily_pnl:+,.2f}€"
+                self._current_dpnl_color = ft.Colors.GREEN if daily_pnl >= 0 else ft.Colors.RED
+
+                # Percentages: upnl/cost_basis, tpnl/committed, dpnl/prev_positions_value
+                cost_basis = sum(p["quantity"] * p["pmc"] for p in all_positions)
+                prev_positions_value = sum(p["quantity"] * p["prev_close"] for p in all_positions)
+                def _fmt_pct(num, denom):
+                    if not denom:
+                        return "—"
+                    return f"{(num / denom) * 100:+.2f}%"
+                self._current_upnl_pct_str = _fmt_pct(unrealized_pnl, cost_basis)
+                self._current_tpnl_pct_str = _fmt_pct(total_pnl, total_committed)
+                self._current_dpnl_pct_str = _fmt_pct(daily_pnl, prev_positions_value)
+
                 hidden = getattr(s, '_home_values_hidden', False)
+                self._apply_subtotals()
                 if not hidden:
-                    self._nav_text.value = self._current_nav_str
-                    self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
-                    self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
+                    self._set_nav_value(self._current_nav_str)
                     self._update_pnl_display()
 
                 self._update_positions(all_positions, hidden)
@@ -590,6 +612,11 @@ class HomeView:
                     "upnl_color": self._current_upnl_color,
                     "tpnl_str": self._current_tpnl_str,
                     "tpnl_color": self._current_tpnl_color,
+                    "dpnl_str": self._current_dpnl_str,
+                    "dpnl_color": self._current_dpnl_color,
+                    "upnl_pct_str": self._current_upnl_pct_str,
+                    "tpnl_pct_str": self._current_tpnl_pct_str,
+                    "dpnl_pct_str": self._current_dpnl_pct_str,
                     "positions": all_positions,
                 }
                 s._home_nav_count = 0
@@ -602,6 +629,33 @@ class HomeView:
         self.page.run_thread(worker)
 
     # ── Shared Components ─────────────────────────────────────────────
+
+    def _compute_nav_size(self, text: str) -> int:
+        """Pick the largest font size (up to 48) that keeps `text` on one line
+        given the current effective card width."""
+        length = len(text or "")
+        if length == 0:
+            return 48
+        page_w = self.page.width or WIDTH_CARD
+        # Card is capped at WIDTH_CARD, but narrower on phones. Subtract padding + shadow.
+        effective = min(page_w, WIDTH_CARD) - 80
+        # Bold sans-serif digit/punct glyph width ≈ 0.64 × font size (conservative).
+        max_size = int(effective / (length * 0.64))
+        return max(min(max_size, 48), 14)
+
+    def _set_nav_value(self, value: str):
+        self._nav_text.value = value
+        self._nav_text.size = self._compute_nav_size(value)
+
+    def _apply_subtotals(self):
+        """Write assets/cash subtitle texts from current state, honoring hidden mode."""
+        t = self.state.translator
+        hidden = getattr(self.state, '_home_values_hidden', False)
+        hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
+        assets_val = hidden_mask if hidden else self._current_assets_str
+        cash_val = hidden_mask if hidden else self._current_cash_str
+        self._assets_text.value = "  " + t.get("home.subt_assets") + f"   {assets_val}"
+        self._cash_text.value = "  " + t.get("home.subt_cash") + f"   {cash_val}"
 
     def _build_stats_cards(self, nav, cash, assets) -> ft.Control:
         t = self.state.translator
@@ -616,12 +670,22 @@ class HomeView:
         self._current_upnl_color = None
         self._current_tpnl_str = loading_str
         self._current_tpnl_color = None
-        self._pnl_mode = 0  # 0 = unrealized, 1 = total
+        self._current_dpnl_str = loading_str
+        self._current_dpnl_color = None
+        self._current_upnl_pct_str = loading_str
+        self._current_tpnl_pct_str = loading_str
+        self._current_dpnl_pct_str = loading_str
+        # 0 = unrealized daily, 1 = unrealized total, 2 = total. Persisted per user.
+        self._pnl_mode = getattr(self.state, '_home_pnl_mode', 0)
 
+        initial_nav = hidden_mask if hidden else loading_str
         self._nav_text = ft.Text(
-            hidden_mask if hidden else loading_str, size=48,
+            initial_nav, size=self._compute_nav_size(initial_nav),
             weight=ft.FontWeight.BOLD,
             visible=not hidden,
+            max_lines=1,
+            no_wrap=True,
+            overflow=ft.TextOverflow.CLIP,
         )
         self._hidden_placeholder = ft.Container(
             content=ft.Text(
@@ -630,39 +694,44 @@ class HomeView:
             ),
             bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.SECONDARY),
             border_radius=10,
-            height=69,
-            padding=ft.padding.all(10),
+            padding=ft.padding.all(16.5),
+            margin=ft.margin.only(left=4.5),
             alignment=ft.alignment.Alignment.CENTER,
             visible=hidden,
+            col={"xs": 10, "md": 10}
         )
-        self._assets_text = ft.Text(
-            t.get("home.subt_assets") + f"   {hidden_mask if hidden else loading_str}",
-            size=14,
-        )
-        self._cash_text = ft.Text(
-            t.get("home.subt_cash") + f"   {hidden_mask if hidden else loading_str}",
-            size=14,
-        )
-        self._pnl_label = ft.Text(
-            t.get("home.pnl_unrealized"), size=11, color=ft.Colors.ON_SECONDARY_CONTAINER,
-        )
+        self._assets_text = ft.Text(size=14)
+        self._cash_text = ft.Text(size=14)
+        self._apply_subtotals()
+
+        self._pnl_label = ft.Text("P&L", size=14)
+        _initial_pnl_key = ("home.pnl_unrealized_daily", "home.pnl_unrealized_total", "home.pnl_total")[self._pnl_mode]
+        self._pnl_type = ft.Text(t.get(_initial_pnl_key), size=14,
+                                 weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SECONDARY_CONTAINER)
         self._pnl_value = ft.Text(
             hidden_mask if hidden else loading_str,
             size=14, weight=ft.FontWeight.BOLD,
         )
+        self._pnl_pct = ft.Text("" if hidden else loading_str, size=12)
         self._pnl_container = ft.Card(
             content=ft.Container(
-                content=ft.Column([
-                    self._pnl_label,
-                    self._pnl_value,
-                ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                content=ft.Row([
+                    ft.Column([
+                        self._pnl_label,
+                        self._pnl_type
+                    ], horizontal_alignment=ft.CrossAxisAlignment.START, spacing=5),
+                    ft.Column([
+                        self._pnl_value,
+                        self._pnl_pct,
+                    ], horizontal_alignment=ft.CrossAxisAlignment.END, spacing=1),
+                ], spacing=1, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                padding=ft.padding.symmetric(horizontal=15, vertical=10),
                 border_radius=10,
                 bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.SECONDARY),
                 on_click=self._cycle_pnl_mode,
                 ink=True,
             ),
-            elevation=3,
+            elevation=3, col={"xs": 12, "md": 7}
         )
         self._visibility_btn = ft.IconButton(
             icon=ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY,
@@ -671,6 +740,7 @@ class HomeView:
                 bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.GREY),
                 shape=ft.CircleBorder(),
             ),
+            
         )
         self._refresh_loading = ft.ProgressRing(visible=False, width=16, height=16)
 
@@ -678,18 +748,19 @@ class HomeView:
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
-                        self._nav_text,
-                        self._hidden_placeholder,
-                        ft.Row([
-                            ft.Container(self._visibility_btn, expand=1),
-                            ft.Container(ft.Column([
+                        ft.ResponsiveRow([
+                            ft.Container(self._nav_text, col={"xs": 10, "md": 10}),
+                            self._hidden_placeholder,
+                            ft.Container(self._visibility_btn, col={"xs": 2, "md": 2}),                        ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        ft.ResponsiveRow([
+                            ft.Column([
                                 self._assets_text,
                                 self._cash_text,
-                            ], spacing=2), expand=3),
-                            ft.Container(self._pnl_container, expand=3),
-                        ], spacing=12, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                    ], spacing=15),
-                    padding=20,
+                            ], spacing=2, col={"xs": 12, "md": 5}, expand=True),
+                            self._pnl_container,
+                        ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ], spacing=10),
+                    padding=ft.padding.only(top=15, bottom=17, left=20, right=20),
                 ),
                 elevation=5,
             ),
@@ -697,7 +768,6 @@ class HomeView:
         ], spacing=5, width=WIDTH_CARD,)
 
     def _toggle_visibility(self, e):
-        t = self.state.translator
         self.state.haptic(self.page)
         hidden = not self.state._home_values_hidden
         self.state._home_values_hidden = hidden
@@ -707,17 +777,15 @@ class HomeView:
         self._nav_text.visible = not hidden
         self._hidden_placeholder.visible = hidden
         self._visibility_btn.icon = ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY
+        self._apply_subtotals()
 
         if hidden:
-            self._assets_text.value = t.get("home.subt_assets") + f"   {hidden_mask}",
-            self._cash_text.value = t.get("home.subt_cash") + f"   {hidden_mask}",
             self._pnl_value.value = hidden_mask
             self._pnl_value.color = None
+            self._pnl_pct.value = ""
             self._positions_container.visible = False
         else:
-            self._nav_text.value = self._current_nav_str
-            self._assets_text.value = t.get("home.subt_assets") + f"   {self._current_assets_str}"
-            self._cash_text.value = t.get("home.subt_cash") + f"   {self._current_cash_str}"
+            self._set_nav_value(self._current_nav_str)
             self._update_pnl_display()
             self._positions_container.visible = True
         self.page.update()
@@ -726,17 +794,29 @@ class HomeView:
         """Update P&L label and value based on current mode."""
         t = self.state.translator
         if self._pnl_mode == 0:
-            self._pnl_label.value = t.get("home.pnl_unrealized")
+            self._pnl_type.value = t.get("home.pnl_unrealized_daily")
+            self._pnl_value.value = self._current_dpnl_str
+            self._pnl_value.color = self._current_dpnl_color
+            self._pnl_pct.value = self._current_dpnl_pct_str
+            self._pnl_pct.color = self._current_dpnl_color
+        elif self._pnl_mode == 1:
+            self._pnl_type.value = t.get("home.pnl_unrealized_total")
             self._pnl_value.value = self._current_upnl_str
             self._pnl_value.color = self._current_upnl_color
+            self._pnl_pct.value = self._current_upnl_pct_str
+            self._pnl_pct.color = self._current_upnl_color
         else:
-            self._pnl_label.value = t.get("home.pnl_total")
+            self._pnl_type.value = t.get("home.pnl_total")
             self._pnl_value.value = self._current_tpnl_str
             self._pnl_value.color = self._current_tpnl_color
+            self._pnl_pct.value = self._current_tpnl_pct_str
+            self._pnl_pct.color = self._current_tpnl_color
 
     def _cycle_pnl_mode(self, e):
         self.state.haptic(self.page)
-        self._pnl_mode = (self._pnl_mode + 1) % 2
+        self._pnl_mode = (self._pnl_mode + 1) % 3
+        self.state._home_pnl_mode = self._pnl_mode
+        config_service.save_home_pnl_mode(self.state.user_config_folder, self._pnl_mode)
         hidden = getattr(self.state, '_home_values_hidden', False)
         if not hidden:
             self._update_pnl_display()

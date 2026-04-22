@@ -51,6 +51,7 @@ class AppState:
 
         # Home view
         self._home_values_hidden: bool = False
+        self._home_pnl_mode: int = 0
         self._home_cache: dict | None = None
         self._home_nav_count: int = 0
         self._home_nav_threshold: int = 10
@@ -127,8 +128,14 @@ class AppState:
                 self.watchlist = []
             if user_config.has_section("Home"):
                 self._home_values_hidden = user_config.get("Home", "hidden", fallback="false") == "true"
+                try:
+                    mode = int(user_config.get("Home", "pnl_mode", fallback="0"))
+                    self._home_pnl_mode = mode if mode in (0, 1, 2) else 0
+                except ValueError:
+                    self._home_pnl_mode = 0
             else:
                 self._home_values_hidden = False
+                self._home_pnl_mode = 0
         else:
             self.active_user_name = None
             self.user_config_folder = None
@@ -136,6 +143,7 @@ class AppState:
             self.brokers = {}
             self.watchlist = []
             self._home_values_hidden = False
+            self._home_pnl_mode = 0
 
     def ensure_defaults(self):
         """Create default CSV files for each broker if missing."""

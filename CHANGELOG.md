@@ -1,3 +1,17 @@
+## [0.2.8] (2026-04-22)
+
+### Bug Fixes
+
+- **[UX]** Add Transaction and Calculate buttons in OperationsView and AnalysisView are not floating buttons anymore, due to their interference with the on-screen keyboard when open
+- **[UI]** Fixed table centering in TransactionsView when multiple pages are displayed
+
+### Features
+
+- **[UI]** Revised HomeView stats cards layout, with better support for big screens + added Daily P&L, percentage P&L
+
+
+
+
 ## [0.2.7] (2026-04-14)
 
 ### Bug Fixes
