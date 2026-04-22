@@ -1,4 +1,3 @@
-- Manage stock splits
 - Bonds
 - Bonds ETFs
 - Decimal

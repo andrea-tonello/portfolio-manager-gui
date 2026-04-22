@@ -66,7 +66,7 @@ def _do_restart(page: ft.Page):
 
 def main(page: ft.Page):
     page.title = "Portfolio Manager"
-    page.adaptive = False
+    page.adaptive = True
     page.padding = 10
     page.window.width = 400
     page.window.height = 780

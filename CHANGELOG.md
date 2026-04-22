@@ -1,3 +1,16 @@
+## [0.2.9] (2026-04-22)
+
+# Bug Fixes
+
+# Features
+
+- **[FEATURE] NEW** Stock split handling: new Stock Split option in the General tab (ex Cash tab) of OperationsView to record splits on currently held tickers, with continuous NAV across the split date.
+
+- **[FEATURE]** Auto-detection of unrecorded splits on refresh, with a prompt to record, skip once, or ignore for a ticker
+
+
+
+
 ## [0.2.8] (2026-04-22)
 
 ### Bug Fixes

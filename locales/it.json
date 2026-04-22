@@ -36,9 +36,9 @@
     "subt_cash": "Liquidità",
     "open_positions": "Posizioni Aperte",
     "open_positions_descr": "Ticker  /  PMC  /  Prezzo attuale",
-    "pnl_unrealized_total": "Non Realizzato",
-    "pnl_unrealized_daily": "Giornaliero Non Realiz.",
-    "pnl_total": "Totale",
+    "pnl_unrealized_total": "Totale",
+    "pnl_unrealized_daily": "Giornaliero",
+    "pnl_total": "Totale + Realizzato",
     "pos_value": "Valore",
     "pos_total_pct": "Totale %",
     "pos_daily_pct": "Giornaliero %",
@@ -55,6 +55,11 @@
     "select_account": "Seleziona un conto...",
     "add_transaction": "Aggiungi Transazione",
     "added_transaction": "Transazione salvata",
+    "general": {
+      "title": "GENERALE",
+      "cash_section": "Liquidità",
+      "corporate_section": "Operazioni Societarie"
+    },
     "cash": {
       "title": "LIQUIDITÀ",
       "op_deposit": "Deposito",
@@ -109,6 +114,20 @@
     "bond": {
       "title": "OBBLIGAZIONI",
       "not_implemented": "Obbligazioni non ancora implementate. Premi Invio per continuare..."
+    },
+    "split": {
+      "title": "Frazionamento Quote",
+      "ticker": "Ticker",
+      "ticker_notheld": "Non possiedi attualmente {ticker}",
+      "ratio": "Rapporto",
+      "ratio_explained": "Esempi:\n\nFrazionamento 4:1\n    \u2981 4 (1 quota diventa 4)\n\nFrazionamento 1:10    \u2981 0.1 (10 quote diventano 1)",
+      "ratio_error": "Il rapporto deve essere un numero positivo",
+      "no_holdings": "Nessuna posizione aperta. I frazionamenti possono essere registrati solo per titoli attualmente detenuti.",
+      "detected_title": "Frazionamento azionario rilevato",
+      "detected_msg": "{ticker} sembra aver subito un frazionamento {ratio} il {date}. Registrarlo?",
+      "detected_record": "Registra",
+      "detected_ignore_once": "Ignora",
+      "detected_ignore_always": "Mai per questo titolo"
     }
   },
 
@@ -267,6 +286,7 @@
     "op_sell": "Vendita",
     "op_dividend": "Dividendo",
     "op_tax": "Imposta",
+    "op_split": "Frazionamento",
     "prod_cash": "Contanti",
     "prod_stock": "Azioni",
     "prod_stock_etf": "ETF Azionari",

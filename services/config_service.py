@@ -74,6 +74,25 @@ def save_home_pnl_mode(config_folder: str, mode: int):
     _save_config(path, config)
 
 
+def save_split_ignores(config_folder: str, ignores: set[str]):
+    """Persist a set of ignored split identifiers (strings like 'TICKER|YYYY-MM-DD' or 'TICKER|*')."""
+    path, config = _load_config(config_folder)
+    _ensure_section(config, "SplitIgnores")
+    for key in list(config["SplitIgnores"].keys()):
+        config.remove_option("SplitIgnores", key)
+    if ignores:
+        config.set("SplitIgnores", "entries", ",".join(sorted(ignores)))
+    _save_config(path, config)
+
+
+def load_split_ignores(config_folder: str) -> set[str]:
+    _, config = _load_config(config_folder)
+    raw = config.get("SplitIgnores", "entries", fallback="")
+    if not raw:
+        return set()
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
 def save_tx_filter(config_folder: str, mode: str, value: int):
     path, config = _load_config(config_folder)
     _ensure_section(config, "Transactions")

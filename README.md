@@ -84,7 +84,6 @@ pip install flet flet-charts pandas numpy yfinance python-dateutil
 
 ## Note
 
-- Gli split azionari **non** sono attualmente gestiti
 - L'inserimento delle transazioni è esclusivamente sequenziale (cronologico)
 - Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria
 - La logica fiscale segue la normativa italiana vigente al 2026; si consiglia sempre la verifica con un consulente
@@ -166,7 +165,6 @@ pip install flet flet-charts pandas numpy yfinance python-dateutil
 
 ## Notes
 
-- Stock splits are **not** currently handled
 - Transaction entry is exclusively sequential (chronological)
 - This software is intended for personal and educational use. It does not constitute financial advice
 - The fiscal logic follows Italian regulations in force as of 2026; always verify with a professional advisor

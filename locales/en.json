@@ -36,9 +36,9 @@
     "subt_cash": "Cash",
     "open_positions": "Open Positions",
     "open_positions_descr": "Ticker  /  ABP  /  Current price",
-    "pnl_unrealized_total": "Unrealized",
-    "pnl_unrealized_daily": "Unrealized Daily",
-    "pnl_total": "Total",
+    "pnl_unrealized_total": "Total",
+    "pnl_unrealized_daily": "Daily",
+    "pnl_total": "Total + Realized",
     "pos_value": "Value",
     "pos_total_pct": "Total %",
     "pos_daily_pct": "Daily %",
@@ -55,6 +55,11 @@
     "select_account": "Select an account...",
     "add_transaction": "Add Transaction",
     "added_transaction": "Transaction saved",
+    "general": {
+      "title": "GENERAL",
+      "cash_section": "Cash Operations",
+      "corporate_section": "Corporate Actions"
+    },
     "cash": {
       "title": "CASH OPERATIONS",
       "op_deposit": "Deposit",
@@ -109,6 +114,20 @@
     "bond": {
       "title": "BONDS",
       "not_implemented": "Bonds not yet implemented. Press Enter to continue..."
+    },
+    "split": {
+      "title": "Shares Split",
+      "ticker": "Ticker",
+      "ticker_notheld": "You do not currently hold {ticker}",
+      "ratio": "Ratio",
+      "ratio_explained": "Examples:\n\n4:1 split\n    \u2981 4 (1 share becomes 4)\n\n1:10 split\n    \u2981 0.1 (10 shares become 1)",
+      "ratio_error": "The ratio must be a positive number",
+      "no_holdings": "No open positions. Splits can only be recorded for tickers you currently hold.",
+      "detected_title": "Stock split detected",
+      "detected_msg": "{ticker} appears to have undergone a {ratio} split on {date}. Record it?",
+      "detected_record": "Record",
+      "detected_ignore_once": "Skip",
+      "detected_ignore_always": "Never for this ticker"
     }
   },
 
@@ -267,6 +286,7 @@
     "op_sell": "Sell",
     "op_dividend": "Dividend",
     "op_tax": "Tax",
+    "op_split": "Split",
     "prod_cash": "Cash",
     "prod_stock": "Stocks",
     "prod_stock_etf": "Stocks ETF",

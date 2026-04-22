@@ -249,7 +249,7 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     if current_ticker:
         df_filtered = df_filtered[df_filtered["ticker"] != current_ticker]
 
-    df_filtered = df_filtered[df_filtered["operation"].isin(["Buy", "Sell"])]
+    df_filtered = df_filtered[df_filtered["operation"].isin(["Buy", "Sell", "Split"])]
     total_assets = df_filtered.groupby("ticker").last().reset_index()
     total_active_assets = total_assets.loc[total_assets["qt_held"] > 0, ["ticker", "qt_held", "curr", "abp"]]
 
@@ -283,7 +283,18 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
             .dropna(how="any")
     )
     data_ref = data_valid.iloc[-1]
-    data_prev = data_valid.iloc[-2] if len(data_valid) >= 2 else data_ref
+
+    # Adjusted close for prev_close only: keeps daily P&L continuous across a split day.
+    # Do NOT use for current price — adjusted close also bakes in dividends, which are
+    # recorded explicitly as Dividend rows and would double-count otherwise.
+    data_adj, _ = download_close(tickers, start=start_date, end=end_date, adjusted=True)
+    if isinstance(data_adj, pd.Series):
+        data_adj = data_adj.to_frame(name=tickers[0])
+    data_adj_valid = (
+        data_adj.loc[data_adj.index <= pd.to_datetime(ref_date)]
+            .dropna(how="any")
+    ) if not data_adj.empty else data_valid
+    data_prev = data_adj_valid.iloc[-2] if len(data_adj_valid) >= 2 else data_ref
 
     for item in positions:
         ticker = item["ticker"]

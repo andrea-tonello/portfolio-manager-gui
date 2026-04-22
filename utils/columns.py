@@ -95,6 +95,7 @@ OLD_OPERATIONS = {
     "Vendita": "Sell",
     "Dividendo": "Dividend",
     "Imposta": "Tax",
+    "Frazionamento": "Split",
 }
 
 # Maps old Italian product values → new English internal values.
@@ -114,6 +115,7 @@ OPERATION_LOCALE_KEYS = {
     "Sell": "values.op_sell",
     "Dividend": "values.op_dividend",
     "Tax": "values.op_tax",
+    "Split": "values.op_split",
 }
 
 # Maps internal English product values → locale keys for export.

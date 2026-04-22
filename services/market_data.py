@@ -27,8 +27,11 @@ def _to_unix(dt) -> int:
     return int(dt.timestamp())
 
 
-def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d") -> dict:
-    """Fetch raw chart data from Yahoo Finance v8 API."""
+def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d", events=None) -> dict:
+    """Fetch raw chart data from Yahoo Finance v8 API.
+
+    events: optional str like "split" or "split,div" to request corporate-action events.
+    """
     url = f"{_BASE_URL}/{ticker}?"
     params = [f"interval={interval}"]
     if period:
@@ -38,6 +41,8 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d") 
             params.append(f"period1={_to_unix(start)}")
         if end:
             params.append(f"period2={_to_unix(end)}")
+    if events:
+        params.append(f"events={events}")
     url += "&".join(params)
 
     req = urllib.request.Request(url, headers=_HEADERS)
@@ -50,11 +55,16 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d") 
     return result[0]
 
 
-def download_close(tickers, start=None, end=None, period=None):
+def download_close(tickers, start=None, end=None, period=None, adjusted=False):
     """Fetch closing prices for one or more tickers.
 
     Returns (DataFrame_or_Series, dict[str, str]) where the second element
     maps ticker symbols to their full product names.
+
+    When adjusted=True, reads from indicators.adjclose instead of raw close.
+    Adjusted close reflects both splits and dividends — use only for cases where
+    split continuity matters and dividends are not separately accounted for
+    (e.g. prev_close lookup across a split boundary).
     """
     if isinstance(tickers, str):
         tickers = [tickers]
@@ -65,7 +75,14 @@ def download_close(tickers, start=None, end=None, period=None):
             meta = chart.get("meta", {})
             name = meta.get("longName") or meta.get("shortName") or ticker
             timestamps = chart.get("timestamp", [])
-            closes = chart.get("indicators", {}).get("quote", [{}])[0].get("close", [])
+            indicators = chart.get("indicators", {})
+            if adjusted:
+                adj = indicators.get("adjclose", [{}])
+                closes = adj[0].get("adjclose", []) if adj else []
+                if not closes:
+                    closes = indicators.get("quote", [{}])[0].get("close", [])
+            else:
+                closes = indicators.get("quote", [{}])[0].get("close", [])
             if not timestamps or not closes:
                 return None
             dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_localize(None).normalize()
@@ -132,6 +149,59 @@ def fetch_exchange_rate(ref_date=None) -> float:
         raise RuntimeError("No valid exchange rate data")
 
     return round_half_up(valid[-1], decimal="0.000001")
+
+
+def detect_unrecorded_splits(df, ticker: str) -> list[tuple]:
+    """Find splits reported by Yahoo that aren't already recorded for `ticker` in df.
+
+    Returns a list of (iso_date_str, ratio_float) tuples, where ratio is
+    numerator/denominator (e.g. 4.0 for a 4:1 forward split, 0.1 for a 1:10 reverse).
+    Splits already recorded (a Split row within ±1 day of the event) are excluded.
+    """
+    if df is None or df.empty:
+        return []
+    asset_rows = df[df["ticker"] == ticker]
+    asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
+    if asset_rows.empty:
+        return []
+
+    earliest = pd.to_datetime(asset_rows["date"], dayfirst=True, errors="coerce").dropna().min()
+    if pd.isna(earliest):
+        return []
+
+    start = (earliest - pd.Timedelta(days=1)).to_pydatetime()
+    end = datetime.now() + timedelta(days=1)
+
+    try:
+        chart = _fetch_chart(ticker, start=start, end=end, events="split")
+    except Exception:
+        return []
+
+    splits = chart.get("events", {}).get("splits", {})
+    if not splits:
+        return []
+
+    recorded_dates = set()
+    split_rows = asset_rows[asset_rows["operation"] == "Split"]
+    for d in pd.to_datetime(split_rows["date"], dayfirst=True, errors="coerce").dropna():
+        for delta in (-1, 0, 1):
+            recorded_dates.add((d + pd.Timedelta(days=delta)).date())
+
+    unrecorded = []
+    for event in splits.values():
+        ts = event.get("date")
+        num = event.get("numerator")
+        den = event.get("denominator")
+        if not ts or not num or not den:
+            continue
+        event_date = datetime.fromtimestamp(ts).date()
+        if event_date in recorded_dates:
+            continue
+        ratio = float(num) / float(den)
+        unrecorded.append((event_date.strftime("%Y-%m-%d"), ratio))
+
+    unrecorded.sort()
+    return unrecorded
 
 
 def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:

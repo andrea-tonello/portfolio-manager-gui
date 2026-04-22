@@ -41,7 +41,7 @@ class OperationsView:
             on_change=self._on_ops_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
-                    ft.Tab(label=t.get("operations.cash.title")),
+                    ft.Tab(label=t.get("operations.general.title")),
                     ft.Tab(label=t.get("operations.stock.title_etf")),
                     ft.Tab(label=t.get("operations.stock.title_stock")),
                 ], scrollable=True, splash_border_radius=ft.BorderRadius.only(top_left=10, top_right=10)),
@@ -50,7 +50,7 @@ class OperationsView:
                     expand=True,
                 ),
             ], expand=True),
-            expand=True,
+            expand=True, adaptive=True
         )
 
         return ft.Row(
@@ -123,14 +123,27 @@ class OperationsView:
     def _build_cash_tab(self) -> ft.Control:
         t = self.state.translator
         no_account = self.state.ops_acc_idx is None
+        df = self._get_ops_df()
+        holdings = self._get_held_tickers(df) if df is not None else []
+        header_color = ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE)
+
         self.cash_type = ft.RadioGroup(
             value="deposit",
             disabled=no_account,
             content=ft.Column([
+                ft.Text(t.get("operations.general.cash_section"),
+                        size=16, weight=ft.FontWeight.BOLD, color=header_color),
+                ft.Container(height=8),
                 ft.Radio(value="deposit", label=t.get("operations.cash.op_deposit"), disabled=no_account),
                 ft.Radio(value="withdrawal", label=t.get("operations.cash.op_withdrawal"), disabled=no_account),
-                ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
                 ft.Radio(value="charge", label=t.get("operations.cash.op_charge"), disabled=no_account),
+                ft.Container(height=15),
+                ft.Text(t.get("operations.general.corporate_section"),
+                        size=16, weight=ft.FontWeight.BOLD, color=header_color),
+                ft.Container(height=8),
+                ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
+                ft.Radio(value="split", label=t.get("operations.split.title"), disabled=no_account),
+                ft.Divider(),
             ], spacing=0, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
         )
@@ -175,15 +188,49 @@ class OperationsView:
                                        border_radius=ft.border_radius.all(15),
                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
+
+        split_ticker_options = [
+            ft.dropdown.Option(key=tk, text=f"{tk}  ·  {name}" if name and name != tk else tk)
+            for tk, name in holdings
+        ]
+        self.split_ticker_dd = ft.Dropdown(
+            menu_style=ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=15)),
+            label=t.get("operations.split.ticker"),
+            options=split_ticker_options,
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
+        )
+        self.split_ticker_row = ft.Container(
+            content=self.split_ticker_dd, visible=False, col={"xs": 12, "md": 6},
+        )
+        self.split_ratio_field = ft.TextField(
+            label=t.get("operations.split.ratio"),
+            keyboard_type=ft.KeyboardType.NUMBER,
+            input_filter=_DECIMAL_FILTER,
+            border_radius=ft.border_radius.all(15),
+            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            expand=True,
+        )
+        split_ratio_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_split_ratio_help,
+        )
+        self.split_ratio_row = ft.Container(
+            content=ft.Row([self.split_ratio_field, split_ratio_help]),
+            visible=False, col={"xs": 12, "md": 6},
+        )
+
         self.cash_loading = ft.ProgressRing(visible=False, width=30, height=30)
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
         # Tuples: (field_to_focus, control_to_check_visibility)
         cash_fields = [
             self.cash_date_field,
-            self.cash_amount,
+            (self.cash_amount, self.cash_amount),
             (self.cash_ticker._field, self.cash_ticker_row),
             (self.cash_descr, self.cash_descr),
+            (self.split_ratio_field, self.split_ratio_row),
         ]
         chain_focus(cash_fields)
 
@@ -198,7 +245,10 @@ class OperationsView:
         col = ft.Column([
             self.cash_type,
             ft.Row([self.cash_date_field, self.cash_date_icon],),
-            ft.ResponsiveRow([self.cash_amount, self.cash_ticker_row, self.cash_descr],),
+            ft.ResponsiveRow([
+                self.cash_amount, self.cash_ticker_row, self.cash_descr,
+                self.split_ticker_row, self.split_ratio_row,
+            ],),
             ft.Row([ft.Container(width=5), self.cash_loading]),
             ft.Row([cash_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
@@ -222,8 +272,18 @@ class OperationsView:
     def _on_cash_type_change(self, e):
         t = self.state.translator
         kind = self.cash_type.value
+
+        if kind == "split" and not self._get_held_tickers(self._get_ops_df()):
+            show_snack(self.page, t.get("operations.split.no_holdings"), error=True)
+            self.cash_type.value = "deposit"
+            kind = "deposit"
+
+        is_split = (kind == "split")
+        self.cash_amount.visible = not is_split
         self.cash_ticker_row.visible = (kind == "dividend")
         self.cash_descr.visible = (kind == "charge")
+        self.split_ticker_row.visible = is_split
+        self.split_ratio_row.visible = is_split
         self.cash_amount.label = (
             t.get("operations.cash.dividend_amount") if kind == "dividend"
             else t.get("operations.cash.amount")
@@ -267,13 +327,18 @@ class OperationsView:
         if self._check_date_sequential(df, self.cash_date_value):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
+
+        kind = self.cash_type.value
+        if kind == "split":
+            self._submit_split_from_general()
+            return
+
         try:
             amount = float(self.cash_amount.value)
         except (ValueError, TypeError):
             show_snack(self.page, t.get("operations.cash.error_cash"), error=True)
             return
 
-        kind = self.cash_type.value
         if kind in ("deposit", "withdrawal") and amount <= 0:
             show_snack(self.page, t.get("operations.cash.error_cash"), error=True)
             return
@@ -878,6 +943,73 @@ class OperationsView:
             actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
+
+    # ── Split helpers (shares the General tab layout) ────────────────
+
+    def _get_held_tickers(self, df):
+        """Return a list of (ticker, asset_name) for positions with qt_held > 0."""
+        if df is None or df.empty:
+            return []
+        asset_rows = df[df["operation"].isin(["Buy", "Sell", "Split"])]
+        if asset_rows.empty:
+            return []
+        last_per_ticker = asset_rows.groupby("ticker", sort=False).tail(1)
+        held = last_per_ticker[last_per_ticker["qt_held"].astype(float) > 0]
+        return [(row["ticker"], row.get("asset_name") or row["ticker"])
+                for _, row in held.iterrows()]
+
+    def _show_split_ratio_help(self, e):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.split.ratio")),
+            content=ft.Container(
+                content=ft.Text(t.get("operations.split.ratio_explained")),
+                width=450,
+            ),
+            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
+
+    def _submit_split_from_general(self):
+        s = self.state
+        t = s.translator
+        df = self._get_ops_df()
+        broker = self._get_ops_broker()
+
+        ticker = self.split_ticker_dd.value
+        if not ticker:
+            show_snack(self.page, t.get("operations.stock.ticker_error"), error=True)
+            return
+
+        try:
+            ratio = float(self.split_ratio_field.value)
+        except (ValueError, TypeError):
+            show_snack(self.page, t.get("operations.split.ratio_error"), error=True)
+            return
+
+        date_str = self.cash_date_value.strftime(DATE_FORMAT)
+        ref_date = self.cash_date_value
+        acc_idx = s.ops_acc_idx
+
+        self.cash_loading.visible = True
+        self.page.update()
+
+        def worker():
+            try:
+                new_df = operations_service.execute_split(
+                    t, df, broker, date_str, ref_date, ticker, ratio,
+                )
+                s.accounts[acc_idx]["df"] = new_df
+                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
+                show_snack(self.page, t.get("operations.added_transaction"))
+                self._refresh_page()
+            except (RuntimeError, ValidationError, Exception) as ex:
+                show_snack(self.page, str(ex), error=True)
+            finally:
+                self.cash_loading.visible = False
+                self.page.update()
+
+        self.page.run_thread(worker)
 
     def _refresh_page(self):
         from views import _rebuild_page

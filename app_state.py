@@ -56,6 +56,10 @@ class AppState:
         self._home_nav_count: int = 0
         self._home_nav_threshold: int = 10
 
+        # Split auto-detection: set of "TICKER|YYYY-MM-DD" or "TICKER|*" entries to suppress prompts
+        self._split_ignores: set[str] = set()
+        self._split_checked_session: bool = False
+
         # Haptic feedback
         self._haptic: ft.HapticFeedback | None = None
 
@@ -136,6 +140,11 @@ class AppState:
             else:
                 self._home_values_hidden = False
                 self._home_pnl_mode = 0
+            if user_config.has_section("SplitIgnores"):
+                raw = user_config.get("SplitIgnores", "entries", fallback="")
+                self._split_ignores = {s.strip() for s in raw.split(",") if s.strip()}
+            else:
+                self._split_ignores = set()
         else:
             self.active_user_name = None
             self.user_config_folder = None
@@ -144,6 +153,7 @@ class AppState:
             self.watchlist = []
             self._home_values_hidden = False
             self._home_pnl_mode = 0
+            self._split_ignores = set()
 
     def ensure_defaults(self):
         """Create default CSV files for each broker if missing."""

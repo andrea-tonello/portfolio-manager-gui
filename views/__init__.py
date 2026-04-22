@@ -33,61 +33,67 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     async def handle_show_drawer():
         await page.show_end_drawer()
 
-    page.end_drawer = ft.NavigationDrawer(
-        selected_index=None,
-        controls=[
-            ft.Container(
-                content=ft.Row([
-                    ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
-                    ft.Text("Portfolio Manager", size=20),
-                ], spacing=10, expand=True),
-                padding=ft.padding.only(left=15, top=10)
-            ),
-            ft.Divider(),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.SETTINGS),
-                trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
-                title=ft.Text(t.get("nav.settings")),
-                on_click=lambda: _show_settings(page, state),
-                min_height=60,
-                content_padding=ft.padding.only(left=25, right=15),
-            ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.PERSON),
-                title=ft.Text(state.active_user_name or t.get("settings.user")),
-                on_click=lambda: show_user_manager(page, state),
-                min_height=60,
-                content_padding=ft.padding.only(left=25),
-            ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.PRIVACY_TIP),
-                title=ft.Text(t.get("settings.privacy_policy")),
-                on_click=lambda: show_privacy_policy(page, state),
-                min_height=60,
-                content_padding=ft.padding.only(left=25),
-            ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.COMMENT),
-                title=ft.Text(t.get("settings.contacts")),
-                on_click=lambda: show_contacts(page, state),
-                min_height=60,
-                content_padding=ft.padding.only(left=25),
-            ),
-            ft.Divider(),
-            ft.ListTile(
-                trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
-                title=ft.Text(t.get("settings.repo")),
-                url="https://github.com/andrea-tonello/portfolio-manager-gui",
-                min_height=60,
-                content_padding=ft.padding.only(left=25, right=15),
-            ),
-            ft.Container(
-                ft.Text(t.get("components.version") + f" {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
-                alignment=ft.alignment.Alignment.CENTER,
-                padding=ft.padding.only(top=10),
-            )
-        ],
-    )
+    # Build the drawer only when the page structure is being (re)initialized.
+    # Replacing page.end_drawer on every tab switch caused the Flutter client
+    # to lose the drawer reference, hanging show_end_drawer for 10s.
+    # _nav_wrapper is popped on language change / back-from-settings / first
+    # load, so the drawer is naturally refreshed when any of those occur.
+    if page.data.get("_nav_wrapper") is None:
+        page.end_drawer = ft.NavigationDrawer(
+            selected_index=None,
+            controls=[
+                ft.Container(
+                    content=ft.Row([
+                        ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
+                        ft.Text("Portfolio Manager", size=20),
+                    ], spacing=10, expand=True),
+                    padding=ft.padding.only(left=15, top=10)
+                ),
+                ft.Divider(),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.SETTINGS),
+                    trailing=ft.Icon(ft.Icons.KEYBOARD_ARROW_RIGHT),
+                    title=ft.Text(t.get("nav.settings")),
+                    on_click=lambda: _show_settings(page, state),
+                    min_height=60,
+                    content_padding=ft.padding.only(left=25, right=15),
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.PERSON),
+                    title=ft.Text(state.active_user_name or t.get("settings.user")),
+                    on_click=lambda: show_user_manager(page, state),
+                    min_height=60,
+                    content_padding=ft.padding.only(left=25),
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.PRIVACY_TIP),
+                    title=ft.Text(t.get("settings.privacy_policy")),
+                    on_click=lambda: show_privacy_policy(page, state),
+                    min_height=60,
+                    content_padding=ft.padding.only(left=25),
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.COMMENT),
+                    title=ft.Text(t.get("settings.contacts")),
+                    on_click=lambda: show_contacts(page, state),
+                    min_height=60,
+                    content_padding=ft.padding.only(left=25),
+                ),
+                ft.Divider(),
+                ft.ListTile(
+                    trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
+                    title=ft.Text(t.get("settings.repo")),
+                    url="https://github.com/andrea-tonello/portfolio-manager-gui",
+                    min_height=60,
+                    content_padding=ft.padding.only(left=25, right=15),
+                ),
+                ft.Container(
+                    ft.Text(t.get("components.version") + f" {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+                    alignment=ft.alignment.Alignment.CENTER,
+                    padding=ft.padding.only(top=10),
+                )
+            ],
+        )
 
 
 # ── AppBar ────────────────────────────────────────────

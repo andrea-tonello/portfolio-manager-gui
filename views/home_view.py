@@ -4,8 +4,9 @@ from datetime import datetime
 
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
-from services import config_service
-from services.market_data import download_close
+from services import account_service, config_service, operations_service
+from services.market_data import detect_unrecorded_splits, download_close
+from utils.constants import DATE_FORMAT
 from utils.other_utils import round_half_up
 from utils.account import get_asset_value
 
@@ -625,6 +626,124 @@ class HomeView:
             finally:
                 self._refresh_loading.visible = False
                 self.page.update()
+
+            self._check_splits_async()
+
+        self.page.run_thread(worker)
+
+    def _check_splits_async(self):
+        """Look for unrecorded splits on held tickers and prompt the user. Runs once per session."""
+        s = self.state
+        if getattr(s, "_split_checked_session", False):
+            return
+        sel = s.home_selection
+        if sel == "overview":
+            return
+        try:
+            acc_idx = int(sel)
+        except (ValueError, TypeError):
+            return
+        acc = s.get_account(acc_idx)
+        if acc is None:
+            return
+        df = acc["df"]
+        if df is None or df.empty:
+            return
+
+        asset_rows = df[df["operation"].isin(["Buy", "Sell", "Split"])]
+        if asset_rows.empty:
+            return
+        held = asset_rows.groupby("ticker", sort=False).tail(1)
+        tickers = held[held["qt_held"].astype(float) > 0]["ticker"].tolist()
+        if not tickers:
+            return
+
+        def worker():
+            s._split_checked_session = True
+            for ticker in tickers:
+                if f"{ticker}|*" in s._split_ignores:
+                    continue
+                try:
+                    unrecorded = detect_unrecorded_splits(df, ticker)
+                except Exception:
+                    continue
+                for ev_date, ratio in unrecorded:
+                    if f"{ticker}|{ev_date}" in s._split_ignores:
+                        continue
+                    # Marshal dialog back to the event loop — show_dialog
+                    # mutates page.overlay and must not run on a worker thread
+                    # while the main thread may be computing an update patch.
+                    async def _show(t=ticker, d=ev_date, r=ratio):
+                        self._prompt_split(acc_idx, t, d, r)
+                    self.page.run_task(_show)
+                    return
+
+        self.page.run_thread(worker)
+
+    def _prompt_split(self, acc_idx, ticker, ev_date, ratio):
+        s = self.state
+        t = s.translator
+        if ratio >= 1:
+            ratio_label = f"{int(ratio) if ratio.is_integer() else ratio}:1"
+        else:
+            ratio_label = f"1:{int(1 / ratio) if (1 / ratio).is_integer() else round(1 / ratio, 4)}"
+        msg = t.get("operations.split.detected_msg",
+                    ticker=ticker, ratio=ratio_label, date=ev_date)
+
+        def on_record(e):
+            self.page.pop_dialog()
+            s._split_checked_session = False
+            self._record_detected_split(acc_idx, ticker, ev_date, ratio)
+
+        def on_ignore_once(e):
+            self.page.pop_dialog()
+            s._split_ignores.add(f"{ticker}|{ev_date}")
+            if s.user_config_folder:
+                config_service.save_split_ignores(s.user_config_folder, s._split_ignores)
+            s._split_checked_session = False
+            self._check_splits_async()
+
+        def on_ignore_always(e):
+            self.page.pop_dialog()
+            s._split_ignores.add(f"{ticker}|*")
+            if s.user_config_folder:
+                config_service.save_split_ignores(s.user_config_folder, s._split_ignores)
+            s._split_checked_session = False
+            self._check_splits_async()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.split.detected_title")),
+            content=ft.Container(content=ft.Text(msg), width=450),
+            actions=[
+                ft.TextButton(t.get("operations.split.detected_ignore_always"), on_click=on_ignore_always),
+                ft.TextButton(t.get("operations.split.detected_ignore_once"), on_click=on_ignore_once),
+                ft.FilledButton(t.get("operations.split.detected_record"), on_click=on_record),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def _record_detected_split(self, acc_idx, ticker, ev_date, ratio):
+        s = self.state
+        t = s.translator
+        acc = s.get_account(acc_idx)
+        if acc is None:
+            return
+        df = acc["df"]
+        broker = s.brokers.get(acc_idx)
+        ref_date = datetime.strptime(ev_date, "%Y-%m-%d").date()
+        date_str = ref_date.strftime(DATE_FORMAT)
+
+        def worker():
+            try:
+                new_df = operations_service.execute_split(
+                    t, df, broker, date_str, ref_date, ticker, ratio,
+                )
+                s.accounts[acc_idx]["df"] = new_df
+                account_service.save_account(new_df, acc["path"])
+                show_snack(self.page, t.get("operations.added_transaction"))
+                self._fetch_live_values()
+            except Exception as ex:
+                show_snack(self.page, str(ex), error=True)
 
         self.page.run_thread(worker)
 

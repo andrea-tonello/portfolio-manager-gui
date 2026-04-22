@@ -1,8 +1,9 @@
 import numpy as np
 
-from newrow import newrow_cash, newrow_etf_stock
+from newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.market_data import fetch_ticker_name as fetch_name
 from utils.constants import CURRENCY_CHOICES
+from utils.other_utils import ValidationError
 
 
 def execute_cash_operation(translator, df, broker, op_kind, date_str, ref_date,
@@ -42,3 +43,9 @@ def execute_etf_stock(translator, df, broker, date_str, ref_date,
                             currency_code, product_type, ticker, quantity,
                             price, conv_rate, ter, fee, buy,
                             asset_name_override=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
+
+
+def execute_split(translator, df, broker, date_str, ref_date, ticker, ratio):
+    if not isinstance(ratio, (int, float)) or ratio <= 0 or ratio > 1000 or ratio < 0.001:
+        raise ValidationError(translator.get("operations.split.ratio_error"))
+    return newrow_split(translator, df, date_str, ref_date, broker, ticker, float(ratio))

@@ -189,7 +189,7 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
     When they are provided, only rolling correlation is computed.
     """
     for account in data:
-        account[1] = account[1][account[1]["operation"].isin(["Buy", "Sell"])]
+        account[1] = account[1][account[1]["operation"].isin(["Buy", "Sell", "Split"])]
 
     _, active_tickers = get_tickers(translator, data)
     correlation_matrix = None
@@ -416,7 +416,7 @@ def compute_allocation(translator, data, ref_date):
         # Active positions with product type
         positions = get_asset_value(translator, df, ref_date=ref_date)
         df_copy = df.copy()
-        df_copy = df_copy[df_copy["operation"].isin(["Buy", "Sell"])]
+        df_copy = df_copy[df_copy["operation"].isin(["Buy", "Sell", "Split"])]
         product_by_ticker = df_copy.groupby("ticker")["product"].last().to_dict()
 
         for pos in positions:
