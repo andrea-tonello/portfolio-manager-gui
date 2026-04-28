@@ -1,8 +1,19 @@
-## [0.2.9] (2026-04-22)
+## [0.3.0] (2026-04-28)
 
-# Bug Fixes
+### Bug Fixes
 
-# Features
+### Features
+
+- **[LOGIC]** Switched critical logic from float64 to Decimal, to avoid accumulation of floating point error
+
+
+
+
+### [0.2.9] (2026-04-22)
+
+### Bug Fixes
+
+### Features
 
 - **[FEATURE] NEW** Stock split handling: new Stock Split option in the General tab (ex Cash tab) of OperationsView to record splits on currently held tickers, with continuous NAV across the split date.
 

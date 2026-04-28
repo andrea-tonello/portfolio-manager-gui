@@ -15,6 +15,38 @@ _DEFAULT_DISPLAY_COLS = [
 _ALL_COLS = COLUMNS
 _PAGE_SIZE = 20
 
+# Column-type formatting for the data table. Money columns format to 2dp;
+# per-share / PMC columns to 4dp; conv_rate to 6dp. Everything else falls
+# through to str(). Prevents IEEE-754 tails like "33.810000000000002" from
+# leaking into the user-visible cell.
+_MONEY_COLS_2DP = {
+    "nominal_amount", "effective_amount", "fee", "residual_amount",
+    "released_amount", "gross_gain", "generated_loss", "taxable_gain",
+    "tax", "pl", "cash_held", "assets_value", "nav", "committed_cash",
+    "carryforward",
+}
+_MONEY_COLS_4DP = {"abp", "price", "price_eur"}
+_MONEY_COLS_6DP = {"conv_rate"}
+
+
+def _format_cell(col, val):
+    if col in _MONEY_COLS_2DP:
+        try:
+            return f"{float(val):,.2f}"
+        except (TypeError, ValueError):
+            return str(val)
+    if col in _MONEY_COLS_4DP:
+        try:
+            return f"{float(val):,.4f}"
+        except (TypeError, ValueError):
+            return str(val)
+    if col in _MONEY_COLS_6DP:
+        try:
+            return f"{float(val):.6f}"
+        except (TypeError, ValueError):
+            return str(val)
+    return str(val)
+
 
 class TransactionsView:
     def __init__(self, page: ft.Page, state):
@@ -357,7 +389,7 @@ class TransactionsView:
                 if pd.isna(val) or val is None:
                     val = ""
                 else:
-                    val = str(val)
+                    val = _format_cell(col, val)
                     if col == "operation":
                         val = op_map.get(val, val)
                     elif col == "product":

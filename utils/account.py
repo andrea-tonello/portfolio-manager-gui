@@ -3,7 +3,9 @@ import numpy as np
 import warnings
 
 from services.market_data import download_close
-from utils.other_utils import round_half_up, round_down, ValidationError
+from decimal import Decimal
+
+from utils.other_utils import round_down, D, to_money, ValidationError
 from utils.date_utils import add_solar_years
 from services.market_data import fetch_exchange_rate
 from utils.constants import DATE_FORMAT, ETF_PRODUCTS
@@ -309,58 +311,61 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
 
 def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
 
-    price_abs = abs(price) * conv_rate
-    fee = round_half_up(fee)
-    pmpc = 0
-    current_qt = quantity
+    quantity_d = D(quantity)
+    price_d = D(price)
+    conv_rate_d = D(conv_rate)
+    fee_d = D(fee)
 
-    fee_in_cost = fee if fee_mode == "abp" else 0
+    price_abs_d = abs(price_d) * conv_rate_d
+    fee_in_cost_d = fee_d if fee_mode == "abp" else Decimal("0")
 
     if asset_rows.empty:
-        pmpc = (price_abs * quantity + fee_in_cost) / quantity
+        current_qt_d = quantity_d
+        pmpc_d = (price_abs_d * quantity_d + fee_in_cost_d) / quantity_d
     else:
-        last_pmpc = asset_rows["abp"].iloc[-1]
-        last_remaining_qt = asset_rows["qt_held"].iloc[-1]
+        last_pmpc_d = D(asset_rows["abp"].iloc[-1])
+        last_remaining_qt_d = D(asset_rows["qt_held"].iloc[-1])
 
-        old_cost = last_pmpc * last_remaining_qt
-        new_cost = price_abs * quantity + fee_in_cost
-        current_qt = last_remaining_qt + quantity
+        old_cost_d = last_pmpc_d * last_remaining_qt_d
+        new_cost_d = price_abs_d * quantity_d + fee_in_cost_d
+        current_qt_d = last_remaining_qt_d + quantity_d
 
-        pmpc = ((old_cost + new_cost) / current_qt)
+        pmpc_d = (old_cost_d + new_cost_d) / current_qt_d
 
-    importo_residuo = pmpc * current_qt
+    importo_residuo_d = pmpc_d * current_qt_d
 
     fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
-    fiscal_credit_aggiornato = fiscal_credit_iniziale
+    fiscal_credit_aggiornato_d = D(fiscal_credit_iniziale)
 
     minusvalenza_comm = np.nan
     end_date = np.nan
 
     if product in ETF_PRODUCTS and fee_mode == "buy_loss":
-        minusvalenza_comm = fee
+        minusvalenza_comm = to_money(fee_d)
         end_date = add_solar_years(ref_date)
-        fiscal_credit_aggiornato += minusvalenza_comm
+        fiscal_credit_aggiornato_d += fee_d
 
-    current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) * conv_rate) - fee
+    nominal_d = quantity_d * price_d * conv_rate_d
+    current_liq_d = D(df["cash_held"].iloc[-1]) + nominal_d - fee_d
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
-    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
+    asset_value_d = sum((D(pos["value"]) for pos in positions), Decimal("0")) + (current_qt_d * price_abs_d)
 
     return {
         "operation": "Buy",
-        "qt_held": current_qt,
-        "abp": pmpc,
-        "residual_amount": importo_residuo,
+        "qt_held": float(current_qt_d),
+        "abp": to_money(pmpc_d, "0.0001"),
+        "residual_amount": to_money(importo_residuo_d),
         "released_amount": np.nan,
         "gross_gain": np.nan,
         "generated_loss": minusvalenza_comm,
         "expiry": end_date,
-        "carryforward": fiscal_credit_aggiornato,
+        "carryforward": to_money(fiscal_credit_aggiornato_d),
         "taxable_gain": np.nan,
         "tax": np.nan,
         "pl": np.nan,
-        "cash_held": current_liq,
-        "assets_value": asset_value,
-        "nav": current_liq + asset_value
+        "cash_held": to_money(current_liq_d),
+        "assets_value": to_money(asset_value_d),
+        "nav": to_money(current_liq_d + asset_value_d)
     }
 
 
@@ -387,23 +392,25 @@ def compute_backpack(df, data_operazione, as_of_index=None):
                 expiry_dt = current_date
             else:
                 expiry_dt = pd.to_datetime(scad, format=DATE_FORMAT, errors='coerce')
-            active_minuses.append({'amount': float(r['generated_loss']), 'expiry': expiry_dt})
+            active_minuses.append({'amount': D(r['generated_loss']), 'expiry': expiry_dt})
 
         if pd.notna(r.get('gross_gain')) and r['gross_gain'] > 0:
-            to_consume = float(r['gross_gain'])
+            to_consume_d = D(r['gross_gain'])
             i = 0
-            while to_consume > 0 and i < len(active_minuses):
-                avail = active_minuses[i]['amount']
-                used = min(avail, to_consume)
-                active_minuses[i]['amount'] -= used
-                to_consume -= used
-                if active_minuses[i]['amount'] == 0:
+            while to_consume_d > 0 and i < len(active_minuses):
+                avail_d = active_minuses[i]['amount']
+                used_d = min(avail_d, to_consume_d)
+                active_minuses[i]['amount'] = avail_d - used_d
+                to_consume_d -= used_d
+                # Quantize before zero-test: avoids the float-equality trap
+                # where a sub-cent residual keeps the bucket "alive" forever.
+                if active_minuses[i]['amount'].quantize(Decimal("0.01")) <= 0:
                     i += 1
-            active_minuses = [m for m in active_minuses if m['amount'] > 0]
+            active_minuses = [m for m in active_minuses if m['amount'].quantize(Decimal("0.01")) > 0]
 
     active_minuses = [m for m in active_minuses if m['expiry'] >= data_operazione]
-    total = sum(m['amount'] for m in active_minuses)
-    return max(0.0, total)
+    total_d = sum((m['amount'] for m in active_minuses), Decimal("0"))
+    return float(max(Decimal("0"), total_d.quantize(Decimal("0.01"))))
 
 
 def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26, fee_mode="abp"):
@@ -411,72 +418,77 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
     if asset_rows.empty:
         raise ValidationError(translator.get("operations.stock.sell_noitems"))
 
-    fee = round_half_up(fee)
-    last_pmpc = asset_rows["abp"].iloc[-1]
-    last_remaining_qt = asset_rows["qt_held"].iloc[-1]
+    quantity_d = D(quantity)
+    price_d = D(price)
+    conv_rate_d = D(conv_rate)
+    fee_d = D(fee)
+    tax_rate_d = D(tax_rate)
 
-    if quantity > last_remaining_qt:
-        raise ValidationError(translator.get("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
+    last_pmpc_d = D(asset_rows["abp"].iloc[-1])
+    last_remaining_qt_d = D(asset_rows["qt_held"].iloc[-1])
 
-    importo_effettivo = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
-    costo_rilasciato = quantity * last_pmpc
+    if quantity_d > last_remaining_qt_d:
+        raise ValidationError(translator.get("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=float(last_remaining_qt_d)))
 
-    plusvalenza_lorda = importo_effettivo - costo_rilasciato
+    importo_effettivo_d = quantity_d * price_d * conv_rate_d - fee_d
+    costo_rilasciato_d = quantity_d * last_pmpc_d
 
-    fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
-    fiscal_credit_aggiornato = fiscal_credit_iniziale
-    plusvalenza_imponibile = 0
-    minusvalenza_generata = 0
-    minusvalenza_comm = np.nan
-    imposta = 0
+    plusvalenza_lorda_d = importo_effettivo_d - costo_rilasciato_d
+
+    fiscal_credit_iniziale_d = D(compute_backpack(df, ref_date, as_of_index=len(df)))
+    fiscal_credit_aggiornato_d = fiscal_credit_iniziale_d
+    plusvalenza_imponibile_d = Decimal("0")
+    minusvalenza_generata_d = Decimal("0")
+    imposta_d = Decimal("0")
     end_date = np.nan
 
-    if plusvalenza_lorda > 0:
-        plusvalenza_da_compensare = plusvalenza_lorda
-        if fiscal_credit_iniziale > 0 and product not in ETF_PRODUCTS:
-            credito_utilizzato = min(plusvalenza_da_compensare, fiscal_credit_iniziale)
-            plusvalenza_da_compensare -= credito_utilizzato
-            fiscal_credit_aggiornato -= credito_utilizzato
+    if plusvalenza_lorda_d > 0:
+        plusvalenza_da_compensare_d = plusvalenza_lorda_d
+        if fiscal_credit_iniziale_d > 0 and product not in ETF_PRODUCTS:
+            credito_utilizzato_d = min(plusvalenza_da_compensare_d, fiscal_credit_iniziale_d)
+            plusvalenza_da_compensare_d -= credito_utilizzato_d
+            fiscal_credit_aggiornato_d -= credito_utilizzato_d
 
-        plusvalenza_imponibile = plusvalenza_da_compensare
-        imposta = plusvalenza_imponibile * tax_rate
+        plusvalenza_imponibile_d = plusvalenza_da_compensare_d
+        imposta_d = plusvalenza_imponibile_d * tax_rate_d
     else:
-        plusvalenza_lorda = round_down(plusvalenza_lorda)
+        # Preserve the original round_down behaviour for losses
+        plusvalenza_lorda_d = D(round_down(float(plusvalenza_lorda_d)))
 
-        minusvalenza_generata = abs(plusvalenza_lorda)
-        fiscal_credit_aggiornato += minusvalenza_generata
+        minusvalenza_generata_d = abs(plusvalenza_lorda_d)
+        fiscal_credit_aggiornato_d += minusvalenza_generata_d
         end_date = add_solar_years(ref_date)
 
-    plusvalenza_netta = plusvalenza_lorda - imposta
+    plusvalenza_netta_d = plusvalenza_lorda_d - imposta_d
 
-    current_qt = last_remaining_qt - quantity
-    importo_residuo = last_pmpc * current_qt
-    pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
+    current_qt_d = last_remaining_qt_d - quantity_d
+    importo_residuo_d = last_pmpc_d * current_qt_d
+    pmpc_residuo_d = last_pmpc_d if current_qt_d > 0 else Decimal("0")
 
     if product in ETF_PRODUCTS and fee_mode == "sell_loss":
-        minusvalenza_comm = fee if plusvalenza_lorda > 0 else 0
-        fiscal_credit_aggiornato += minusvalenza_comm
+        minusvalenza_comm_d = fee_d if plusvalenza_lorda_d > 0 else Decimal("0")
+        fiscal_credit_aggiornato_d += minusvalenza_comm_d
         end_date = add_solar_years(ref_date)
-        minusvalenza_generata += minusvalenza_comm
+        minusvalenza_generata_d += minusvalenza_comm_d
 
-    current_liq = float(df["cash_held"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
+    current_liq_d = D(df["cash_held"].iloc[-1]) + importo_effettivo_d - imposta_d
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
-    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
+    asset_value_d = sum((D(pos["value"]) for pos in positions), Decimal("0")) + (current_qt_d * price_d * conv_rate_d)
 
     return {
         "operation": "Sell",
-        "qt_held": current_qt,
-        "abp": pmpc_residuo,
-        "residual_amount": importo_residuo,
-        "released_amount": costo_rilasciato,
-        "gross_gain": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
-        "generated_loss": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
+        "qt_held": float(current_qt_d),
+        "abp": to_money(pmpc_residuo_d, "0.0001"),
+        "residual_amount": to_money(importo_residuo_d),
+        "released_amount": to_money(costo_rilasciato_d),
+        "gross_gain": to_money(plusvalenza_lorda_d) if plusvalenza_lorda_d > 0 else np.nan,
+        "generated_loss": np.nan if minusvalenza_generata_d == 0 else to_money(minusvalenza_generata_d),
         "expiry": end_date,
-        "carryforward": fiscal_credit_aggiornato,
-        "taxable_gain": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
-        "tax": imposta,
-        "pl": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
-        "cash_held": current_liq,
-        "assets_value": asset_value,
-        "nav": current_liq + asset_value
+        "carryforward": to_money(fiscal_credit_aggiornato_d),
+        "taxable_gain": to_money(plusvalenza_imponibile_d) if plusvalenza_lorda_d > 0 else np.nan,
+        "tax": to_money(imposta_d),
+        "pl": to_money(plusvalenza_netta_d) if plusvalenza_lorda_d > 0 else to_money(plusvalenza_lorda_d),
+        "cash_held": to_money(current_liq_d),
+        "assets_value": to_money(asset_value_d),
+        "nav": to_money(current_liq_d + asset_value_d)
     }

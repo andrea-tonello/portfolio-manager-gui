@@ -1,5 +1,4 @@
 - Bonds
 - Bonds ETFs
-- Decimal
 - iOS UI
     - NavigationBar
