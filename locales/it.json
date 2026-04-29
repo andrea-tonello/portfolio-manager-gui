@@ -117,10 +117,12 @@
     },
     "split": {
       "title": "Frazionamento Quote",
+      "descr": "Se il prezzo di uno strumento è troppo basso o troppo alto, l'emittente può decidere di applicare un frazionamento.\nFrazionamento N-per-1: 1 quota viene divisa in N quote.\nFrazionamento inverso, 1-per-N: N quote vengono raggruppate in 1.\nIn entrambi i casi, il frazionamento non altera il valore del tuo investimento.\n\nL'applicazione rileva in automatico i frazionamenti durante il refresh della Home page. Se ciò non dovesse avvenire correttamente, questa opzione ti permette di registrarne uno manualmente.",
       "ticker": "Ticker",
       "ticker_notheld": "Non possiedi attualmente {ticker}",
       "ratio": "Rapporto",
-      "ratio_explained": "Esempi:\n\nFrazionamento 4:1\n    \u2981 4 (1 quota diventa 4)\n\nFrazionamento 1:10    \u2981 0.1 (10 quote diventano 1)",
+      "ratio_example": "Rapporto (esempi)",
+      "ratio_descr": "Frazionamento 4-per-1 (1 quota diventa 4): rapporto = 4\n\nFrazionamento 1-per-10 (10 quote diventano 1): rapporto = 0.1",
       "ratio_error": "Il rapporto deve essere un numero positivo",
       "no_holdings": "Nessuna posizione aperta. I frazionamenti possono essere registrati solo per titoli attualmente detenuti.",
       "detected_title": "Frazionamento azionario rilevato",
@@ -318,7 +320,7 @@
       "exch_rate_title": "Tasso di Conv.",
       "exch_rate_descr": "Tasso di conversione EUR-USD dell'operazione\n",
       "qt_exch_title": "QT. Scambio",
-      "qt_exch_descr": "Quantità dello strumento scambiata nell'operazione corrente. Positiva se Acquisto, negativa se Vendita\n",
+      "qt_exch_descr": "Quantità dello strumento scambiata durante l'operazione corrente. Positiva se Acquisto, negativa se Vendita\n",
       "price_title": "Prezzo",
       "price_descr": "Prezzo unitario in valuta originale. Negativo se Acquisto, positivo se Vendita\n",
       "eur_price_title": "Prezzo EUR",
@@ -330,7 +332,7 @@
       "qt_held_title": "QT. Attuale",
       "qt_held_descr": "Quantità attuale dello strumento dopo l'operazione corrente\n",
       "avg_price_title": "PMC",
-      "avg_price_descr": "Prezzo Medio di Carico dello strumento. I prezzi tengono conto delle commissioni. Calcolato come\n( somma[i=1->n] QT[i] * Prezzo[i] )  /  ( somma[i=1->n] QT[i] )\n",
+      "avg_price_descr": "Prezzo Medio di Carico dello strumento. Generalmente i prezzi includono le commissioni, ma ciò può variare in base allo strumento e broker. Calcolato come\n( somma[i=1->n] QT[i] * Prezzo[i] )  /  ( somma[i=1->n] QT[i] )\n",
       "avg_value_title": "Imp. Residuo",
       "avg_value_descr": "Importo Residuo dello strumento. Calcolato come\nPMC * QT. Attuale\n",
       "eff_value_title": "Imp. Effettivo Operaz.",
@@ -348,10 +350,11 @@
       "cap_gain_tax_title": "Plusv. Imponibile",
       "cap_gain_tax_descr": "Plusvalenza sul quale si andrà effettivamente a pagare l'imposta. Si riduce in caso di minusvalenze da compensare.\nSupponendo plus=20€, zainetto=5€, si andrà a pagare l'imposta solo su 20-5 = 15€, invece che su 20€\n",
       "tax_bracket_title": "Aliquota Fiscale",
+      "tax_bracket_descr": "Aliquota fiscale dello strumento (e.g., 26% per le Azioni)\n",
       "tax_amount_title": "Imposta",
       "tax_amount_descr": "Imposta pagata, calcolata sulla plusvalenza imponibile\n",
       "pl_title": "P&L",
-      "pl_descr": "Profit & Loss della vendita. Calcolata come\nPlusv. Lorda - Imposta\n",
+      "pl_descr": "Profit & Loss della vendita. Calcolata come Plusv. Lorda - Imposta\n",
       "cash_held_title": "Liquidit\u00e0 Attuale",
       "cash_held_descr": "Liquidità disponibile nel conto dopo l'operazione\n",
       "assets_value_title": "Valore Titoli",
@@ -362,6 +365,15 @@
       "historic_cash_descr": "Liquidità totale immessa nel conto. Tiene conto esclusivamente di depositi e prelievi\n"
     },
     "page_2": {
+      "title": "Allocazione Asset",
+      "class_title": "Per Classe",
+      "class_descr": "Allocazione degli asset in base alla loro classe di appartenenza (Azioni, Liquidità, ETF...)",
+      "region_title": "Per Area Geografica",
+      "region_descr": "Coming soon",
+      "sector_title": "Per Settore",
+      "sector_descr": "Coming soon"
+    },
+    "page_3": {
       "title": "Informazioni sugli strumenti statistici",
       "xirr_title": "XIRR (Extended Internal Rate of Return)",
       "xirr_descr": "L'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante utilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.\nUtile a misurare il proprio rendimento personale, tenendo conto delle scelte di investimento e disinvestimento.\n",
@@ -372,19 +384,19 @@
       "sharpe_ratio_title": "Sharpe Ratio",
       "sharpe_ratio_descr": "Misura la performance di un investimento confrontato con un asset \"risk-free\" (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).\nSi calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata excess returns, diviso la deviazione standard degli excess returns."
     },
-    "page_3": {
+    "page_4": {
       "title": "Analisi della Correlazione",
       "corr_simple_title": "Correlazione Semplice",
       "corr_simple_descr": "Misura, tramite un coefficiente compreso tra -1 ed 1, quanto due asset siano correlati tra loro in un dato momento.\n+1: i due asset sono positivamente correlati: all'aumentare di uno, aumenta l'altro.\n0: i due asset sono perfettamente decorrelati, non si influenzano a vicenda.\n-1: i due asset sono negativamente correlati: all'aumento di uno, diminuisce l'altro.\n",
       "corr_roll_title": "Correlazione Scorrevole (Rolling)",
       "corr_roll_descr": "È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni).\nInoltre, viene applicata una media mobile con intervallo specificato (in giorni); si consiglia 100-150 giorni per storici superiori a 2 anni, 20-60 altrimenti.\nOffre una misura di cambiamento della correlazione tra due asset nel tempo."  
     },
-    "page_4": {
+    "page_5": {
       "title": "Analisi del Drawdown",
       "drawdown_title": "Drawdown",
       "drawdown_descr": "Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\nIl Maximum Drawdown, in particolare, riporta la differenza maggiore."
     },
-    "page_5": {
+    "page_6": {
       "title": "Value at Risk",
       "var_title": "Value at Risk del Portafoglio (VaR)",
       "var_descr": "Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza. Più l'orizzonte è lungo, meno attendibili saranno i risultati.\nL'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni."

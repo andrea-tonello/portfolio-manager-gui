@@ -1,15 +1,6 @@
 - Bonds
 - Bonds ETFs
+- Markdown for TransactionView
+- Markdown for AnalysisView
 - iOS UI
     - NavigationBar
-
-- Add ?-button to Shares Split radio
-- Fix Ratio ?-button dialog
-- AnalysisView info button is now broken due to Allocation tab
-- TransactionView info
-  - Check italian version
-  - Check markdown conversion
-- AnalysisView info
-  - Check english version
-  - Check italian version
-  - Check markdown conversion

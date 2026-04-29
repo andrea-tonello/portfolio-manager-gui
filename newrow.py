@@ -1,11 +1,9 @@
-from decimal import Decimal
-
 import pandas as pd
 import numpy as np
 
 import utils.account as aop
 from utils.columns import COLUMNS
-from utils.other_utils import round_half_up, D, to_money, ValidationError
+from utils.other_utils import round_half_up, ValidationError
 
 
 def _base_row():
@@ -19,19 +17,15 @@ def _append_row(df, row):
 
 def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, ticker, name):
 
-    cash_d = D(cash)
-    prev_cash_held_d = D(df["cash_held"].iloc[-1])
-    prev_committed_d = D(df["committed_cash"].iloc[-1])
-    prev_carryforward_d = D(df["carryforward"].iloc[-1])
+    current_liq = float(df["cash_held"].iloc[-1]) + cash
 
-    current_liq_d = prev_cash_held_d + cash_d
     if op_type in ["Deposit", "Withdrawal"]:
-        historic_liq_d = prev_committed_d + cash_d
+        historic_liq = float(df["committed_cash"].iloc[-1]) + cash
     else:
-        historic_liq_d = prev_committed_d
+        historic_liq = float(df["committed_cash"].iloc[-1])
 
     positions = aop.get_asset_value(translator, df, ref_date=ref_date)
-    asset_value_d = sum((D(pos["value"]) for pos in positions), Decimal("0"))
+    asset_value = sum(pos["value"] for pos in positions)
 
     row = _base_row()
     row.update({
@@ -42,14 +36,14 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
         "ticker": ticker,
         "asset_name": name,
         "curr": "EUR",
-        "nominal_amount": to_money(cash_d),
-        "effective_amount": to_money(cash_d),
-        "carryforward": to_money(prev_carryforward_d),
-        "pl": to_money(cash_d) if op_type in ["Dividend", "Tax"] else np.nan,
-        "cash_held": to_money(current_liq_d),
-        "assets_value": to_money(asset_value_d),
-        "nav": to_money(asset_value_d + current_liq_d),
-        "committed_cash": to_money(historic_liq_d),
+        "nominal_amount": cash,
+        "effective_amount": cash,
+        "carryforward": float(df["carryforward"].iloc[-1]),
+        "pl": cash if op_type in ["Dividend", "Tax"] else np.nan,
+        "cash_held": round_half_up(current_liq),
+        "assets_value": round_half_up(asset_value),
+        "nav": round_half_up(asset_value + current_liq),
+        "committed_cash": round_half_up(historic_liq),
     })
 
     return _append_row(df, row)
@@ -71,13 +65,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     else:
         results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
 
-    quantity_d = D(quantity)
-    price_d = D(price)
-    conv_rate_d = D(conv_rate)
-    fee_d = D(fee)
-    price_eur_d = price_d * conv_rate_d
-    nominal_d = quantity_d * price_d * conv_rate_d
-    effective_d = nominal_d - fee_d
+    price_eur = price * conv_rate
 
     row = _base_row()
     row.update({
@@ -91,27 +79,27 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
         "curr": currency,
         "conv_rate": f"{conv_rate:.6f}",
         "qt_exch": f"+{quantity}" if buy else f"-{quantity}",
-        "price": to_money(price_d, "0.0001"),
-        "price_eur": to_money(price_eur_d, "0.0001"),
-        "nominal_amount": to_money(nominal_d),
-        "fee": to_money(fee_d),
+        "price": round_half_up(price, decimal="0.0001"),
+        "price_eur": round_half_up(price_eur, decimal="0.0001"),
+        "nominal_amount": round_half_up(round_half_up(quantity * price) * conv_rate),
+        "fee": round_half_up(fee),
         "qt_held": results["qt_held"],
-        "abp": to_money(results["abp"], "0.0001"),
-        "residual_amount": to_money(results["residual_amount"]),
-        "effective_amount": to_money(effective_d),
-        "released_amount": to_money(results["released_amount"]),
-        "gross_gain": to_money(results["gross_gain"]),
-        "generated_loss": to_money(results["generated_loss"]),
+        "abp": round_half_up(results["abp"], decimal="0.0001"),
+        "residual_amount": round_half_up(results["residual_amount"]),
+        "effective_amount": round_half_up( round_half_up(round_half_up(quantity * price) * conv_rate) - round_half_up(fee) ),
+        "released_amount": round_half_up(results["released_amount"]),
+        "gross_gain": round_half_up(results["gross_gain"]),
+        "generated_loss": round_half_up(results["generated_loss"]),
         "expiry": results["expiry"],
-        "carryforward": to_money(results["carryforward"]),
-        "taxable_gain": to_money(results["taxable_gain"]),
+        "carryforward": round_half_up(results["carryforward"]),
+        "taxable_gain": round_half_up(results["taxable_gain"]),
         "tax_bracket": tax_rate * 100,
-        "tax": to_money(results["tax"]),
-        "pl": to_money(results["pl"]),
-        "cash_held": to_money(results["cash_held"]),
-        "assets_value": to_money(results["assets_value"]),
-        "nav": to_money(results["nav"]),
-        "committed_cash": to_money(df["committed_cash"].iloc[-1]),
+        "tax": round_half_up(results["tax"]),
+        "pl": round_half_up(results["pl"]),
+        "cash_held": round_half_up(results["cash_held"]),
+        "assets_value": round_half_up(results["assets_value"]),
+        "nav": round_half_up(results["nav"]),
+        "committed_cash": round_half_up(float(df["committed_cash"].iloc[-1])),
     })
 
     return _append_row(df, row)
@@ -130,16 +118,15 @@ def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
         raise ValidationError(translator.get("operations.split.ticker_notheld", ticker=ticker))
 
     last_row = asset_rows.iloc[-1]
-    prev_qt_d = D(last_row["qt_held"])
-    prev_abp_d = D(last_row["abp"])
-    ratio_d = D(ratio)
+    prev_qt = float(last_row["qt_held"])
+    prev_abp = float(last_row["abp"])
 
-    if prev_qt_d <= 0:
+    if prev_qt <= 0:
         raise ValidationError(translator.get("operations.split.ticker_notheld", ticker=ticker))
 
-    new_qt_d = prev_qt_d * ratio_d
-    new_abp_d = prev_abp_d / ratio_d
-    residual_d = new_qt_d * new_abp_d
+    new_qt = prev_qt * ratio
+    new_abp = prev_abp / ratio
+    residual = new_qt * new_abp
 
     # Keep the prior row's product category + asset_name + currency so downstream
     # code (categorization, display, exchange-rate lookup) treats the ticker
@@ -148,9 +135,9 @@ def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
     asset_name = last_row.get("asset_name")
     curr = last_row.get("curr", "EUR")
 
-    current_liq_d = D(df["cash_held"].iloc[-1])
+    current_liq = float(df["cash_held"].iloc[-1])
     positions = aop.get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
-    asset_value_d = sum((D(pos["value"]) for pos in positions), Decimal("0")) + residual_d
+    asset_value = sum(pos["value"] for pos in positions) + (new_qt * new_abp)
 
     row = _base_row()
     row.update({
@@ -162,14 +149,14 @@ def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
         "asset_name": asset_name,
         "curr": curr,
         "qt_exch": f"{ratio:g}",
-        "qt_held": float(new_qt_d),
-        "abp": to_money(new_abp_d, "0.0001"),
-        "residual_amount": to_money(residual_d),
-        "carryforward": to_money(df["carryforward"].iloc[-1]),
-        "cash_held": to_money(current_liq_d),
-        "assets_value": to_money(asset_value_d),
-        "nav": to_money(asset_value_d + current_liq_d),
-        "committed_cash": to_money(df["committed_cash"].iloc[-1]),
+        "qt_held": new_qt,
+        "abp": round_half_up(new_abp, decimal="0.0001"),
+        "residual_amount": round_half_up(residual),
+        "carryforward": round_half_up(float(df["carryforward"].iloc[-1])),
+        "cash_held": round_half_up(current_liq),
+        "assets_value": round_half_up(asset_value),
+        "nav": round_half_up(asset_value + current_liq),
+        "committed_cash": round_half_up(float(df["committed_cash"].iloc[-1])),
     })
 
     return _append_row(df, row)

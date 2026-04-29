@@ -1,11 +1,12 @@
-## [0.3.0] (2026-04-28)
+## [0.3.0] (2026-04-29)
 
 ### Bug Fixes
 
+- **[UI]** Fixed mismatch with Info button pages shown in AnalysisView
+
 ### Features
 
-- **[LOGIC]** Switched critical logic from float64 to Decimal, to avoid accumulation of floating point error
-
+- **[UI]** Added a ?-button in OperationsView -> General that explains shares split
 
 
 

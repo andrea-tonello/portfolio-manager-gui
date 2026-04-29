@@ -117,10 +117,12 @@
     },
     "split": {
       "title": "Shares Split",
+      "descr": "If an asset's price is too low or too high, the issuer may decide to apply a split.\nN-to-1 split: 1 share is divided into N shares.\n1-to-N reverse split: N shares are grouped into 1.\nIn both cases, splits do not alter the value of your investment.\n\nThe application auto detects splits during a Home page refresh. If auto detection fails, this option lets you manually record a split.",
       "ticker": "Ticker",
       "ticker_notheld": "You do not currently hold {ticker}",
       "ratio": "Ratio",
-      "ratio_explained": "Examples:\n\n4:1 split\n    \u2981 4 (1 share becomes 4)\n\n1:10 split\n    \u2981 0.1 (10 shares become 1)",
+      "ratio_example": "Ratio (examples)",
+      "ratio_descr": "4:1 split (1 share becomes 4): ratio = 4\n\n1:10 split (10 shares become 1): ratio = 0.1",
       "ratio_error": "The ratio must be a positive number",
       "no_holdings": "No open positions. Splits can only be recorded for tickers you currently hold.",
       "detected_title": "Stock split detected",
@@ -298,7 +300,7 @@
 
   "glossary": {
     "page_1": {
-      "title": "Description of Report entries",
+      "title": "Description of the report entries",
       "date_title": "Date",
       "date_descr": "Date when the operation was executed on\n",
       "account_title": "Account",
@@ -308,9 +310,9 @@
       "product_title": "Product",
       "product_descr": "Type of product (Stock, ETF, Cash...)\n",
       "ticker_title": "Ticker",
-      "ticker_descr": "The asset's ticker. Follows Yahoo Finance standard\n",
+      "ticker_descr": "The security's ticker. Follows Yahoo Finance standard\n",
       "asset_name_title": "Asset name",
-      "asset_name_descr": "Full name of the asset\n",
+      "asset_name_descr": "Full name of the security\n",
       "ter_title": "TER",
       "ter_descr": "For eligible products, annualized Total Expense Ratio\n",
       "currency_title": "Currency",
@@ -318,7 +320,7 @@
       "exch_rate_title": "Exch. Rate",
       "exch_rate_descr": "EUR-USD conversion rate of the operation\n",
       "qt_exch_title": "Exch. Qty",
-      "qt_exch_descr": "Quantity of the asset exchanged during the current operation. Positive if Buy, negative if Sell\n",
+      "qt_exch_descr": "Quantity of the security exchanged in the current operation. Positive if Buy, negative if Sell\n",
       "price_title": "Price",
       "price_descr": "Unit price in original currency. Negative if Buy, positive if Sell\n",
       "eur_price_title": "Price EUR",
@@ -328,9 +330,9 @@
       "fees_title": "Fees",
       "fees_descr": "Commissions applied by the broker for the operation\n",
       "qt_held_title": "Curr. Qty",
-      "qt_held_descr": "Current quantity of the asset after the current operation\n",
+      "qt_held_descr": "Current quantity of the security after the current operation\n",
       "avg_price_title": "ABP",
-      "avg_price_descr": "Average Buy Price of the asset. Prices may or may not include commissions, depending on the product and broker. Calculated as\n( sum[i=1->n] Qty[i] * Price[i] )  /  ( sum[i=1->n] Qty[i] )\n",
+      "avg_price_descr": "Average Buy Price of the security. Prices may or may not include commissions, depending on the asset class and broker. Calculated as\n( sum[i=1->n] Qty[i] * Price[i] )  /  ( sum[i=1->n] Qty[i] )\n",
       "avg_value_title": "Residual Cost",
       "avg_value_descr": "Residual amount of the asset.\nCalculated as ABP * Curr. Qty\n",
       "eff_value_title": "Eff. Value",
@@ -348,7 +350,7 @@
       "cap_gain_tax_title": "Taxable Cap Gain",
       "cap_gain_tax_descr": "Capital gain on which tax will actually be paid. Reduced by the Tax Carryforward in case of offsettable capital losses.\nAssuming gain=20€, carryforward=5€, tax is paid only on 20-5 = 15€, instead of 20€\n",
       "tax_bracket_title": "Tax Bracket",
-      "tax_bracket_descr": "Tax bracket of the product (e.g., 26% for Stocks)",
+      "tax_bracket_descr": "Tax bracket of the asset (e.g., 26% for Stocks)\n",
       "tax_amount_title": "Tax",
       "tax_amount_descr": "Tax actually paid, calculated on the taxable capital gain\n",
       "pl_title": "P&L",
@@ -363,6 +365,15 @@
       "historic_cash_descr": "Total liquidity injected into the account. Considers only deposits and withdrawals\n"
     },
     "page_2": {
+      "title": "Asset Allocation",
+      "class_title": "By Class",
+      "class_descr": "Allocation describing the classes of your assets (Stocks, Cash, ETFs...)",
+      "region_title": "By Region",
+      "region_descr": "Coming soon",
+      "sector_title": "By Sector",
+      "sector_descr": "Coming soon"
+    },
+    "page_3": {
       "title": "Portfolio Statistics",
       "xirr_title": "XIRR (Extended Internal Rate of Return)",
       "xirr_descr": "A type of Return. The IRR is a numerical method to calculate the Internal Rate of Return of a series of cash flows (inflows and outflows); XIRR is a variant used when flows occur at irregular time intervals. It is calculated as the rate that zeros the Net Present Value (NPV) of all flows.\nUseful for measuring personal performance, taking into account investment and divestment choices.\n",
@@ -373,19 +384,19 @@
       "sharpe_ratio_title": "Sharpe Ratio",
       "sharpe_ratio_descr": "Measures the performance of an investment compared to a \"risk-free\" asset (e.g., AAA short-term government bonds' interest rate).\nIt is calculated as the difference between investment returns and risk-free returns, called excess returns, divided by the standard deviation of excess returns."
     },
-    "page_3": {
+    "page_4": {
       "title": "Correlation Analysis",
       "corr_simple_title": "Simple Correlation",
       "corr_simple_descr": "Measures, via a coefficient between -1 and 1, how correlated two assets are at a given moment.\n+1: the two assets are positively correlated: as one increases, the other increases too.\n0: the two assets are perfectly uncorrelated, they do not affect each other.\n-1: the two assets are negatively correlated: as one increases, the other decreases.\n",
       "corr_roll_title": "Rolling Correlation",
       "corr_roll_descr": "Calculated similarly to the previous one, but over a pre-established time interval (e.g., 5 years); furthermore, a rolling average with a specified interval (in days) is applied.\nThis interval is recommended to be 100-150 for a history greater than 2 years, 20-60 otherwise.\nOffers a measure of how the correlation between two assets changes over time."
     },
-    "page_4": {
+    "page_5": {
       "title": "Drawdown Analysis",
       "drawdown_title": "Drawdown",
       "drawdown_descr": "Measures the percentage decline in the value of the portfolio (or an asset) from its historic peak to the subsequent minimum.\nMaximum Drawdown, specifically, reports the largest difference."
     },
-    "page_5": {
+    "page_6": {
       "title": "Value at Risk",
       "var_title": "Portfolio Value at Risk (VaR)",
       "var_descr": "Maximum expected loss over a specified time horizon in days, given a confidence interval. The higher the number of projected days, the less reliable the results.\nThe implementation used here is based on the Monte Carlo method, using historical data for return estimates."

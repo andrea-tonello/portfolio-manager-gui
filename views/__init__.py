@@ -101,9 +101,9 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     page_title = t.get(_NAV_LABELS[selected_index])
     
     if selected_index == 0:
-        appbar_title = ft.Text(" " + state.active_user_name or " " + t.get("settings.user"))
+        appbar_title = ft.Text(state.active_user_name or t.get("settings.user"))
     else:
-        appbar_title = ft.Text(" " + page_title)
+        appbar_title = ft.Text(page_title)
 
     page.appbar = ft.AppBar(
         title=appbar_title,
@@ -254,7 +254,7 @@ def _show_glossary(page, state, page_num):
         title=ft.Text(page_data.get("title", "")),
         content=ft.Container(
             content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
-        height=320 if page_num in [1, 2, 3] else 150, 
+        height=320 if page_num in [1, 3, 4] else 150, 
         width=550),
         actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
     )

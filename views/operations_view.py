@@ -127,6 +127,11 @@ class OperationsView:
         holdings = self._get_held_tickers(df) if df is not None else []
         header_color = ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE)
 
+        split_help = ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=self._show_split_help,
+        )
+
         self.cash_type = ft.RadioGroup(
             value="deposit",
             disabled=no_account,
@@ -142,7 +147,11 @@ class OperationsView:
                         size=16, weight=ft.FontWeight.BOLD, color=header_color),
                 ft.Container(height=8),
                 ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
-                ft.Radio(value="split", label=t.get("operations.split.title"), disabled=no_account),
+                ft.Row([
+                    ft.Radio(value="split", label=t.get("operations.split.title"), disabled=no_account),
+                    ft.Container(expand=True),
+                    split_help,
+                ], spacing=0),
                 ft.Divider(),
             ], spacing=0, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
@@ -645,6 +654,7 @@ class OperationsView:
             return ft.Container(content=stock_etf_form, padding=20, expand=True)
 
         # ── ETF sub-type selector ───────────────────────────────
+
         bond_text = ft.Text("\n\nBonds ETFs Rolling Maturity\n\nComing soon", size=16,
                             text_align=ft.TextAlign.CENTER)
         bond_placeholder = ft.Container(
@@ -958,12 +968,24 @@ class OperationsView:
         return [(row["ticker"], row.get("asset_name") or row["ticker"])
                 for _, row in held.iterrows()]
 
+    def _show_split_help(self, e):
+        t = self.state.translator
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("operations.split.title")),
+            content=ft.Container(
+                content=ft.Text(t.get("operations.split.descr")),
+                width=450,
+            ),
+            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
+        )
+        self.page.show_dialog(dlg)
+
     def _show_split_ratio_help(self, e):
         t = self.state.translator
         dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.split.ratio")),
+            title=ft.Text(t.get("operations.split.ratio_example")),
             content=ft.Container(
-                content=ft.Text(t.get("operations.split.ratio_explained")),
+                content=ft.Text(t.get("operations.split.ratio_descr")),
                 width=450,
             ),
             actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
