@@ -1,3 +1,16 @@
+## [0.3.1] (XXXX-XX-XX)
+
+### Bug Fixes
+
+- **[UX]** Fixed a bug that prevented the NavigationDrawer and AlertDialog popups to work correctly after an application hot-restart status (e.g. after importing data)
+
+### Features
+
+
+
+
+
+
 ## [0.3.0] (2026-04-29)
 
 ### Bug Fixes

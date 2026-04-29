@@ -27,6 +27,13 @@ def _apply_theme(page: ft.Page, state):
 
 
 def _do_restart(page: ft.Page):
+    # Pop any pushed views (e.g. Settings) so the rebuild lands on the root
+    # view. Otherwise page.appbar / page.controls go to the top (pushed) view
+    # while page.end_drawer goes to the root, leaving the drawer disconnected
+    # from the visible appbar — menu icon and dialogs silently no-op.
+    while len(page.views) > 1:
+        page.views.pop()
+    page.on_view_pop = None
     page.appbar = None
     page.navigation_bar = None
     # Close any open dialogs
