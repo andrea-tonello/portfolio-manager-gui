@@ -1,0 +1,9 @@
+date,account,operation,product,ticker,asset_name,ter,curr,conv_rate,qt_exch,price,price_eur,nominal_amount,fee,qt_held,abp,residual_amount,effective_amount,released_amount,gross_gain,generated_loss,expiry,carryforward,taxable_gain,tax_bracket,tax,pl,cash_held,assets_value,nav,committed_cash
+01-01-2000,Test Broker,,,,,,,,,,,,,,,,,,,,,0.0,,,,,0.0,0.0,0.0,0.0
+02-01-2024,Test Broker,Deposit,Cash,,,,EUR,,,,,20000.0,,,,,20000.0,,,,,0.0,,,,,20000.0,0.0,20000.0,20000.0
+03-01-2024,Test Broker,Buy,ETF-S,EEE.MI,Equity World ETF,0.2%,EUR,1.000000,+10,-80.0,-80.0,-800.0,5.0,10.0,80.0,800.0,-805.0,,,5.0,31-12-2028,5.0,,26.0,,,19195.0,800.0,19995.0,20000.0
+04-01-2024,Test Broker,Buy,Stock,UUU,Uniform Corp,,USD,0.900000,+5,-200.0,-180.0,-900.0,1.0,5.0,180.2,901.0,-901.0,,,,,5.0,,26.0,,,18294.0,1702.4,19996.4,20000.0
+01-03-2024,Test Broker,Sell,ETF-S,EEE.MI,Equity World ETF,0.2%,EUR,1.000000,-10,90.0,90.0,900.0,5.0,0.0,0.0,0.0,895.0,800.0,95.0,5.0,31-12-2028,10.0,95.0,26.0,24.7,70.3,19164.3,964.6,20128.9,20000.0
+04-03-2024,Test Broker,Buy,ETF-M,MMM.MI,Money Market ETF,0.1%,EUR,1.000000,+100,-10.0,-10.0,-1000.0,0.0,100.0,10.0,1000.0,-1000.0,,,,,0.0,,26.0,,,18164.3,1967.33,20131.63,20000.0
+03-06-2024,Test Broker,Sell,ETF-M,MMM.MI,Money Market ETF,0.1%,EUR,1.000000,-100,10.5,10.5,1050.0,0.0,0.0,0.0,0.0,1050.0,1000.0,50.0,,,0.0,50.0,12.5,6.25,43.75,19208.05,1050.14,20258.19,20000.0
+01-07-2024,Test Broker,Sell,Stock,UUU,Uniform Corp,,USD,0.920000,-5,220.0,202.4,1012.0,1.0,0.0,0.0,0.0,1011.0,901.0,110.0,,,0.0,110.0,26.0,28.6,81.4,20190.45,0.0,20190.45,20000.0

@@ -1,0 +1,14 @@
+date,account,operation,product,ticker,asset_name,ter,curr,conv_rate,qt_exch,price,price_eur,nominal_amount,fee,qt_held,abp,residual_amount,effective_amount,released_amount,gross_gain,generated_loss,expiry,carryforward,taxable_gain,tax_bracket,tax,pl,cash_held,assets_value,nav,committed_cash
+01-01-2000,Test Broker,,,,,,,,,,,,,,,,,,,,,0.0,,,,,0.0,0.0,0.0,0.0
+02-01-2024,Test Broker,Deposit,Cash,,,,EUR,,,,,10000.0,,,,,10000.0,,,,,0.0,,,,,10000.0,0.0,10000.0,10000.0
+03-01-2024,Test Broker,Buy,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,+10,-100.0,-100.0,-1000.0,2.0,10.0,100.2,1002.0,-1002.0,,,,,0.0,,26.0,,,8998.0,1000.0,9998.0,10000.0
+01-02-2024,Test Broker,Buy,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,+10,-110.0,-110.0,-1100.0,2.0,20.0,105.2,2104.0,-1102.0,,,,,0.0,,26.0,,,7896.0,2200.0,10096.0,10000.0
+01-03-2024,Test Broker,Sell,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,-5,130.0,130.0,650.0,2.0,15.0,105.2,1578.0,648.0,526.0,122.0,,,0.0,122.0,26.0,31.72,90.28,8512.28,1950.0,10462.28,10000.0
+02-04-2024,Test Broker,Sell,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,-5,90.0,90.0,450.0,2.0,10.0,105.2,1052.0,448.0,526.0,,78.0,31-12-2028,78.0,,26.0,0.0,-78.0,8960.28,900.0,9860.28,10000.0
+15-04-2024,Test Broker,Dividend,Dividend,AAA.MI,Alpha SpA,,EUR,,,,,12.5,,,,,12.5,,,,,78.0,,,,12.5,8972.78,1105.0,10077.78,10000.0
+16-04-2024,Test Broker,Tax,Stamp duty,,,,EUR,,,,,-1.5,,,,,-1.5,,,,,78.0,,,,-1.5,8971.28,1106.0,10077.28,10000.0
+02-05-2024,Test Broker,Buy,Stock,BBB.MI,Beta SpA,,EUR,1.000000,+20,-50.0,-50.0,-1000.0,1.0,20.0,50.05,1001.0,-1001.0,,,,,78.0,,26.0,,,7970.28,2122.0,10092.28,10000.0
+03-06-2024,Test Broker,Sell,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,-5,120.0,120.0,600.0,2.0,5.0,105.2,526.0,598.0,526.0,72.0,,,6.0,0.0,26.0,0.0,72.0,8568.28,1754.0,10322.28,10000.0
+01-07-2024,Test Broker,Split,Stock,AAA.MI,Alpha SpA,,EUR,,2,,,,,10.0,52.6,526.0,,,,,,6.0,,,,,8568.28,1708.0,10276.28,10000.0
+01-08-2024,Test Broker,Sell,Stock,AAA.MI,Alpha SpA,,EUR,1.000000,-10,70.0,70.0,700.0,2.0,0.0,0.0,0.0,698.0,526.0,172.0,,,0.0,166.0,26.0,43.16,128.84,9223.12,1213.0,10436.12,10000.0
+02-09-2024,Test Broker,Withdrawal,Cash,,,,EUR,,,,,-500.0,,,,,-500.0,,,,,0.0,,,,,8723.12,1245.0,9968.12,9500.0
