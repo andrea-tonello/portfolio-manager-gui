@@ -372,20 +372,7 @@ class HomeView:
         if not accounts:
             return ft.Text(t.get("home.no_account"), size=14)
 
-        # Start with stale values from DataFrame
-        total_nav = 0.0
-        total_cash = 0.0
-        total_assets = 0.0
-
-        for idx, acc in accounts.items():
-            df = acc["df"]
-            if df is not None and not df.empty:
-                last_row = df.iloc[-1]
-                total_nav += float(last_row.get("nav", 0) or 0)
-                total_cash += float(last_row.get("cash_held", 0) or 0)
-                total_assets += float(last_row.get("assets_value", 0) or 0)
-
-        cards = self._build_stats_cards(total_nav, total_cash, total_assets)
+        cards = self._build_stats_cards()
         tabs = self._build_section_tabs()
         self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
         header = self._open_positions_header()
@@ -417,14 +404,7 @@ class HomeView:
         if acc is None:
             return ft.Text(t.get("home.no_account"), size=14)
 
-        df = acc["df"]
-
-        # Start with stale values
-        nav = float(df.iloc[-1].get("nav", 0) or 0) if not df.empty else 0
-        cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
-        assets = float(df.iloc[-1].get("assets_value", 0) or 0) if not df.empty else 0
-
-        cards = self._build_stats_cards(nav, cash, assets)
+        cards = self._build_stats_cards()
         tabs = self._build_section_tabs()
         self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
         header = self._open_positions_header()
@@ -774,7 +754,7 @@ class HomeView:
         self._assets_text.value = "  " + t.get("home.subt_assets") + f"   {assets_val}"
         self._cash_text.value = "  " + t.get("home.subt_cash") + f"   {cash_val}"
 
-    def _build_stats_cards(self, nav, cash, assets) -> ft.Control:
+    def _build_stats_cards(self) -> ft.Control:
         t = self.state.translator
         hidden = getattr(self.state, '_home_values_hidden', False)
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
