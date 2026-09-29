@@ -113,8 +113,13 @@ class OperationsView:
             return None
         return self.state.brokers.get(idx)
 
-    def _check_date_sequential(self, df, date_value) -> bool:
-        """Return True if date_value is before the last recorded date."""
+    def _is_before_last_entry(self, df, date_value) -> bool:
+        """Return `True` if `date_value` is earlier than the last operation recorded in `df`.
+
+        Operations must be entered in date order, because each new row builds on
+        the totals of the previous one; `True` means the new entry must be refused.
+        Same-day operations are accepted.
+        """
         dates = pd.to_datetime(df["date"], dayfirst=True, errors="coerce").dropna()
         return not dates.empty and date_value < dates.max().date()
 
@@ -333,7 +338,7 @@ class OperationsView:
         if self.cash_date_value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self._check_date_sequential(df, self.cash_date_value):
+        if self._is_before_last_entry(df, self.cash_date_value):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
@@ -766,7 +771,7 @@ class OperationsView:
         if tab["date_value"] > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self._check_date_sequential(df, tab["date_value"]):
+        if self._is_before_last_entry(df, tab["date_value"]):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 

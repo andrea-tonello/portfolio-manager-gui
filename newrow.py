@@ -49,14 +49,13 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     return _append_row(df, row)
 
 
-def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name_override=None, tax_rate=0.26, fee_mode="abp"):
+def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name, tax_rate=0.26, fee_mode="abp"):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
 
-    if not asset_name_override:
-        raise ValueError(f"asset_name_override is required for ticker '{ticker}'")
-    name = asset_name_override
+    if not asset_name:
+        raise ValueError(f"asset_name is required for ticker '{ticker}'")
     asset_rows = df[df["ticker"] == ticker]
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
 
@@ -74,7 +73,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
         "operation": results["operation"],
         "product": product,
         "ticker": ticker,
-        "asset_name": name,
+        "asset_name": asset_name,
         "ter": ter,
         "curr": currency,
         "conv_rate": f"{conv_rate:.6f}",

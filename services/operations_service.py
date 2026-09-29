@@ -42,7 +42,7 @@ def execute_etf_stock(translator, df, broker, date_str, ref_date,
     return newrow_etf_stock(translator, df, date_str, ref_date, broker,
                             currency_code, product_type, ticker, quantity,
                             price, conv_rate, ter, fee, buy,
-                            asset_name_override=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
+                            asset_name=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
 
 
 def execute_split(translator, df, broker, date_str, ref_date, ticker, ratio):

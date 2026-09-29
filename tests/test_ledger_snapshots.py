@@ -72,7 +72,7 @@ def buy(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     """
     return lambda t, df: newrow_etf_stock(
         t, df, _fmt(day), day, BROKER, currency, product, ticker, qty, -price,
-        conv_rate, ter, fee, True, asset_name_override=NAMES[ticker], fee_mode=fee_mode)
+        conv_rate, ter, fee, True, asset_name=NAMES[ticker], fee_mode=fee_mode)
 
 
 def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
@@ -84,7 +84,7 @@ def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     """
     return lambda t, df: newrow_etf_stock(
         t, df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
-        conv_rate, ter, fee, False, asset_name_override=NAMES[ticker],
+        conv_rate, ter, fee, False, asset_name=NAMES[ticker],
         tax_rate=tax_rate, fee_mode=fee_mode)
 
 
