@@ -52,7 +52,7 @@ class AnalysisView:
 
         self.form_container.content = ft.Tabs(
             length=5,
-            selected_index=getattr(self.state, "_analysis_tab_index", 0),
+            selected_index=self.state._analysis_tab_index,
             on_change=self._on_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[

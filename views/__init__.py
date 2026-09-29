@@ -141,7 +141,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     if selected_index in (2, 3):
         if selected_index == 2:
             def _info_click(_):
-                p = getattr(state, "_analysis_tab_index", 0) + _ANALYSIS_GLOSSARY_PAGE_OFFSET
+                p = state._analysis_tab_index + _ANALYSIS_GLOSSARY_PAGE_OFFSET
                 _show_glossary(page, state, p)
             info_handler = _info_click
         else:

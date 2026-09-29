@@ -1,10 +1,13 @@
-## [0.3.1] (XXXX-XX-XX)
+## [0.3.1] (2026-09-29)
 
 ### Bug Fixes
 
 - **[UX]** Fixed a bug that prevented the NavigationDrawer and AlertDialog popups to work correctly after an application hot-restart status (e.g. after importing data)
+- **[LOGIC]** Fixed mismatch between ticker search asset classes and Yahoo's asset classes
 
-### Features
+### Refactoring
+
+- Small refactoring focusing on code cleanup (dead/legacy code, unused imports, etc.)
 
 
 

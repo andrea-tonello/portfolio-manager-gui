@@ -44,6 +44,7 @@ class AppState:
         self.home_selection: str = "overview"  # "overview" or str(broker_idx)
         self.ops_acc_idx: int | None = None
         self.analysis_acc_idx: int | None = None  # None = all accounts
+        self._analysis_tab_index: int = 0  # last selected Analysis tab (0 = first tab)
         self.tx_selection: str = "overview"  # "overview" or str(broker_idx)
 
         # Watchlist

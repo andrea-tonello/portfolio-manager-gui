@@ -361,7 +361,7 @@ class HomeView:
         self.state.haptic(self.page)
         self._pos_display_mode = (self._pos_display_mode + 1) % 3
         self._pos_mode_btn.content = ft.Text(self._pos_mode_labels[self._pos_display_mode])
-        hidden = getattr(self.state, '_home_values_hidden', False)
+        hidden = self.state._home_values_hidden
         self._update_positions(self._positions_data, hidden)
         self.page.update()
 
@@ -573,7 +573,7 @@ class HomeView:
                 self._current_tpnl_pct_str = _fmt_pct(total_pnl, total_committed)
                 self._current_dpnl_pct_str = _fmt_pct(daily_pnl, prev_positions_value)
 
-                hidden = getattr(s, '_home_values_hidden', False)
+                hidden = s._home_values_hidden
                 self._apply_subtotals()
                 if not hidden:
                     self._set_nav_value(self._current_nav_str)
@@ -612,7 +612,7 @@ class HomeView:
     def _check_splits_async(self):
         """Look for unrecorded splits on held tickers and prompt the user. Runs once per session."""
         s = self.state
-        if getattr(s, "_split_checked_session", False):
+        if s._split_checked_session:
             return
         sel = s.home_selection
         if sel == "overview":
@@ -747,7 +747,7 @@ class HomeView:
     def _apply_subtotals(self):
         """Write assets/cash subtitle texts from current state, honoring hidden mode."""
         t = self.state.translator
-        hidden = getattr(self.state, '_home_values_hidden', False)
+        hidden = self.state._home_values_hidden
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
         assets_val = hidden_mask if hidden else self._current_assets_str
         cash_val = hidden_mask if hidden else self._current_cash_str
@@ -756,7 +756,7 @@ class HomeView:
 
     def _build_stats_cards(self) -> ft.Control:
         t = self.state.translator
-        hidden = getattr(self.state, '_home_values_hidden', False)
+        hidden = self.state._home_values_hidden
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
         loading_str = "---"
 
@@ -773,7 +773,7 @@ class HomeView:
         self._current_tpnl_pct_str = loading_str
         self._current_dpnl_pct_str = loading_str
         # 0 = unrealized daily, 1 = unrealized total, 2 = total. Persisted per user.
-        self._pnl_mode = getattr(self.state, '_home_pnl_mode', 0)
+        self._pnl_mode = self.state._home_pnl_mode
 
         initial_nav = hidden_mask if hidden else loading_str
         self._nav_text = ft.Text(
@@ -914,7 +914,7 @@ class HomeView:
         self._pnl_mode = (self._pnl_mode + 1) % 3
         self.state._home_pnl_mode = self._pnl_mode
         config_service.save_home_pnl_mode(self.state.user_config_folder, self._pnl_mode)
-        hidden = getattr(self.state, '_home_values_hidden', False)
+        hidden = self.state._home_values_hidden
         if not hidden:
             self._update_pnl_display()
         self.page.update()
@@ -925,7 +925,7 @@ class HomeView:
         if not positions:
             self._positions_container.controls = []
             return
-        mode = getattr(self, '_pos_display_mode', 0)
+        mode = self._pos_display_mode
         rows = []
         for pos in positions:
             ticker = pos["ticker"]

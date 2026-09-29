@@ -648,6 +648,9 @@ def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
 _ALLOC_COLORS = {
     "Stock": ft.Colors.BLUE,
     "ETF-S": ft.Colors.LIGHT_BLUE_200,
+    # Placeholder for the planned individual bonds (TODO.md): no product is stored
+    # as "Bond" yet. When bonds are added, make sure their product code matches
+    # this key (and add a PRODUCT_LOCALE_KEYS entry), or the slice turns grey.
     "Bond": ft.Colors.AMBER,
     "ETF-B": ft.Colors.YELLOW,
     "ETF-M": ft.Colors.LIGHT_GREEN,

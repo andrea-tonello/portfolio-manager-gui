@@ -16,7 +16,6 @@ class TickerSearchField:
         self._type_filter = type_filter  # e.g. "etf", "equity", or None for no filter
         self._req_id = 0
         self._lock = threading.Lock()
-        self._picking = False
 
         expand = kwargs.pop("expand", False)
         col = kwargs.pop("col", None)
@@ -117,11 +116,11 @@ class TickerSearchField:
         self._page.run_thread(worker)
 
     def _on_blur(self, e):
-        # Delay hide so a suggestion click can fire first
+        # Tapping a suggestion also blurs the field: wait before hiding the list,
+        # so the tap reaches _pick first. This delay is the only protection.
         def _delayed():
             time.sleep(0.15)
-            if not self._picking:
-                self._hide()
+            self._hide()
         self._page.run_thread(_delayed)
 
     def _show_results(self, results):
@@ -166,11 +165,9 @@ class TickerSearchField:
             self._page.update()
 
     def _pick(self, symbol):
-        self._picking = True
         self._field.value = symbol
         self._overlay.visible = False
         self._suggestions.controls = []
         self._page.update()
-        self._picking = False
         if self._on_select:
             self._on_select(symbol)
