@@ -313,7 +313,7 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
     n = len(values)
 
     # Downsample for performance
-    sampled_values, sample_indices = _downsample_series(values, max_points=150)
+    _, sample_indices = _downsample_series(values, max_points=150)
 
     points = []
     y_vals = []
@@ -551,7 +551,6 @@ def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control
     # Compute histogram bins (reduced for performance)
     num_bins = 40
     counts, bin_edges = np.histogram(scenario_return, bins=num_bins, density=True)
-    bin_width = bin_edges[1] - bin_edges[0]
 
     # Create bar groups
     groups = []

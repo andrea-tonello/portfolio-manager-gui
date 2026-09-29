@@ -98,8 +98,6 @@ class TransactionsView:
     # ── Transactions Section ─────────────────────────────────────────
 
     def _build_transactions_section(self, df, acc_idx=None) -> ft.Control:
-        t = self.state.translator
-
         self._tx_df = df
         self._acc_idx = acc_idx
         saved_mode, saved_value = config_service.load_tx_filter(self.state.user_config_folder)

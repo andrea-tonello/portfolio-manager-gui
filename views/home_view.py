@@ -214,7 +214,6 @@ class HomeView:
         self.page.update()
 
     def _on_watchlist_remove(self, ticker):
-        t = self.state.translator
         if ticker in self.state.watchlist:
             self.state.watchlist.remove(ticker)
             config_service.save_watchlist(self.state.user_config_folder, self.state.watchlist)
@@ -463,7 +462,6 @@ class HomeView:
             self._fetch_live_values()
 
     def _restore_from_cache(self, cache):
-        t = self.state.translator
         """Populate widgets from cached data without network fetch."""
         self._current_nav_str = cache["nav_str"]
         self._current_assets_str = cache["assets_str"]

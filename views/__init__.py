@@ -7,7 +7,7 @@ from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
 from utils.constants import APP_VERSION, GITHUB_URL
-from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager, build_github_repo
+from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager
 
 
 _NAV_LABELS = ["nav.home", "nav.operations", "nav.analysis", "nav.transactions"]

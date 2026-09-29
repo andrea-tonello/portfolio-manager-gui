@@ -872,7 +872,6 @@ class OperationsView:
                 if results and results[0]["symbol"].upper() == ticker.upper():
                     actual_type = results[0]["type"]
                     if actual_type != expected_type:
-                        label = "an ETF" if expected_type == "etf" else "a Stock"
                         msg = t.get("operations.stock.ticker_wrong_type")
                         show_snack(self.page, msg, error=True)
                         tab["loading"].visible = False

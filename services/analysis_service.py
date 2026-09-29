@@ -7,7 +7,6 @@ from services.market_data import download_close, fetch_ticker_name
 from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
-from utils.constants import DATE_FORMAT
 import utils.newton as newton
 
 

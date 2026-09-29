@@ -1,4 +1,3 @@
-import os
 import flet as ft
 
 from components.snack import show_snack
@@ -41,7 +40,6 @@ class SettingsView:
         self.state = state
 
     def build(self) -> ft.Control:
-        t = self.state.translator
         self.file_picker = ft.FilePicker()
         self.page.services[:] = [
             s for s in self.page.services if not isinstance(s, ft.FilePicker)
