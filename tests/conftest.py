@@ -1,5 +1,6 @@
-"""Shared test fixtures: fake market data, a real Translator, snapshot comparison."""
+"""Shared test fixtures: network guard, fake market data, a real Translator, snapshot comparison."""
 
+import urllib.request
 from pathlib import Path
 
 import pandas as pd
@@ -32,9 +33,10 @@ _PRICE_EPOCH = pd.Timestamp("2024-01-01")
 
 def fake_close(ticker: str, day: pd.Timestamp) -> float:
     """Return the made-up closing price of `ticker` on `day`, in the ticker's own currency.
+    + 0.1% per day.
 
-    Example: AAA.MI closes at 100.0 on 2024-01-01, 101.0 on 2024-01-11, and
-    at half its drifted price from its 2:1 split on 2024-07-01.
+    Example: AAA.MI closes at 100.0 on 2024-01-01, and at 101.0 after 10 days on 2024-01-11.
+    At 2024-07-01 it would be at 118.2 -> but 2:1 split -> 59.1.
     """
     price = FAKE_BASE_PRICES[ticker] * (1 + 0.001 * (day - _PRICE_EPOCH).days)
     split = FAKE_SPLITS.get(ticker)
@@ -122,3 +124,35 @@ def snapshot(request):
         assert text.splitlines() == path.read_text(encoding="utf-8").splitlines()
 
     return check
+
+
+# ── Network guard ────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def block_network(monkeypatch):
+    """Stop every test from reaching the internet, and fail any test that tries.
+
+    `autouse=True` means it runs for every test automatically; no test has to ask for it.
+
+    The app only goes online through urllib.request.urlopen (in
+    services/market_data.py), so that is replaced with a function that records
+    the URL and raises an error. Raising alone is not enough: the app often
+    catches the error and carries on with "no data" (e.g. download_close
+    returns an empty table). So after the test finishes, any recorded attempt
+    fails the test and lists the URLs.
+
+    A test that builds account rows but forgets `fake_market`
+    ends with "Test tried to access the network: https://query1.finance.yahoo.com/...".
+    """
+    attempts = []
+
+    def refuse(request, *args, **kwargs):
+        """Stand-in for urlopen: remember which URL was requested, then refuse to open it."""
+        url = getattr(request, "full_url", request)  # urlopen accepts a Request or a plain URL
+        attempts.append(url)
+        raise ConnectionRefusedError(f"Tests must not access the network: {url}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    yield
+    if attempts:
+        pytest.fail("Test tried to access the network:\n  " + "\n  ".join(attempts), pytrace=False)

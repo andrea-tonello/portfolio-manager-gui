@@ -143,6 +143,9 @@ ETFS_AND_USD = [
 
 # ── Tests ────────────────────────────────────────────────────────────
 
+# Tells pytest: "run the decorated test once for each entry in this list, 
+#                filling the parameters name and steps from that entry." 
+# The list has 2 entries, so each decorated function runs twice
 SCENARIOS = pytest.mark.parametrize("name, steps", [
     ("stocks_eur", STOCKS_EUR),
     ("etfs_and_usd", ETFS_AND_USD),
@@ -151,6 +154,9 @@ SCENARIOS = pytest.mark.parametrize("name, steps", [
 
 def _replay(steps, translator, folder, *, reload_each_step=False) -> pd.DataFrame:
     """Build an account CSV in `folder` by applying `steps` in order, and return the final DataFrame.
+
+    'folder' is tmp_path, a pytest temporary directory created elsewhere. 
+    That's where the output CSV will be stored.
 
     It starts from the opening row that create_defaults writes when an account
     is created, read back from disk exactly as the app does on first launch.
@@ -176,9 +182,9 @@ def test_ledger_matches_snapshot(name, steps, tmp_path, translator, fake_market,
     Fails if any value written to the account CSV changes, e.g. after a
     refactor alters a calculation, rounding or the column layout.
     """
-    df = _replay(steps, translator, tmp_path)
+    df = _replay(steps, translator, tmp_path)           # run the scenario with today's code
+    snapshot(f"{name}.csv", df.to_csv(index=False))     # hand the resulting CSV text to check()
 
-    snapshot(f"{name}.csv", df.to_csv(index=False))
 
 
 @SCENARIOS
