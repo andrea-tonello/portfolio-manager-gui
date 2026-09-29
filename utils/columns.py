@@ -6,7 +6,7 @@ Export uses locale-specific headers resolved via the translator (glossary keys).
 Legacy CSVs with Italian column names are auto-migrated on load.
 """
 
-# Ordered list of the 29 internal column names.
+# Ordered list of the internal column names (the column order of every account CSV).
 COLUMNS = [
     "date", "account", "operation", "product", "ticker", "asset_name",
     "ter", "curr", "conv_rate", "qt_exch", "price", "price_eur",

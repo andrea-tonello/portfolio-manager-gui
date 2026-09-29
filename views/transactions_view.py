@@ -197,7 +197,7 @@ class TransactionsView:
             self.page.update()
         dlg_radio.on_change = on_radio_change
 
-        # Column visibility checkboxes (all 29 columns)
+        # Column visibility checkboxes (one per column in COLUMNS)
         saved_cols = config_service.load_tx_columns(self.state.user_config_folder)
         visible_set = set(saved_cols) if saved_cols else set(_DEFAULT_DISPLAY_COLS)
 

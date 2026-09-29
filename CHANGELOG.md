@@ -1,3 +1,14 @@
+## [0.3.2] (XXXX-XX-XX)
+
+### Refactoring
+
+
+
+
+
+
+
+
 ## [0.3.1] (2026-09-29)
 
 ### Bug Fixes
@@ -8,9 +19,6 @@
 ### Refactoring
 
 - Small refactoring focusing on code cleanup (dead/legacy code, unused imports, etc.)
-
-
-
 
 
 
