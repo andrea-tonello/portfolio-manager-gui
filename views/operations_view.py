@@ -11,7 +11,7 @@ _DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 _DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
-from utils.other_utils import round_half_up, ValidationError
+from utils.other_utils import round_half_up
 from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
 from utils.date_utils import parse_date_input
 
@@ -381,7 +381,7 @@ class OperationsView:
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
-            except (RuntimeError, ValidationError, Exception) as ex:
+            except Exception as ex:
                 show_snack(self.page, str(ex), error=True)
             finally:
                 self.cash_loading.visible = False
@@ -886,7 +886,7 @@ class OperationsView:
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
-            except (RuntimeError, ValidationError, Exception) as ex:
+            except Exception as ex:
                 show_snack(self.page, str(ex), error=True)
             finally:
                 tab["loading"].visible = False
@@ -1023,7 +1023,7 @@ class OperationsView:
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
-            except (RuntimeError, ValidationError, Exception) as ex:
+            except Exception as ex:
                 show_snack(self.page, str(ex), error=True)
             finally:
                 self.cash_loading.visible = False
