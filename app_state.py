@@ -37,7 +37,7 @@ class AppState:
         self.theme_mode: str = "system"   # "system", "light", "dark"
         self.color_seed: str = "blue"     # palette key
 
-        # Per-account storage: {broker_idx: {"df", "file", "path", "len_df_init", "edited_flag"}}
+        # Per-account storage: {broker_idx: {"df", "file", "path"}}
         self.accounts: dict[int, dict] = {}
 
         # Per-page selection
@@ -173,16 +173,3 @@ class AppState:
 
     def get_account(self, idx: int) -> dict | None:
         return self.accounts.get(idx)
-
-    def is_account_edited(self, idx: int) -> bool:
-        acc = self.accounts.get(idx)
-        if acc is None:
-            return False
-        df = acc["df"]
-        return len(df) != acc["len_df_init"] or acc.get("edited_flag", False)
-
-    def mark_account_saved(self, idx: int):
-        acc = self.accounts.get(idx)
-        if acc:
-            acc["len_df_init"] = len(acc["df"])
-            acc["edited_flag"] = False

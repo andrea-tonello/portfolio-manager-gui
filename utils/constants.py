@@ -1,4 +1,5 @@
 APP_VERSION = "0.1.0"
+GITHUB_URL = "https://github.com/andrea-tonello/portfolio-manager-gui"
 
 DATE_FORMAT = "%d-%m-%Y"
 REPORT_PREFIX = "Report "

@@ -2,8 +2,7 @@ import os
 import flet as ft
 
 from services import config_service
-
-GITHUB_URL = "https://github.com/andrea-tonello/portfolio-manager-gui"
+from utils.constants import GITHUB_URL
 
 
 def show_privacy_policy(page: ft.Page, state):
@@ -193,7 +192,7 @@ def build_github_repo(state, img_size=44, font_size=16, font_bold=True):
             ft.Icon(ft.Icons.OPEN_IN_NEW),
         ], spacing=15, alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.padding.only(left=16, right=16, top=4, bottom=4),
-        url="https://github.com/andrea-tonello/portfolio-manager-gui",
+        url=GITHUB_URL,
         border_radius=15,
         ink=True
     )

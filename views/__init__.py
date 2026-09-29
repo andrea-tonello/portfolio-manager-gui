@@ -6,7 +6,7 @@ from views.operations_view import OperationsView
 from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
-from utils.constants import APP_VERSION
+from utils.constants import APP_VERSION, GITHUB_URL
 from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager, build_github_repo
 
 
@@ -83,7 +83,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                 ft.ListTile(
                     trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
                     title=ft.Text(t.get("settings.repo")),
-                    url="https://github.com/andrea-tonello/portfolio-manager-gui",
+                    url=GITHUB_URL,
                     min_height=60,
                     content_padding=ft.padding.only(left=25, right=15),
                 ),

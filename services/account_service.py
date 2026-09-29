@@ -15,12 +15,9 @@ def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> di
         df.to_csv(path, index=False)
 
     return {
-        "acc_idx": account_idx,
         "df": df,
         "file": filename,
         "path": path,
-        "len_df_init": len(df),
-        "edited_flag": False,
     }
 
 
