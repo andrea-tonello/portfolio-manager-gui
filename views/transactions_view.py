@@ -127,7 +127,6 @@ class TransactionsView:
                 bgcolor=ft.Colors.SECONDARY_CONTAINER,
                 on_click=self._on_open_filters,
                 ink=True,
-                #expand=True,
             ),
             elevation=3,
             col={"xs": 4, "md": 4},

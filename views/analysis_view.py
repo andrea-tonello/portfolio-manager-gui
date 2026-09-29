@@ -299,10 +299,7 @@ class AnalysisView:
         pf_history = result.get("pf_history")
         min_date = result.get("min_date")
         if pf_history is not None and not pf_history.empty and min_date is not None:
-            min_date_str = min_date.strftime(DATE_FORMAT)
-            self.sum_chart.content = chart_service.chart_summary(
-                self.state.translator, pf_history, min_date_str, dt_str
-            )
+            self.sum_chart.content = chart_service.chart_summary(self.state.translator, pf_history)
             self._sum_history = pf_history
             self.sum_export_row.visible = True
         else:
@@ -528,7 +525,7 @@ class AnalysisView:
                 result = analysis_service.compute_correlation(
                     t, data, start_dt, end_dt, asset1, asset2, window
                 )
-                self._display_correlation(result, start_dt, end_dt, asset1, asset2, window)
+                self._display_correlation(result, asset1, asset2, window)
             except Exception as ex:
                 show_snack(self.page, str(ex), error=True)
             finally:
@@ -537,7 +534,7 @@ class AnalysisView:
 
         self.page.run_thread(worker)
 
-    def _display_correlation(self, result, start_dt, end_dt, asset1, asset2, window):
+    def _display_correlation(self, result, asset1, asset2, window):
         t = self.state.translator
         controls = []
         is_simple = asset1 is None
@@ -545,9 +542,7 @@ class AnalysisView:
         if is_simple:
             corr_matrix = result.get("correlation_matrix")
             if corr_matrix is not None:
-                self.corr_heatmap.content = chart_service.chart_correlation_heatmap(
-                    t, corr_matrix, start_dt, end_dt
-                )
+                self.corr_heatmap.content = chart_service.chart_correlation_heatmap(t, corr_matrix)
                 self._corr_matrix = corr_matrix
                 self._rolling_corr = None
                 self.corr_export_row.visible = True
@@ -561,7 +556,7 @@ class AnalysisView:
             rolling_corr = result.get("rolling_corr")
             if rolling_corr is not None and not rolling_corr.empty:
                 self.corr_rolling_chart.content = chart_service.chart_rolling_correlation(
-                    t, rolling_corr, window, asset1, asset2, start_dt, end_dt
+                    t, rolling_corr, window, asset1, asset2
                 )
                 self._rolling_corr = rolling_corr
                 self._corr_matrix = None
@@ -733,8 +728,7 @@ class AnalysisView:
                         start_dt=start_str, end_dt=end_str, mdd=result["mdd"] * 100
                     )
                     self.dd_chart.content = chart_service.chart_drawdown(
-                        t, result["pf_history"], result["drawdown"],
-                        result["mdd"], start_str, end_str
+                        t, result["pf_history"], result["drawdown"], result["mdd"]
                     )
                     self._dd_data = {
                         "pf_history": result["pf_history"],
@@ -849,7 +843,7 @@ class AnalysisView:
                         ci=ci, days=days, var=result["var"]
                     )
                     self.var_chart.content = chart_service.chart_var_mc(
-                        t, result["scenario_return"], result["var"], ci, days
+                        t, result["scenario_return"], result["var"], ci
                     )
                     self._var_data = {
                         "scenario_return": result["scenario_return"],

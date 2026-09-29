@@ -679,7 +679,6 @@ class OperationsView:
             stock_etf_form.visible = val in ("stock_etf", "mm_etf")
             bond_placeholder.visible = val == "bond_etf"
             bond_maturity_switch.disabled = val != "bond_etf"
-            #ter_field.visible = val in ("stock_etf", "mm_etf")
             tax_row.visible = val == "mm_etf"
             tab_data["etf_subtype"] = val
             self.page.update()

@@ -203,10 +203,10 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
         missing = [t for t in [asset1, asset2] if t not in close_df.columns]
         if missing:
             ticker = missing[0]
-            try:
-                fetch_ticker_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
-            except RuntimeError:
-                raise
+            # Pick the error message: fetch_ticker_name raises "not found" if Yahoo
+            # doesn't know the ticker; if it returns, the ticker exists but has no
+            # prices in the chosen period.
+            fetch_ticker_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
             raise RuntimeError(translator.get("operations.stock.ticker_nodata", ticker=ticker))
 
         close_df = close_df.ffill()

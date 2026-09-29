@@ -107,7 +107,7 @@ def _downsample_series(data, max_points=200):
     return sampled, sampled_indices
 
 
-def chart_summary(translator, pf_history, min_date_str, dt_str) -> ft.Control:
+def chart_summary(translator, pf_history) -> ft.Control:
     """NAV line chart with 4 series. Returns a native Flet control."""
     pf_history = pf_history.dropna().reset_index(drop=True)
     dates = pf_history["Date"].tolist()
@@ -232,7 +232,7 @@ def _corr_color(value: float) -> str:
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) -> ft.Control:
+def chart_correlation_heatmap(translator, correlation_matrix) -> ft.Control:
     """Correlation heatmap as a native Flet grid. Returns a Flet control."""
     labels = list(correlation_matrix.columns)
     n = len(labels)
@@ -301,7 +301,7 @@ def chart_correlation_heatmap(translator, correlation_matrix, start_dt, end_dt) 
     )
 
 
-def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, start_dt, end_dt) -> ft.Control:
+def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2) -> ft.Control:
     """Rolling correlation line chart. Returns a native Flet control."""
     rolling_corr = rolling_corr.dropna()
     if rolling_corr.empty:
@@ -420,7 +420,7 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2, 
     )
 
 
-def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_dt) -> ft.Control:
+def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     """Drawdown line chart. Returns a native Flet control."""
     pf_history = pf_history.dropna().reset_index(drop=True)
     drawdown_pct = drawdown_series.reset_index(drop=True) * 100
@@ -542,7 +542,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd, start_dt, end_d
     )
 
 
-def chart_var_mc(translator, scenario_return, var_value, ci, days) -> ft.Control:
+def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
     """VaR Monte Carlo histogram. Returns a native Flet BarChart control."""
     scenario_return = np.array(scenario_return)
     if len(scenario_return) == 0:
