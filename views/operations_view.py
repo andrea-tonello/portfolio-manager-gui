@@ -870,7 +870,7 @@ class OperationsView:
                 from services.market_data import search_tickers as _search
                 results = _search(ticker, quotes_count=1)
                 if results and results[0]["symbol"].upper() == ticker.upper():
-                    actual_type = results[0]["type"]
+                    actual_type = results[0]["quote_type"]
                     if actual_type != expected_type:
                         msg = t.get("operations.stock.ticker_wrong_type")
                         show_snack(self.page, msg, error=True)

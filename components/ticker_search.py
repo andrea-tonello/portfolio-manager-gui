@@ -126,7 +126,7 @@ class TickerSearchField:
 
     def _show_results(self, results):
         if self._type_filter:
-            results = [r for r in results if r["type"] == self._type_filter]
+            results = [r for r in results if r["quote_type"] == self._type_filter]
         if not results:
             self._hide()
             return

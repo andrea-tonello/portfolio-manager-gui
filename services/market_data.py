@@ -207,7 +207,15 @@ def detect_unrecorded_splits(df, ticker: str) -> list[tuple]:
 def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:
     """Search Yahoo Finance for matching tickers.
 
-    Returns list of dicts with keys: symbol, name, exchange, type.
+    Returns a list of dicts with keys: symbol, name, exchange, type, quote_type.
+    - `type` is Yahoo's human-readable label, for display only (e.g. "ETF", "Equity").
+    - `quote_type` is Yahoo's machine code in lowercase, for comparisons
+      (e.g. "etf", "equity"). Compare this one: the label's capitalisation
+      differs between asset classes and is not guaranteed to stay the same.
+
+    Example: search_tickers("ISP.MI", 1) ->
+        [{"symbol": "ISP.MI", "name": "INTESA SANPAOLO", "exchange": "Milan",
+          "type": "Equity", "quote_type": "equity"}]
     """
     url = (
         f"https://query2.finance.yahoo.com/v1/finance/search"
@@ -223,5 +231,6 @@ def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:
             "name": q.get("shortname") or q.get("longname", ""),
             "exchange": q.get("exchDisp", ""),
             "type": q.get("typeDisp", ""),
+            "quote_type": q.get("quoteType", "").lower(),
         })
     return results
