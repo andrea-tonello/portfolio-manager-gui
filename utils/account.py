@@ -389,7 +389,9 @@ def compute_backpack(df, data_operazione, as_of_index=None):
                 expiry_dt = pd.to_datetime(scad, format=DATE_FORMAT, errors='coerce')
             active_minuses.append({'amount': float(r['generated_loss']), 'expiry': expiry_dt})
 
-        if pd.notna(r.get('gross_gain')) and r['gross_gain'] > 0:
+        # ETF gains are taxed in full and never offset past losses, same rule as sell_asset.
+        is_etf_gain = r.get('product') in ETF_PRODUCTS
+        if pd.notna(r.get('gross_gain')) and r['gross_gain'] > 0 and not is_etf_gain:
             to_consume = float(r['gross_gain'])
             i = 0
             while to_consume > 0 and i < len(active_minuses):

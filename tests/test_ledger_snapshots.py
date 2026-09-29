@@ -117,13 +117,10 @@ STOCKS_EUR = [
     withdrawal(date(2024, 9, 2), 500),
 ]
 
-# ETFs and USD: fee modes buy_loss / sell_loss, an ETF gain that must not be
-# offset by the carryforward, a money-market ETF at 12.5% tax, and a USD stock
-# sold at a gain after the ETF fees have built up a carryforward.
-#
-# Known discrepancy recorded by this snapshot: the ETF sell row writes
-# carryforward=10, but compute_backpack (called by the next buy/sell) lets the
-# ETF gain consume it, so it drops to 0 and the final USD gain is fully taxed.
+# ETFs and USD: fee modes buy_loss / sell_loss, ETF gains that must not be
+# offset by the carryforward (nor consume it), a money-market ETF at 12.5% tax,
+# and a USD stock whose gain is offset by the 10 EUR carryforward built up
+# from the ETF fees.
 ETFS_AND_USD = [
     deposit(date(2024, 1, 2), 20_000),
     buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=5.0,
