@@ -11,13 +11,13 @@ class ValidationError(Exception):
     pass
 
 
-def round_half_up(valore, decimal="0.01"):
-    if pd.isna(valore):
+def round_half_up(value, decimal="0.01"):
+    if pd.isna(value):
         return np.nan
     try:
-        return float(Decimal(str(valore)).quantize(Decimal(decimal), rounding=ROUND_HALF_UP))
+        return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_HALF_UP))
     except Exception:
-        return valore
+        return value
 
 
 def round_down(value, decimal="0.01"):

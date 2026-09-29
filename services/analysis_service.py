@@ -38,7 +38,7 @@ def _secant(f, x0, x1, tol=1e-7, max_iter=100):
 
 
 def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=100):
-    days = [(data - flows_dates[0]).days for data in flows_dates]
+    days = [(day - flows_dates[0]).days for day in flows_dates]
     years = np.array(days) / annualization
 
     def npv_formula(rate):

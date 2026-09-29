@@ -1,6 +1,6 @@
 """Focused tests for the Italian tax rules on capital losses.
 
-compute_backpack(df, day) answers: "how much carryforward (zainetto fiscale,
+compute_carryforward(df, day) answers: "how much carryforward (zainetto fiscale,
 i.e. past capital losses not used yet) is available on this day?"
 add_solar_years(day) answers: "until when can a loss created on this day be used?"
 
@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from utils.account import compute_backpack
+from utils.account import compute_carryforward
 from utils.constants import ETF_PRODUCTS
 from utils.date_utils import add_solar_years
 
@@ -41,44 +41,44 @@ def gain(day, amount, *, product="Stock"):
 
 
 def history(*rows):
-    """Turn loss()/gain() rows into the account table compute_backpack reads.
+    """Turn loss()/gain() rows into the account table compute_carryforward reads.
 
-    Only the columns compute_backpack uses are included; rows must be in
+    Only the columns compute_carryforward uses are included; rows must be in
     date order, as in a real account CSV.
     """
     return pd.DataFrame(list(rows))
 
 
-# ── compute_backpack ─────────────────────────────────────────────────
+# ── compute_carryforward ─────────────────────────────────────────────────
 
 def test_no_losses_means_no_carryforward():
     """Gains alone never create a carryforward."""
     df = history(gain("10-01-2024", 100))
-    assert compute_backpack(df, date(2024, 12, 31)) == 0
+    assert compute_carryforward(df, date(2024, 12, 31)) == 0
 
 
 def test_loss_adds_to_carryforward():
     """A loss of 78 EUR makes 78 EUR available to offset future gains."""
     df = history(loss("02-04-2024", 78))
-    assert compute_backpack(df, date(2024, 12, 31)) == 78
+    assert compute_carryforward(df, date(2024, 12, 31)) == 78
 
 
 def test_later_gain_uses_up_carryforward():
     """A gain of 72 after a loss of 78 consumes 72, leaving 6."""
     df = history(loss("02-04-2024", 78), gain("03-06-2024", 72))
-    assert compute_backpack(df, date(2024, 12, 31)) == 6
+    assert compute_carryforward(df, date(2024, 12, 31)) == 6
 
 
 def test_carryforward_never_goes_negative():
     """A gain bigger than the available losses empties the carryforward, it does not go below 0."""
     df = history(loss("02-04-2024", 50), gain("03-06-2024", 200))
-    assert compute_backpack(df, date(2024, 12, 31)) == 0
+    assert compute_carryforward(df, date(2024, 12, 31)) == 0
 
 
 def test_gain_before_loss_does_not_consume_it():
     """Only gains realised *after* a loss can use it: order in time matters."""
     df = history(gain("01-03-2024", 100), loss("02-04-2024", 50))
-    assert compute_backpack(df, date(2024, 12, 31)) == 50
+    assert compute_carryforward(df, date(2024, 12, 31)) == 50
 
 
 def test_oldest_loss_is_used_first():
@@ -93,19 +93,19 @@ def test_oldest_loss_is_used_first():
         loss("03-03-2025", 100),
         gain("02-06-2025", 100),
     )
-    assert compute_backpack(df, date(2029, 6, 1)) == 100
+    assert compute_carryforward(df, date(2029, 6, 1)) == 100
 
 
 def test_loss_still_counts_on_its_expiry_day():
     """A 2024 loss expires on 31-12-2028 and is still usable on that very day."""
     df = history(loss("02-04-2024", 78))
-    assert compute_backpack(df, date(2028, 12, 31)) == 78
+    assert compute_carryforward(df, date(2028, 12, 31)) == 78
 
 
 def test_loss_is_gone_the_day_after_expiry():
     """On 01-01-2029 the 2024 loss can no longer be used."""
     df = history(loss("02-04-2024", 78))
-    assert compute_backpack(df, date(2029, 1, 1)) == 0
+    assert compute_carryforward(df, date(2029, 1, 1)) == 0
 
 
 def test_gain_is_offset_only_by_losses_not_yet_expired():
@@ -119,13 +119,13 @@ def test_gain_is_offset_only_by_losses_not_yet_expired():
         loss("01-06-2028", 100),
         gain("01-03-2029", 100),
     )
-    assert compute_backpack(df, date(2029, 6, 1)) == 0
+    assert compute_carryforward(df, date(2029, 6, 1)) == 0
 
 
 def test_rows_after_the_requested_day_are_ignored():
     """Asking for the carryforward on a past day ignores later operations."""
     df = history(loss("01-03-2024", 30), loss("03-06-2024", 50))
-    assert compute_backpack(df, date(2024, 4, 1)) == 30
+    assert compute_carryforward(df, date(2024, 4, 1)) == 30
 
 
 def test_as_of_index_ignores_rows_from_that_position_on():
@@ -134,14 +134,14 @@ def test_as_of_index_ignores_rows_from_that_position_on():
     The app passes as_of_index=len(df), i.e. "every row recorded so far".
     """
     df = history(loss("01-03-2024", 30), loss("01-03-2024", 50))
-    assert compute_backpack(df, date(2024, 12, 31), as_of_index=1) == 30
+    assert compute_carryforward(df, date(2024, 12, 31), as_of_index=1) == 30
 
 
 def test_loss_without_expiry_date_expires_the_same_day():
     """A loss row with no expiry date is treated as usable only on the day it was made."""
     df = history(loss("02-04-2024", 78, expiry=np.nan))
-    assert compute_backpack(df, date(2024, 4, 2)) == 78
-    assert compute_backpack(df, date(2024, 4, 3)) == 0
+    assert compute_carryforward(df, date(2024, 4, 2)) == 78
+    assert compute_carryforward(df, date(2024, 4, 3)) == 0
 
 
 @pytest.mark.parametrize("etf_product", sorted(ETF_PRODUCTS))
@@ -152,7 +152,7 @@ def test_etf_gain_does_not_use_carryforward(etf_product):
     loss followed by a 60 ETF gain still leaves 100 available for stocks.
     """
     df = history(loss("02-04-2024", 100), gain("03-06-2024", 60, product=etf_product))
-    assert compute_backpack(df, date(2024, 12, 31)) == 100
+    assert compute_carryforward(df, date(2024, 12, 31)) == 100
 
 
 # ── add_solar_years ──────────────────────────────────────────────────

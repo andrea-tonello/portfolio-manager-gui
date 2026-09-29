@@ -26,7 +26,7 @@ def get_pf_date(translator, df_copy, dt, ref_date):
     return df_valid, first_date
 
 
-def add_solar_years(data_generazione):
-    data_scadenza = data_generazione + relativedelta(years=4)
-    end_date = datetime(data_scadenza.year, 12, 31)
-    return end_date.strftime(DATE_FORMAT)
+def add_solar_years(loss_date):
+    four_years_later = loss_date + relativedelta(years=4)
+    expiry = datetime(four_years_later.year, 12, 31)
+    return expiry.strftime(DATE_FORMAT)

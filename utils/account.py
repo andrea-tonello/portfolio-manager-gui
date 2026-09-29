@@ -54,13 +54,13 @@ def _compute_total_quantities(final_df):
     state_cols = []
     ticker_to_cols_map = {}
 
-    for conto, ticker in pairs:
-        col_name = f'state_qty_{conto}_{ticker}'
+    for account, ticker in pairs:
+        col_name = f'state_qty_{account}_{ticker}'
         state_cols.append(col_name)
         if ticker not in ticker_to_cols_map:
             ticker_to_cols_map[ticker] = []
         ticker_to_cols_map[ticker].append(col_name)
-        mask = (final_df['account'] == conto) & (final_df['ticker'] == ticker)
+        mask = (final_df['account'] == account) & (final_df['ticker'] == ticker)
         final_df[col_name] = final_df.where(mask)['qt_held']
         final_df[col_name] = final_df[col_name].ffill()
 
@@ -129,16 +129,16 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
         liquidity_sparse = liquidity_sparse.set_index('date')[['cash_total']]
         liquidity_sparse = liquidity_sparse.rename(columns={'cash_total': 'cash'})
 
-        immessa_sparse = portfolio_data.dropna(subset=['committed_total'])
-        immessa_sparse = immessa_sparse.drop_duplicates(subset=['date'], keep='last')
-        immessa_sparse = immessa_sparse.set_index('date')[['committed_total']]
-        immessa_sparse = immessa_sparse.rename(columns={'committed_total': 'committed_cash'})
+        committed_sparse = portfolio_data.dropna(subset=['committed_total'])
+        committed_sparse = committed_sparse.drop_duplicates(subset=['date'], keep='last')
+        committed_sparse = committed_sparse.set_index('date')[['committed_total']]
+        committed_sparse = committed_sparse.rename(columns={'committed_total': 'committed_cash'})
 
         quantities_sparse = portfolio_data.dropna(subset=['ticker', 'qt_total'])
         quantities_sparse = quantities_sparse.drop_duplicates(subset=['date', 'ticker'], keep='last')
         quantities_wide_sparse = quantities_sparse.pivot(index='date', columns='ticker', values='qt_total')
 
-        combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, immessa_sparse], axis=1)
+        combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, committed_sparse], axis=1)
 
         for ticker in only_tickers:
             if ticker not in combined_sparse_data.columns:
@@ -311,35 +311,34 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
 
     price_abs = abs(price) * conv_rate
     fee = round_half_up(fee)
-    pmpc = 0
+    abp = 0
     current_qt = quantity
 
     fee_in_cost = fee if fee_mode == "abp" else 0
 
     if asset_rows.empty:
-        pmpc = (price_abs * quantity + fee_in_cost) / quantity
+        abp = (price_abs * quantity + fee_in_cost) / quantity
     else:
-        last_pmpc = asset_rows["abp"].iloc[-1]
+        last_abp = asset_rows["abp"].iloc[-1]
         last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
-        old_cost = last_pmpc * last_remaining_qt
+        old_cost = last_abp * last_remaining_qt
         new_cost = price_abs * quantity + fee_in_cost
         current_qt = last_remaining_qt + quantity
 
-        pmpc = ((old_cost + new_cost) / current_qt)
+        abp = ((old_cost + new_cost) / current_qt)
 
-    importo_residuo = pmpc * current_qt
+    residual_amount = abp * current_qt
 
-    fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
-    fiscal_credit_aggiornato = fiscal_credit_iniziale
+    carryforward = compute_carryforward(df, ref_date, as_of_index=len(df))
 
-    minusvalenza_comm = np.nan
-    end_date = np.nan
+    fee_loss = np.nan
+    expiry = np.nan
 
     if product in ETF_PRODUCTS and fee_mode == "buy_loss":
-        minusvalenza_comm = fee
-        end_date = add_solar_years(ref_date)
-        fiscal_credit_aggiornato += minusvalenza_comm
+        fee_loss = fee
+        expiry = add_solar_years(ref_date)
+        carryforward += fee_loss
 
     current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) * conv_rate) - fee
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
@@ -348,13 +347,13 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
     return {
         "operation": "Buy",
         "qt_held": current_qt,
-        "abp": pmpc,
-        "residual_amount": importo_residuo,
+        "abp": abp,
+        "residual_amount": residual_amount,
         "released_amount": np.nan,
         "gross_gain": np.nan,
-        "generated_loss": minusvalenza_comm,
-        "expiry": end_date,
-        "carryforward": fiscal_credit_aggiornato,
+        "generated_loss": fee_loss,
+        "expiry": expiry,
+        "carryforward": carryforward,
         "taxable_gain": np.nan,
         "tax": np.nan,
         "pl": np.nan,
@@ -364,47 +363,47 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
     }
 
 
-def compute_backpack(df, data_operazione, as_of_index=None):
+def compute_carryforward(df, ref_date, as_of_index=None):
     history = df.copy()
     history['date_dt'] = pd.to_datetime(history['date'], format=DATE_FORMAT)
-    data_operazione = pd.Timestamp(data_operazione)
-    history = history[history['date_dt'] <= data_operazione].copy()
+    ref_date = pd.Timestamp(ref_date)
+    history = history[history['date_dt'] <= ref_date].copy()
     if as_of_index is not None:
         history = history.loc[history.index < as_of_index]
 
     history = history.sort_values(by=['date_dt']).assign(_orig_index=history.index)
     history = history.sort_values(by=['date_dt', '_orig_index'])
 
-    active_minuses = []
+    active_losses = []
 
     for _, r in history.iterrows():
         current_date = r['date_dt']
-        active_minuses = [m for m in active_minuses if m['expiry'] >= current_date]
+        active_losses = [loss for loss in active_losses if loss['expiry'] >= current_date]
 
         if pd.notna(r.get('generated_loss')) and r['generated_loss'] > 0:
-            scad = r.get('expiry', np.nan)
-            if pd.isna(scad):
+            expiry_value = r.get('expiry', np.nan)
+            if pd.isna(expiry_value):
                 expiry_dt = current_date
             else:
-                expiry_dt = pd.to_datetime(scad, format=DATE_FORMAT, errors='coerce')
-            active_minuses.append({'amount': float(r['generated_loss']), 'expiry': expiry_dt})
+                expiry_dt = pd.to_datetime(expiry_value, format=DATE_FORMAT, errors='coerce')
+            active_losses.append({'amount': float(r['generated_loss']), 'expiry': expiry_dt})
 
         # ETF gains are taxed in full and never offset past losses, same rule as sell_asset.
         is_etf_gain = r.get('product') in ETF_PRODUCTS
         if pd.notna(r.get('gross_gain')) and r['gross_gain'] > 0 and not is_etf_gain:
             to_consume = float(r['gross_gain'])
             i = 0
-            while to_consume > 0 and i < len(active_minuses):
-                avail = active_minuses[i]['amount']
+            while to_consume > 0 and i < len(active_losses):
+                avail = active_losses[i]['amount']
                 used = min(avail, to_consume)
-                active_minuses[i]['amount'] -= used
+                active_losses[i]['amount'] -= used
                 to_consume -= used
-                if active_minuses[i]['amount'] == 0:
+                if active_losses[i]['amount'] == 0:
                     i += 1
-            active_minuses = [m for m in active_minuses if m['amount'] > 0]
+            active_losses = [loss for loss in active_losses if loss['amount'] > 0]
 
-    active_minuses = [m for m in active_minuses if m['expiry'] >= data_operazione]
-    total = sum(m['amount'] for m in active_minuses)
+    active_losses = [loss for loss in active_losses if loss['expiry'] >= ref_date]
+    total = sum(loss['amount'] for loss in active_losses)
     return max(0.0, total)
 
 
@@ -414,70 +413,70 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         raise ValidationError(translator.get("operations.stock.sell_noitems"))
 
     fee = round_half_up(fee)
-    last_pmpc = asset_rows["abp"].iloc[-1]
+    last_abp = asset_rows["abp"].iloc[-1]
     last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
     if quantity > last_remaining_qt:
         raise ValidationError(translator.get("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
 
-    importo_effettivo = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
-    costo_rilasciato = quantity * last_pmpc
+    effective_amount = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
+    released_amount = quantity * last_abp
 
-    plusvalenza_lorda = importo_effettivo - costo_rilasciato
+    gross_gain = effective_amount - released_amount  # negative = loss
 
-    fiscal_credit_iniziale = compute_backpack(df, ref_date, as_of_index=len(df))
-    fiscal_credit_aggiornato = fiscal_credit_iniziale
-    plusvalenza_imponibile = 0
-    minusvalenza_generata = 0
-    minusvalenza_comm = np.nan
-    imposta = 0
-    end_date = np.nan
+    carryforward_before = compute_carryforward(df, ref_date, as_of_index=len(df))
+    carryforward = carryforward_before
+    taxable_gain = 0
+    generated_loss = 0
+    fee_loss = np.nan
+    tax = 0
+    expiry = np.nan
 
-    if plusvalenza_lorda > 0:
-        plusvalenza_da_compensare = plusvalenza_lorda
-        if fiscal_credit_iniziale > 0 and product not in ETF_PRODUCTS:
-            credito_utilizzato = min(plusvalenza_da_compensare, fiscal_credit_iniziale)
-            plusvalenza_da_compensare -= credito_utilizzato
-            fiscal_credit_aggiornato -= credito_utilizzato
+    if gross_gain > 0:
+        gain_to_offset = gross_gain
+        if carryforward_before > 0 and product not in ETF_PRODUCTS:
+            carryforward_used = min(gain_to_offset, carryforward_before)
+            gain_to_offset -= carryforward_used
+            carryforward -= carryforward_used
 
-        plusvalenza_imponibile = plusvalenza_da_compensare
-        imposta = plusvalenza_imponibile * tax_rate
+        taxable_gain = gain_to_offset
+        tax = taxable_gain * tax_rate
     else:
-        plusvalenza_lorda = round_down(plusvalenza_lorda)
+        gross_gain = round_down(gross_gain)
 
-        minusvalenza_generata = abs(plusvalenza_lorda)
-        fiscal_credit_aggiornato += minusvalenza_generata
-        end_date = add_solar_years(ref_date)
+        generated_loss = abs(gross_gain)
+        carryforward += generated_loss
+        expiry = add_solar_years(ref_date)
 
-    plusvalenza_netta = plusvalenza_lorda - imposta
+    net_gain = gross_gain - tax
 
     current_qt = last_remaining_qt - quantity
-    importo_residuo = last_pmpc * current_qt
-    pmpc_residuo = last_pmpc if current_qt > 0 else 0.0
+    residual_amount = last_abp * current_qt
+    abp = last_abp if current_qt > 0 else 0.0
 
     if product in ETF_PRODUCTS and fee_mode == "sell_loss":
-        minusvalenza_comm = fee if plusvalenza_lorda > 0 else 0
-        fiscal_credit_aggiornato += minusvalenza_comm
-        end_date = add_solar_years(ref_date)
-        minusvalenza_generata += minusvalenza_comm
+        fee_loss = fee if gross_gain > 0 else 0
+        carryforward += fee_loss
+        expiry = add_solar_years(ref_date)
+        generated_loss += fee_loss
 
-    current_liq = float(df["cash_held"].iloc[-1]) + importo_effettivo - round_half_up(imposta)
+    current_liq = float(df["cash_held"].iloc[-1]) + effective_amount - round_half_up(tax)
     positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
 
     return {
         "operation": "Sell",
         "qt_held": current_qt,
-        "abp": pmpc_residuo,
-        "residual_amount": importo_residuo,
-        "released_amount": costo_rilasciato,
-        "gross_gain": plusvalenza_lorda if plusvalenza_lorda > 0 else np.nan,
-        "generated_loss": np.nan if minusvalenza_generata == 0 else minusvalenza_generata,
-        "expiry": end_date,
-        "carryforward": fiscal_credit_aggiornato,
-        "taxable_gain": plusvalenza_imponibile if plusvalenza_lorda > 0 else np.nan,
-        "tax": imposta,
-        "pl": plusvalenza_netta if plusvalenza_lorda > 0 else plusvalenza_lorda,
+        "abp": abp,
+        "residual_amount": residual_amount,
+        "released_amount": released_amount,
+        "gross_gain": gross_gain if gross_gain > 0 else np.nan,
+        "generated_loss": np.nan if generated_loss == 0 else generated_loss,
+        "expiry": expiry,
+        "carryforward": carryforward,
+        "taxable_gain": taxable_gain if gross_gain > 0 else np.nan,
+        "tax": tax,
+        "pl": net_gain if gross_gain > 0 else gross_gain,
         "cash_held": current_liq,
         "assets_value": asset_value,
         "nav": current_liq + asset_value
