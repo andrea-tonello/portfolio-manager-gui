@@ -352,8 +352,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flet", specifier = ">=0.28.0" },
-    { name = "flet-charts", specifier = ">=0.80.5" },
+    { name = "flet", specifier = "==0.80.5" },
+    { name = "flet-charts", specifier = "==0.80.5" },
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "pandas", specifier = ">=2.1.0" },
 ]
