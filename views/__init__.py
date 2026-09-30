@@ -47,7 +47,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                         ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
                         ft.Text("Portfolio Manager", size=20),
                     ], spacing=10, expand=True),
-                    padding=ft.padding.only(left=15, top=10)
+                    padding=ft.Padding.only(left=15, top=10)
                 ),
                 ft.Divider(),
                 ft.ListTile(
@@ -56,28 +56,28 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                     title=ft.Text(t.get("nav.settings")),
                     on_click=lambda: _show_settings(page, state),
                     min_height=60,
-                    content_padding=ft.padding.only(left=25, right=15),
+                    content_padding=ft.Padding.only(left=25, right=15),
                 ),
                 ft.ListTile(
                     leading=ft.Icon(ft.Icons.PERSON),
                     title=ft.Text(state.active_user_name or t.get("settings.user")),
                     on_click=lambda: show_user_manager(page, state),
                     min_height=60,
-                    content_padding=ft.padding.only(left=25),
+                    content_padding=ft.Padding.only(left=25),
                 ),
                 ft.ListTile(
                     leading=ft.Icon(ft.Icons.PRIVACY_TIP),
                     title=ft.Text(t.get("settings.privacy_policy")),
                     on_click=lambda: show_privacy_policy(page, state),
                     min_height=60,
-                    content_padding=ft.padding.only(left=25),
+                    content_padding=ft.Padding.only(left=25),
                 ),
                 ft.ListTile(
                     leading=ft.Icon(ft.Icons.COMMENT),
                     title=ft.Text(t.get("settings.contacts")),
                     on_click=lambda: show_contacts(page, state),
                     min_height=60,
-                    content_padding=ft.padding.only(left=25),
+                    content_padding=ft.Padding.only(left=25),
                 ),
                 ft.Divider(),
                 ft.ListTile(
@@ -85,12 +85,12 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                     title=ft.Text(t.get("settings.repo")),
                     url=GITHUB_URL,
                     min_height=60,
-                    content_padding=ft.padding.only(left=25, right=15),
+                    content_padding=ft.Padding.only(left=25, right=15),
                 ),
                 ft.Container(
                     ft.Text(t.get("components.version") + f" {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                     alignment=ft.alignment.Alignment.CENTER,
-                    padding=ft.padding.only(top=10),
+                    padding=ft.Padding.only(top=10),
                 )
             ],
         )
@@ -113,7 +113,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
                     icon=ft.Icons.MENU,
                     on_click=handle_show_drawer,
                 ),
-                padding=ft.padding.only(right=8),
+                padding=ft.Padding.only(right=8),
             ),
         ],
     )
@@ -242,7 +242,7 @@ def _show_glossary(page, state, page_num):
         if key == "title":
             continue
         if key.endswith("_title"):
-            padding = ft.padding.only(top=10) if has_title else None
+            padding = ft.Padding.only(top=10) if has_title else None
             controls.append(ft.Container(
                 ft.Text(value, size=13, weight=ft.FontWeight.BOLD),
                 padding=padding,

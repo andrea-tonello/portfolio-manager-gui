@@ -259,7 +259,7 @@ def chart_correlation_heatmap(translator, correlation_matrix) -> ft.Control:
             content=ft.Text(labels[i], size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
             width=label_size, height=cell_size,
             alignment=ft.alignment.Alignment.CENTER_RIGHT,
-            padding=ft.padding.only(right=6),
+            padding=ft.Padding.only(right=6),
         )]
         for j in range(n):
             val = float(correlation_matrix.iloc[i, j])
@@ -270,7 +270,7 @@ def chart_correlation_heatmap(translator, correlation_matrix) -> ft.Control:
                 width=cell_size, height=cell_size,
                 bgcolor=bg,
                 alignment=ft.alignment.Alignment.CENTER,
-                border=ft.border.all(0.5, ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
+                border=ft.Border.all(0.5, ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
             ))
         data_rows.append(ft.Row(row_cells, spacing=0))
 
@@ -588,7 +588,7 @@ def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
             value=i,
             label=ft.Container(
                 ft.Text(f"{val:,.0f}", size=9),
-                padding=ft.padding.only(top=4),
+                padding=ft.Padding.only(top=4),
             ),
         ))
 

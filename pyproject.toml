@@ -7,11 +7,14 @@ license = "GPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = [
     # Exact pins: `flet build` installs these ranges itself (it ignores uv.lock),
-    # and flet-charts must match the flet version exactly. See REFACTORING.md Q4.
-    "flet==0.80.5",
-    "flet-charts==0.80.5",
-    "numpy>=1.26.0",
-    "pandas>=2.1.0",
+    # so pinning keeps the phone app on the same versions the tests run.
+    # flet-charts must match the flet version exactly. See REFACTORING.md Q4.
+    # numpy/pandas: the newest builds Flet's mobile package index offers for Android.
+    "flet==1.0.3",
+    "flet-charts==1.0.3",
+    "numpy==2.4.6",
+    "pandas==3.0.3",
+    "python-dateutil>=2.8.2",
 ]
 
 [tool.flet.app]
@@ -70,3 +73,5 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Any Flet deprecation warning fails the tests (see REFACTORING.md, Q4).
+filterwarnings = ["error:.*is deprecated since version:DeprecationWarning"]

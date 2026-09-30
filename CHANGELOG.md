@@ -1,4 +1,4 @@
-## [0.3.2] (XXXX-XX-XX)
+## [0.3.2] (2026-09-30)
 
 ### Bug Fixes
 
@@ -7,6 +7,8 @@
 
 ### Refactoring
 
+- **[FLET]** Upgraded to Flet 1.0.3
+- Small refactoring focusing on code cleanup (dead/legacy code, unused imports, etc.)
 
 
 

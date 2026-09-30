@@ -41,7 +41,7 @@ class TransactionsView:
         children = [
             ft.Container(
                 self._build_dropdown(),
-                padding=ft.padding.only(top=5, left=5, right=5),
+                padding=ft.Padding.only(top=5, left=5, right=5),
             ),
             self._build_transactions_section(df, acc_idx),
         ]
@@ -66,7 +66,7 @@ class TransactionsView:
             on_select=self._on_selection_change,
             expand=True,
             border_width=2.5,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.SECONDARY_CONTAINER,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
         )
@@ -104,7 +104,7 @@ class TransactionsView:
         self._tx_filter_mode = saved_mode
         self._tx_filter_value = saved_value
 
-        self.tx_table_container = ft.Container(padding=ft.padding.only(top=10))
+        self.tx_table_container = ft.Container(padding=ft.Padding.only(top=10))
         self._update_tx_table()
 
         return ft.Column([
@@ -163,7 +163,7 @@ class TransactionsView:
 
         return ft.Container(
             ft.ResponsiveRow([filters_btn, right_col], spacing=20, width=400, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.only(left=20, right=20, top=30),
+            padding=ft.Padding.only(left=20, right=20, top=30),
         )
 
     # ── Filters Dialog ────────────────────────────────────────────────
@@ -185,7 +185,7 @@ class TransactionsView:
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=ft.NumbersOnlyInputFilter(),
             width=100,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
 

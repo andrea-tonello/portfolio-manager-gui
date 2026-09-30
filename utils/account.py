@@ -138,7 +138,7 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
         quantities_sparse = quantities_sparse.drop_duplicates(subset=['date', 'ticker'], keep='last')
         quantities_wide_sparse = quantities_sparse.pivot(index='date', columns='ticker', values='qt_total')
 
-        combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, committed_sparse], axis=1)
+        combined_sparse_data = pd.concat([quantities_wide_sparse, liquidity_sparse, committed_sparse], axis=1, sort=True)
 
         for ticker in only_tickers:
             if ticker not in combined_sparse_data.columns:

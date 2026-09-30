@@ -61,7 +61,7 @@ def show_user_manager(page: ft.Page, state):
                     ]),
                     bgcolor=ft.Colors.PRIMARY,
                     border_radius=10,
-                    padding=ft.padding.symmetric(horizontal=16, vertical=12),
+                    padding=ft.Padding.symmetric(horizontal=16, vertical=12),
                 )
             else:
                 row = ft.Container(
@@ -74,7 +74,7 @@ def show_user_manager(page: ft.Page, state):
                             on_click=lambda _, i=idx: _confirm_delete(i),
                         ),
                     ]),
-                    padding=ft.padding.symmetric(horizontal=16, vertical=4),
+                    padding=ft.Padding.symmetric(horizontal=16, vertical=4),
                     on_click=lambda _, i=idx: _confirm_switch(i),
                     ink=True,
                     border_radius=10,
@@ -169,7 +169,7 @@ def show_user_manager(page: ft.Page, state):
             width=300,
             height=240,
             bgcolor=ft.Colors.SURFACE_DIM,
-            padding=ft.padding.only(top=8, bottom=9, left=7, right=7),
+            padding=ft.Padding.only(top=8, bottom=9, left=7, right=7),
             border_radius=15,
         ),
         actions=[
@@ -191,7 +191,7 @@ def build_github_repo(state, img_size=44, font_size=16, font_bold=True):
             icon_and_text,
             ft.Icon(ft.Icons.OPEN_IN_NEW),
         ], spacing=15, alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-        padding=ft.padding.only(left=16, right=16, top=4, bottom=4),
+        padding=ft.Padding.only(left=16, right=16, top=4, bottom=4),
         url=GITHUB_URL,
         border_radius=15,
         ink=True

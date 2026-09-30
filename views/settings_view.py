@@ -8,19 +8,6 @@ from utils.other_utils import create_defaults
 
 PAGE_WIDTH = 720
 
-# Workaround: Flet's Android client sends a 'bytes' field in pick_files
-# results, but FilePickerFile doesn't declare it. Patch to accept and store it.
-_orig_fpf_init = ft.FilePickerFile.__init__
-
-
-def _patched_fpf_init(self, *args, **kwargs):
-    file_bytes = kwargs.pop("bytes", None)
-    _orig_fpf_init(self, *args, **kwargs)
-    self.file_bytes = file_bytes
-
-
-ft.FilePickerFile.__init__ = _patched_fpf_init
-
 
 PALETTE_COLORS = {
     "blue": ft.Colors.BLUE,
@@ -188,7 +175,7 @@ class SettingsView:
                     options=options,
                     on_select=self._on_language_change,
                     expand=True,
-                    border_radius=ft.border_radius.all(15),
+                    border_radius=ft.BorderRadius.all(15),
                     border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                 ),
             ], spacing=10),
@@ -228,7 +215,7 @@ class SettingsView:
 
         self.new_broker_field = ft.TextField(
             label=t.get("settings.account.add_account"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
@@ -239,7 +226,7 @@ class SettingsView:
                 *broker_tiles,
                 ft.Row([
                     self.new_broker_field,
-                    ft.ElevatedButton(
+                    ft.Button(
                         t.get("components.confirm"),
                         icon=ft.Icons.ADD,
                         on_click=self._on_add_broker,
@@ -376,15 +363,15 @@ class SettingsView:
     async def _on_import_backup(self, e):
         t = self.state.translator
         files = await self.file_picker.pick_files(
-            allowed_extensions=["zip"], allow_multiple=False,
+            allowed_extensions=["zip"], allow_multiple=False, with_data=True,
         )
         if not files:
             return
         picked = files[0]
 
-        # On Android, bytes come via the patched file_bytes attribute.
-        # On desktop, read from the file path.
-        zip_bytes = getattr(picked, "file_bytes", None)
+        # with_data=True makes every platform return the file contents in
+        # picked.bytes (Android may give no usable path); the path is a fallback.
+        zip_bytes = picked.bytes
         if not zip_bytes and picked.path:
             try:
                 with open(picked.path, "rb") as f:
@@ -453,7 +440,7 @@ class SettingsView:
         t = self.state.translator
         self.reset_field = ft.TextField(
             label=t.get("settings.account.reset_confirm"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             on_change=self._on_reset_field_change,
             expand=True,
@@ -502,7 +489,7 @@ class SettingsView:
                 ft.Text(t.get("settings.privacy_policy"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
             on_click=lambda _: show_privacy_policy(self.page, self.state),
-            padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
+            padding=ft.Padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
@@ -512,7 +499,7 @@ class SettingsView:
                 ft.Text(t.get("settings.contacts"), size=16, weight=ft.FontWeight.BOLD),
             ], expand=True),
             on_click=lambda _: show_contacts(self.page, self.state),
-            padding=ft.padding.only(left=16, right=16, top=12, bottom=12),
+            padding=ft.Padding.only(left=16, right=16, top=12, bottom=12),
             border_radius=15,
             ink=True,
         )
@@ -520,7 +507,7 @@ class SettingsView:
         version_text = ft.Container(
             ft.Text(f"Portfolio Manager {APP_VERSION}", size=12, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
             alignment=ft.alignment.Alignment.CENTER,
-            padding=ft.padding.only(top=15),
+            padding=ft.Padding.only(top=15),
         )
 
         return ft.Container(

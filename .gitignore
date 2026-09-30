@@ -1,4 +1,5 @@
 .claude/
+.flet/
 .venv/
 __pycache__/
 dist/

@@ -33,8 +33,8 @@ class TickerSearchField:
         self._overlay = ft.Container(
             content=self._suggestions,
             bgcolor=ft.Colors.SURFACE,
-            border=ft.border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.GREY)),
-            border_radius=ft.border_radius.all(10),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.GREY)),
+            border_radius=ft.BorderRadius.all(10),
             shadow=ft.BoxShadow(
                 spread_radius=0, blur_radius=8,
                 color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
@@ -147,10 +147,10 @@ class TickerSearchField:
                         ft.Text(" · ".join(subtitle_parts), size=11,
                                 color=ft.Colors.with_opacity(0.7, ft.Colors.ON_SURFACE)),
                     ], spacing=0, tight=True),
-                    padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
                     on_click=lambda _, s=symbol: self._pick(s),
                     ink=True,
-                    border_radius=ft.border_radius.all(6),
+                    border_radius=ft.BorderRadius.all(6),
                 )
             )
         self._suggestions.controls = tiles

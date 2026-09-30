@@ -57,7 +57,7 @@ class OperationsView:
         return ft.Row(
             controls=[
                 ft.Column([
-                    ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                    ft.Container(self._build_account_dropdown(), padding=ft.Padding.only(top=5, left=5, right=5)),
                     self.form_container,
                 ],
                 expand=True,
@@ -86,7 +86,7 @@ class OperationsView:
             on_select=self._on_account_selected,
             expand=True,
             border_width=2.5,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.SECONDARY_CONTAINER,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
         )
@@ -165,7 +165,7 @@ class OperationsView:
         self.cash_date_field = ft.TextField(
             label=t.get("components.pick_date"),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -181,13 +181,13 @@ class OperationsView:
         self.cash_amount = ft.TextField(label=t.get("operations.cash.amount"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
                                         input_filter=_DECIMAL_FILTER,
-                                        border_radius=ft.border_radius.all(15),
+                                        border_radius=ft.BorderRadius.all(15),
                                         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                         col={"xs": 12, "md": 6})
         self.cash_ticker = TickerSearchField(
             self.page,
             label=t.get("operations.stock.ticker"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
@@ -200,7 +200,7 @@ class OperationsView:
             visible=False, col={"xs": 12, "md": 6},
         )
         self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_descr"),
-                                       border_radius=ft.border_radius.all(15),
+                                       border_radius=ft.BorderRadius.all(15),
                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                        visible=False, col={"xs": 12, "md": 6})
 
@@ -212,7 +212,7 @@ class OperationsView:
             menu_style=ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=15)),
             label=t.get("operations.split.ticker"),
             options=split_ticker_options,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
@@ -223,7 +223,7 @@ class OperationsView:
             label=t.get("operations.split.ratio"),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=_DECIMAL_FILTER,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
@@ -254,7 +254,7 @@ class OperationsView:
             icon=ft.Icons.ADD,
             on_click=self._submit_cash,
             disabled=no_account,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
@@ -433,7 +433,7 @@ class OperationsView:
         date_field = ft.TextField(
             label=t.get("components.pick_date"),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -454,7 +454,7 @@ class OperationsView:
             self.page,
             label="Ticker",
             type_filter="etf" if product_type == "ETF" else "equity",
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
@@ -472,7 +472,7 @@ class OperationsView:
             label=t.get("operations.stock.ter"),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=_DECIMAL_FILTER,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs":12, "md": 6},
             expand=True
@@ -491,7 +491,7 @@ class OperationsView:
             label=t.get("operations.stock.tax_bracket"),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=_DECIMAL_FILTER,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 6},
             expand=True
@@ -519,27 +519,27 @@ class OperationsView:
             value=str(CURRENCY_EUR),
             on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
             col={"xs": 6, "md": 6},
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=_DECIMAL_FILTER,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             visible=False, col={"xs": 6, "md": 6}
         )
         
         
         quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
-                                     border_radius=ft.border_radius.all(15),
+                                     border_radius=ft.BorderRadius.all(15),
                                      keyboard_type=ft.KeyboardType.NUMBER,
                                      input_filter=_DECIMAL_FILTER,
                                      border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                      col={"xs": 6, "md": 6})
         price_field = ft.TextField(label=t.get("operations.stock.price"),
-                                   border_radius=ft.border_radius.all(15),
+                                   border_radius=ft.BorderRadius.all(15),
                                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                    keyboard_type=ft.KeyboardType.NUMBER,
                                    input_filter=_DECIMAL_FILTER,
@@ -557,12 +557,12 @@ class OperationsView:
             ],
             value=str(CURRENCY_EUR),
             visible=False, col={"xs": 6, "md": 6},
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         fee_field = ft.TextField(label=t.get("operations.stock.fee"),
-                                 border_radius=ft.border_radius.all(15),
+                                 border_radius=ft.BorderRadius.all(15),
                                  border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                                  keyboard_type=ft.KeyboardType.NUMBER,
                                  input_filter=_DECIMAL_FILTER,
@@ -627,7 +627,7 @@ class OperationsView:
             icon=ft.Icons.ADD,
             on_click=lambda ev, pt=product_type: self._submit_es(ev, pt),
             disabled=no_account,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         stock_etf_form = ft.Column([

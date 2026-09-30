@@ -46,7 +46,7 @@ class HomeView:
                         on_click=self._on_refresh,
                     ),
                 ]),
-                padding=ft.padding.only(top=5, left=5, right=5),
+                padding=ft.Padding.only(top=5, left=5, right=5),
             ),
             ft.Container(
                 content=self._build_content(),
@@ -74,7 +74,7 @@ class HomeView:
             on_select=self._on_selection_change,
             expand=True,
             border_width=2.5,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.SECONDARY_CONTAINER,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
         )
@@ -116,7 +116,7 @@ class HomeView:
             content=self._tab_positions_text,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
             border_radius=12,
-            padding=ft.padding.symmetric(horizontal=20, vertical=10),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=10),
             on_click=lambda _: self._switch_section_tab(0),
             ink=True,
             expand=True,
@@ -126,7 +126,7 @@ class HomeView:
             content=self._tab_watchlist_text,
             bgcolor=None,
             border_radius=12,
-            padding=ft.padding.symmetric(horizontal=20, vertical=10),
+            padding=ft.Padding.symmetric(horizontal=20, vertical=10),
             on_click=lambda _: self._switch_section_tab(1),
             ink=True,
             expand=True,
@@ -136,7 +136,7 @@ class HomeView:
         return ft.Container(
             ft.Row([self._tab_positions, self._tab_watchlist], spacing=8),
             width=WIDTH_POSITIONS,
-            padding=ft.padding.only(top=10, right=5, left=5, bottom=15),
+            padding=ft.Padding.only(top=10, right=5, left=5, bottom=15),
         )
 
     def _switch_section_tab(self, tab_idx):
@@ -172,7 +172,7 @@ class HomeView:
             self.page,
             label=t.get("home.watchlist_add"),
             expand=True,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             height=40,
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
@@ -274,7 +274,7 @@ class HomeView:
             content=ft.Text(ticker, weight=ft.FontWeight.BOLD, size=13),
             bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
             border_radius=10,
-            padding=ft.padding.symmetric(vertical=8, horizontal=14),
+            padding=ft.Padding.symmetric(vertical=8, horizontal=14),
         )
         chip_with_tooltip = _longpress_tooltip(chip, name or ticker)
 
@@ -322,7 +322,7 @@ class HomeView:
                 ft.Column([price_text, indicator], spacing=0, horizontal_alignment=ft.CrossAxisAlignment.END),
                 delete_btn,
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.padding.only(left=4),
+            padding=ft.Padding.only(left=4),
             key=ticker,
         )
 
@@ -341,7 +341,7 @@ class HomeView:
         self._pos_mode_btn = ft.FilledTonalButton(
             self._pos_mode_labels[0],
             on_click=self._cycle_pos_display,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=12, vertical=6)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=12, vertical=6)),
             height=35,
             elevation=2,
         )
@@ -352,7 +352,7 @@ class HomeView:
                 ], spacing=1),
                 self._pos_mode_btn,
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, width=WIDTH_POSITIONS),
-            padding=ft.padding.symmetric(horizontal=16, vertical=8),
+            padding=ft.Padding.symmetric(horizontal=16, vertical=8),
             ink=True,
         )
         return header
@@ -382,7 +382,7 @@ class HomeView:
         self._watchlist_section = ft.Container(
             content=watchlist_content,
             visible=False,
-            padding=ft.padding.only(left=16, right=16, bottom=8),
+            padding=ft.Padding.only(left=16, right=16, bottom=8),
         )
 
         content = ft.Column([
@@ -414,7 +414,7 @@ class HomeView:
         self._watchlist_section = ft.Container(
             content=watchlist_content,
             visible=False,
-            padding=ft.padding.only(left=16, right=16, bottom=8),
+            padding=ft.Padding.only(left=16, right=16, bottom=8),
         )
 
         content = ft.Column([
@@ -791,8 +791,8 @@ class HomeView:
             ),
             bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.SECONDARY),
             border_radius=10,
-            padding=ft.padding.all(16.5),
-            margin=ft.margin.only(left=4.5),
+            padding=ft.Padding.all(16.5),
+            margin=ft.Margin.only(left=4.5),
             alignment=ft.alignment.Alignment.CENTER,
             visible=hidden,
             col={"xs": 10, "md": 10}
@@ -822,7 +822,7 @@ class HomeView:
                         self._pnl_pct,
                     ], horizontal_alignment=ft.CrossAxisAlignment.END, spacing=1),
                 ], spacing=1, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                padding=ft.padding.symmetric(horizontal=15, vertical=10),
+                padding=ft.Padding.symmetric(horizontal=15, vertical=10),
                 border_radius=10,
                 bgcolor=ft.Colors.with_opacity(0.10, ft.Colors.SECONDARY),
                 on_click=self._cycle_pnl_mode,
@@ -857,7 +857,7 @@ class HomeView:
                             self._pnl_container,
                         ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     ], spacing=10),
-                    padding=ft.padding.only(top=15, bottom=17, left=20, right=20),
+                    padding=ft.Padding.only(top=15, bottom=17, left=20, right=20),
                 ),
                 elevation=5,
             ),
@@ -942,7 +942,7 @@ class HomeView:
                 ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
                 border_radius=10,
-                padding=ft.padding.symmetric(vertical=6, horizontal=12),
+                padding=ft.Padding.symmetric(vertical=6, horizontal=12),
             )
             if mode == 0:
                 value = qty * price
@@ -962,11 +962,11 @@ class HomeView:
             chip_with_tooltip = _longpress_tooltip(chip, name)
             row = ft.ResponsiveRow([
                 ft.Container(chip_with_tooltip, width=100, col={"xs": 4, "md": 4},
-                             padding=ft.padding.only(left=10, right=10)),
+                             padding=ft.Padding.only(left=10, right=10)),
                 ft.ResponsiveRow([
                     ft.Container(ft.Text(f"{pmc:.3f}", size=14), col={"xs": 3, "md": 3}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
                     ft.Container(ft.Text(f"{price:.3f}", size=14), col={"xs": 4, "md": 4}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
-                    ft.Container(extra_ctrl, padding=ft.padding.only(right=10), col={"xs": 5, "md": 5}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                    ft.Container(extra_ctrl, padding=ft.Padding.only(right=10), col={"xs": 5, "md": 5}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
                 ], col={"xs": 8, "md": 8})
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
             rows.append(row)

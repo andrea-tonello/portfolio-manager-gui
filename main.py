@@ -97,7 +97,7 @@ def _show_language_picker(page: ft.Page, state: AppState):
         ),
         label=t.get("settings.language.title"),
         options=options,
-        border_radius=ft.border_radius.all(15),
+        border_radius=ft.BorderRadius.all(15),
         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
@@ -137,7 +137,7 @@ def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_comp
     t = state.translator
     username_field = ft.TextField(
         label=t.get("settings.user_mgmt.username_hint"),
-        border_radius=ft.border_radius.all(15),
+        border_radius=ft.BorderRadius.all(15),
         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
@@ -210,7 +210,7 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on
     t = state.translator
     broker_field = ft.TextField(
         label=t.get("settings.account.add_account"),
-        border_radius=ft.border_radius.all(15),
+        border_radius=ft.BorderRadius.all(15),
         border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
@@ -277,7 +277,7 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on
                 ft.Text(t.get("settings.new_acc_example"), size=14),
                 ft.ResponsiveRow([
                     broker_field,
-                    ft.ElevatedButton(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
+                    ft.Button(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
                     width=150, height=35)
                 ]),
                 broker_list,
@@ -294,4 +294,5 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on
     page.update()
 
 
-ft.app(target=main)
+if __name__ == "__main__":
+    ft.run(main)

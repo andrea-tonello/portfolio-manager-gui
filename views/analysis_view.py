@@ -73,7 +73,7 @@ class AnalysisView:
         return ft.Row(
             controls=[
                 ft.Column([
-                    ft.Container(self._build_account_dropdown(), padding=ft.padding.only(top=5, left=5, right=5)),
+                    ft.Container(self._build_account_dropdown(), padding=ft.Padding.only(top=5, left=5, right=5)),
                     self.form_container,
                 ],
                 expand=True,
@@ -107,7 +107,7 @@ class AnalysisView:
             on_select=self._on_account_selected,
             expand=True,
             border_width=2.5,
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.SECONDARY_CONTAINER,
             bgcolor=ft.Colors.SECONDARY_CONTAINER,
         )
@@ -147,7 +147,7 @@ class AnalysisView:
         self.sum_date_field = ft.TextField(
             label=t.get("components.pick_date"),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -163,7 +163,7 @@ class AnalysisView:
         self.sum_results = ft.Column([], spacing=5)
         self.sum_chart = ft.Container()
         self.sum_export_row = ft.Row([
-            ft.ElevatedButton(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
+            ft.Button(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
                           on_click=lambda _: self.page.run_task(self._export_sum_csv)),
         ], visible=False)
 
@@ -173,7 +173,7 @@ class AnalysisView:
                 ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
             ]),
             on_click=self._submit_summary,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
@@ -326,7 +326,7 @@ class AnalysisView:
         self.corr_start_field = ft.TextField(
             label=t.get("analysis.corr.start_dt").strip(),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -342,7 +342,7 @@ class AnalysisView:
         self.corr_end_field = ft.TextField(
             label=t.get("analysis.corr.end_dt").strip(),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -358,18 +358,18 @@ class AnalysisView:
         self.corr_asset1 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset1"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 4})
         self.corr_asset2 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset2"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 4})
         self.corr_window = ft.TextField(
             label=t.get("analysis.corr.window"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="100",
             col={"xs": 12, "md": 4})
@@ -393,7 +393,7 @@ class AnalysisView:
         self.corr_heatmap = ft.Container()
         self.corr_rolling_chart = ft.Container()
         self.corr_export_row = ft.Row([
-            ft.ElevatedButton(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
+            ft.Button(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
                           on_click=lambda _: self.page.run_task(self._export_corr_csv)),
         ], visible=False)
 
@@ -403,7 +403,7 @@ class AnalysisView:
                 ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
             ]),
             on_click=self._submit_correlation,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
@@ -577,7 +577,7 @@ class AnalysisView:
         self.dd_start_field = ft.TextField(
             label=t.get("analysis.drawdown.start_dt").strip(),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -593,7 +593,7 @@ class AnalysisView:
         self.dd_end_field = ft.TextField(
             label=t.get("analysis.drawdown.end_dt").strip(),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -613,7 +613,7 @@ class AnalysisView:
         self.dd_result_text = ft.Text("", size=14, selectable=True)
         self.dd_chart = ft.Container()
         self.dd_export_row = ft.Row([
-            ft.ElevatedButton(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
+            ft.Button(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
                           on_click=lambda _: self.page.run_task(self._export_dd_csv)),
         ], visible=False)
 
@@ -623,7 +623,7 @@ class AnalysisView:
                 ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
             ]),
             on_click=self._submit_drawdown,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
@@ -750,12 +750,12 @@ class AnalysisView:
         self.var_ci = ft.TextField(
             label=t.get("analysis.var.ci"),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_DECIMAL_FILTER, value="0.99",
             col={"xs": 6, "md": 6})
         self.var_days = ft.TextField(
             label=t.get("analysis.var.days"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="10",
             col={"xs": 6, "md": 6})
@@ -766,7 +766,7 @@ class AnalysisView:
         self.var_result_text = ft.Text("", size=14, selectable=True)
         self.var_chart = ft.Container()
         self.var_export_row = ft.Row([
-            ft.ElevatedButton(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
+            ft.Button(t.get("analysis.export_plot_csv"), icon=ft.Icons.ASSESSMENT,
                           on_click=lambda _: self.page.run_task(self._export_var_csv)),
         ], visible=False)
 
@@ -776,7 +776,7 @@ class AnalysisView:
                 ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
             ]),
             on_click=self._submit_var,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
@@ -867,7 +867,7 @@ class AnalysisView:
         self.alloc_date_field = ft.TextField(
             label=t.get("components.pick_date"),
             hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.border_radius.all(15),
+            border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
             input_filter=_DATE_FILTER,
@@ -888,7 +888,7 @@ class AnalysisView:
                 ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
             ]),
             on_click=self._submit_allocation,
-            style=ft.ButtonStyle(padding=ft.padding.symmetric(horizontal=32, vertical=18)),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
         )
 
         col = ft.Column([
