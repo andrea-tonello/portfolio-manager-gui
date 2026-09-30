@@ -28,7 +28,6 @@ def create_defaults(save_folder, broker_name):
     from newrow import _base_row
 
     path_rep = os.path.join(save_folder, REPORT_PREFIX + broker_name + ".csv")
-    check_rep = os.path.isfile(path_rep)
 
     row = _base_row()
     row.update({
@@ -42,6 +41,6 @@ def create_defaults(save_folder, broker_name):
     })
     df_template = pd.DataFrame({k: [v] for k, v in row.items()})
 
-    if (not os.listdir(save_folder)) or (not check_rep):
+    if not os.path.isfile(path_rep):
         df_template.to_csv(path_rep, index=False)
 

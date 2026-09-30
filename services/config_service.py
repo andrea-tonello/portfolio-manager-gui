@@ -52,9 +52,6 @@ def save_brokers(config_folder: str, brokers: dict[int, str], reset: bool = Fals
     if reset and config.has_section("Brokers"):
         config.remove_section("Brokers")
     _ensure_section(config, "Brokers")
-    if reset:
-        for key in list(config["Brokers"].keys()):
-            config.remove_option("Brokers", key)
     for idx, name in brokers.items():
         config.set("Brokers", str(idx), name)
     _save_config(path, config)
