@@ -40,8 +40,14 @@ def gain(day, amount, *, product="Stock"):
             "expiry": np.nan, "gross_gain": amount}
 
 
+def other(day):
+    """A row for any operation that neither creates a loss nor realises a gain (deposit, buy, ...)."""
+    return {"date": day, "product": "Stock", "generated_loss": np.nan,
+            "expiry": np.nan, "gross_gain": np.nan}
+
+
 def history(*rows):
-    """Turn loss()/gain() rows into the account table compute_carryforward reads.
+    """Turn loss()/gain()/other() rows into the account table compute_carryforward reads.
 
     Only the columns compute_carryforward uses are included; rows must be in
     date order, as in a real account CSV.
@@ -126,6 +132,27 @@ def test_rows_after_the_requested_day_are_ignored():
     """Asking for the carryforward on a past day ignores later operations."""
     df = history(loss("01-03-2024", 30), loss("03-06-2024", 50))
     assert compute_carryforward(df, date(2024, 4, 1)) == 30
+
+
+def test_same_day_operations_are_applied_in_the_order_entered():
+    """A loss and a gain on the same day are applied in the order they were entered, even in long histories.
+
+    Example: 100 lost in January; later, on a busy day, a 500 loss is entered
+    before a 300 gain. The gain uses the oldest losses first: all of the 100,
+    then 200 of the 500, leaving 300. Applying the gain before the 500 loss
+    would use only the 100 and wrongly report 500. A plain sort reordered
+    same-day rows only in histories longer than about 16 rows, hence the padding.
+    """
+    busy_day = "04-01-2024"
+    df = history(
+        loss("01-01-2024", 100),
+        *[other(day) for day in ("02-01-2024", "03-01-2024") for _ in range(2)],
+        *[other(busy_day) for _ in range(5)],
+        loss(busy_day, 500),
+        gain(busy_day, 300),
+        *[other(busy_day) for _ in range(5)],
+    )
+    assert compute_carryforward(df, date(2024, 12, 31)) == 300
 
 
 def test_as_of_index_ignores_rows_from_that_position_on():

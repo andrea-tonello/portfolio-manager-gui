@@ -46,6 +46,6 @@ def execute_etf_stock(translator, df, broker, date_str, ref_date,
 
 
 def execute_split(translator, df, broker, date_str, ref_date, ticker, ratio):
-    if not isinstance(ratio, (int, float)) or ratio <= 0 or ratio > 1000 or ratio < 0.001:
+    if not isinstance(ratio, (int, float)) or not (0.001 <= ratio <= 1000):
         raise ValidationError(translator.get("operations.split.ratio_error"))
     return newrow_split(translator, df, date_str, ref_date, broker, ticker, float(ratio))

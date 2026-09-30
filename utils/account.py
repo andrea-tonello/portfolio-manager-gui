@@ -371,8 +371,9 @@ def compute_carryforward(df, ref_date, as_of_index=None):
     if as_of_index is not None:
         history = history.loc[history.index < as_of_index]
 
-    history = history.sort_values(by=['date_dt']).assign(_orig_index=history.index)
-    history = history.sort_values(by=['date_dt', '_orig_index'])
+    # Stable sort: operations on the same day keep the order they were entered in,
+    # which matters when a loss and a gain fall on the same day.
+    history = history.sort_values(by='date_dt', kind='stable')
 
     active_losses = []
 

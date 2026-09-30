@@ -1,5 +1,9 @@
 ## [0.3.2] (XXXX-XX-XX)
 
+### Bug Fixes
+
+- **[LOGIC]** Operations done on the same day would not always keep the order they were entered in
+
 ### Refactoring
 
 
