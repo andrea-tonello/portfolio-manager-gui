@@ -6,14 +6,14 @@ from datetime import date, datetime, timedelta
 
 from components.focus_chain import chain_focus
 from components.snack import show_snack
-
-_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
-_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
-_INT_FILTER = ft.NumbersOnlyInputFilter()
 from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
 from utils.date_utils import parse_date_input
+
+_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
+_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
+_INT_FILTER = ft.NumbersOnlyInputFilter()
 
 
 class AnalysisView:

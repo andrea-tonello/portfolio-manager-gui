@@ -87,26 +87,24 @@ def compute_summary(translator, brokers, data, ref_date, dt_str):
 
         current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         historic_liq = df_valid["committed_cash"].iloc[-1]
-        asset_value = 0.0
         pl = df_valid["pl"].sum()
+        asset_value = 0.0
         pl_unrealized = 0.0
-        nav = current_liq
+        if positions:
+            asset_value = round_half_up(sum(pos["value"] for pos in positions))
+            pl_unrealized = pl + sum([pos["value"] - pos["pmc"] * pos["quantity"] for pos in positions])
+        nav = current_liq + asset_value
 
+        # XIRR cash flows: deposits (money in, negative), withdrawals (money out,
+        # positive), and finally the account's value today, as if cashed out now.
         cashflow_df = df_valid[df_valid["operation"].isin(["Deposit", "Withdrawal"])]
-        flows = (cashflow_df["effective_amount"] * -1).tolist()
-        flows.append(nav)
-        flows_dates = cashflow_df["date"].tolist()
-        flows_dates.append(ref_date)
+        flows = (cashflow_df["effective_amount"] * -1).tolist() + [nav]
+        flows_dates = cashflow_df["date"].tolist() + [ref_date]
 
         xirr_full = np.nan
         xirr_ann = np.nan
 
         if positions:
-            asset_value = round_half_up(sum(pos["value"] for pos in positions))
-            pl_unrealized = pl + sum([pos["value"] - pos["pmc"] * pos["quantity"] for pos in positions])
-            flows = flows[:-1]
-            nav = nav + round_half_up(asset_value)
-            flows.append(nav)
             xirr_full = xirr(flows, flows_dates, annualization=(ref_date - flows_dates[0]).days)
             xirr_ann = xirr(flows, flows_dates)
             accounts_with_positions += 1

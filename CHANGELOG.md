@@ -3,6 +3,7 @@
 ### Bug Fixes
 
 - **[LOGIC]** Operations done on the same day would not always keep the order they were entered in
+- **[PERFORMANCE]** Vectorized VaR computation
 
 ### Refactoring
 

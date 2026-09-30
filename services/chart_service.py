@@ -2,6 +2,8 @@ import flet as ft
 import flet_charts as fch
 import numpy as np
 
+from utils.columns import PRODUCT_LOCALE_KEYS
+
 
 def _date_axis_labels(dates, num_labels=6):
     """Create evenly-spaced ChartAxisLabels from a list of dates."""
@@ -660,8 +662,6 @@ _ALLOC_COLORS = {
 
 def chart_allocation(allocation, translator):
     """Build a PieChart from an allocation dict {product_type: value}."""
-    from utils.columns import PRODUCT_LOCALE_KEYS
-
     total = sum(allocation.values())
     if total <= 0:
         return ft.Text("No data")

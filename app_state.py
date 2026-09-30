@@ -3,7 +3,7 @@ import configparser
 
 import flet as ft
 
-from services import config_service
+from services import account_service, config_service
 from utils.translator import Translator
 from utils.constants import LANG
 from utils.other_utils import create_defaults
@@ -163,7 +163,6 @@ class AppState:
 
     def load_all_accounts(self):
         """Load all broker accounts into self.accounts."""
-        from services import account_service
         self.accounts = {}
         for idx in sorted(self.brokers.keys()):
             try:

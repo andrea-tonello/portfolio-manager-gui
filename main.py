@@ -3,12 +3,12 @@ import flet as ft
 
 from app_state import AppState
 from components.snack import show_snack
-
-_DATA_DIR = os.getenv("FLET_APP_STORAGE_DATA", ".")
 from services import config_service
 from views import _rebuild_page
 from views.settings_view import PALETTE_COLORS
 from utils.constants import LANG
+
+_DATA_DIR = os.getenv("FLET_APP_STORAGE_DATA", ".")
 
 _PAGE_TRANSITIONS = ft.PageTransitionsTheme(
     android=ft.PageTransitionTheme.CUPERTINO,

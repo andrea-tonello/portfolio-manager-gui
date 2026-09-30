@@ -6,14 +6,15 @@ from datetime import date, datetime, timedelta
 
 from components.focus_chain import chain_focus
 from components.snack import show_snack
-
-_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
-_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
+from services.market_data import search_tickers
 from utils.other_utils import round_half_up
 from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
 from utils.date_utils import parse_date_input
+
+_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
+_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 
 
 class OperationsView:
@@ -871,8 +872,7 @@ class OperationsView:
 
         def worker():
             try:
-                from services.market_data import search_tickers as _search
-                results = _search(ticker, quotes_count=1)
+                results = search_tickers(ticker, quotes_count=1)
                 if results and results[0]["symbol"].upper() == ticker.upper():
                     actual_type = results[0]["quote_type"]
                     if actual_type != expected_type:

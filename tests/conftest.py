@@ -28,6 +28,7 @@ FAKE_BASE_PRICES = {
 }
 FAKE_SPLITS = {"AAA.MI": (pd.Timestamp("2024-07-01"), 2.0)}
 FAKE_USDEUR = 0.91
+FX_TICKER = "USDEUR=X"
 _PRICE_EPOCH = pd.Timestamp("2024-01-01")
 
 
@@ -37,7 +38,12 @@ def fake_close(ticker: str, day: pd.Timestamp) -> float:
 
     Example: AAA.MI closes at 100.0 on 2024-01-01, and at 101.0 after 10 days on 2024-01-11.
     At 2024-07-01 it would be at 118.2 -> but 2:1 split -> 59.1.
+
+    The USD->EUR exchange rate, which Yahoo serves as the ticker "USDEUR=X",
+    is constant at FAKE_USDEUR (the portfolio history needs it for USD assets).
     """
+    if ticker == FX_TICKER:
+        return FAKE_USDEUR
     price = FAKE_BASE_PRICES[ticker] * (1 + 0.001 * (day - _PRICE_EPOCH).days)
     split = FAKE_SPLITS.get(ticker)
     if split and day >= split[0]:
@@ -58,7 +64,7 @@ def fake_download_close(tickers, start=None, end=None, period=None, adjusted=Fal
     if isinstance(tickers, str):
         tickers = [tickers]
     index = pd.bdate_range(pd.Timestamp(start).normalize(), pd.Timestamp(end).normalize(), name="Date")
-    known = [tk for tk in tickers if tk in FAKE_BASE_PRICES]
+    known = [tk for tk in tickers if tk in FAKE_BASE_PRICES or tk == FX_TICKER]
     df = pd.DataFrame({tk: [fake_close(tk, day) for day in index] for tk in known}, index=index)
     names = {tk: f"{tk} Name" for tk in known}
     if df.empty:
