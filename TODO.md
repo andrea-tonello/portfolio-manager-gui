@@ -18,7 +18,6 @@
     - [TABLET] New-account wizard: reduce textfields width
     - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
 
-- Rename locales/ to i18n/, Move i18n/ and docs/ under assets/
 - Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - [TABLET] Reduce account dropdown width in each of the 4 main views
 

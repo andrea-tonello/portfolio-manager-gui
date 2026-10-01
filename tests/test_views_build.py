@@ -84,3 +84,23 @@ def test_operations_help_dialogs_build(method, page, state):
     getattr(view, method)(None)
 
     assert len(page.dialogs) == 1
+
+
+@pytest.mark.parametrize("language", ["en", "it"])
+def test_help_texts_are_read_from_their_files(language, page, state):
+    """The privacy policy and the fee-mode help show the text of their per-language files.
+
+    Both dialogs fall back to a "not available" sentence when the file can't be
+    opened, so a wrong path (e.g. after moving the translation folder) would
+    otherwise go unnoticed.
+    """
+    fallbacks = {"Privacy policy not available.", "Fee mode description not available."}
+    state.lang_code = language
+
+    show_privacy_policy(page, state)
+    OperationsView(page, state)._show_fee_help(None)
+
+    texts = [dialog.content.content.controls[0].value for dialog in page.dialogs]
+    assert len(texts) == 2
+    assert not fallbacks & set(texts)
+    assert all(texts)

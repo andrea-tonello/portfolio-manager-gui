@@ -1,7 +1,7 @@
 """Errors the user should see, carrying a locale key instead of finished text.
 
 Domain and service code doesn't know the user's language. It raises one of
-these with the key of the message in locales/<language>.json and the values
+these with the key of the message in assets/i18n/<language>.json and the values
 to fill in; the screen that catches it translates it with
 components.snack.error_message.
 

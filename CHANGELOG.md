@@ -11,7 +11,8 @@
 
 ### Refactoring
 
-
+- Decoupled the Translator from domain code, allowing for clearer tests and avoiding useless parameter passing
+- Renamed locales/ to i18n/, Moved i18n/ and docs/ under assets/
 
 
 

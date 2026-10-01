@@ -44,7 +44,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
             controls=[
                 ft.Container(
                     content=ft.Row([
-                        ft.Image(src="appbar-icon.png", width=44, height=44, border_radius=30),
+                        ft.Image(src="imgs/appbar-icon.png", width=44, height=44, border_radius=30),
                         ft.Text("Portfolio Manager", size=20),
                     ], spacing=10, expand=True),
                     padding=ft.Padding.only(left=15, top=10)

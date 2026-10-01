@@ -12,6 +12,7 @@ import pytest
 import utils.account
 from app_state import AppState
 from services import config_service
+from utils.constants import I18N_DIR
 from utils.translator import Translator
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -99,8 +100,8 @@ def fake_market(monkeypatch):
 
 @pytest.fixture
 def translator():
-    """The app's real English Translator, loaded from the project's locales/ folder."""
-    return Translator(language_code="en", locales_dir=str(ROOT / "locales"))
+    """The app's real English Translator, loaded from the project's assets/i18n/ folder."""
+    return Translator(language_code="en", locales_dir=I18N_DIR)
 
 
 # ── App state and page (for building screens) ────────────────────────

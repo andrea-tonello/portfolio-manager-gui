@@ -2,13 +2,13 @@ import os
 import flet as ft
 
 from services import config_service
-from utils.constants import GITHUB_URL
+from utils.constants import GITHUB_URL, I18N_DIR
 
 
 def show_privacy_policy(page: ft.Page, state):
     t = state.translator
     lang = state.lang_code or "en"
-    pp_path = os.path.join(os.path.dirname(__file__), "..", "locales", f"privacy_policy_{lang}.txt")
+    pp_path = os.path.join(I18N_DIR, f"privacy_policy_{lang}.txt")
     try:
         with open(pp_path, encoding="utf-8") as f:
             pp_text = f.read()
@@ -182,7 +182,7 @@ def show_user_manager(page: ft.Page, state):
 
 def build_github_repo(state, img_size=44, font_size=16, font_bold=True):
     t = state.translator
-    github_icon = ft.Image(src="github-logo.png", width=img_size, height=img_size, border_radius=30)
+    github_icon = ft.Image(src="imgs/github-logo.png", width=img_size, height=img_size, border_radius=30)
     icon_and_text = ft.Row([github_icon, ft.Text(t.get("settings.repo"), 
                             size=font_size, weight=ft.FontWeight.BOLD if font_bold else None),])
 

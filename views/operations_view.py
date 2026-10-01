@@ -10,7 +10,7 @@ from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
-from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD
+from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD, I18N_DIR
 from utils.date_utils import parse_date_input
 
 _DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
@@ -938,7 +938,7 @@ class OperationsView:
     def _show_fee_help(self, e):
         t = self.state.translator
         lang = self.state.lang_code or "en"
-        fee_help_path = os.path.join(os.path.dirname(__file__), "..", "locales", f"fee_mode_help_{lang}.txt")
+        fee_help_path = os.path.join(I18N_DIR, f"fee_mode_help_{lang}.txt")
         try:
             with open(fee_help_path, encoding="utf-8") as f:
                 fee_help_text = f.read()

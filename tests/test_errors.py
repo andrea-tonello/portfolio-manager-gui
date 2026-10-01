@@ -2,7 +2,7 @@
 
 Domain and service code never translates anything. When something is wrong it
 raises a ValidationError that carries a locale key (a path into
-locales/<language>.json, e.g. "operations.split.ratio_error") and the values to
+assets/i18n/<language>.json, e.g. "operations.split.ratio_error") and the values to
 fill into that message. The screens turn it into text in the user's current
 language with components.snack.error_message.
 """
@@ -23,6 +23,7 @@ from test_ledger_snapshots import NAMES, _replay, buy, deposit, sell, split
 from components.snack import error_message
 from domain.errors import TickerNotFound, ValidationError
 from services import analysis_service, config_service, market_data
+from utils.constants import I18N_DIR
 from utils.date_utils import get_pf_date
 from utils.translator import Translator
 from views.settings_view import SettingsView
@@ -32,8 +33,8 @@ LANGUAGES = ["en", "it"]
 
 
 def _translator(language):
-    """A real Translator for `language` ("en" or "it"), loaded from the project's locales/ folder."""
-    return Translator(language_code=language, locales_dir=str(ROOT / "locales"))
+    """A real Translator for `language` ("en" or "it"), loaded from the project's assets/i18n/ folder."""
+    return Translator(language_code=language, locales_dir=I18N_DIR)
 
 
 # ── Every key written in the code exists in every language ──────────
@@ -84,7 +85,7 @@ def test_every_locale_key_written_in_the_code_exists(language):
     Before D1, get_pf_date used "dates.error_nodates", which exists in neither
     file (the message lives at "misc_errors.nodates").
     """
-    strings = json.loads((ROOT / "locales" / f"{language}.json").read_text(encoding="utf-8"))
+    strings = json.loads((Path(I18N_DIR) / f"{language}.json").read_text(encoding="utf-8"))
     keys = _locale_keys_used_in_code()
     assert keys, "the scan should find the app's locale keys"
 

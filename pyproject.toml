@@ -27,6 +27,7 @@ exclude = [
     "*.md",
     "media",
     "assets/*-old*",
+    "assets/docs",  # the GitHub Pages site, not used by the app
 ]
 
 [tool.flet.compile]
