@@ -26,11 +26,11 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
 
 | <br>Home                                                                                      | <br>Home (Dark theme, Hidden data, English)                                                  | <br>Settings                                                                                  |
 | :-:                                                                                           | :-:                                                                                          | :-:                                                                                           |
-| <p align="center"><img src="./media/screenshots/home-light.png" alt="image" width="280"/></p> | <p align="center"><img src="./media/screenshots/home-dark.png" alt="image" width="280"/></p> | <p align="center"><img src="./media/screenshots/settings.png" alt="image" width="280"/></p>   |
+| <p align="center"><img src="./assets/readme/home-light.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/home-dark.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/settings.png" alt="image" width="280"/></p>   |
 | <br>**Operations**                                                                            | <br>**Transactions**                                                                         | <br>**Statistics**                                                                            |
-| <p align="center"><img src="./media/screenshots/operations.png" alt="image" width="280"/></p> | <p align="center"><img src="./media/screenshots/trans.png" alt="image" width="280"/></p>     | <p align="center"><img src="./media/screenshots/statistics.png" alt="image" width="280"/></p> |
+| <p align="center"><img src="./assets/readme/operations.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/trans.png" alt="image" width="280"/></p>     | <p align="center"><img src="./assets/readme/statistics.png" alt="image" width="280"/></p> |
 | <br>**Correlation**                                                                           | <br>**Drawdown**                                                                             | <br>**Value at Risk**                                                                         |
-| <p align="center"><img src="./media/screenshots/corr.png" alt="image" width="280"/></p>       | <p align="center"><img src="./media/screenshots/drawdown.png" alt="image" width="280"/></p>  | <p align="center"><img src="./media/screenshots/var.png" alt="image" width="280"/></p>        |
+| <p align="center"><img src="./assets/readme/corr.png" alt="image" width="280"/></p>       | <p align="center"><img src="./assets/readme/drawdown.png" alt="image" width="280"/></p>  | <p align="center"><img src="./assets/readme/var.png" alt="image" width="280"/></p>        |
 
 
 ## Applicazione

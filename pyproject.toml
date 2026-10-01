@@ -18,16 +18,16 @@ dependencies = [
 ]
 
 [tool.flet.app]
+# Left out of the app package. Each entry is an exact path, compared as text:
+# wildcards don't work here (put those in [tool.flet.cleanup] app_files), and
+# Windows builds compare with backslashes, so nested paths are listed twice.
 exclude = [
     "tests",
     ".git",
     "__pycache__",
     ".venv",
-    "*.csv",
-    "*.md",
-    "media",
-    "assets/*-old*",
-    "assets/docs",  # the GitHub Pages site, not used by the app
+    "assets/docs", 'assets\docs',      # the GitHub Pages site, not used by the app
+    "assets/readme", 'assets\readme',  # README screenshots
 ]
 
 [tool.flet.compile]
@@ -37,10 +37,13 @@ packages = true
 [tool.flet.cleanup]
 app = true
 packages = true
+# Deleted from the packaged app; these are wildcard patterns, matched on every platform.
 app_files = [
     "**/__pycache__",
     "**/*.md",
     "**/*.rst",
+    "**/*.csv",       # e.g. a report exported into the project folder
+    "assets/*-old*",  # old versions of images kept while replacing them
 ]
 package_files = [
     "**/*.pyi",

@@ -1,11 +1,13 @@
 """Checks on the files in assets/ that the app and `flet build` rely on.
 
 A wrong image path raises no error: Flet just draws an empty box, and
-`flet build` quietly falls back to Flet's default app icon. These tests catch
-both mistakes, e.g. after moving files around in assets/.
+`flet build` quietly falls back to Flet's default app icon. A wrong entry in
+pyproject.toml's exclude list is just as silent: the files get packaged anyway.
+These tests catch those mistakes, e.g. after moving files around in assets/.
 """
 
 import ast
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -46,6 +48,29 @@ def test_every_image_in_the_code_exists_in_assets():
     missing = [f"{file}:{line} {src}" for file, line, src in sources if not (ASSETS / src).is_file()]
 
     assert missing == []
+
+
+def _build_excludes():
+    """Return the `[tool.flet.app] exclude` list from pyproject.toml."""
+    with open(ROOT / "pyproject.toml", "rb") as f:
+        return tomllib.load(f)["tool"]["flet"]["app"]["exclude"]
+
+
+def test_build_excludes_are_exact_paths_for_every_platform():
+    """Each exclude entry is an exact path; nested ones exist and are also listed for Windows.
+
+    The packager (serious_python) compares every file's path with the entries
+    as plain text, using the system's separator. So a wildcard such as "*.csv"
+    never matches anything, and "assets/docs" only matches on Linux and macOS:
+    Windows builds need 'assets\\docs' too. Wildcards belong in
+    [tool.flet.cleanup] app_files instead.
+    """
+    excludes = _build_excludes()
+
+    assert [e for e in excludes if any(c in e for c in "*?[")] == []
+    for entry in (e for e in excludes if "/" in e):
+        assert (ROOT / entry).exists(), f"{entry} doesn't exist: moved without updating pyproject.toml?"
+        assert entry.replace("/", "\\") in excludes, f"{entry} has no Windows spelling"
 
 
 @pytest.mark.parametrize("name", ["icon.png", "icon_android.png"])
