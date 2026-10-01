@@ -59,3 +59,16 @@ def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, pl
     assert len(view.file_picker.calls) == 1
     assert view.file_picker.calls[0]["src_bytes"], "the bytes must be handed to Flet"
     assert any(isinstance(c, ft.SnackBar) for c in page.overlay), "a success message should be shown"
+
+
+@pytest.mark.parametrize("export", EXPORTS)
+def test_cancelled_export_shows_no_message(export, page, state):
+    """If the user cancels the save dialog (save_file returns None), no success message appears."""
+    view_cls, run_export = EXPORTS[export]
+    view = view_cls(page, state)
+    view.build()
+    view.file_picker = FakeFilePicker(None)
+
+    asyncio.run(run_export(view))
+
+    assert not any(isinstance(c, ft.SnackBar) for c in page.overlay)

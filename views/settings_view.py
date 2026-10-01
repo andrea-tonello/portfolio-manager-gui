@@ -350,12 +350,13 @@ class SettingsView:
         filename = "portfolio_backup.zip"
         # Flet writes src_bytes to the chosen location itself, on every platform.
         # Never open the returned path: on Android it is not a real file path.
-        await self.file_picker.save_file(
+        path = await self.file_picker.save_file(
             file_name=filename,
             allowed_extensions=["zip"],
             src_bytes=zip_bytes,
         )
-        show_snack(self.page, t.get("settings.account.export_success", filename=filename))
+        if path:  # None means the user cancelled the save dialog
+            show_snack(self.page, t.get("settings.account.export_success", filename=filename))
 
     async def _on_import_backup(self, e):
         t = self.state.translator
