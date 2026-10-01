@@ -3,7 +3,7 @@ import flet as ft
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service, account_service
-from utils.constants import LANG, APP_VERSION
+from utils.constants import APP_VERSION, DEFAULT_LANG, LANGUAGES
 from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
 from utils.other_utils import create_defaults
 
@@ -160,11 +160,8 @@ class SettingsView:
 
     def _build_language_section(self) -> ft.Control:
         t = self.state.translator
-        options = [
-            ft.dropdown.Option(key=code, text=name)
-            for _, (code, name) in sorted(LANG.items())
-        ]
-        current = self.state.lang_code or LANG[1][0]
+        options = [ft.dropdown.Option(key=code, text=name) for code, name in LANGUAGES.items()]
+        current = self.state.lang_code or DEFAULT_LANG
         return ft.Container(
             content=ft.Column([
                 ft.Text(t.get("settings.language.title"), size=16, weight=ft.FontWeight.BOLD),

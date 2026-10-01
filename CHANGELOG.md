@@ -1,3 +1,15 @@
+## [0.3.4] (2026-XX-XX)
+
+### Refactoring
+
+- Buy/Sell status is not encoded as the sign of the price anymore.
+
+
+
+
+
+
+
 
 ## [0.3.3] (2026-10-01)
 
@@ -13,9 +25,6 @@
 
 - Decoupled the Translator from domain code, allowing for clearer tests and avoiding useless parameter passing
 - Renamed locales/ to i18n/, Moved i18n/ and docs/ under assets/
-
-
-
 
 
 

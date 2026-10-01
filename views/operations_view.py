@@ -10,7 +10,7 @@ from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
-from utils.constants import DATE_FORMAT, CURRENCY_EUR, CURRENCY_USD, I18N_DIR
+from utils.constants import CURRENCIES, DATE_FORMAT, DEFAULT_LANG, I18N_DIR
 from utils.date_utils import parse_date_input
 
 _DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
@@ -512,11 +512,8 @@ class OperationsView:
                 shape=ft.RoundedRectangleBorder(radius=15),
             ),
             label=t.get("operations.stock.currency"),
-            options=[
-                ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
-                ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
-            ],
-            value=str(CURRENCY_EUR),
+            options=[ft.dropdown.Option(key=code, text=code) for code in CURRENCIES],
+            value="EUR",
             on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
             col={"xs": 6, "md": 6},
             border_radius=ft.BorderRadius.all(15),
@@ -551,11 +548,8 @@ class OperationsView:
                 shape=ft.RoundedRectangleBorder(radius=15),
             ),
             label=t.get("operations.stock.currency_fee"),
-            options=[
-                ft.dropdown.Option(key=str(CURRENCY_EUR), text="EUR"),
-                ft.dropdown.Option(key=str(CURRENCY_USD), text="USD"),
-            ],
-            value=str(CURRENCY_EUR),
+            options=[ft.dropdown.Option(key=code, text=code) for code in CURRENCIES],
+            value="EUR",
             visible=False, col={"xs": 6, "md": 6},
             border_radius=ft.BorderRadius.all(15),
             border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
@@ -748,7 +742,7 @@ class OperationsView:
 
     def _on_currency_change(self, e, product_type):
         tab = self._es_tabs[product_type]
-        is_usd = (e.control.value == str(CURRENCY_USD))
+        is_usd = (e.control.value == "USD")
         tab["exch_rate"].visible = is_usd
         tab["fee_currency_dd"].visible = is_usd
         self.page.update()
@@ -776,7 +770,7 @@ class OperationsView:
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
-        currency_int = int(tab["currency_dd"].value)
+        currency = tab["currency_dd"].value
 
         ticker = tab["ticker"].value.strip()
         if not ticker:
@@ -816,7 +810,7 @@ class OperationsView:
         is_buy = not tab["es_type"].controls[1].value  # Switch off = Buy
 
         conv_rate = 1.0
-        if currency_int == CURRENCY_USD:
+        if currency == "USD":
             try:
                 exch = float(tab["exch_rate"].value)
                 if exch <= 0:
@@ -825,8 +819,7 @@ class OperationsView:
             except (ValueError, TypeError):
                 show_snack(self.page, t.get("operations.stock.exch_rate_error"), error=True)
                 return
-            fee_currency = int(tab["fee_currency_dd"].value)
-            if fee_currency == CURRENCY_USD:
+            if tab["fee_currency_dd"].value == "USD":
                 fee = round_half_up(fee * conv_rate, decimal="0.000001")
 
         ter = np.nan
@@ -883,7 +876,7 @@ class OperationsView:
 
                 new_df = operations_service.execute_etf_stock(
                     df, broker, date_str, ref_date,
-                    currency_int, conv_rate, ticker, quantity, price,
+                    currency, conv_rate, ticker, quantity, price,
                     fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
                 s.accounts[acc_idx]["df"] = new_df
@@ -936,7 +929,7 @@ class OperationsView:
 
     def _show_fee_help(self, e):
         t = self.state.translator
-        lang = self.state.lang_code or "en"
+        lang = self.state.lang_code or DEFAULT_LANG
         fee_help_path = os.path.join(I18N_DIR, f"fee_mode_help_{lang}.txt")
         try:
             with open(fee_help_path, encoding="utf-8") as f:

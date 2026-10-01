@@ -2,12 +2,12 @@ import os
 import flet as ft
 
 from services import config_service
-from utils.constants import GITHUB_URL, I18N_DIR
+from utils.constants import DEFAULT_LANG, GITHUB_URL, I18N_DIR
 
 
 def show_privacy_policy(page: ft.Page, state):
     t = state.translator
-    lang = state.lang_code or "en"
+    lang = state.lang_code or DEFAULT_LANG
     pp_path = os.path.join(I18N_DIR, f"privacy_policy_{lang}.txt")
     try:
         with open(pp_path, encoding="utf-8") as f:

@@ -5,7 +5,7 @@ import flet as ft
 
 from services import account_service, config_service
 from utils.translator import Translator
-from utils.constants import I18N_DIR, LANG
+from utils.constants import DEFAULT_LANG, I18N_DIR
 from utils.other_utils import create_defaults
 
 
@@ -20,7 +20,7 @@ class AppState:
         self.config_path = os.path.join(self.config_folder, "config.ini")
         self.config = configparser.ConfigParser()
 
-        self.translator = Translator(language_code=LANG[1][0], locales_dir=I18N_DIR)
+        self.translator = Translator(language_code=DEFAULT_LANG, locales_dir=I18N_DIR)
         self.lang_code: str | None = None
 
         # Multi-user

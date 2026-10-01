@@ -6,7 +6,7 @@ from components.snack import show_snack
 from services import config_service
 from views import _rebuild_page
 from views.settings_view import PALETTE_COLORS
-from utils.constants import LANG
+from utils.constants import LANGUAGES
 
 _DATA_DIR = os.getenv("FLET_APP_STORAGE_DATA", ".")
 
@@ -87,10 +87,7 @@ def main(page: ft.Page):
 
 def _show_language_picker(page: ft.Page, state: AppState):
     t = state.translator
-    options = [
-        ft.dropdown.Option(key=code, text=name)
-        for _, (code, name) in sorted(LANG.items())
-    ]
+    options = [ft.dropdown.Option(key=code, text=name) for code, name in LANGUAGES.items()]
     dd = ft.Dropdown(
         menu_style=ft.MenuStyle(
             shape=ft.RoundedRectangleBorder(radius=15),

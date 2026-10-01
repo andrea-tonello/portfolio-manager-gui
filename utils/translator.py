@@ -1,11 +1,11 @@
 import json
 import os
 
-from utils.constants import I18N_DIR
+from utils.constants import DEFAULT_LANG, I18N_DIR
 
 
 class Translator:
-    def __init__(self, language_code="en", locales_dir=None):
+    def __init__(self, language_code=DEFAULT_LANG, locales_dir=None):
         self.language_code = language_code
         self.strings = {}
         self.locales_dir = locales_dir or I18N_DIR
