@@ -310,7 +310,7 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False):
 
 def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
 
-    price_abs = abs(price) * conv_rate
+    price_eur = price * conv_rate
     fee = round_half_up(fee)
     abp = 0
     current_qt = quantity
@@ -318,13 +318,13 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
     fee_in_cost = fee if fee_mode == "abp" else 0
 
     if asset_rows.empty:
-        abp = (price_abs * quantity + fee_in_cost) / quantity
+        abp = (price_eur * quantity + fee_in_cost) / quantity
     else:
         last_abp = asset_rows["abp"].iloc[-1]
         last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
         old_cost = last_abp * last_remaining_qt
-        new_cost = price_abs * quantity + fee_in_cost
+        new_cost = price_eur * quantity + fee_in_cost
         current_qt = last_remaining_qt + quantity
 
         abp = ((old_cost + new_cost) / current_qt)
@@ -341,9 +341,9 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
         expiry = add_solar_years(ref_date)
         carryforward += fee_loss
 
-    current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) * conv_rate) - fee
+    current_liq = float(df["cash_held"].iloc[-1]) - round_half_up(round_half_up(quantity * price) * conv_rate) - fee
     positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
-    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
+    asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_eur)
 
     return {
         "operation": "Buy",

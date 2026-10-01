@@ -32,16 +32,19 @@ def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
 
 def execute_etf_stock(df, broker, date_str, ref_date,
                       currency_int, conv_rate, ticker, quantity, price,
-                      fee, ter, product_type, asset_name=None, tax_rate=0.26, fee_mode="abp"):
+                      fee, ter, product_type, *, is_buy, asset_name=None, tax_rate=0.26, fee_mode="abp"):
+    """Record a buy (`is_buy=True`) or a sell of a stock or ETF; `price` is always positive.
+
+    Looks up the ticker's name on Yahoo Finance unless `asset_name` is given.
+    """
     currency_code = CURRENCY_CHOICES[currency_int]
-    buy = price < 0
 
     if asset_name is None:
         asset_name = fetch_name(ticker)
 
     return newrow_etf_stock(df, date_str, ref_date, broker,
                             currency_code, product_type, ticker, quantity,
-                            price, conv_rate, ter, fee, buy,
+                            price, conv_rate, ter, fee, is_buy=is_buy,
                             asset_name=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
 
 

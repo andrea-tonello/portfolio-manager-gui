@@ -50,22 +50,33 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     return _append_row(df, row)
 
 
-def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name, tax_rate=0.26, fee_mode="abp"):
+def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, *, is_buy, asset_name, tax_rate=0.26, fee_mode="abp"):
+    """Record a buy or a sell of `quantity` units of `ticker` and return the account with the new row.
 
-    # BUY:  price -, buy=True
-    # SELL: price +, buy=False
+    `price` is the price of one unit in `currency`, always positive; `is_buy`
+    says which side the trade is on. The row follows the CSV's sign convention,
+    applied only here: money leaving the account is negative, so a buy stores a
+    negative price and negative amounts, a sell positive ones.
 
+    Example: buying 10 units at 100 EUR with a 2 EUR fee stores price -100,
+    nominal_amount -1000 and effective_amount -1002; selling the 10 units at
+    120 EUR with the same fee stores 120, 1200 and 1198.
+    """
+    if price <= 0:
+        raise ValueError(f"price must be positive (got {price}); use is_buy to tell a buy from a sell")
     if not asset_name:
         raise ValueError(f"asset_name is required for ticker '{ticker}'")
     asset_rows = df[df["ticker"] == ticker]
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
 
-    if buy:
+    if is_buy:
         results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
     else:
         results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
 
-    price_eur = price * conv_rate
+    # The CSV stores money leaving the account as negative: a buy's price and amounts.
+    signed_price = -price if is_buy else price
+    price_eur = signed_price * conv_rate
 
     row = _base_row()
     row.update({
@@ -78,15 +89,15 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
         "ter": ter,
         "curr": currency,
         "conv_rate": f"{conv_rate:.6f}",
-        "qt_exch": f"+{quantity}" if buy else f"-{quantity}",
-        "price": round_half_up(price, decimal="0.0001"),
+        "qt_exch": f"+{quantity}" if is_buy else f"-{quantity}",
+        "price": round_half_up(signed_price, decimal="0.0001"),
         "price_eur": round_half_up(price_eur, decimal="0.0001"),
-        "nominal_amount": round_half_up(round_half_up(quantity * price) * conv_rate),
+        "nominal_amount": round_half_up(round_half_up(quantity * signed_price) * conv_rate),
         "fee": round_half_up(fee),
         "qt_held": results["qt_held"],
         "abp": round_half_up(results["abp"], decimal="0.0001"),
         "residual_amount": round_half_up(results["residual_amount"]),
-        "effective_amount": round_half_up( round_half_up(round_half_up(quantity * price) * conv_rate) - round_half_up(fee) ),
+        "effective_amount": round_half_up( round_half_up(round_half_up(quantity * signed_price) * conv_rate) - round_half_up(fee) ),
         "released_amount": round_half_up(results["released_amount"]),
         "gross_gain": round_half_up(results["gross_gain"]),
         "generated_loss": round_half_up(results["generated_loss"]),

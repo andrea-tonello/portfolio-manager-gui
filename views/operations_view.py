@@ -813,8 +813,7 @@ class OperationsView:
         if fee < 0:
             show_snack(self.page, t.get("operations.stock.fee_error"), error=True)
             return
-        if not tab["es_type"].controls[1].value:  # Switch off = Buy
-            price = -price
+        is_buy = not tab["es_type"].controls[1].value  # Switch off = Buy
 
         conv_rate = 1.0
         if currency_int == CURRENCY_USD:
@@ -885,7 +884,7 @@ class OperationsView:
                 new_df = operations_service.execute_etf_stock(
                     df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,
-                    fee, ter, stored_product, tax_rate=tax_rate, fee_mode=fee_mode,
+                    fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])

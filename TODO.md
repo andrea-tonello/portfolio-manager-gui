@@ -10,6 +10,7 @@
 
 - "+" add-user button should be colored/colored+text, not icon-only
 - "+" watchlist button follows the ticker search dropdown (should stay near the textfield instead)
+- "+ Add Transaction" button should be dynamic (Aggiungi Aquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 
 
 - (NEW USER SETUP SCREEN)
@@ -18,6 +19,9 @@
     - [TABLET] New-account wizard: reduce textfields width
     - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
 
+- focus_chain does not work when going from TER to Tax Bracket
+- "?" Fee Management popup is not vertically limited
+- XEON tickers appears when Stocks ETFs is selected
 - Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - [TABLET] Reduce account dropdown width in each of the 4 main views
 

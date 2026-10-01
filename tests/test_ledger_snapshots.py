@@ -66,13 +66,11 @@ def buy(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
         conv_rate=1.0, ter=np.nan, fee_mode="abp"):
     """Step that buys `qty` shares of `ticker` at `price` (in `currency`) plus `fee` EUR.
 
-    Pass a positive price: the builder expects buys as a negative price, as
-    operations_view._submit_es sends them, so the sign is flipped here.
     `conv_rate` is the USD→EUR rate; `ter` and `fee_mode` only matter for ETFs.
     """
     return lambda df: newrow_etf_stock(
-        df, _fmt(day), day, BROKER, currency, product, ticker, qty, -price,
-        conv_rate, ter, fee, True, asset_name=NAMES[ticker], fee_mode=fee_mode)
+        df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
+        conv_rate, ter, fee, is_buy=True, asset_name=NAMES[ticker], fee_mode=fee_mode)
 
 
 def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
@@ -84,7 +82,7 @@ def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     """
     return lambda df: newrow_etf_stock(
         df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
-        conv_rate, ter, fee, False, asset_name=NAMES[ticker],
+        conv_rate, ter, fee, is_buy=False, asset_name=NAMES[ticker],
         tax_rate=tax_rate, fee_mode=fee_mode)
 
 
