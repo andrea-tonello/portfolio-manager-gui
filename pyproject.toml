@@ -58,6 +58,10 @@ package_files = [
 
 [tool.flet.flutter.pubspec.dependency_overrides]
 connectivity_plus = "7.0.0"
+# Flet 1.0.3's build template pins jni 1.0.0, but jni_flutter 1.0.4 (released
+# 2026-10-01) only works with jni >= 1.1, which breaks Android builds. 1.0.3 is the
+# version Flet 1.0.3 shipped with. Remove when moving to a Flet version that fixes it.
+jni_flutter = "1.0.3"
 
 [tool.flet.android]
 target_arch = ["arm64-v8a"]
