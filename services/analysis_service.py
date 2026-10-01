@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime
 from itertools import chain
 
+from domain.errors import ValidationError
 from services.market_data import download_close, fetch_ticker_name
 from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
@@ -54,7 +55,7 @@ def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=10
         return np.nan
 
 
-def compute_summary(translator, brokers, data, ref_date, dt_str):
+def compute_summary(brokers, data, ref_date, dt_str):
     """
     Returns dict:
     {
@@ -81,9 +82,9 @@ def compute_summary(translator, brokers, data, ref_date, dt_str):
 
     for account in data:
         df_copy = account[1].copy()
-        positions = get_asset_value(translator, df_copy, ref_date=ref_date)
+        positions = get_asset_value(df_copy, ref_date=ref_date)
 
-        df_valid, first_date = get_pf_date(translator, df_copy, dt_str, ref_date)
+        df_valid, first_date = get_pf_date(df_copy, dt_str, ref_date)
 
         current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         historic_liq = df_valid["committed_cash"].iloc[-1]
@@ -147,7 +148,7 @@ def compute_summary(translator, brokers, data, ref_date, dt_str):
 
     if first_dates:
         min_date = min(first_dates)
-        pf_history_df = portfolio_history(translator, min_date, ref_date, data)
+        pf_history_df = portfolio_history(min_date, ref_date, data)
 
     if accounts_with_positions > 0:
         # XIRR
@@ -201,7 +202,7 @@ def compute_summary(translator, brokers, data, ref_date, dt_str):
     }
 
 
-def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
+def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
     """
     Returns dict:
     {
@@ -215,7 +216,7 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
     for account in data:
         account[1] = account[1][account[1]["operation"].isin(["Buy", "Sell", "Split"])]
 
-    _, active_tickers = get_tickers(translator, data)
+    _, active_tickers = get_tickers(data)
     correlation_matrix = None
     rolling_corr = None
 
@@ -228,11 +229,11 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
         missing = [t for t in [asset1, asset2] if t not in close_df.columns]
         if missing:
             ticker = missing[0]
-            # Pick the error message: fetch_ticker_name raises "not found" if Yahoo
+            # Pick the error message: fetch_ticker_name raises TickerNotFound if Yahoo
             # doesn't know the ticker; if it returns, the ticker exists but has no
             # prices in the chosen period.
-            fetch_ticker_name(ticker, err=translator.get("operations.stock.ticker_notfound", ticker=ticker))
-            raise RuntimeError(translator.get("operations.stock.ticker_nodata", ticker=ticker))
+            fetch_ticker_name(ticker)
+            raise ValidationError("operations.stock.ticker_nodata", ticker=ticker)
 
         close_df = close_df.ffill()
         returns_df = close_df.pct_change().dropna()
@@ -255,7 +256,7 @@ def compute_correlation(translator, data, start_ref_date, end_ref_date, asset1=N
     }
 
 
-def compute_drawdown(translator, data, start_ref_date, end_ref_date):
+def compute_drawdown(data, start_ref_date, end_ref_date):
     """
     Returns dict:
     {
@@ -270,7 +271,7 @@ def compute_drawdown(translator, data, start_ref_date, end_ref_date):
     if not data:
         return {"pf_history": None, "drawdown": None, "mdd": None, "has_data": False}
 
-    pf_history_df = portfolio_history(translator, start_ref_date, end_ref_date, data)
+    pf_history_df = portfolio_history(start_ref_date, end_ref_date, data)
     pf_history_df = pf_history_df.dropna()
     running_max = pf_history_df["nav"].expanding().max()
     drawdown = (pf_history_df["nav"] - running_max) / running_max
@@ -301,7 +302,7 @@ def _simulate_outcomes(value, daily_return, daily_std, days, num_simulations, rn
     return value * daily_return * days + value * daily_std * z * np.sqrt(days)
 
 
-def compute_var_mc(translator, data, confidence_interval, projected_days):
+def compute_var_mc(data, confidence_interval, projected_days):
     """
     Returns dict:
     {
@@ -319,7 +320,7 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
     start_ref_date = "2010-01-01"
     end_dt = datetime.now()
 
-    _, total_tickers = get_tickers(translator, data)
+    _, total_tickers = get_tickers(data)
     usd_tickers = [t[0] for t in total_tickers if t[1] == "USD"]
     eur_tickers = [t[0] for t in total_tickers if t[1] == "EUR"]
 
@@ -328,10 +329,10 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
 
     for account in data:
         df_copy = account[1].copy()
-        positions = get_asset_value(translator, df_copy, ref_date=end_dt)
+        positions = get_asset_value(df_copy, ref_date=end_dt)
         total_positions.extend(positions)
 
-        df_valid, _ = get_pf_date(translator, df_copy, end_dt, end_dt)
+        df_valid, _ = get_pf_date(df_copy, end_dt, end_dt)
         current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         total_liquidity.append(current_liq)
 
@@ -434,7 +435,7 @@ def compute_var_mc(translator, data, confidence_interval, projected_days):
     }
 
 
-def compute_allocation(translator, data, ref_date):
+def compute_allocation(data, ref_date):
     """Compute asset allocation by product type across accounts.
 
     Returns dict mapping product type → market value in EUR.
@@ -451,7 +452,7 @@ def compute_allocation(translator, data, ref_date):
         allocation["Cash"] = allocation.get("Cash", 0) + cash
 
         # Active positions with product type
-        positions = get_asset_value(translator, df, ref_date=ref_date)
+        positions = get_asset_value(df, ref_date=ref_date)
         df_copy = df.copy()
         df_copy = df_copy[df_copy["operation"].isin(["Buy", "Sell", "Split"])]
         product_by_ticker = df_copy.groupby("ticker")["product"].last().to_dict()

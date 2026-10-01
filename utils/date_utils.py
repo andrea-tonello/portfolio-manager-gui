@@ -2,6 +2,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 
+from domain.errors import ValidationError
 from utils.constants import DATE_FORMAT
 
 
@@ -13,12 +14,12 @@ def parse_date_input(text):
         return None
 
 
-def get_pf_date(translator, df_copy, dt, ref_date):
+def get_pf_date(df_copy, dt, ref_date):
     df_copy["date"] = pd.to_datetime(df_copy["date"], dayfirst=True, errors="coerce")
     ref_date = pd.Timestamp(ref_date)
     df_valid = df_copy[df_copy["date"] <= ref_date]
     if df_valid.empty:
-        raise ValueError(translator.get("dates.error_nodates", dt=dt))
+        raise ValidationError("misc_errors.nodates", dt=dt)
     try:
         first_date = df_valid["date"][1]
     except KeyError:

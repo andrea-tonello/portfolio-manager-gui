@@ -262,6 +262,19 @@
       "deletion_error": "Error deleting data: {e}",
       "reset_completed": "Reset completed"
     },
+    "backup": {
+      "missing_config": "Missing config.ini in backup.",
+      "invalid_config": "config.ini is not a valid configuration file.",
+      "no_entries": "config.ini has no users or accounts.",
+      "missing_user_config": "Missing config for user '{username}'.",
+      "invalid_user_config": "Cannot read the config of user '{username}'.",
+      "user_no_accounts": "User '{username}' has no accounts.",
+      "missing_user_csv": "Missing CSV for account '{account}' (user '{username}').",
+      "no_csv": "No CSV files found in resources/.",
+      "missing_csv": "Missing CSV for account '{account}': {path}",
+      "unreadable_header": "Cannot read the header of {file}.",
+      "missing_columns": "{file} is missing columns: {columns}"
+    },
     "user": "User",
     "user_mgmt": {
       "add_title": "Add User account",

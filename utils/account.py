@@ -3,18 +3,19 @@ import numpy as np
 import warnings
 
 from services.market_data import download_close
-from utils.other_utils import round_half_up, round_down, ValidationError
+from domain.errors import ValidationError
+from utils.other_utils import round_half_up, round_down
 from utils.date_utils import add_solar_years
 from services.market_data import fetch_exchange_rate
 from utils.constants import DATE_FORMAT, ETF_PRODUCTS
 warnings.simplefilter(action='ignore', category=Warning)
 
 
-def get_tickers(translator, data):
+def get_tickers(data):
     total_tickers = []
     active_tickers = []
     for account in data:
-        total_assets, active_assets = get_asset_value(translator, account[1], just_assets=True)
+        total_assets, active_assets = get_asset_value(account[1], just_assets=True)
 
         total_ticker_list = total_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()
         active_ticker_list = active_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()
@@ -76,7 +77,7 @@ def _compute_total_quantities(final_df):
     return final_df
 
 
-def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date):
+def _download_price_data(only_tickers, start_ref_date, end_ref_date):
     prices_df = pd.DataFrame([])
     exch_df = pd.DataFrame([])
     fallback_index = pd.date_range(start=start_ref_date, end=end_ref_date)
@@ -118,7 +119,7 @@ def _download_price_data(translator, only_tickers, start_ref_date, end_ref_date)
     return prices_df, exch_df, target_index
 
 
-def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
+def _build_portfolio_timeseries(final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
     try:
         portfolio_data = final_df.copy()
         portfolio_data = portfolio_data.drop(columns=["curr"])
@@ -193,9 +194,9 @@ def _build_portfolio_timeseries(translator, final_df, prices_df, exch_df, target
         raise RuntimeError(f"Error building portfolio timeseries: {e}")
 
 
-def portfolio_history(translator, start_ref_date, end_ref_date, data):
+def portfolio_history(start_ref_date, end_ref_date, data):
 
-    total_tickers, _ = get_tickers(translator, data)
+    total_tickers, _ = get_tickers(data)
     only_tickers = [t[0] for t in total_tickers]
 
     all_dfs = []
@@ -214,11 +215,11 @@ def portfolio_history(translator, start_ref_date, end_ref_date, data):
     final_df = _compute_total_quantities(final_df)
 
     prices_df, exch_df, target_index = _download_price_data(
-        translator, only_tickers, start_ref_date, end_ref_date
+        only_tickers, start_ref_date, end_ref_date
     )
 
     return _build_portfolio_timeseries(
-        translator, final_df, prices_df, exch_df, target_index, total_tickers, only_tickers
+        final_df, prices_df, exch_df, target_index, total_tickers, only_tickers
     )
 
 
@@ -237,7 +238,7 @@ def aggregate_positions(total_positions):
     return aggr_positions
 
 
-def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_assets=False):
+def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False):
 
     df_copy = df.copy()
     df_copy["date"] = pd.to_datetime(df_copy["date"], format=DATE_FORMAT)
@@ -307,7 +308,7 @@ def get_asset_value(translator, df, current_ticker=None, ref_date=None, just_ass
     return positions
 
 
-def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
+def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
 
     price_abs = abs(price) * conv_rate
     fee = round_half_up(fee)
@@ -341,7 +342,7 @@ def buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_d
         carryforward += fee_loss
 
     current_liq = float(df["cash_held"].iloc[-1]) + round_half_up(round_half_up(quantity * price) * conv_rate) - fee
-    positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
+    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_abs)
 
     return {
@@ -408,17 +409,17 @@ def compute_carryforward(df, ref_date, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26, fee_mode="abp"):
+def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26, fee_mode="abp"):
 
     if asset_rows.empty:
-        raise ValidationError(translator.get("operations.stock.sell_noitems"))
+        raise ValidationError("operations.stock.sell_noitems")
 
     fee = round_half_up(fee)
     last_abp = asset_rows["abp"].iloc[-1]
     last_remaining_qt = asset_rows["qt_held"].iloc[-1]
 
     if quantity > last_remaining_qt:
-        raise ValidationError(translator.get("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt))
+        raise ValidationError("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt)
 
     effective_amount = round_half_up((round_half_up(quantity * price)) * conv_rate) - fee
     released_amount = quantity * last_abp
@@ -462,7 +463,7 @@ def sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_
         generated_loss += fee_loss
 
     current_liq = float(df["cash_held"].iloc[-1]) + effective_amount - round_half_up(tax)
-    positions = get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
+    positions = get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
 
     return {

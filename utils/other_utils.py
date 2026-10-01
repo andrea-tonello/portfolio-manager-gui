@@ -6,11 +6,6 @@ from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from utils.constants import REPORT_PREFIX
 
 
-class ValidationError(Exception):
-    """Raised when user input or business logic validation fails."""
-    pass
-
-
 def round_half_up(value, decimal="0.01"):
     if pd.isna(value):
         return np.nan

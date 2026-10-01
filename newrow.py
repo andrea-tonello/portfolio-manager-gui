@@ -3,7 +3,8 @@ import numpy as np
 
 import utils.account as aop
 from utils.columns import COLUMNS
-from utils.other_utils import round_half_up, ValidationError
+from domain.errors import ValidationError
+from utils.other_utils import round_half_up
 
 
 def _base_row():
@@ -15,7 +16,7 @@ def _append_row(df, row):
     return pd.concat([df, new_row], ignore_index=True)
 
 
-def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, ticker, name):
+def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name):
 
     current_liq = float(df["cash_held"].iloc[-1]) + cash
 
@@ -24,7 +25,7 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     else:
         historic_liq = float(df["committed_cash"].iloc[-1])
 
-    positions = aop.get_asset_value(translator, df, ref_date=ref_date)
+    positions = aop.get_asset_value(df, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions)
 
     row = _base_row()
@@ -49,7 +50,7 @@ def newrow_cash(translator, df, date, ref_date, broker, cash, op_type, product, 
     return _append_row(df, row)
 
 
-def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name, tax_rate=0.26, fee_mode="abp"):
+def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, buy, asset_name, tax_rate=0.26, fee_mode="abp"):
 
     # BUY:  price -, buy=True
     # SELL: price +, buy=False
@@ -60,9 +61,9 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
 
     if buy:
-        results = aop.buy_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
+        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
     else:
-        results = aop.sell_asset(translator, df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
+        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
 
     price_eur = price * conv_rate
 
@@ -104,7 +105,7 @@ def newrow_etf_stock(translator, df, date, ref_date, broker, currency, product, 
     return _append_row(df, row)
 
 
-def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
+def newrow_split(df, date, ref_date, broker, ticker, ratio):
     """Record a stock split as a unit-conversion row.
 
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
@@ -114,14 +115,14 @@ def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
     asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
 
     if asset_rows.empty:
-        raise ValidationError(translator.get("operations.split.ticker_notheld", ticker=ticker))
+        raise ValidationError("operations.split.ticker_notheld", ticker=ticker)
 
     last_row = asset_rows.iloc[-1]
     prev_qt = float(last_row["qt_held"])
     prev_abp = float(last_row["abp"])
 
     if prev_qt <= 0:
-        raise ValidationError(translator.get("operations.split.ticker_notheld", ticker=ticker))
+        raise ValidationError("operations.split.ticker_notheld", ticker=ticker)
 
     new_qt = prev_qt * ratio
     new_abp = prev_abp / ratio
@@ -135,7 +136,7 @@ def newrow_split(translator, df, date, ref_date, broker, ticker, ratio):
     curr = last_row.get("curr", "EUR")
 
     current_liq = float(df["cash_held"].iloc[-1])
-    positions = aop.get_asset_value(translator, df, current_ticker=ticker, ref_date=ref_date)
+    positions = aop.get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
     asset_value = sum(pos["value"] for pos in positions) + (new_qt * new_abp)
 
     row = _base_row()

@@ -2,7 +2,7 @@ import flet as ft
 import pandas as pd
 from datetime import datetime
 
-from components.snack import show_snack
+from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from services import account_service, config_service, operations_service
 from services.market_data import detect_unrecorded_splits, download_close
@@ -472,7 +472,6 @@ class HomeView:
         def worker():
             try:
                 s = self.state
-                t = s.translator
                 ref_date = pd.Timestamp(datetime.now())
                 sel = s.home_selection
                 all_positions = []
@@ -488,7 +487,7 @@ class HomeView:
                             continue
                         total_cash += float(df.iloc[-1].get("cash_held", 0) or 0)
                         total_committed += float(df.iloc[-1].get("committed_cash", 0) or 0)
-                        positions = get_asset_value(t, df, ref_date=ref_date)
+                        positions = get_asset_value(df, ref_date=ref_date)
                         if positions:
                             total_assets += round_half_up(sum(p["value"] for p in positions))
                             for p in positions:
@@ -526,7 +525,7 @@ class HomeView:
                     df = acc["df"]
                     cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
                     total_committed = float(df.iloc[-1].get("committed_cash", 0) or 0) if not df.empty else 0
-                    positions = get_asset_value(t, df, ref_date=ref_date)
+                    positions = get_asset_value(df, ref_date=ref_date)
                     assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
                     nav = cash + assets
                     nav_num = nav
@@ -714,14 +713,14 @@ class HomeView:
         def worker():
             try:
                 new_df = operations_service.execute_split(
-                    t, df, broker, date_str, ref_date, ticker, ratio,
+                    df, broker, date_str, ref_date, ticker, ratio,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, acc["path"])
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._fetch_live_values()
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
 
         self.page.run_thread(worker)
 

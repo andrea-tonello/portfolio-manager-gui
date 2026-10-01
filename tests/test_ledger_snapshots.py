@@ -31,24 +31,24 @@ NAMES = {
 
 
 # ── Operations ───────────────────────────────────────────────────────
-# Each helper returns a step `(translator, df) -> df`, calling the builders
+# Each helper returns a step `(df) -> df`, calling the builders
 # with the same arguments services/operations_service.py passes.
 
 def deposit(day, amount):
     """Step that deposits `amount` EUR of cash into the account."""
-    return lambda t, df: newrow_cash(t, df, _fmt(day), day, BROKER, amount,
+    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
                                      "Deposit", "Cash", np.nan, np.nan)
 
 
 def withdrawal(day, amount):
     """Step that withdraws `amount` EUR of cash. Pass a positive amount; it is stored as negative."""
-    return lambda t, df: newrow_cash(t, df, _fmt(day), day, BROKER, -amount,
+    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, -amount,
                                      "Withdrawal", "Cash", np.nan, np.nan)
 
 
 def dividend(day, ticker, amount):
     """Step that records a dividend of `amount` EUR received from `ticker`."""
-    return lambda t, df: newrow_cash(t, df, _fmt(day), day, BROKER, amount,
+    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
                                      "Dividend", "Dividend", ticker, NAMES[ticker])
 
 
@@ -58,7 +58,7 @@ def charge(day, amount, description):
     Pass a positive amount; it is stored as negative. `description` becomes
     the row's product, as in the app.
     """
-    return lambda t, df: newrow_cash(t, df, _fmt(day), day, BROKER, -abs(amount),
+    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, -abs(amount),
                                      "Tax", description, np.nan, np.nan)
 
 
@@ -70,8 +70,8 @@ def buy(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     operations_view._submit_es sends them, so the sign is flipped here.
     `conv_rate` is the USD→EUR rate; `ter` and `fee_mode` only matter for ETFs.
     """
-    return lambda t, df: newrow_etf_stock(
-        t, df, _fmt(day), day, BROKER, currency, product, ticker, qty, -price,
+    return lambda df: newrow_etf_stock(
+        df, _fmt(day), day, BROKER, currency, product, ticker, qty, -price,
         conv_rate, ter, fee, True, asset_name=NAMES[ticker], fee_mode=fee_mode)
 
 
@@ -82,15 +82,15 @@ def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     `tax_rate` is applied to the taxable gain: 0.26 by default; in the app the
     user can enter a different rate only for money-market ETFs.
     """
-    return lambda t, df: newrow_etf_stock(
-        t, df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
+    return lambda df: newrow_etf_stock(
+        df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
         conv_rate, ter, fee, False, asset_name=NAMES[ticker],
         tax_rate=tax_rate, fee_mode=fee_mode)
 
 
 def split(day, ticker, ratio):
     """Step that records a stock split of `ticker` (ratio 2.0 = 2:1, 0.5 = 1:2)."""
-    return lambda t, df: newrow_split(t, df, _fmt(day), day, BROKER, ticker, ratio)
+    return lambda df: newrow_split(df, _fmt(day), day, BROKER, ticker, ratio)
 
 
 def _fmt(day):
@@ -149,7 +149,7 @@ SCENARIOS = pytest.mark.parametrize("name, steps", [
 ])
 
 
-def _replay(steps, translator, folder, *, reload_each_step=False) -> pd.DataFrame:
+def _replay(steps, folder, *, reload_each_step=False) -> pd.DataFrame:
     """Build an account CSV in `folder` by applying `steps` in order, and return the final DataFrame.
 
     'folder' is tmp_path, a pytest temporary directory created elsewhere. 
@@ -165,7 +165,7 @@ def _replay(steps, translator, folder, *, reload_each_step=False) -> pd.DataFram
     path = folder / f"{REPORT_PREFIX}{BROKER}.csv"
     df = pd.read_csv(path)
     for step in steps:
-        df = step(translator, df)
+        df = step(df)
         if reload_each_step:
             df.to_csv(path, index=False)
             df = pd.read_csv(path)
@@ -173,27 +173,27 @@ def _replay(steps, translator, folder, *, reload_each_step=False) -> pd.DataFram
 
 
 @SCENARIOS
-def test_ledger_matches_snapshot(name, steps, tmp_path, translator, fake_market, snapshot):
+def test_ledger_matches_snapshot(name, steps, tmp_path, fake_market, snapshot):
     """The CSV produced by the scenario is identical to tests/snapshots/<name>.csv.
 
     Fails if any value written to the account CSV changes, e.g. after a
     refactor alters a calculation, rounding or the column layout.
     """
-    df = _replay(steps, translator, tmp_path)           # run the scenario with today's code
+    df = _replay(steps, tmp_path)           # run the scenario with today's code
     snapshot(f"{name}.csv", df.to_csv(index=False))     # hand the resulting CSV text to check()
 
 
 
 @SCENARIOS
-def test_ledger_numbers_survive_reload_between_operations(name, steps, tmp_path, translator, fake_market):
+def test_ledger_numbers_survive_reload_between_operations(name, steps, tmp_path, fake_market):
     """Saving and reloading the CSV between operations does not change any value.
 
     In the app, each new operation may be computed from a CSV reloaded at
     launch rather than from the table still in memory. Both paths must give
     the same numbers.
     """
-    in_memory = _replay(steps, translator, tmp_path / "a")
-    reloaded = _replay(steps, translator, tmp_path / "b", reload_each_step=True)
+    in_memory = _replay(steps, tmp_path / "a")
+    reloaded = _replay(steps, tmp_path / "b", reload_each_step=True)
 
     # Compare parsed values, not text: once reloaded, re-saved rows format some
     # columns differently (qt_exch "+10" -> "10.0", conv_rate "1.000000" -> "1.0").

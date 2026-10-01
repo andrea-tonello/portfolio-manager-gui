@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 
 import pandas as pd
 
+from domain.errors import TickerNotFound
 from utils.other_utils import round_half_up
 
 _BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
@@ -111,8 +112,11 @@ def download_close(tickers, start=None, end=None, period=None, adjusted=False):
     return df, names
 
 
-def fetch_ticker_name(ticker: str, err: str) -> str:
-    """Fetch the long name for a ticker symbol."""
+def fetch_ticker_name(ticker: str) -> str:
+    """Fetch the long name for a ticker symbol (e.g. "ISP.MI" -> "Intesa Sanpaolo S.p.A.").
+
+    Raises TickerNotFound when Yahoo returns no name for it.
+    """
     try:
         chart = _fetch_chart(ticker, period="1d")
         meta = chart.get("meta", {})
@@ -121,7 +125,7 @@ def fetch_ticker_name(ticker: str, err: str) -> str:
             return name
     except Exception:
         pass
-    raise RuntimeError(err)
+    raise TickerNotFound(ticker)
 
 
 def fetch_exchange_rate(ref_date=None) -> float:

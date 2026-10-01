@@ -5,7 +5,7 @@ import os
 from datetime import date, datetime, timedelta
 
 from components.focus_chain import chain_focus
-from components.snack import show_snack
+from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from services import account_service, operations_service
 from services.market_data import search_tickers
@@ -380,7 +380,7 @@ class OperationsView:
         def worker():
             try:
                 new_df = operations_service.execute_cash_operation(
-                    t, df, broker, service_kind, date_str, ref_date, amount,
+                    df, broker, service_kind, date_str, ref_date, amount,
                     ticker=ticker, description=descr,
                 )
                 s.accounts[acc_idx]["df"] = new_df
@@ -388,7 +388,7 @@ class OperationsView:
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.cash_loading.visible = False
                 self.page.update()
@@ -883,7 +883,7 @@ class OperationsView:
                         return
 
                 new_df = operations_service.execute_etf_stock(
-                    t, df, broker, date_str, ref_date,
+                    df, broker, date_str, ref_date,
                     currency_int, conv_rate, ticker, quantity, price,
                     fee, ter, stored_product, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
@@ -892,7 +892,7 @@ class OperationsView:
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 tab["loading"].visible = False
                 self.page.update()
@@ -1022,14 +1022,14 @@ class OperationsView:
         def worker():
             try:
                 new_df = operations_service.execute_split(
-                    t, df, broker, date_str, ref_date, ticker, ratio,
+                    df, broker, date_str, ref_date, ticker, ratio,
                 )
                 s.accounts[acc_idx]["df"] = new_df
                 account_service.save_account(new_df, s.get_account(acc_idx)["path"])
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.cash_loading.visible = False
                 self.page.update()

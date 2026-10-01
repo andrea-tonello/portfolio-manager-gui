@@ -1,6 +1,7 @@
 import flet as ft
 
-from components.snack import show_snack
+from components.snack import error_message, show_snack
+from domain.errors import ValidationError
 from services import config_service, account_service
 from utils.constants import LANG, APP_VERSION
 from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
@@ -381,9 +382,10 @@ class SettingsView:
             show_snack(self.page, t.get("settings.account.import_error"), error=True)
             return
 
-        valid, err = config_service.validate_backup(zip_bytes, t)
-        if not valid:
-            show_snack(self.page, err, error=True)
+        try:
+            config_service.validate_backup(zip_bytes)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
 
         self._pending_import = zip_bytes

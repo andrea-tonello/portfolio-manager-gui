@@ -4,6 +4,8 @@ import os
 import shutil
 import zipfile
 
+from domain.errors import ValidationError
+
 
 def _load_config(config_folder: str):
     """Read config.ini and return (path, ConfigParser)."""
@@ -239,23 +241,30 @@ def export_backup(config_folder: str) -> bytes:
     return buf.getvalue()
 
 
-def validate_backup(zip_bytes: bytes, t) -> tuple[bool, str]:
+def validate_backup(zip_bytes: bytes) -> None:
+    """Check that `zip_bytes` is a backup this app can import, before anything is overwritten.
+
+    Returns nothing when the backup is usable; otherwise raises a
+    ValidationError whose key names the first problem found (see
+    "settings.backup" in the locale files), e.g. a missing config.ini or an
+    account CSV without the columns the app needs.
+    """
     try:
         zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
     except Exception:
-        return False, t.get("settings.account.import_error")
+        raise ValidationError("settings.account.import_error")
 
     names = zf.namelist()
 
     # config.ini must exist
     if "config.ini" not in names:
-        return False, "Missing config.ini in backup."
+        raise ValidationError("settings.backup.missing_config")
 
     config = configparser.ConfigParser()
     try:
         config.read_string(zf.read("config.ini").decode("utf-8"))
     except Exception:
-        return False, "config.ini is not a valid configuration file."
+        raise ValidationError("settings.backup.invalid_config")
 
     # Multi-user backup: root config has [Users], per-user configs have [Brokers]
     if config.has_section("Users") and config.options("Users"):
@@ -263,19 +272,19 @@ def validate_backup(zip_bytes: bytes, t) -> tuple[bool, str]:
             username = config.get("Users", key)
             user_config_path = f"users/{username}/config.ini"
             if user_config_path not in names:
-                return False, f"Missing config for user '{username}'."
+                raise ValidationError("settings.backup.missing_user_config", username=username)
             user_config = configparser.ConfigParser()
             try:
                 user_config.read_string(zf.read(user_config_path).decode("utf-8"))
             except Exception:
-                return False, f"Cannot parse config for user '{username}'."
+                raise ValidationError("settings.backup.invalid_user_config", username=username)
             if not user_config.has_section("Brokers") or not user_config.options("Brokers"):
-                return False, f"User '{username}' has no broker entries."
+                raise ValidationError("settings.backup.user_no_accounts", username=username)
             for bkey in user_config.options("Brokers"):
                 broker_name = user_config.get("Brokers", bkey)
                 expected = f"users/{username}/resources/Report {broker_name}.csv"
                 if expected not in names:
-                    return False, f"Missing CSV for broker '{broker_name}' (user '{username}')."
+                    raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
             csv_names = [n for n in names
                          if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
             for csv_name in csv_names:
@@ -283,34 +292,35 @@ def validate_backup(zip_bytes: bytes, t) -> tuple[bool, str]:
                     header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
                     columns = {c.strip() for c in header_line.split(",")}
                 except Exception:
-                    return False, f"Cannot read header of {csv_name}."
+                    raise ValidationError("settings.backup.unreadable_header", file=csv_name)
                 missing = _CRITICAL_COLUMNS - columns
                 if missing:
-                    return False, f"{csv_name} is missing columns: {', '.join(sorted(missing))}"
+                    raise ValidationError("settings.backup.missing_columns", file=csv_name,
+                                          columns=", ".join(sorted(missing)))
     elif config.has_section("Brokers") and config.options("Brokers"):
         # Legacy single-user backup
         csv_names = [n for n in names if n.startswith("resources/") and n.endswith(".csv")]
         if not csv_names:
-            return False, "No CSV files found in resources/."
+            raise ValidationError("settings.backup.no_csv")
         for key in config.options("Brokers"):
             broker_name = config.get("Brokers", key)
             expected = f"resources/Report {broker_name}.csv"
             if expected not in names:
-                return False, f"Missing CSV for broker '{broker_name}': {expected}"
+                raise ValidationError("settings.backup.missing_csv", account=broker_name, path=expected)
         for csv_name in csv_names:
             try:
                 header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
                 columns = {c.strip() for c in header_line.split(",")}
             except Exception:
-                return False, f"Cannot read header of {csv_name}."
+                raise ValidationError("settings.backup.unreadable_header", file=csv_name)
             missing = _CRITICAL_COLUMNS - columns
             if missing:
-                return False, f"{csv_name} is missing columns: {', '.join(sorted(missing))}"
+                raise ValidationError("settings.backup.missing_columns", file=csv_name,
+                                      columns=", ".join(sorted(missing)))
     else:
-        return False, "config.ini has no user or broker entries."
+        raise ValidationError("settings.backup.no_entries")
 
     zf.close()
-    return True, ""
 
 
 def import_backup(config_folder: str, zip_bytes: bytes):

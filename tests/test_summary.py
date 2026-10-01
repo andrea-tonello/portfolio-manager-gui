@@ -51,13 +51,13 @@ def summary_as_json(result) -> str:
     return json.dumps(round_floats(summary), indent=2, sort_keys=True)
 
 
-def test_summary_matches_snapshot(tmp_path, translator, fake_market, snapshot):
+def test_summary_matches_snapshot(tmp_path, fake_market, snapshot):
     """Statistics for both accounts on 31-12-2024 are identical to tests/snapshots/summary.json."""
     data = [
-        [1, _replay(STOCKS_EUR, translator, tmp_path / "stocks")],
-        [2, _replay(ETFS_AND_USD, translator, tmp_path / "etfs")],
+        [1, _replay(STOCKS_EUR, tmp_path / "stocks")],
+        [2, _replay(ETFS_AND_USD, tmp_path / "etfs")],
     ]
 
-    result = compute_summary(translator, {1: "Stocks", 2: "ETFs"}, data, date(2024, 12, 31), "31-12-2024")
+    result = compute_summary({1: "Stocks", 2: "ETFs"}, data, date(2024, 12, 31), "31-12-2024")
 
     snapshot("summary.json", summary_as_json(result))

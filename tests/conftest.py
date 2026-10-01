@@ -152,7 +152,7 @@ def page():
 
 
 @pytest.fixture
-def state(tmp_path, translator, fake_market):
+def state(tmp_path, fake_market):
     """An AppState for user "Tester" with one account holding the STOCKS_EUR history.
 
     Built the same way the app stores data: config.ini files for language,
@@ -169,7 +169,7 @@ def state(tmp_path, translator, fake_market):
     resources = config_service.get_user_res_folder(config, "Tester")
     os.makedirs(resources)
     config_service.save_brokers(user_folder, {1: "Test Broker"}, reset=True)
-    df = _replay(STOCKS_EUR, translator, Path(resources))
+    df = _replay(STOCKS_EUR, Path(resources))
     df.to_csv(os.path.join(resources, "Report Test Broker.csv"), index=False)
 
     app_state = AppState(base_path=str(tmp_path))

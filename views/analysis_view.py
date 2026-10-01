@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import date, datetime, timedelta
 
 from components.focus_chain import chain_focus
-from components.snack import show_snack
+from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
@@ -239,11 +239,11 @@ class AnalysisView:
                 dt_str = ref_date.strftime(DATE_FORMAT)
 
                 result = analysis_service.compute_summary(
-                    t, s.brokers, data, ref_date, dt_str
+                    s.brokers, data, ref_date, dt_str
                 )
                 self._display_summary(result, dt_str)
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.sum_loading.visible = False
                 self.page.update()
@@ -523,11 +523,11 @@ class AnalysisView:
                 end_dt = self.corr_end_value.strftime("%Y-%m-%d")
 
                 result = analysis_service.compute_correlation(
-                    t, data, start_dt, end_dt, asset1, asset2, window
+                    data, start_dt, end_dt, asset1, asset2, window
                 )
                 self._display_correlation(result, asset1, asset2, window)
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.corr_loading.visible = False
                 self.page.update()
@@ -707,7 +707,7 @@ class AnalysisView:
                 start_dt = self.dd_start_value
                 end_dt = self.dd_end_value
 
-                result = analysis_service.compute_drawdown(t, data, start_dt, end_dt)
+                result = analysis_service.compute_drawdown(data, start_dt, end_dt)
 
                 if not result["has_data"]:
                     self.dd_result_text.value = t.get("analysis.drawdown.error")
@@ -736,7 +736,7 @@ class AnalysisView:
                     }
                     self.dd_export_row.visible = True
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.dd_loading.visible = False
                 self.page.update()
@@ -830,7 +830,7 @@ class AnalysisView:
 
         def worker():
             try:
-                result = analysis_service.compute_var_mc(t, data, ci, days)
+                result = analysis_service.compute_var_mc(data, ci, days)
 
                 if not result["has_positions"]:
                     self.var_result_text.value = t.get("analysis.var.error")
@@ -853,7 +853,7 @@ class AnalysisView:
                     }
                     self.var_export_row.visible = True
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.var_loading.visible = False
                 self.page.update()
@@ -943,10 +943,10 @@ class AnalysisView:
 
         def worker():
             try:
-                allocation = analysis_service.compute_allocation(t, data, self.alloc_date_value)
+                allocation = analysis_service.compute_allocation(data, self.alloc_date_value)
                 self.alloc_chart.content = chart_service.chart_allocation(allocation, t)
             except Exception as ex:
-                show_snack(self.page, str(ex), error=True)
+                show_snack(self.page, error_message(t, ex), error=True)
             finally:
                 self.alloc_loading.visible = False
                 self.page.update()
