@@ -3,6 +3,8 @@
 ### Refactoring
 
 - Buy/Sell status is not encoded as the sign of the price anymore.
+- Buy/Sell status is not encoded as the sign of the price anymore.
+- Rem
 
 
 

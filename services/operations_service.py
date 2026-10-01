@@ -4,23 +4,24 @@ from newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.market_data import fetch_ticker_name as fetch_name
 from utils.constants import CURRENCIES
 from domain.errors import ValidationError
+from domain.ledger import Op, Product
 
 
 def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
                            amount, ticker=None, description=None, asset_name=None):
     if op_kind == "deposit_withdrawal":
-        op_type = "Deposit" if amount > 0 else "Withdrawal"
-        product, tk, name = "Cash", np.nan, np.nan
+        op_type = Op.DEPOSIT if amount > 0 else Op.WITHDRAWAL
+        product, tk, name = Product.CASH, np.nan, np.nan
 
     elif op_kind == "dividend":
         if asset_name is None:
             asset_name = fetch_name(ticker)
-        op_type, product, tk, name = "Dividend", "Dividend", ticker, asset_name
+        op_type, product, tk, name = Op.DIVIDEND, Product.DIVIDEND, ticker, asset_name
 
     elif op_kind == "charge":
         amount = -abs(amount)
-        op_type = "Tax"
-        product = description if description else "Tax"
+        op_type = Op.TAX
+        product = description if description else Product.TAX
         tk, name = np.nan, np.nan
 
     else:

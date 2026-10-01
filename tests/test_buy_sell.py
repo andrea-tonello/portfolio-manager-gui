@@ -84,12 +84,12 @@ def test_unknown_currency_is_refused(account, currency):
 # ── From the Operations screen ───────────────────────────────────────
 
 @pytest.fixture
-def stock_form(monkeypatch, page, state):
-    """The Operations screen's Stock form for the test account, with the trade it submits recorded.
+def open_trade_form(monkeypatch, page, state):
+    """Return a function that opens one of the Operations screen's trade forms, filled in, with submitted trades recorded.
 
     Background work runs straight away instead of in a thread, the ticker
     check against Yahoo is skipped, and execute_etf_stock only records its
-    arguments. Returns (form fields, submit function, recorded calls).
+    arguments.
     """
     calls = []
 
@@ -105,13 +105,27 @@ def stock_form(monkeypatch, page, state):
     state.ops_acc_idx = 1
     view = OperationsView(page, state)
     view.build()
-    form = view._es_tabs["Stock"]
-    form["date_value"] = date(2025, 1, 10)   # after the account's last operation
-    form["ticker"].value = "UUU"
-    form["quantity"].value = "5"
-    form["price"].value = "200"
-    form["fee"].value = "2"
-    return form, lambda: view._submit_es(None, "Stock"), calls
+
+    def open_form(tab):
+        """Fill in the `tab` form ("Stock" or "ETF") with a buy of 5 UUU at 200 plus a 2 EUR fee.
+
+        Returns (form fields, submit function, recorded calls).
+        """
+        form = view._es_tabs[tab]
+        form["date_value"] = date(2025, 1, 10)   # after the account's last operation
+        form["ticker"].value = "UUU"
+        form["quantity"].value = "5"
+        form["price"].value = "200"
+        form["fee"].value = "2"
+        return form, lambda: view._submit_es(None, tab), calls
+
+    return open_form
+
+
+@pytest.fixture
+def stock_form(open_trade_form):
+    """The Stock form, filled in and ready to submit (see open_trade_form)."""
+    return open_trade_form("Stock")
 
 
 def test_form_sends_eur_by_default(stock_form):
@@ -141,3 +155,36 @@ def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
     args, _ = calls[0]
     currency, conv_rate, _, _, _, fee = args[4:10]
     assert (currency, conv_rate, fee) == ("USD", 0.9, 1.8)
+
+
+def test_stock_form_sends_the_stock_product(stock_form):
+    """A trade from the Stock form is stored with product "Stock"."""
+    _, submit, calls = stock_form
+
+    submit()
+
+    args, _ = calls[0]
+    assert args[11] == "Stock"
+
+
+@pytest.mark.parametrize("picked, tax_bracket, tax_rate", [
+    ("ETF-S", None, 0.26),     # equity ETF: standard 26% rate
+    ("ETF-M", "12.5", 0.125),  # money-market ETF: the rate typed in the form
+])
+def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bracket, tax_rate):
+    """The ETF type picked in the form is sent as the CSV's product code, with its tax rate.
+
+    The radio buttons' values are the product codes themselves, so no
+    translation table sits between the form and the CSV. The value is set as
+    the plain string the screen hands back when the user picks a type.
+    """
+    form, submit, calls = open_trade_form("ETF")
+    form["etf_subtype"] = picked
+    form["fee_mode"].value = "abp"
+    if tax_bracket:
+        form["tax_bracket"].value = tax_bracket
+
+    submit()
+
+    args, kwargs = calls[0]
+    assert (args[11], kwargs["tax_rate"]) == (picked, tax_rate)

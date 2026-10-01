@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
+from domain.ledger import Product, holding_rows
 from services import account_service, operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
@@ -674,29 +675,30 @@ class OperationsView:
                                          label_position=ft.LabelPosition.LEFT,
                                          on_change=_on_bond_maturity_toggle)
 
+        # The radio values are the product codes stored in the CSV (e.g. "ETF-M").
         def _on_etf_subtype_change(e):
             val = e.control.value
-            stock_etf_form.visible = val in ("stock_etf", "mm_etf")
-            bond_placeholder.visible = val == "bond_etf"
-            bond_maturity_switch.disabled = val != "bond_etf"
-            tax_row.visible = val == "mm_etf"
+            stock_etf_form.visible = val in (Product.ETF_STOCK, Product.ETF_MM)
+            bond_placeholder.visible = val == Product.ETF_BOND
+            bond_maturity_switch.disabled = val != Product.ETF_BOND
+            tax_row.visible = val == Product.ETF_MM
             tab_data["etf_subtype"] = val
             self.page.update()
 
         etf_subtype_group = ft.RadioGroup(
-            value="stock_etf",
+            value=Product.ETF_STOCK,
             on_change=_on_etf_subtype_change,
             content=ft.Column([
-                ft.Radio(value="stock_etf", label=t.get("operations.stock.stock_etf")),
-                ft.Radio(value="mm_etf", label=t.get("operations.stock.mm_etf"),),
+                ft.Radio(value=Product.ETF_STOCK, label=t.get("operations.stock.stock_etf")),
+                ft.Radio(value=Product.ETF_MM, label=t.get("operations.stock.mm_etf"),),
                 ft.Row([
-                    ft.Radio(value="bond_etf", label=t.get("operations.stock.bonds_etf"),),
+                    ft.Radio(value=Product.ETF_BOND, label=t.get("operations.stock.bonds_etf"),),
                     ft.Container(expand=True),
                     bond_maturity_switch,
                 ], spacing=0),
             ], spacing=0, opacity=0.4 if no_account else 1.0),
         )
-        tab_data["etf_subtype"] = "stock_etf"
+        tab_data["etf_subtype"] = Product.ETF_STOCK
         tab_data["bond_fixed_maturity"] = False
 
         outer = ft.Column([
@@ -751,7 +753,7 @@ class OperationsView:
         s = self.state
         t = s.translator
         tab = self._es_tabs[product_type]
-        if product_type == "ETF" and tab.get("etf_subtype", "stock_etf") not in ("stock_etf", "mm_etf"):
+        if product_type == "ETF" and tab["etf_subtype"] not in (Product.ETF_STOCK, Product.ETF_MM):
             show_snack(self.page, "Not yet implemented", error=True)
             return
         df = self._get_ops_df()
@@ -829,7 +831,7 @@ class OperationsView:
                 ter = ter_val.strip().rstrip("%") + "%"
 
         tax_rate = 0.26
-        if product_type == "ETF" and tab.get("etf_subtype") == "mm_etf":
+        if product_type == "ETF" and tab["etf_subtype"] == Product.ETF_MM:
             try:
                 tax_rate = float(tab["tax_bracket"].value)
                 if not (0 <= tax_rate <= 100):
@@ -846,12 +848,8 @@ class OperationsView:
                 show_snack(self.page, t.get("operations.stock.fee_mode_error"), error=True)
                 return
 
-        # Resolve stored product value from UI tab type + ETF subtype
-        _ETF_SUBTYPE_TO_PRODUCT = {"stock_etf": "ETF-S", "mm_etf": "ETF-M", "bond_etf": "ETF-B"}
-        if product_type == "ETF":
-            stored_product = _ETF_SUBTYPE_TO_PRODUCT[tab.get("etf_subtype", "stock_etf")]
-        else:
-            stored_product = product_type  # "Stock"
+        # The product stored in the CSV: the ETF type picked (already a product code), or Stock
+        stored_product = tab["etf_subtype"] if product_type == "ETF" else Product.STOCK
 
         date_str = tab["date_value"].strftime(DATE_FORMAT)
         ref_date = tab["date_value"]
@@ -955,7 +953,7 @@ class OperationsView:
         """Return a list of (ticker, asset_name) for positions with qt_held > 0."""
         if df is None or df.empty:
             return []
-        asset_rows = df[df["operation"].isin(["Buy", "Sell", "Split"])]
+        asset_rows = holding_rows(df)
         if asset_rows.empty:
             return []
         last_per_ticker = asset_rows.groupby("ticker", sort=False).tail(1)

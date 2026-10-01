@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 import pandas as pd
 
 from domain.errors import TickerNotFound
+from domain.ledger import Op, holding_rows
 from utils.other_utils import round_half_up
 
 _BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
@@ -164,8 +165,7 @@ def detect_unrecorded_splits(df, ticker: str) -> list[tuple]:
     """
     if df is None or df.empty:
         return []
-    asset_rows = df[df["ticker"] == ticker]
-    asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
+    asset_rows = holding_rows(df, ticker)
     if asset_rows.empty:
         return []
 
@@ -186,7 +186,7 @@ def detect_unrecorded_splits(df, ticker: str) -> list[tuple]:
         return []
 
     recorded_dates = set()
-    split_rows = asset_rows[asset_rows["operation"] == "Split"]
+    split_rows = asset_rows[asset_rows["operation"] == Op.SPLIT]
     for d in pd.to_datetime(split_rows["date"], dayfirst=True, errors="coerce").dropna():
         for delta in (-1, 0, 1):
             recorded_dates.add((d + pd.Timedelta(days=delta)).date())

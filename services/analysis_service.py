@@ -4,6 +4,7 @@ from datetime import datetime
 from itertools import chain
 
 from domain.errors import ValidationError
+from domain.ledger import Op, Product, holding_rows
 from services.market_data import download_close, fetch_ticker_name
 from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
@@ -98,7 +99,7 @@ def compute_summary(brokers, data, ref_date, dt_str):
 
         # XIRR cash flows: deposits (money in, negative), withdrawals (money out,
         # positive), and finally the account's value today, as if cashed out now.
-        cashflow_df = df_valid[df_valid["operation"].isin(["Deposit", "Withdrawal"])]
+        cashflow_df = df_valid[df_valid["operation"].isin((Op.DEPOSIT, Op.WITHDRAWAL))]
         flows = (cashflow_df["effective_amount"] * -1).tolist() + [nav]
         flows_dates = cashflow_df["date"].tolist() + [ref_date]
 
@@ -214,7 +215,7 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
     When they are provided, only rolling correlation is computed.
     """
     for account in data:
-        account[1] = account[1][account[1]["operation"].isin(["Buy", "Sell", "Split"])]
+        account[1] = holding_rows(account[1])
 
     _, active_tickers = get_tickers(data)
     correlation_matrix = None
@@ -449,16 +450,14 @@ def compute_allocation(data, ref_date):
 
         # Cash from latest row
         cash = round_half_up(float(df.iloc[-1]["cash_held"]))
-        allocation["Cash"] = allocation.get("Cash", 0) + cash
+        allocation[Product.CASH] = allocation.get(Product.CASH, 0) + cash
 
         # Active positions with product type
         positions = get_asset_value(df, ref_date=ref_date)
-        df_copy = df.copy()
-        df_copy = df_copy[df_copy["operation"].isin(["Buy", "Sell", "Split"])]
-        product_by_ticker = df_copy.groupby("ticker")["product"].last().to_dict()
+        product_by_ticker = holding_rows(df).groupby("ticker")["product"].last().to_dict()
 
         for pos in positions:
-            product = product_by_ticker.get(pos["ticker"], "Stock")
+            product = product_by_ticker.get(pos["ticker"], Product.STOCK)
             allocation[product] = allocation.get(product, 0) + pos["value"]
 
     return allocation

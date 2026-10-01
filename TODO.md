@@ -26,6 +26,7 @@
 - [TABLET] Reduce account dropdown width in each of the 4 main views
 
 - Update README images
+- [INVESTIGATE] Check if legacy code in utils/columns.py can be removed
 - [INVESTIGATE] Can app size be brought further down?
 - [INVESTIGATE] Can Flet 1.0.3 avoid the keyboard covering some UI elements?
 - [INVESTIGATE] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?

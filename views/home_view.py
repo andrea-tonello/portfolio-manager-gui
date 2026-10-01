@@ -4,6 +4,7 @@ from datetime import datetime
 
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
+from domain.ledger import holding_rows
 from services import account_service, config_service, operations_service
 from services.market_data import detect_unrecorded_splits, download_close
 from utils.constants import DATE_FORMAT
@@ -627,7 +628,7 @@ class HomeView:
         if df is None or df.empty:
             return
 
-        asset_rows = df[df["operation"].isin(["Buy", "Sell", "Split"])]
+        asset_rows = holding_rows(df)
         if asset_rows.empty:
             return
         held = asset_rows.groupby("ticker", sort=False).tail(1)

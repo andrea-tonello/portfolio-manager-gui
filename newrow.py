@@ -4,6 +4,7 @@ import numpy as np
 import utils.account as aop
 from utils.columns import COLUMNS
 from domain.errors import ValidationError
+from domain.ledger import Op, holding_rows
 from utils.other_utils import round_half_up
 
 
@@ -20,7 +21,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
 
     current_liq = float(df["cash_held"].iloc[-1]) + cash
 
-    if op_type in ["Deposit", "Withdrawal"]:
+    if op_type in (Op.DEPOSIT, Op.WITHDRAWAL):
         historic_liq = float(df["committed_cash"].iloc[-1]) + cash
     else:
         historic_liq = float(df["committed_cash"].iloc[-1])
@@ -40,7 +41,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
         "nominal_amount": cash,
         "effective_amount": cash,
         "carryforward": float(df["carryforward"].iloc[-1]),
-        "pl": cash if op_type in ["Dividend", "Tax"] else np.nan,
+        "pl": cash if op_type in (Op.DIVIDEND, Op.TAX) else np.nan,
         "cash_held": round_half_up(current_liq),
         "assets_value": round_half_up(asset_value),
         "nav": round_half_up(asset_value + current_liq),
@@ -66,8 +67,7 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
         raise ValueError(f"price must be positive (got {price}); use is_buy to tell a buy from a sell")
     if not asset_name:
         raise ValueError(f"asset_name is required for ticker '{ticker}'")
-    asset_rows = df[df["ticker"] == ticker]
-    asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
+    asset_rows = holding_rows(df, ticker)
 
     if is_buy:
         results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
@@ -122,8 +122,7 @@ def newrow_split(df, date, ref_date, broker, ticker, ratio):
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
     total invested value (qt × abp) is preserved. No fees, no P&L, no tax.
     """
-    asset_rows = df[df["ticker"] == ticker]
-    asset_rows = asset_rows[asset_rows["operation"].isin(["Buy", "Sell", "Split"])]
+    asset_rows = holding_rows(df, ticker)
 
     if asset_rows.empty:
         raise ValidationError("operations.split.ticker_notheld", ticker=ticker)
@@ -154,7 +153,7 @@ def newrow_split(df, date, ref_date, broker, ticker, ratio):
     row.update({
         "date": date,
         "account": broker,
-        "operation": "Split",
+        "operation": Op.SPLIT,
         "product": product,
         "ticker": ticker,
         "asset_name": asset_name,

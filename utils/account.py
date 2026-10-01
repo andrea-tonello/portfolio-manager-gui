@@ -4,10 +4,11 @@ import warnings
 
 from services.market_data import download_close
 from domain.errors import ValidationError
+from domain.ledger import ETF_PRODUCTS, Op, holding_rows
 from utils.other_utils import round_half_up, round_down
 from utils.date_utils import add_solar_years
 from services.market_data import fetch_exchange_rate
-from utils.constants import DATE_FORMAT, ETF_PRODUCTS
+from utils.constants import DATE_FORMAT
 warnings.simplefilter(action='ignore', category=Warning)
 
 
@@ -250,7 +251,7 @@ def get_asset_value(df, current_ticker=None, ref_date=None, just_assets=False):
     if current_ticker:
         df_filtered = df_filtered[df_filtered["ticker"] != current_ticker]
 
-    df_filtered = df_filtered[df_filtered["operation"].isin(["Buy", "Sell", "Split"])]
+    df_filtered = holding_rows(df_filtered)
     total_assets = df_filtered.groupby("ticker").last().reset_index()
     total_active_assets = total_assets.loc[total_assets["qt_held"] > 0, ["ticker", "qt_held", "curr", "abp"]]
 
@@ -346,7 +347,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_eur)
 
     return {
-        "operation": "Buy",
+        "operation": Op.BUY,
         "qt_held": current_qt,
         "abp": abp,
         "residual_amount": residual_amount,
@@ -467,7 +468,7 @@ def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, produc
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
 
     return {
-        "operation": "Sell",
+        "operation": Op.SELL,
         "qt_held": current_qt,
         "abp": abp,
         "residual_amount": residual_amount,

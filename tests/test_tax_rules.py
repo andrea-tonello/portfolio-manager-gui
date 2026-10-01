@@ -15,8 +15,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from domain.ledger import ETF_PRODUCTS
 from utils.account import compute_carryforward
-from utils.constants import ETF_PRODUCTS
 from utils.date_utils import add_solar_years
 
 

@@ -13,5 +13,3 @@ I18N_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 # Currencies a stock or ETF can be traded in, as stored in the CSV's `curr` column.
 CURRENCIES = ("EUR", "USD")
-
-ETF_PRODUCTS = {"ETF-S", "ETF-M", "ETF-B"}
