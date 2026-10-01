@@ -348,16 +348,13 @@ class SettingsView:
         t = self.state.translator
         zip_bytes = config_service.export_backup(self.state.config_folder)
         filename = "portfolio_backup.zip"
-        path = await self.file_picker.save_file(
+        # Flet writes src_bytes to the chosen location itself, on every platform.
+        # Never open the returned path: on Android it is not a real file path.
+        await self.file_picker.save_file(
             file_name=filename,
             allowed_extensions=["zip"],
             src_bytes=zip_bytes,
         )
-        # On Android/iOS, save_file returns None (OS handles the save via src_bytes).
-        # On desktop, it returns the chosen path and we must write manually.
-        if path:
-            with open(path, "wb") as f:
-                f.write(zip_bytes)
         show_snack(self.page, t.get("settings.account.export_success", filename=filename))
 
     async def _on_import_backup(self, e):

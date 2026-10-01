@@ -1,12 +1,17 @@
-"""Shared test fixtures: network guard, fake market data, a real Translator, snapshot comparison."""
+"""Shared test fixtures: network guard, fake market data, a real Translator, app state and
+page stand-ins for building screens, snapshot comparison."""
 
+import os
 import urllib.request
 from pathlib import Path
 
+import flet as ft
 import pandas as pd
 import pytest
 
 import utils.account
+from app_state import AppState
+from services import config_service
 from utils.translator import Translator
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,6 +101,82 @@ def fake_market(monkeypatch):
 def translator():
     """The app's real English Translator, loaded from the project's locales/ folder."""
     return Translator(language_code="en", locales_dir=str(ROOT / "locales"))
+
+
+# ── App state and page (for building screens) ────────────────────────
+
+class FakePage:
+    """Stand-in for ft.Page with the attributes the app's screens use.
+
+    Background work (run_thread / run_task) is recorded but never run, so no
+    live prices are fetched; dialogs are collected in `dialogs` instead of shown.
+    """
+
+    def __init__(self):
+        """Start as an empty page with one root view, like a freshly opened app."""
+        self.width = 400
+        self.data = {}
+        self.views = [ft.View(route="/")]
+        self.controls = []
+        self.overlay = []
+        self.services = []
+        self.dialogs = []
+        self.appbar = self.navigation_bar = self.end_drawer = None
+        self.on_view_pop = self.on_media_change = None
+        self.web = False
+        self.platform = ft.PagePlatform.LINUX
+
+    def update(self):
+        """Do nothing: there is no screen to redraw."""
+
+    def run_thread(self, fn, *args):
+        """Ignore background work (it would fetch live prices)."""
+
+    def run_task(self, fn, *args):
+        """Ignore async background work."""
+
+    def show_dialog(self, dialog):
+        """Record the dialog instead of displaying it."""
+        self.dialogs.append(dialog)
+
+    def pop_dialog(self):
+        """Close the most recent dialog, if any."""
+        if self.dialogs:
+            self.dialogs.pop()
+
+
+@pytest.fixture
+def page():
+    """A fresh FakePage (desktop platform by default; set `page.platform` to simulate others)."""
+    return FakePage()
+
+
+@pytest.fixture
+def state(tmp_path, translator, fake_market):
+    """An AppState for user "Tester" with one account holding the STOCKS_EUR history.
+
+    Built the same way the app stores data: config.ini files for language,
+    users and brokers, and the account CSV in the user's resources folder.
+    """
+    from test_ledger_snapshots import STOCKS_EUR, _replay  # the account history used by the snapshots
+
+    config = str(tmp_path / "config")
+    os.makedirs(config)
+    config_service.save_language(config, "en")
+    config_service.save_users(config, {1: "Tester"})
+    config_service.save_active_user(config, 1)
+    user_folder = config_service.get_user_folder(config, "Tester")
+    resources = config_service.get_user_res_folder(config, "Tester")
+    os.makedirs(resources)
+    config_service.save_brokers(user_folder, {1: "Test Broker"}, reset=True)
+    df = _replay(STOCKS_EUR, translator, Path(resources))
+    df.to_csv(os.path.join(resources, "Report Test Broker.csv"), index=False)
+
+    app_state = AppState(base_path=str(tmp_path))
+    app_state.load_config()
+    app_state.load_all_accounts()
+    assert app_state.accounts, "the test account should have loaded"
+    return app_state
 
 
 # ── Snapshots ────────────────────────────────────────────────────────

@@ -12,11 +12,21 @@
 - [TABLET] New-account wizard: reduce textfields width
 - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
 
+- (new user setup screen) Align vertically language,username and accounts screens
 - Data import option on app first-ever boot
 - Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - The "+" Watchlist button follows the ticker search dropdown (should stay near the textfield instead)
 - [TABLET] Reduce account dropdown width in each of the 4 main views
 - Update README images
+
+- [INVESTIGATE] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
+- [INVESTIGATE] Does Flet 1.0.3 have better support for floating buttons?
+
+
+
+## AFTER REFACTOR IS COMPLETE:
+
+- Re-record every transaction
 
 
 

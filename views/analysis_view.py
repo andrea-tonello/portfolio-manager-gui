@@ -957,15 +957,14 @@ class AnalysisView:
 
     async def _save_csv(self, file_name, csv_bytes):
         t = self.state.translator
+        # Flet writes src_bytes to the chosen location itself, on every platform.
+        # Never open the returned path: on Android it is not a real file path.
         path = await self.file_picker.save_file(
             file_name=file_name,
             allowed_extensions=["csv"],
             src_bytes=csv_bytes,
         )
         if path:
-            if not self.page.web and not self.page.platform.is_mobile():
-                with open(path, "wb") as f:
-                    f.write(csv_bytes)
             show_snack(self.page, t.get("transactions.export_success"))
 
     def _df_to_csv_bytes(self, df):
