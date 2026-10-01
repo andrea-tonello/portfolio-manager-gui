@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
+from domain.ledger import LEDGER_START_DATE
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
 from utils.date_utils import parse_date_input
@@ -198,7 +199,7 @@ class AnalysisView:
 
     def _open_sum_date_picker(self, e):
         dp = ft.DatePicker(
-            first_date=datetime(2000, 1, 1),
+            first_date=LEDGER_START_DATE,
             last_date=datetime.now(),
             on_change=self._on_sum_date_picked,
         )
@@ -446,7 +447,7 @@ class AnalysisView:
         self.page.update()
 
     def _open_corr_date_picker(self, e, which):
-        first = datetime(2000, 1, 1)
+        first = LEDGER_START_DATE
         last = datetime.now()
         if which == "start" and self.corr_end_value:
             last = datetime.combine(self.corr_end_value, datetime.min.time()) - timedelta(days=1)
@@ -650,7 +651,7 @@ class AnalysisView:
         return ft.Container(content=col, padding=10, expand=True)
 
     def _open_dd_date_picker(self, e, which):
-        first = datetime(2000, 1, 1)
+        first = LEDGER_START_DATE
         last = datetime.now()
         if which == "start" and self.dd_end_value:
             last = datetime.combine(self.dd_end_value, datetime.min.time()) - timedelta(days=1)
@@ -906,7 +907,7 @@ class AnalysisView:
 
     def _open_alloc_date_picker(self, e):
         dp = ft.DatePicker(
-            first_date=datetime(2000, 1, 1),
+            first_date=LEDGER_START_DATE,
             last_date=datetime.now(),
             on_change=self._on_alloc_date_picked,
         )

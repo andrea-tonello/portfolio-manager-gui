@@ -7,7 +7,8 @@ from datetime import date, datetime, timedelta
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
-from domain.ledger import Product, holding_rows
+from domain.ledger import LEDGER_START_DATE, Product, holding_rows
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from services import account_service, operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
@@ -308,7 +309,7 @@ class OperationsView:
 
     def _open_cash_date_picker(self, e):
         dp = ft.DatePicker(
-            first_date=datetime(2000, 1, 1),
+            first_date=LEDGER_START_DATE,
             last_date=datetime.now(),
             on_change=self._on_cash_date_picked,
         )
@@ -723,7 +724,7 @@ class OperationsView:
 
     def _open_es_date_picker(self, e, product_type):
         dp = ft.DatePicker(
-            first_date=datetime(2000, 1, 1),
+            first_date=LEDGER_START_DATE,
             last_date=datetime.now(),
             on_change=lambda ev, pt=product_type: self._on_es_date_picked(ev, pt),
         )
@@ -830,7 +831,7 @@ class OperationsView:
             if ter_val:
                 ter = ter_val.strip().rstrip("%") + "%"
 
-        tax_rate = 0.26
+        tax_rate = DEFAULT_CAPITAL_GAINS_TAX_RATE
         if product_type == "ETF" and tab["etf_subtype"] == Product.ETF_MM:
             try:
                 tax_rate = float(tab["tax_bracket"].value)

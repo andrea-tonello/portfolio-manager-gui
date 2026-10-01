@@ -51,7 +51,10 @@ def test_buy_is_stored_with_negative_price_and_amounts(account):
 
 
 def test_sell_is_stored_with_positive_price_and_amounts(account):
-    """Selling 5 of those shares at 120 EUR minus a 2 EUR fee stores price 120 and amounts 600 / 598."""
+    """Selling 5 of those shares at 120 EUR minus a 2 EUR fee stores price 120 and amounts 600 / 598.
+
+    No tax rate is passed, so the standard 26% capital gains tax applies.
+    """
     df = _trade(account, date(2024, 1, 3), 10, 100.0, 2.0, is_buy=True)
     df = _trade(df, date(2024, 3, 1), 5, 120.0, 2.0, is_buy=False)
 
@@ -60,6 +63,7 @@ def test_sell_is_stored_with_positive_price_and_amounts(account):
     assert row["qt_exch"] == "-5"
     assert (row["price"], row["price_eur"]) == (120.0, 120.0)
     assert (row["nominal_amount"], row["effective_amount"]) == (600.0, 598.0)
+    assert row["tax_bracket"] == 26.0
 
 
 @pytest.mark.parametrize("is_buy", [True, False], ids=["buy", "sell"])

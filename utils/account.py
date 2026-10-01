@@ -5,6 +5,7 @@ import warnings
 from services.market_data import download_close
 from domain.errors import ValidationError
 from domain.ledger import ETF_PRODUCTS, Op, holding_rows
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from utils.other_utils import round_half_up, round_down
 from utils.date_utils import add_solar_years
 from services.market_data import fetch_exchange_rate
@@ -410,7 +411,7 @@ def compute_carryforward(df, ref_date, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=0.26, fee_mode="abp"):
+def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
 
     if asset_rows.empty:
         raise ValidationError("operations.stock.sell_noitems")

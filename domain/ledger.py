@@ -7,7 +7,12 @@ True: values read back from a CSV compare equal to them, and writing them
 stores the same plain strings as before.
 """
 
+from datetime import datetime
 from enum import StrEnum
+
+# Date of every account's opening row (all totals at zero). Nothing can be
+# recorded before it, so the app's date pickers start here too.
+LEDGER_START_DATE = datetime(2000, 1, 1)
 
 
 class Op(StrEnum):

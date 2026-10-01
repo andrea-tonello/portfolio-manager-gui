@@ -10,6 +10,15 @@ from utils.date_utils import get_pf_date
 from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
 
+# Days a stock exchange is open in a year; turns daily returns and volatility into yearly ones.
+TRADING_DAYS_PER_YEAR = 252
+# Yearly return of a riskless investment, which the Sharpe ratio subtracts from the portfolio's.
+RISK_FREE_RATE = 0.02
+# Monte Carlo VaR: how many future outcomes to simulate, and the first day of
+# price history used to estimate the assets' returns and how they move together.
+VAR_SIMULATIONS = 50_000
+VAR_HISTORY_START = "2010-01-01"
+
 
 def _secant(f, x0, x1, tol=1e-7, max_iter=100):
     """Find a value x where f(x) = 0, starting from two guesses x0 and x1 (secant method).
@@ -168,18 +177,16 @@ def compute_summary(brokers, data, ref_date, dt_str):
 
         # TWRR
         if pf_history_df is not None and not pf_history_df.empty:
-            trading_days = 252
             days_twrr = len(pf_history_df)
             twrr_total = pf_history_df["cumulative_twrr"].iloc[-1]
-            twrr_ann = (1 + twrr_total) ** (trading_days / days_twrr) - 1
+            twrr_ann = (1 + twrr_total) ** (TRADING_DAYS_PER_YEAR / days_twrr) - 1
 
             # Sharpe
-            risk_free_rate = 0.02
-            risk_free_daily = (1 + risk_free_rate) ** (1 / trading_days) - 1
+            risk_free_daily = (1 + RISK_FREE_RATE) ** (1 / TRADING_DAYS_PER_YEAR) - 1
             excess_returns = pf_history_df["daily_twrr"] - risk_free_daily
-            sharpe_ratio = np.sqrt(trading_days) * (excess_returns.mean() / excess_returns.std())
+            sharpe_ratio = np.sqrt(TRADING_DAYS_PER_YEAR) * (excess_returns.mean() / excess_returns.std())
 
-            volatility = pf_history_df["daily_twrr"].std() * np.sqrt(trading_days)
+            volatility = pf_history_df["daily_twrr"].std() * np.sqrt(TRADING_DAYS_PER_YEAR)
 
     return {
         "accounts": account_results,
@@ -318,7 +325,7 @@ def compute_var_mc(data, confidence_interval, projected_days):
     if not data:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": 0.0, "has_positions": False}
 
-    start_ref_date = "2010-01-01"
+    start_ref_date = VAR_HISTORY_START
     end_dt = datetime.now()
 
     _, total_tickers = get_tickers(data)
@@ -423,7 +430,7 @@ def compute_var_mc(data, confidence_interval, projected_days):
 
     scenario_return = _simulate_outcomes(
         portfolio_value, portfolio_expected_return, portfolio_std_dev, projected_days,
-        num_simulations=50000,
+        num_simulations=VAR_SIMULATIONS,
     ).tolist()
 
     var_value = -np.percentile(scenario_return, 100 * (1 - confidence_interval))

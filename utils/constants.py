@@ -13,3 +13,7 @@ I18N_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 # Currencies a stock or ETF can be traded in, as stored in the CSV's `curr` column.
 CURRENCIES = ("EUR", "USD")
+
+# Transactions screen filter: mode -> default N. "count" lists the last N
+# operations, "days" the operations of the last N days.
+DEFAULT_TX_FILTER = {"count": 5, "days": 90}

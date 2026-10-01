@@ -3,7 +3,8 @@ import numpy as np
 import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 
-from utils.constants import REPORT_PREFIX
+from domain.ledger import LEDGER_START_DATE
+from utils.constants import DATE_FORMAT, REPORT_PREFIX
 
 
 def round_half_up(value, decimal="0.01"):
@@ -26,7 +27,7 @@ def create_defaults(save_folder, broker_name):
 
     row = _base_row()
     row.update({
-        "date": "01-01-2000",
+        "date": LEDGER_START_DATE.strftime(DATE_FORMAT),
         "account": broker_name,
         "carryforward": 0.0,
         "cash_held": 0,

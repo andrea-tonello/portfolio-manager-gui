@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from components.snack import show_snack
 from services import account_service, config_service
 from utils.columns import COLUMNS, rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
-from utils.constants import REPORT_PREFIX
+from utils.constants import DEFAULT_TX_FILTER, REPORT_PREFIX
 
 _DEFAULT_DISPLAY_COLS = [
     "date", "account", "operation", "product", "ticker", "qt_exch",
@@ -190,10 +190,7 @@ class TransactionsView:
         )
 
         def on_radio_change(ev):
-            if dlg_radio.value == "count":
-                dlg_filter_field.value = "5"
-            else:
-                dlg_filter_field.value = "90"
+            dlg_filter_field.value = str(DEFAULT_TX_FILTER[dlg_radio.value])
             self.page.update()
         dlg_radio.on_change = on_radio_change
 
@@ -218,7 +215,7 @@ class TransactionsView:
                 if val <= 0:
                     raise ValueError
             except (ValueError, TypeError):
-                val = 5 if mode == "count" else 90
+                val = DEFAULT_TX_FILTER[mode]
             self._tx_filter_mode = mode
             self._tx_filter_value = val
             config_service.save_tx_filter(self.state.user_config_folder, mode, val)

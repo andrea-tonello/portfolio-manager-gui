@@ -5,6 +5,7 @@ import utils.account as aop
 from utils.columns import COLUMNS
 from domain.errors import ValidationError
 from domain.ledger import Op, holding_rows
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from utils.other_utils import round_half_up
 
 
@@ -51,7 +52,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     return _append_row(df, row)
 
 
-def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, *, is_buy, asset_name, tax_rate=0.26, fee_mode="abp"):
+def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, *, is_buy, asset_name, tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
     """Record a buy or a sell of `quantity` units of `ticker` and return the account with the new row.
 
     `price` is the price of one unit in `currency`, always positive; `is_buy`

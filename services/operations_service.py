@@ -5,6 +5,7 @@ from services.market_data import fetch_ticker_name as fetch_name
 from utils.constants import CURRENCIES
 from domain.errors import ValidationError
 from domain.ledger import Op, Product
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 
 
 def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
@@ -33,7 +34,8 @@ def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
 
 def execute_etf_stock(df, broker, date_str, ref_date,
                       currency, conv_rate, ticker, quantity, price,
-                      fee, ter, product_type, *, is_buy, asset_name=None, tax_rate=0.26, fee_mode="abp"):
+                      fee, ter, product_type, *, is_buy, asset_name=None,
+                      tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
     """Record a buy (`is_buy=True`) or a sell of a stock or ETF; `price` is always positive.
 
     `currency` is the trade's currency code, "EUR" or "USD"; `conv_rate` converts

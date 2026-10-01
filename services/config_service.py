@@ -5,6 +5,7 @@ import shutil
 import zipfile
 
 from domain.errors import ValidationError
+from utils.constants import DEFAULT_TX_FILTER
 
 
 def _load_config(config_folder: str):
@@ -103,16 +104,16 @@ def save_tx_filter(config_folder: str, mode: str, value: int):
 def load_tx_filter(config_folder: str) -> tuple[str, int]:
     _, config = _load_config(config_folder)
     if not config.has_section("Transactions"):
-        return "count", 5
+        return "count", DEFAULT_TX_FILTER["count"]
     mode = config.get("Transactions", "filter_mode", fallback="count")
-    if mode not in ("count", "days"):
+    if mode not in DEFAULT_TX_FILTER:
         mode = "count"
     try:
-        value = int(config.get("Transactions", "filter_value", fallback="5"))
+        value = int(config.get("Transactions", "filter_value", fallback=str(DEFAULT_TX_FILTER[mode])))
         if value <= 0:
             raise ValueError
     except (ValueError, TypeError):
-        value = 5 if mode == "count" else 90
+        value = DEFAULT_TX_FILTER[mode]
     return mode, value
 
 
