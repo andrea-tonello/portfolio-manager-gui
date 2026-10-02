@@ -1,6 +1,7 @@
 """Which assets an account holds, and what they are worth.
 
-holdings() and held_tickers() only read the ledger. priced_positions() also
+holdings() and held_tickers() only read the ledger, as do the split-check
+helpers first_trade_date() and unrecorded_splits(). priced_positions() also
 fetches closing prices (and the USD->EUR rate) from Yahoo Finance through
 services.market_data.
 """
@@ -10,7 +11,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from domain.ledger import holding_rows
+from domain.ledger import Op, holding_rows
 from services import market_data
 from utils.constants import DATE_FORMAT
 
@@ -110,6 +111,32 @@ def held_tickers(df):
     last_rows = holding_rows(df).groupby("ticker", sort=False).tail(1)
     held = last_rows[last_rows["qt_held"].astype(float) > 0]
     return dict(zip(held["ticker"], held["asset_name"]))
+
+
+def first_trade_date(df, ticker):
+    """Return the date (a datetime) of the first buy, sell or split of `ticker` in `df`, or None if there is none."""
+    dates = pd.to_datetime(holding_rows(df, ticker)["date"], dayfirst=True, errors="coerce").dropna()
+    return dates.min().to_pydatetime() if not dates.empty else None
+
+
+def unrecorded_splits(df, ticker, splits):
+    """Return the splits of `ticker` not yet recorded in `df`, as (ISO date, ratio), in the order given.
+
+    `splits` is a list of (date, ratio) pairs, as market_data.fetch_splits
+    returns them. A split counts as recorded when a Split row of the ticker is
+    dated within a day of it, since the user may date it a day apart from Yahoo.
+
+    Example: with a Split row on 01-07-2024, [(2024-06-30, 2.0), (2024-07-03, 3.0)]
+    -> [("2024-07-03", 3.0)].
+    """
+    asset_rows = holding_rows(df, ticker)
+    split_rows = asset_rows[asset_rows["operation"] == Op.SPLIT]
+    recorded_dates = set()
+    for d in pd.to_datetime(split_rows["date"], dayfirst=True, errors="coerce").dropna():
+        for delta in (-1, 0, 1):
+            recorded_dates.add((d + pd.Timedelta(days=delta)).date())
+
+    return [(day.strftime("%Y-%m-%d"), ratio) for day, ratio in splits if day not in recorded_dates]
 
 
 def get_tickers(data):

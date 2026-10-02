@@ -6,7 +6,6 @@ from datetime import datetime, date, timedelta
 import pandas as pd
 
 from domain.errors import TickerNotFound
-from domain.ledger import Op, holding_rows
 from utils.other_utils import round_half_up
 
 _BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
@@ -196,56 +195,27 @@ def fetch_exchange_rate(ref_date=None) -> float:
     return round_half_up(valid[-1], decimal="0.000001")
 
 
-def detect_unrecorded_splits(df, ticker: str) -> list[tuple]:
-    """Find splits reported by Yahoo that aren't already recorded for `ticker` in df.
+def fetch_splits(ticker: str, start, end) -> list[tuple]:
+    """Return the stock splits Yahoo reports for `ticker` between `start` and `end`, oldest first.
 
-    Returns a list of (iso_date_str, ratio_float) tuples, where ratio is
-    numerator/denominator (e.g. 4.0 for a 4:1 forward split, 0.1 for a 1:10 reverse).
-    Splits already recorded (a Split row within ±1 day of the event) are excluded.
+    Each split is (date, ratio), ratio being new shares per old share: 4.0 for
+    a 4:1 split, 0.1 for a 1:10 reverse split. Returns [] when there are none
+    or Yahoo can't be reached.
     """
-    if df is None or df.empty:
-        return []
-    asset_rows = holding_rows(df, ticker)
-    if asset_rows.empty:
-        return []
-
-    earliest = pd.to_datetime(asset_rows["date"], dayfirst=True, errors="coerce").dropna().min()
-    if pd.isna(earliest):
-        return []
-
-    start = (earliest - pd.Timedelta(days=1)).to_pydatetime()
-    end = datetime.now() + timedelta(days=1)
-
     try:
         chart = _fetch_chart(ticker, start=start, end=end, events="split")
     except Exception:
         return []
 
-    splits = chart.get("events", {}).get("splits", {})
-    if not splits:
-        return []
-
-    recorded_dates = set()
-    split_rows = asset_rows[asset_rows["operation"] == Op.SPLIT]
-    for d in pd.to_datetime(split_rows["date"], dayfirst=True, errors="coerce").dropna():
-        for delta in (-1, 0, 1):
-            recorded_dates.add((d + pd.Timedelta(days=delta)).date())
-
-    unrecorded = []
-    for event in splits.values():
+    splits = []
+    for event in chart.get("events", {}).get("splits", {}).values():
         ts = event.get("date")
         num = event.get("numerator")
         den = event.get("denominator")
         if not ts or not num or not den:
             continue
-        event_date = datetime.fromtimestamp(ts).date()
-        if event_date in recorded_dates:
-            continue
-        ratio = float(num) / float(den)
-        unrecorded.append((event_date.strftime("%Y-%m-%d"), ratio))
-
-    unrecorded.sort()
-    return unrecorded
+        splits.append((datetime.fromtimestamp(ts).date(), float(num) / float(den)))
+    return sorted(splits)
 
 
 def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:

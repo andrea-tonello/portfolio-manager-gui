@@ -6,7 +6,7 @@ from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.positions import held_tickers, priced_positions
 from services import account_service, config_service, operations_service
-from services.market_data import detect_unrecorded_splits, download_close
+from services.market_data import download_close
 from utils.constants import DATE_FORMAT
 from utils.other_utils import round_half_up
 
@@ -635,7 +635,7 @@ class HomeView:
                 if f"{ticker}|*" in s._split_ignores:
                     continue
                 try:
-                    unrecorded = detect_unrecorded_splits(df, ticker)
+                    unrecorded = operations_service.detect_unrecorded_splits(df, ticker)
                 except Exception:
                     continue
                 for ev_date, ratio in unrecorded:

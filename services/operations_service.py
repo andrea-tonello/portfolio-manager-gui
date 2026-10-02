@@ -1,10 +1,14 @@
+from datetime import datetime, timedelta
+
 import numpy as np
 
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
+from services.market_data import fetch_splits
 from services.market_data import fetch_ticker_name as fetch_name
 from utils.constants import CURRENCIES
 from domain.errors import ValidationError
 from domain.ledger import Op, Product
+from domain.positions import first_trade_date, unrecorded_splits
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 
 
@@ -58,3 +62,19 @@ def execute_split(df, broker, date_str, ref_date, ticker, ratio):
     if not isinstance(ratio, (int, float)) or not (0.001 <= ratio <= 1000):
         raise ValidationError("operations.split.ratio_error")
     return newrow_split(df, date_str, ref_date, broker, ticker, float(ratio))
+
+
+def detect_unrecorded_splits(df, ticker):
+    """Return the splits of `ticker` that Yahoo reports but the ledger `df` doesn't record yet.
+
+    Each is (ISO date, ratio), oldest first, e.g. [("2024-10-15", 0.1)] for a
+    1:10 reverse split. Only splits since the ticker was first traded (minus a
+    day) are asked for. Used by Home to offer recording them.
+    """
+    if df is None or df.empty:
+        return []
+    first = first_trade_date(df, ticker)
+    if first is None:
+        return []
+    splits = fetch_splits(ticker, start=first - timedelta(days=1), end=datetime.now() + timedelta(days=1))
+    return unrecorded_splits(df, ticker, splits)
