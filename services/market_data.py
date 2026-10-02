@@ -1,4 +1,6 @@
+import http.client
 import json
+import logging
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date, timedelta
@@ -7,6 +9,16 @@ import pandas as pd
 
 from domain.errors import TickerNotFound
 from utils.other_utils import round_half_up
+
+logger = logging.getLogger(__name__)
+
+# Errors meaning "Yahoo gave no usable answer", which the app treats as "no data":
+# no network, a timeout or an HTTP error such as 404 for an unknown ticker
+# (OSError, which includes urllib's URLError), a broken connection mid-reply
+# (HTTPException), a reply that isn't JSON (ValueError), a reply without the
+# expected fields (KeyError, IndexError), or a chart with no data (RuntimeError,
+# raised by _fetch_chart). Anything else, e.g. a TypeError, is a bug and is raised.
+_NO_DATA_ERRORS = (OSError, http.client.HTTPException, ValueError, KeyError, IndexError, RuntimeError)
 
 _BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
 _HEADERS = {
@@ -96,7 +108,8 @@ def download_close(tickers, start=None, end=None, period=None, adjusted=False):
             s = pd.Series(closes, index=dates, name=ticker, dtype=float)
             s = s[~s.index.duplicated(keep="last")]
             return (ticker, s, name)
-        except Exception:
+        except _NO_DATA_ERRORS as e:
+            logger.warning("No prices for %s: %s", ticker, e)
             return None
 
     all_series = {}
@@ -163,8 +176,8 @@ def fetch_ticker_name(ticker: str) -> str:
         name = meta.get("longName") or meta.get("shortName")
         if name:
             return name
-    except Exception:
-        pass
+    except _NO_DATA_ERRORS as e:
+        logger.warning("No name for %s: %s", ticker, e)
     raise TickerNotFound(ticker)
 
 
@@ -204,7 +217,8 @@ def fetch_splits(ticker: str, start, end) -> list[tuple]:
     """
     try:
         chart = _fetch_chart(ticker, start=start, end=end, events="split")
-    except Exception:
+    except _NO_DATA_ERRORS as e:
+        logger.warning("No splits for %s: %s", ticker, e)
         return []
 
     splits = []

@@ -6,17 +6,12 @@ fetches closing prices (and the USD->EUR rate) from Yahoo Finance through
 services.market_data.
 """
 
-import warnings
-
 import numpy as np
 import pandas as pd
 
 from domain.ledger import Op, holding_rows
 from services import market_data
 from utils.constants import DATE_FORMAT
-
-# Silences every warning in the whole app; scope or remove it (REFACTORING.md, D6).
-warnings.simplefilter(action='ignore', category=Warning)
 
 
 def holdings(df, ref_date=None, exclude_ticker=None):

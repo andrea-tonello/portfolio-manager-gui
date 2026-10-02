@@ -2,13 +2,15 @@
 
 import io
 import json
+import urllib.error
 import urllib.request
 
 import pandas as pd
 import pytest
 
+from domain.errors import TickerNotFound
 from services import market_data
-from services.market_data import download_close, download_prices_eur, search_tickers
+from services.market_data import download_close, download_prices_eur, fetch_splits, search_tickers
 
 # Shaped like Yahoo's search response, trimmed to the fields search_tickers reads.
 # The quoteType / typeDisp values are what Yahoo returned for these two tickers:
@@ -204,3 +206,44 @@ def test_no_prices_gives_an_empty_dataframe(closes, tickers):
     assert isinstance(prices, pd.DataFrame) and prices.empty
     if not tickers:
         assert closes["_calls"] == []
+
+
+# ── When Yahoo can't answer ──────────────────────────────────────────
+
+def _yahoo_failing_with(monkeypatch, error):
+    """Make every Yahoo chart request raise `error`."""
+    def failing_fetch_chart(ticker, **kwargs):
+        """Raise the given error instead of fetching."""
+        raise error
+
+    monkeypatch.setattr(market_data, "_fetch_chart", failing_fetch_chart)
+
+
+@pytest.mark.parametrize("error", [
+    urllib.error.URLError("no network"),
+    TimeoutError("timed out"),
+    ValueError("reply is not JSON"),
+    RuntimeError("There is no data for this ticker"),
+], ids=["offline", "timeout", "bad-reply", "unknown-ticker"])
+def test_network_and_data_failures_mean_no_data(monkeypatch, error):
+    """When Yahoo can't be reached or has nothing usable, prices and splits are empty and the name is "not found"."""
+    _yahoo_failing_with(monkeypatch, error)
+
+    prices, _ = download_close(["AAA.MI"])
+    assert prices.empty
+    assert fetch_splits("AAA.MI", None, None) == []
+    with pytest.raises(TickerNotFound):
+        market_data.fetch_ticker_name("AAA.MI")
+
+
+@pytest.mark.parametrize("call", [
+    lambda: download_close(["AAA.MI"]),
+    lambda: fetch_splits("AAA.MI", None, None),
+    lambda: market_data.fetch_ticker_name("AAA.MI"),
+], ids=["download_close", "fetch_splits", "fetch_ticker_name"])
+def test_a_programming_error_is_not_hidden_as_no_data(monkeypatch, call):
+    """A bug (here a TypeError) while reading Yahoo's reply is raised, not silently turned into "no data"."""
+    _yahoo_failing_with(monkeypatch, TypeError("a bug"))
+
+    with pytest.raises(TypeError):
+        call()

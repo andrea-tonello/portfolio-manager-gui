@@ -141,7 +141,7 @@ def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers
         return portfolio_history_df
 
     except Exception as e:
-        raise RuntimeError(f"Error building portfolio timeseries: {e}")
+        raise RuntimeError(f"Error building portfolio timeseries: {e}") from e
 
 
 def portfolio_history(start_ref_date, end_ref_date, data):

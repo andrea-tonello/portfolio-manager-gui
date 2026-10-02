@@ -1,3 +1,5 @@
+import logging
+
 import flet as ft
 import pandas as pd
 from datetime import datetime
@@ -9,6 +11,8 @@ from services import account_service, config_service, operations_service
 from services.market_data import download_close
 from utils.constants import DATE_FORMAT
 from utils.other_utils import round_half_up
+
+logger = logging.getLogger(__name__)
 
 WIDTH_CARD = 600
 WIDTH_POSITIONS = 800
@@ -257,6 +261,8 @@ class HomeView:
 
                 self._watchlist_items_container.controls = rows
             except Exception:
+                # Show the tickers without prices (e.g. offline), and log why.
+                logger.exception("Could not fetch watchlist prices")
                 self._watchlist_items_container.controls = [
                     self._build_watchlist_item(tk, None, None) for tk in tickers
                 ]
@@ -597,7 +603,8 @@ class HomeView:
                 }
                 s._home_nav_count = 0
             except Exception:
-                pass  # Silently fail - stale values remain
+                # Keep showing the last values (e.g. offline), and log why.
+                logger.exception("Could not refresh live values on Home")
             finally:
                 self._refresh_loading.visible = False
                 self.page.update()
@@ -637,6 +644,8 @@ class HomeView:
                 try:
                     unrecorded = operations_service.detect_unrecorded_splits(df, ticker)
                 except Exception:
+                    # Skip this ticker (no prompt), and log why.
+                    logger.exception("Could not check %s for splits", ticker)
                     continue
                 for ev_date, ratio in unrecorded:
                     if f"{ticker}|{ev_date}" in s._split_ignores:
