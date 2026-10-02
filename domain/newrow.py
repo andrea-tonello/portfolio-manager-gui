@@ -1,16 +1,17 @@
+"""Builders of new ledger rows: each takes an account's ledger and returns it with one more row.
+
+operations_service calls them when the user records a cash operation, a
+trade or a split.
+"""
+
 import pandas as pd
 import numpy as np
 
-import utils.account as aop
-from utils.columns import COLUMNS
 from domain.errors import ValidationError
-from domain.ledger import Op, holding_rows
-from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
+from domain.ledger import Op, base_row, holding_rows
+from domain.positions import priced_positions
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, sell_asset
 from utils.other_utils import round_half_up
-
-
-def _base_row():
-    return {col: np.nan for col in COLUMNS}
 
 
 def _append_row(df, row):
@@ -27,10 +28,10 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     else:
         historic_liq = float(df["committed_cash"].iloc[-1])
 
-    positions = aop.get_asset_value(df, ref_date=ref_date)
+    positions = priced_positions(df, ref_date)
     asset_value = sum(pos["value"] for pos in positions)
 
-    row = _base_row()
+    row = base_row()
     row.update({
         "date": date,
         "account": broker,
@@ -71,15 +72,15 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
     asset_rows = holding_rows(df, ticker)
 
     if is_buy:
-        results = aop.buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
+        results = buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
     else:
-        results = aop.sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
+        results = sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
 
     # The CSV stores money leaving the account as negative: a buy's price and amounts.
     signed_price = -price if is_buy else price
     price_eur = signed_price * conv_rate
 
-    row = _base_row()
+    row = base_row()
     row.update({
         "date": date,
         "account": broker,
@@ -147,10 +148,10 @@ def newrow_split(df, date, ref_date, broker, ticker, ratio):
     curr = last_row.get("curr", "EUR")
 
     current_liq = float(df["cash_held"].iloc[-1])
-    positions = aop.get_asset_value(df, current_ticker=ticker, ref_date=ref_date)
+    positions = priced_positions(df, ref_date, exclude_ticker=ticker)
     asset_value = sum(pos["value"] for pos in positions) + (new_qt * new_abp)
 
-    row = _base_row()
+    row = base_row()
     row.update({
         "date": date,
         "account": broker,

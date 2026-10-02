@@ -4,10 +4,11 @@ from datetime import datetime
 from itertools import chain
 
 from domain.errors import ValidationError
-from domain.ledger import Op, Product, holding_rows
+from domain.history import portfolio_history
+from domain.ledger import Op, Product, get_pf_date, holding_rows
+from domain.positions import aggregate_positions, get_tickers, priced_positions
+from domain.returns import xirr
 from services.market_data import download_close, fetch_ticker_name
-from utils.date_utils import get_pf_date
-from utils.account import portfolio_history, get_asset_value, get_tickers, aggregate_positions
 from utils.other_utils import round_half_up
 
 # Days a stock exchange is open in a year; turns daily returns and volatility into yearly ones.
@@ -18,51 +19,6 @@ RISK_FREE_RATE = 0.02
 # price history used to estimate the assets' returns and how they move together.
 VAR_SIMULATIONS = 50_000
 VAR_HISTORY_START = "2010-01-01"
-
-
-def _secant(f, x0, x1, tol=1e-7, max_iter=100):
-    """Find a value x where f(x) = 0, starting from two guesses x0 and x1 (secant method).
-
-    Each step draws a straight line through the last two points of f and uses
-    the spot where that line crosses zero as the next guess, until |f(x)| < tol.
-    xirr uses it to find the rate at which the cash flows balance out. It
-    replaces scipy.optimize.newton, which runs this same method when no
-    derivative is given, so the app does not need SciPy (a large download).
-
-    Example: _secant(lambda x: x * x - 2, 1, 2) -> 1.41421... (the square root of 2)
-
-    Raises:
-        ZeroDivisionError: the last two guesses give (almost) the same f value,
-            so there is no slope to follow.
-        RuntimeError: no guess got close enough to zero within max_iter steps.
-    """
-    x_prev, x = x0, x1
-    for _ in range(max_iter):
-        fx = f(x)
-        if abs(fx) < tol:
-            return x
-        denominator = fx - f(x_prev)
-        if abs(denominator) < 1e-10:
-            raise ZeroDivisionError("secant method: flat function, no slope to follow")
-        x_prev, x = x, x - fx * (x - x_prev) / denominator
-    raise RuntimeError(f"secant method: no convergence after {max_iter} iterations")
-
-
-def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=100):
-    days = [(day - flows_dates[0]).days for day in flows_dates]
-    years = np.array(days) / annualization
-
-    def npv_formula(rate):
-        return sum(
-            cf / (1 + rate) ** t
-            for cf, t in zip(cash_flows, years)
-        )
-
-    try:
-        xirr_rate = _secant(npv_formula, x0=x0, x1=x1, max_iter=max_iter)
-        return xirr_rate
-    except (ZeroDivisionError, RuntimeError):
-        return np.nan
 
 
 def compute_summary(brokers, data, ref_date, dt_str):
@@ -92,7 +48,7 @@ def compute_summary(brokers, data, ref_date, dt_str):
 
     for account in data:
         df_copy = account[1].copy()
-        positions = get_asset_value(df_copy, ref_date=ref_date)
+        positions = priced_positions(df_copy, ref_date)
 
         df_valid, first_date = get_pf_date(df_copy, dt_str, ref_date)
 
@@ -337,7 +293,7 @@ def compute_var_mc(data, confidence_interval, projected_days):
 
     for account in data:
         df_copy = account[1].copy()
-        positions = get_asset_value(df_copy, ref_date=end_dt)
+        positions = priced_positions(df_copy, end_dt)
         total_positions.extend(positions)
 
         df_valid, _ = get_pf_date(df_copy, end_dt, end_dt)
@@ -460,7 +416,7 @@ def compute_allocation(data, ref_date):
         allocation[Product.CASH] = allocation.get(Product.CASH, 0) + cash
 
         # Active positions with product type
-        positions = get_asset_value(df, ref_date=ref_date)
+        positions = priced_positions(df, ref_date)
         product_by_ticker = holding_rows(df).groupby("ticker")["product"].last().to_dict()
 
         for pos in positions:

@@ -7,8 +7,8 @@ file that already exists, because that file holds the user's transactions.
 
 import pandas as pd
 
+from services.account_service import create_defaults
 from utils.constants import REPORT_PREFIX
-from utils.other_utils import create_defaults
 
 BROKER = "Test Broker"
 

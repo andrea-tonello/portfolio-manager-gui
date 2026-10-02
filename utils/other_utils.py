@@ -1,10 +1,6 @@
 import pandas as pd
 import numpy as np
-import os
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
-
-from domain.ledger import LEDGER_START_DATE
-from utils.constants import DATE_FORMAT, REPORT_PREFIX
 
 
 def round_half_up(value, decimal="0.01"):
@@ -18,25 +14,4 @@ def round_half_up(value, decimal="0.01"):
 
 def round_down(value, decimal="0.01"):
     return float(Decimal(str(value)).quantize(Decimal(decimal), rounding=ROUND_DOWN))
-
-
-def create_defaults(save_folder, broker_name):
-    from newrow import _base_row
-
-    path_rep = os.path.join(save_folder, REPORT_PREFIX + broker_name + ".csv")
-
-    row = _base_row()
-    row.update({
-        "date": LEDGER_START_DATE.strftime(DATE_FORMAT),
-        "account": broker_name,
-        "carryforward": 0.0,
-        "cash_held": 0,
-        "assets_value": 0,
-        "nav": 0.0,
-        "committed_cash": 0.0,
-    })
-    df_template = pd.DataFrame({k: [v] for k, v in row.items()})
-
-    if not os.path.isfile(path_rep):
-        df_template.to_csv(path_rep, index=False)
 

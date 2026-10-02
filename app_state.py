@@ -6,7 +6,6 @@ import flet as ft
 from services import account_service, config_service
 from utils.translator import Translator
 from utils.constants import DEFAULT_LANG, I18N_DIR
-from utils.other_utils import create_defaults
 
 
 class AppState:
@@ -158,7 +157,7 @@ class AppState:
     def ensure_defaults(self):
         """Create default CSV files for each broker if missing."""
         for broker_name in self.brokers.values():
-            create_defaults(self.config_res_folder, broker_name)
+            account_service.create_defaults(self.config_res_folder, broker_name)
 
     def load_all_accounts(self):
         """Load all broker accounts into self.accounts."""

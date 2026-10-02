@@ -11,7 +11,7 @@ from datetime import date
 import numpy as np
 import pytest
 
-from services.analysis_service import _secant, xirr
+from domain.returns import _secant, xirr
 
 
 # ── xirr ─────────────────────────────────────────────────────────────

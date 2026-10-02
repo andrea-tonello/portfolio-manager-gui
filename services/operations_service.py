@@ -1,6 +1,6 @@
 import numpy as np
 
-from newrow import newrow_cash, newrow_etf_stock, newrow_split
+from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.market_data import fetch_ticker_name as fetch_name
 from utils.constants import CURRENCIES
 from domain.errors import ValidationError

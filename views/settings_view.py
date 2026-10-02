@@ -5,7 +5,6 @@ from domain.errors import ValidationError
 from services import config_service, account_service
 from utils.constants import APP_VERSION, DEFAULT_LANG, LANGUAGES
 from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
-from utils.other_utils import create_defaults
 
 PAGE_WIDTH = 720
 
@@ -244,7 +243,7 @@ class SettingsView:
         next_idx = max(s.brokers.keys(), default=0) + 1
         s.brokers[next_idx] = name
         config_service.save_brokers(s.user_config_folder, s.brokers, reset=False)
-        create_defaults(s.config_res_folder, name)
+        account_service.create_defaults(s.config_res_folder, name)
         s.load_all_accounts()
         show_snack(self.page, s.translator.get("settings.account.accounts_added"))
         from views import _show_settings

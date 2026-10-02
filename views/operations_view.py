@@ -7,7 +7,8 @@ from datetime import date, datetime, timedelta
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
-from domain.ledger import LEDGER_START_DATE, Product, holding_rows
+from domain.ledger import LEDGER_START_DATE, Product
+from domain.positions import held_tickers
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from services import account_service, operations_service
 from services.market_data import search_tickers
@@ -954,13 +955,7 @@ class OperationsView:
         """Return a list of (ticker, asset_name) for positions with qt_held > 0."""
         if df is None or df.empty:
             return []
-        asset_rows = holding_rows(df)
-        if asset_rows.empty:
-            return []
-        last_per_ticker = asset_rows.groupby("ticker", sort=False).tail(1)
-        held = last_per_ticker[last_per_ticker["qt_held"].astype(float) > 0]
-        return [(row["ticker"], row.get("asset_name") or row["ticker"])
-                for _, row in held.iterrows()]
+        return [(ticker, name or ticker) for ticker, name in held_tickers(df).items()]
 
     def _show_split_help(self, e):
         t = self.state.translator

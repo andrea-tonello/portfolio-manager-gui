@@ -4,12 +4,11 @@ from datetime import datetime
 
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
-from domain.ledger import holding_rows
+from domain.positions import held_tickers, priced_positions
 from services import account_service, config_service, operations_service
 from services.market_data import detect_unrecorded_splits, download_close
 from utils.constants import DATE_FORMAT
 from utils.other_utils import round_half_up
-from utils.account import get_asset_value
 
 WIDTH_CARD = 600
 WIDTH_POSITIONS = 800
@@ -488,7 +487,7 @@ class HomeView:
                             continue
                         total_cash += float(df.iloc[-1].get("cash_held", 0) or 0)
                         total_committed += float(df.iloc[-1].get("committed_cash", 0) or 0)
-                        positions = get_asset_value(df, ref_date=ref_date)
+                        positions = priced_positions(df, ref_date)
                         if positions:
                             total_assets += round_half_up(sum(p["value"] for p in positions))
                             for p in positions:
@@ -526,7 +525,7 @@ class HomeView:
                     df = acc["df"]
                     cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
                     total_committed = float(df.iloc[-1].get("committed_cash", 0) or 0) if not df.empty else 0
-                    positions = get_asset_value(df, ref_date=ref_date)
+                    positions = priced_positions(df, ref_date)
                     assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
                     nav = cash + assets
                     nav_num = nav
@@ -628,11 +627,7 @@ class HomeView:
         if df is None or df.empty:
             return
 
-        asset_rows = holding_rows(df)
-        if asset_rows.empty:
-            return
-        held = asset_rows.groupby("ticker", sort=False).tail(1)
-        tickers = held[held["qt_held"].astype(float) > 0]["ticker"].tolist()
+        tickers = list(held_tickers(df))
         if not tickers:
             return
 

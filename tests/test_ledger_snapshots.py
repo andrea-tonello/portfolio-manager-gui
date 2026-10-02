@@ -1,4 +1,4 @@
-"""Characterisation tests for the account CSV builders in newrow.py.
+"""Characterisation tests for the account CSV builders in domain/newrow.py.
 
 Each test replays a fixed sequence of operations through newrow_cash,
 newrow_etf_stock and newrow_split, starting from the opening row written by
@@ -16,9 +16,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from newrow import newrow_cash, newrow_etf_stock, newrow_split
+from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
+from services.account_service import create_defaults
 from utils.constants import DATE_FORMAT, REPORT_PREFIX
-from utils.other_utils import create_defaults
 
 BROKER = "Test Broker"
 NAMES = {

@@ -24,7 +24,7 @@ from components.snack import error_message
 from domain.errors import TickerNotFound, ValidationError
 from services import analysis_service, config_service, market_data
 from utils.constants import I18N_DIR
-from utils.date_utils import get_pf_date
+from domain.ledger import get_pf_date
 from utils.translator import Translator
 from views.settings_view import SettingsView
 

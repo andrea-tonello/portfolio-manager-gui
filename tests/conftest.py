@@ -9,9 +9,8 @@ import flet as ft
 import pandas as pd
 import pytest
 
-import utils.account
 from app_state import AppState
-from services import config_service
+from services import config_service, market_data
 from utils.constants import I18N_DIR
 from utils.translator import Translator
 
@@ -87,13 +86,16 @@ def fake_fetch_exchange_rate(ref_date=None) -> float:
 
 @pytest.fixture
 def fake_market(monkeypatch):
-    """Make utils.account use the fake prices and exchange rate above for the duration of a test.
+    """Make the domain code (positions, history) use the fake prices and exchange rate above during a test.
 
     Request this fixture in any test that builds account rows or values
-    positions. The originals are restored automatically when the test ends.
+    positions. It replaces the functions in services.market_data, which the
+    domain modules call as market_data.download_close(...). Code that imported
+    them by name (analysis_service, home_view) is not affected. The originals
+    are restored automatically when the test ends.
     """
-    monkeypatch.setattr(utils.account, "download_close", fake_download_close)
-    monkeypatch.setattr(utils.account, "fetch_exchange_rate", fake_fetch_exchange_rate)
+    monkeypatch.setattr(market_data, "download_close", fake_download_close)
+    monkeypatch.setattr(market_data, "fetch_exchange_rate", fake_fetch_exchange_rate)
 
 
 # ── Translator ───────────────────────────────────────────────────────
