@@ -177,9 +177,6 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
     When asset1/asset2/window are None, only simple correlation is computed.
     When they are provided, only rolling correlation is computed.
     """
-    for account in data:
-        account[1] = holding_rows(account[1])
-
     _, active_tickers = get_tickers(data)
     correlation_matrix = None
     rolling_corr = None
