@@ -164,46 +164,6 @@ def delete_user(config_folder: str, users: dict[int, str], user_idx: int):
     save_users(config_folder, users)
 
 
-def needs_user_migration(config_folder: str) -> bool:
-    _, config = _load_config(config_folder)
-    return config.has_section("Brokers") and not config.has_section("Users")
-
-
-def migrate_to_multi_user(config_folder: str, username: str):
-    path, config = _load_config(config_folder)
-
-    user_folder = get_user_folder(config_folder, username)
-    user_res = get_user_res_folder(config_folder, username)
-    os.makedirs(user_res, exist_ok=True)
-
-    # Move per-user sections into a separate config.ini
-    user_config = configparser.ConfigParser()
-    for section in ("Brokers", "Watchlist", "Transactions", "Home"):
-        if config.has_section(section):
-            user_config.add_section(section)
-            for k, v in config.items(section):
-                user_config.set(section, k, v)
-            config.remove_section(section)
-
-    user_config_path = os.path.join(user_folder, "config.ini")
-    with open(user_config_path, "w", encoding="utf-8") as f:
-        user_config.write(f)
-
-    # Move resources/ contents into user subfolder
-    old_res = os.path.join(config_folder, "resources")
-    if os.path.exists(old_res):
-        for fname in os.listdir(old_res):
-            shutil.move(os.path.join(old_res, fname), os.path.join(user_res, fname))
-        shutil.rmtree(old_res)
-
-    # Add [Users] and [Active] to root config
-    _ensure_section(config, "Users")
-    config.set("Users", "1", username)
-    _ensure_section(config, "Active")
-    config.set("Active", "user", "1")
-    _save_config(path, config)
-
-
 # ── Backup export / import ─────────────────────────────────────
 
 _CRITICAL_COLUMNS = {"date", "account", "operation", "product"}
@@ -239,9 +199,9 @@ def validate_backup(zip_bytes: bytes) -> None:
 def _check_backup_contents(zf):
     """Raise a ValidationError for the first problem found in the opened backup archive `zf`.
 
-    Supports both backup formats: with users (config.ini lists [Users], each
-    with users/<name>/config.ini and users/<name>/resources/*.csv) and the
-    older single-user one ([Brokers] in config.ini, CSVs in resources/).
+    A backup holds config.ini listing [Users] and, for each user,
+    users/<name>/config.ini (with the [Brokers] accounts) and
+    users/<name>/resources/Report <account>.csv.
     """
     names = zf.namelist()
 
@@ -255,41 +215,29 @@ def _check_backup_contents(zf):
     except Exception:
         raise ValidationError("settings.backup.invalid_config")
 
-    # Multi-user backup: root config has [Users], per-user configs have [Brokers]
-    if config.has_section("Users") and config.options("Users"):
-        for key in config.options("Users"):
-            username = config.get("Users", key)
-            user_config_path = f"users/{username}/config.ini"
-            if user_config_path not in names:
-                raise ValidationError("settings.backup.missing_user_config", username=username)
-            user_config = configparser.ConfigParser()
-            try:
-                user_config.read_string(zf.read(user_config_path).decode("utf-8"))
-            except Exception:
-                raise ValidationError("settings.backup.invalid_user_config", username=username)
-            if not user_config.has_section("Brokers") or not user_config.options("Brokers"):
-                raise ValidationError("settings.backup.user_no_accounts", username=username)
-            for bkey in user_config.options("Brokers"):
-                broker_name = user_config.get("Brokers", bkey)
-                expected = f"users/{username}/resources/{report_filename(broker_name)}"
-                if expected not in names:
-                    raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
-            csv_names = [n for n in names
-                         if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
-            _check_csv_headers(zf, csv_names)
-    elif config.has_section("Brokers") and config.options("Brokers"):
-        # Legacy single-user backup
-        csv_names = [n for n in names if n.startswith("resources/") and n.endswith(".csv")]
-        if not csv_names:
-            raise ValidationError("settings.backup.no_csv")
-        for key in config.options("Brokers"):
-            broker_name = config.get("Brokers", key)
-            expected = f"resources/{report_filename(broker_name)}"
+    if not config.has_section("Users") or not config.options("Users"):
+        raise ValidationError("settings.backup.no_users")
+
+    for key in config.options("Users"):
+        username = config.get("Users", key)
+        user_config_path = f"users/{username}/config.ini"
+        if user_config_path not in names:
+            raise ValidationError("settings.backup.missing_user_config", username=username)
+        user_config = configparser.ConfigParser()
+        try:
+            user_config.read_string(zf.read(user_config_path).decode("utf-8"))
+        except Exception:
+            raise ValidationError("settings.backup.invalid_user_config", username=username)
+        if not user_config.has_section("Brokers") or not user_config.options("Brokers"):
+            raise ValidationError("settings.backup.user_no_accounts", username=username)
+        for bkey in user_config.options("Brokers"):
+            broker_name = user_config.get("Brokers", bkey)
+            expected = f"users/{username}/resources/{report_filename(broker_name)}"
             if expected not in names:
-                raise ValidationError("settings.backup.missing_csv", account=broker_name, path=expected)
+                raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
+        csv_names = [n for n in names
+                     if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
         _check_csv_headers(zf, csv_names)
-    else:
-        raise ValidationError("settings.backup.no_entries")
 
 
 def _check_csv_headers(zf, csv_names):

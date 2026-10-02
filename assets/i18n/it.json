@@ -265,13 +265,11 @@
     "backup": {
       "missing_config": "File config.ini mancante nel backup.",
       "invalid_config": "config.ini non è un file di configurazione valido.",
-      "no_entries": "config.ini non contiene utenti né conti.",
+      "no_users": "config.ini non contiene utenti.",
       "missing_user_config": "Configurazione mancante per l'utente '{username}'.",
       "invalid_user_config": "Impossibile leggere la configurazione dell'utente '{username}'.",
       "user_no_accounts": "L'utente '{username}' non ha conti.",
       "missing_user_csv": "CSV mancante per il conto '{account}' (utente '{username}').",
-      "no_csv": "Nessun file CSV trovato in resources/.",
-      "missing_csv": "CSV mancante per il conto '{account}': {path}",
       "unreadable_header": "Impossibile leggere l'intestazione di {file}.",
       "missing_columns": "In {file} mancano le colonne: {columns}"
     },

@@ -210,15 +210,11 @@ def _zip(files):
     return buffer.getvalue()
 
 
-# A valid backup with users (the current format) and one from before users existed.
+# A valid backup: config.ini lists the users, each with a config.ini and a CSV per account.
 MULTI_USER = {
     "config.ini": "[Users]\n1 = Tester\n",
     "users/Tester/config.ini": "[Brokers]\n1 = Main\n",
     "users/Tester/resources/Report Main.csv": HEADER,
-}
-LEGACY = {
-    "config.ini": "[Brokers]\n1 = Main\n",
-    "resources/Report Main.csv": HEADER,
 }
 
 
@@ -227,23 +223,24 @@ def _without(files, name):
     return {k: v for k, v in files.items() if k != name}
 
 
-@pytest.mark.parametrize("files", [MULTI_USER, LEGACY], ids=["multi-user", "legacy"])
-def test_valid_backups_pass(files):
-    """Backups in either format are accepted without raising."""
-    config_service.validate_backup(_zip(files))
+def test_valid_backup_passes():
+    """A backup in the current format is accepted without raising."""
+    config_service.validate_backup(_zip(MULTI_USER))
 
 
 USER_CONFIG = "users/Tester/config.ini"
 USER_CSV = "users/Tester/resources/Report Main.csv"
-LEGACY_CSV = "resources/Report Main.csv"
 
 BROKEN_BACKUPS = {
     "not-a-zip": (b"not a zip", "settings.account.import_error", {}),
     "no-config": (_zip({"notes.txt": "hello"}), "settings.backup.missing_config", {}),
     "config-not-ini": (_zip({**MULTI_USER, "config.ini": "no sections here"}),
                        "settings.backup.invalid_config", {}),
-    "no-users-or-accounts": (_zip({**MULTI_USER, "config.ini": "[Theme]\nmode = dark\n"}),
-                             "settings.backup.no_entries", {}),
+    "no-users": (_zip({**MULTI_USER, "config.ini": "[Theme]\nmode = dark\n"}),
+                 "settings.backup.no_users", {}),
+    # The single-user format from before users existed is no longer supported.
+    "old-single-user-format": (_zip({"config.ini": "[Brokers]\n1 = Main\n", "resources/Report Main.csv": HEADER}),
+                               "settings.backup.no_users", {}),
     "user-config-missing": (_zip(_without(MULTI_USER, USER_CONFIG)),
                             "settings.backup.missing_user_config", {"username": "Tester"}),
     "user-config-not-ini": (_zip({**MULTI_USER, USER_CONFIG: "no sections here"}),
@@ -256,13 +253,6 @@ BROKEN_BACKUPS = {
                               "settings.backup.unreadable_header", {"file": USER_CSV}),
     "csv-columns-missing": (_zip({**MULTI_USER, USER_CSV: "date,account\n"}),
                             "settings.backup.missing_columns", {"file": USER_CSV, "columns": "operation, product"}),
-    "legacy-no-csv": (_zip(_without(LEGACY, LEGACY_CSV)), "settings.backup.no_csv", {}),
-    "legacy-csv-missing": (_zip({**_without(LEGACY, LEGACY_CSV), "resources/Report Other.csv": HEADER}),
-                           "settings.backup.missing_csv", {"account": "Main", "path": LEGACY_CSV}),
-    "legacy-csv-header-unreadable": (_zip({**LEGACY, LEGACY_CSV: b"\xff\xfe\x00"}),
-                                     "settings.backup.unreadable_header", {"file": LEGACY_CSV}),
-    "legacy-csv-columns-missing": (_zip({**LEGACY, LEGACY_CSV: "date,account\n"}),
-                                   "settings.backup.missing_columns", {"file": LEGACY_CSV, "columns": "operation, product"}),
 }
 
 

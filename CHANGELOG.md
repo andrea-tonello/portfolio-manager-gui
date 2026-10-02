@@ -8,6 +8,7 @@
 - Removed duplicated and brittle USD->EUR conversion. Now `market_data.download_prices_eur` does it all: prices in EUR, one column per ticker.
 - `detect_unrecorded_splits` no longer mixes ledger inspection (which dates are already recorded) with the HTTP call
 - Saving user settings is now formalized in `config_service` with helpers
+- Removed support for legacy backups
 
 
 

@@ -53,11 +53,6 @@ def _do_restart(page: ft.Page):
         _show_language_picker(page, state)
         return
 
-    # Existing install with no users: prompt for username, then migrate data
-    if config_service.needs_user_migration(state.config_folder):
-        _show_user_creation(page, state, migration=True)
-        return
-
     if not state.users:
         _show_user_creation(page, state)
         return
@@ -129,8 +124,8 @@ def _show_language_picker(page: ft.Page, state: AppState):
     page.update()
 
 
-def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_complete=None, first_time=True, on_cancel=None):
-    """User creation screen. Used at first boot, migration, and when adding users in-app."""
+def _show_user_creation(page: ft.Page, state: AppState, on_complete=None, first_time=True, on_cancel=None):
+    """User creation screen. Used at first boot and when adding users in-app."""
     t = state.translator
     username_field = ft.TextField(
         label=t.get("settings.user_mgmt.username_hint"),
@@ -145,13 +140,6 @@ def _show_user_creation(page: ft.Page, state: AppState, migration=False, on_comp
             return
         if name in state.users.values():
             show_snack(page, t.get("settings.user_mgmt.duplicate"), error=True)
-            return
-
-        if migration:
-            config_service.migrate_to_multi_user(state.config_folder, name)
-            state.load_config()
-            page.controls.clear()
-            _do_restart(page)
             return
 
         next_idx = max(state.users.keys(), default=0) + 1
