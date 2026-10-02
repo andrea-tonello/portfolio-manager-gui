@@ -74,8 +74,6 @@ def priced_positions(df, ref_date, exclude_ticker=None):
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
 
     data, names = market_data.download_close(tickers, start=start_date, end=end_date)
-    if isinstance(data, pd.Series):
-        data = data.to_frame(name=tickers[0])
     data_valid = (
         data.loc[data.index <= pd.to_datetime(ref_date)]
             .dropna(how="any")
@@ -86,8 +84,6 @@ def priced_positions(df, ref_date, exclude_ticker=None):
     # Do NOT use for current price — adjusted close also bakes in dividends, which are
     # recorded explicitly as Dividend rows and would double-count otherwise.
     data_adj, _ = market_data.download_close(tickers, start=start_date, end=end_date, adjusted=True)
-    if isinstance(data_adj, pd.Series):
-        data_adj = data_adj.to_frame(name=tickers[0])
     data_adj_valid = (
         data_adj.loc[data_adj.index <= pd.to_datetime(ref_date)]
             .dropna(how="any")

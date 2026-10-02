@@ -71,17 +71,7 @@ def _download_price_data(only_tickers, start_ref_date, end_ref_date):
 
     try:
         prices_df, _ = market_data.download_close(only_tickers, start=start_ref_date, end=end_ref_date)
-        exch_series, _ = market_data.download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
-
-        if isinstance(prices_df, pd.Series):
-            prices_df = prices_df.to_frame(name=only_tickers[0] if len(only_tickers) == 1 else "Close")
-
-        if isinstance(exch_series, pd.Series):
-            exch_df = exch_series.to_frame(name="USDEUR=X")
-        elif not exch_series.empty:
-            exch_df = exch_series
-        else:
-            exch_df = pd.DataFrame()
+        exch_df, _ = market_data.download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
 
         if not prices_df.empty and not exch_df.empty:
             common_dates = prices_df.index.intersection(exch_df.index)
@@ -146,11 +136,7 @@ def _build_portfolio_timeseries(final_df, prices_df, exch_df, target_index, tota
             portfolio_history_df[only_tickers] = portfolio_history_df[only_tickers].fillna(0)
 
             if not prices_df.empty:
-                if isinstance(prices_df, pd.Series):
-                    prices_df_for_calc = prices_df.to_frame(name=only_tickers[0])
-                    prices_df_for_calc = prices_df_for_calc.reindex(columns=only_tickers, fill_value=0.0)
-                else:
-                    prices_df_for_calc = prices_df.reindex(columns=only_tickers, fill_value=0.0)
+                prices_df_for_calc = prices_df.reindex(columns=only_tickers, fill_value=0.0)
 
                 for ticker, currency in total_tickers:
                     if currency == "USD":

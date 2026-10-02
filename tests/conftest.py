@@ -60,9 +60,9 @@ def fake_download_close(tickers, start=None, end=None, period=None, adjusted=Fal
     """Offline stand-in for services.market_data.download_close.
 
     Returns the same shapes as the real function: `(prices, names)`, where
-    `prices` has one row per weekday between `start` and `end` and is a Series
-    when a single ticker is requested, a DataFrame otherwise. Unknown tickers
-    are left out, as Yahoo would. `adjusted` is accepted but ignored.
+    `prices` is a DataFrame with one row per weekday between `start` and `end`
+    and one column per ticker. Unknown tickers are left out, as Yahoo would.
+    `adjusted` is accepted but ignored.
     """
     if period is not None:
         raise NotImplementedError("fake_download_close only supports start/end")
@@ -74,8 +74,6 @@ def fake_download_close(tickers, start=None, end=None, period=None, adjusted=Fal
     names = {tk: f"{tk} Name" for tk in known}
     if df.empty:
         return pd.DataFrame(), names
-    if len(tickers) == 1 and tickers[0] in df.columns:
-        return df[tickers[0]], names
     return df, names
 
 

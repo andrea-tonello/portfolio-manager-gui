@@ -3,8 +3,8 @@
 ### Refactoring
 
 - Buy/Sell status is not encoded as the sign of the price anymore.
-- Buy/Sell status is not encoded as the sign of the price anymore.
-- Rem
+- Converted magic numbers and primitives into more appropriate constants/objects.
+- Restructured core financial functions and models across the codebase: the "utility" layer depended on the "service" layer.
 
 
 

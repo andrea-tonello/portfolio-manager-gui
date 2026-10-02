@@ -187,8 +187,6 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
     if asset1 and asset2 and window:
         # Rolling correlation only
         close_df, _ = download_close([asset1, asset2], start=start_ref_date, end=end_ref_date)
-        if isinstance(close_df, pd.Series):
-            close_df = close_df.to_frame(name=asset1)
 
         missing = [t for t in [asset1, asset2] if t not in close_df.columns]
         if missing:
@@ -207,8 +205,6 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
         if active_tickers:
             active_ticker_names = list(set([t[0] for t in active_tickers]))
             close_df, _ = download_close(active_ticker_names, start=start_ref_date, end=end_ref_date)
-            if isinstance(close_df, pd.Series):
-                close_df = close_df.to_frame(name=active_ticker_names[0])
             close_df = close_df.ffill()
             returns_df = close_df.pct_change().dropna()
             correlation_matrix = returns_df.corr()
@@ -321,9 +317,6 @@ def compute_var_mc(data, confidence_interval, projected_days):
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
     close_prices, _ = download_close(tickers_to_download, start=start_ref_date, end=end_dt)
-
-    if isinstance(close_prices, pd.Series):
-        close_prices = close_prices.to_frame(name=tickers_to_download[0])
 
     if close_prices.empty:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}

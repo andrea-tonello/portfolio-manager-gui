@@ -242,8 +242,6 @@ class HomeView:
         def worker():
             try:
                 data, names = download_close(tickers, period="2d")
-                if isinstance(data, pd.Series):
-                    data = data.to_frame(name=tickers[0])
                 data = data.dropna(how="all")
 
                 rows = []

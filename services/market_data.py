@@ -58,10 +58,14 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d", 
 
 
 def download_close(tickers, start=None, end=None, period=None, adjusted=False):
-    """Fetch closing prices for one or more tickers.
+    """Fetch daily closing prices for one or more tickers.
 
-    Returns (DataFrame_or_Series, dict[str, str]) where the second element
-    maps ticker symbols to their full product names.
+    Returns (prices, names): `prices` is always a DataFrame with one row per
+    day and one column per ticker Yahoo knows (unknown ones are left out;
+    empty if none is known), and `names` maps each ticker to its full name.
+
+    Example: download_close("ISP.MI", period="2d") -> a 2-row DataFrame with
+    the single column "ISP.MI", and {"ISP.MI": "Intesa Sanpaolo S.p.A."}.
 
     When adjusted=True, reads from indicators.adjclose instead of raw close.
     Adjusted close reflects both splits and dividends — use only for cases where
@@ -107,9 +111,6 @@ def download_close(tickers, start=None, end=None, period=None, adjusted=False):
 
     df = pd.DataFrame(all_series)
     df.index.name = "Date"
-
-    if len(tickers) == 1 and tickers[0] in df.columns:
-        return df[tickers[0]], names
     return df, names
 
 
