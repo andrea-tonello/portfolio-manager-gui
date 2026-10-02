@@ -235,6 +235,7 @@ def test_valid_backups_pass(files):
 
 USER_CONFIG = "users/Tester/config.ini"
 USER_CSV = "users/Tester/resources/Report Main.csv"
+LEGACY_CSV = "resources/Report Main.csv"
 
 BROKEN_BACKUPS = {
     "not-a-zip": (b"not a zip", "settings.account.import_error", {}),
@@ -255,9 +256,13 @@ BROKEN_BACKUPS = {
                               "settings.backup.unreadable_header", {"file": USER_CSV}),
     "csv-columns-missing": (_zip({**MULTI_USER, USER_CSV: "date,account\n"}),
                             "settings.backup.missing_columns", {"file": USER_CSV, "columns": "operation, product"}),
-    "legacy-no-csv": (_zip(_without(LEGACY, "resources/Report Main.csv")), "settings.backup.no_csv", {}),
-    "legacy-csv-missing": (_zip({**_without(LEGACY, "resources/Report Main.csv"), "resources/Report Other.csv": HEADER}),
-                           "settings.backup.missing_csv", {"account": "Main", "path": "resources/Report Main.csv"}),
+    "legacy-no-csv": (_zip(_without(LEGACY, LEGACY_CSV)), "settings.backup.no_csv", {}),
+    "legacy-csv-missing": (_zip({**_without(LEGACY, LEGACY_CSV), "resources/Report Other.csv": HEADER}),
+                           "settings.backup.missing_csv", {"account": "Main", "path": LEGACY_CSV}),
+    "legacy-csv-header-unreadable": (_zip({**LEGACY, LEGACY_CSV: b"\xff\xfe\x00"}),
+                                     "settings.backup.unreadable_header", {"file": LEGACY_CSV}),
+    "legacy-csv-columns-missing": (_zip({**LEGACY, LEGACY_CSV: "date,account\n"}),
+                                   "settings.backup.missing_columns", {"file": LEGACY_CSV, "columns": "operation, product"}),
 }
 
 
@@ -277,6 +282,34 @@ def test_broken_backups_raise_a_translatable_error(case):
     for language in LANGUAGES:
         text = error_message(_translator(language), info.value)
         assert not text.startswith("<"), f"{language}: message missing or a placeholder is wrong: {text}"
+
+
+@pytest.mark.parametrize("files", [{"notes.txt": "hello"}, MULTI_USER], ids=["invalid", "valid"])
+def test_the_backup_archive_is_closed_after_checking(monkeypatch, files):
+    """validate_backup closes the archive it opened, whether the backup is rejected or accepted.
+
+    It used to stay open whenever a problem was found.
+    """
+    zip_bytes = _zip(files)
+    opened = []
+
+    class TrackedZipFile(zipfile.ZipFile):
+        """A ZipFile that remembers each archive opened, to check later that it was closed."""
+
+        def __init__(self, *args, **kwargs):
+            """Open the archive as usual and remember it."""
+            super().__init__(*args, **kwargs)
+            opened.append(self)
+
+    monkeypatch.setattr(config_service.zipfile, "ZipFile", TrackedZipFile)
+
+    try:
+        config_service.validate_backup(zip_bytes)
+    except ValidationError:
+        pass
+
+    assert len(opened) == 1
+    assert opened[0].fp is None, "the archive is still open"
 
 
 class FakeImportPicker:

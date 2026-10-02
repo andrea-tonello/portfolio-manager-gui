@@ -5,8 +5,11 @@ the opening row (dated 01-01-2000, all totals at zero). It must never touch a
 file that already exists, because that file holds the user's transactions.
 """
 
+import os
+
 import pandas as pd
 
+from services import account_service
 from services.account_service import create_defaults
 from utils.constants import REPORT_PREFIX
 
@@ -46,3 +49,9 @@ def test_never_overwrites_an_existing_account_file(tmp_path):
     create_defaults(str(tmp_path), BROKER)
 
     assert report_path(tmp_path).read_text() == existing
+
+
+def test_account_files_are_named_after_the_account():
+    """Each account's CSV is "Report <account name>.csv"; report_path puts it inside a folder."""
+    assert account_service.report_filename("Fineco") == "Report Fineco.csv"
+    assert account_service.report_path("resources", "Fineco") == os.path.join("resources", "Report Fineco.csv")

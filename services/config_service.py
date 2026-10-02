@@ -5,6 +5,7 @@ import shutil
 import zipfile
 
 from domain.errors import ValidationError
+from services.account_service import report_filename
 from utils.constants import DEFAULT_TX_FILTER
 
 
@@ -231,7 +232,17 @@ def validate_backup(zip_bytes: bytes) -> None:
         zf = zipfile.ZipFile(io.BytesIO(zip_bytes))
     except Exception:
         raise ValidationError("settings.account.import_error")
+    with zf:  # closes the archive however the checks end
+        _check_backup_contents(zf)
 
+
+def _check_backup_contents(zf):
+    """Raise a ValidationError for the first problem found in the opened backup archive `zf`.
+
+    Supports both backup formats: with users (config.ini lists [Users], each
+    with users/<name>/config.ini and users/<name>/resources/*.csv) and the
+    older single-user one ([Brokers] in config.ini, CSVs in resources/).
+    """
     names = zf.namelist()
 
     # config.ini must exist
@@ -260,21 +271,12 @@ def validate_backup(zip_bytes: bytes) -> None:
                 raise ValidationError("settings.backup.user_no_accounts", username=username)
             for bkey in user_config.options("Brokers"):
                 broker_name = user_config.get("Brokers", bkey)
-                expected = f"users/{username}/resources/Report {broker_name}.csv"
+                expected = f"users/{username}/resources/{report_filename(broker_name)}"
                 if expected not in names:
                     raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
             csv_names = [n for n in names
                          if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
-            for csv_name in csv_names:
-                try:
-                    header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
-                    columns = {c.strip() for c in header_line.split(",")}
-                except Exception:
-                    raise ValidationError("settings.backup.unreadable_header", file=csv_name)
-                missing = _CRITICAL_COLUMNS - columns
-                if missing:
-                    raise ValidationError("settings.backup.missing_columns", file=csv_name,
-                                          columns=", ".join(sorted(missing)))
+            _check_csv_headers(zf, csv_names)
     elif config.has_section("Brokers") and config.options("Brokers"):
         # Legacy single-user backup
         csv_names = [n for n in names if n.startswith("resources/") and n.endswith(".csv")]
@@ -282,23 +284,30 @@ def validate_backup(zip_bytes: bytes) -> None:
             raise ValidationError("settings.backup.no_csv")
         for key in config.options("Brokers"):
             broker_name = config.get("Brokers", key)
-            expected = f"resources/Report {broker_name}.csv"
+            expected = f"resources/{report_filename(broker_name)}"
             if expected not in names:
                 raise ValidationError("settings.backup.missing_csv", account=broker_name, path=expected)
-        for csv_name in csv_names:
-            try:
-                header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
-                columns = {c.strip() for c in header_line.split(",")}
-            except Exception:
-                raise ValidationError("settings.backup.unreadable_header", file=csv_name)
-            missing = _CRITICAL_COLUMNS - columns
-            if missing:
-                raise ValidationError("settings.backup.missing_columns", file=csv_name,
-                                      columns=", ".join(sorted(missing)))
+        _check_csv_headers(zf, csv_names)
     else:
         raise ValidationError("settings.backup.no_entries")
 
-    zf.close()
+
+def _check_csv_headers(zf, csv_names):
+    """Raise a ValidationError if an account CSV in the backup can't be read or lacks a column the app needs.
+
+    Checks the first line (the column names) of each file in `csv_names`
+    against _CRITICAL_COLUMNS.
+    """
+    for csv_name in csv_names:
+        try:
+            header_line = zf.read(csv_name).decode("utf-8").split("\n", 1)[0]
+            columns = {c.strip() for c in header_line.split(",")}
+        except Exception:
+            raise ValidationError("settings.backup.unreadable_header", file=csv_name)
+        missing = _CRITICAL_COLUMNS - columns
+        if missing:
+            raise ValidationError("settings.backup.missing_columns", file=csv_name,
+                                  columns=", ".join(sorted(missing)))
 
 
 def import_backup(config_folder: str, zip_bytes: bytes):
