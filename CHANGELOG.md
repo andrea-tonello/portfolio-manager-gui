@@ -5,7 +5,8 @@
 - Buy/Sell status is not encoded as the sign of the price anymore.
 - Converted magic numbers and primitives into more appropriate constants/objects.
 - Restructured core financial functions and models across the codebase: the "utility" layer depended on the "service" layer.
-- Removed duplicated and brittle USD->EUR conversion. Now market_data.download_prices_eur does it all: prices in EUR, one column per ticker.
+- Removed duplicated and brittle USD->EUR conversion. Now `market_data.download_prices_eur` does it all: prices in EUR, one column per ticker.
+- `detect_unrecorded_splits` no longer mixes ledger inspection (which dates are already recorded) with the HTTP call
 
 
 

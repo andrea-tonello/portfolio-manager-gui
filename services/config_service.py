@@ -28,61 +28,54 @@ def _ensure_section(config: configparser.ConfigParser, section: str):
         config.add_section(section)
 
 
-def save_language(config_folder: str, lang_code: str):
+def _update_section(config_folder: str, section: str, values: dict[str, str], replace: bool = False):
+    """Write `values` ({option: text}) into `section` of config_folder/config.ini, keeping every other section.
+
+    The section's other options are kept, unless `replace` is True: then the
+    section ends up holding exactly `values`, so an entry removed from a list
+    (a user, a broker) disappears from the file. Creates the file if missing.
+
+    Example: _update_section(folder, "Theme", {"mode": "dark", "color": "teal"})
+    writes "[Theme]", "mode = dark", "color = teal".
+    """
     path, config = _load_config(config_folder)
-    _ensure_section(config, "Language")
-    config.set("Language", "code", lang_code)
+    _ensure_section(config, section)
+    if replace:
+        for option in list(config[section].keys()):
+            config.remove_option(section, option)
+    for option, value in values.items():
+        config.set(section, option, value)
     _save_config(path, config)
+
+
+def save_language(config_folder: str, lang_code: str):
+    _update_section(config_folder, "Language", {"code": lang_code})
 
 
 def save_theme(config_folder: str, mode: str, color: str):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Theme")
-    config.set("Theme", "mode", mode)
-    config.set("Theme", "color", color)
-    _save_config(path, config)
+    _update_section(config_folder, "Theme", {"mode": mode, "color": color})
 
 
 def save_watchlist(config_folder: str, tickers: list[str]):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Watchlist")
-    config.set("Watchlist", "tickers", ",".join(tickers))
-    _save_config(path, config)
+    _update_section(config_folder, "Watchlist", {"tickers": ",".join(tickers)})
 
 
 def save_brokers(config_folder: str, brokers: dict[int, str], reset: bool = False):
-    path, config = _load_config(config_folder)
-    if reset and config.has_section("Brokers"):
-        config.remove_section("Brokers")
-    _ensure_section(config, "Brokers")
-    for idx, name in brokers.items():
-        config.set("Brokers", str(idx), name)
-    _save_config(path, config)
+    _update_section(config_folder, "Brokers", {str(idx): name for idx, name in brokers.items()}, replace=reset)
 
 
 def save_home_hidden(config_folder: str, hidden: bool):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Home")
-    config.set("Home", "hidden", str(hidden).lower())
-    _save_config(path, config)
+    _update_section(config_folder, "Home", {"hidden": str(hidden).lower()})
 
 
 def save_home_pnl_mode(config_folder: str, mode: int):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Home")
-    config.set("Home", "pnl_mode", str(mode))
-    _save_config(path, config)
+    _update_section(config_folder, "Home", {"pnl_mode": str(mode)})
 
 
 def save_split_ignores(config_folder: str, ignores: set[str]):
     """Persist a set of ignored split identifiers (strings like 'TICKER|YYYY-MM-DD' or 'TICKER|*')."""
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "SplitIgnores")
-    for key in list(config["SplitIgnores"].keys()):
-        config.remove_option("SplitIgnores", key)
-    if ignores:
-        config.set("SplitIgnores", "entries", ",".join(sorted(ignores)))
-    _save_config(path, config)
+    entries = {"entries": ",".join(sorted(ignores))} if ignores else {}
+    _update_section(config_folder, "SplitIgnores", entries, replace=True)
 
 
 def load_split_ignores(config_folder: str) -> set[str]:
@@ -94,11 +87,7 @@ def load_split_ignores(config_folder: str) -> set[str]:
 
 
 def save_tx_filter(config_folder: str, mode: str, value: int):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Transactions")
-    config.set("Transactions", "filter_mode", mode)
-    config.set("Transactions", "filter_value", str(value))
-    _save_config(path, config)
+    _update_section(config_folder, "Transactions", {"filter_mode": mode, "filter_value": str(value)})
 
 
 def load_tx_filter(config_folder: str) -> tuple[str, int]:
@@ -118,10 +107,7 @@ def load_tx_filter(config_folder: str) -> tuple[str, int]:
 
 
 def save_tx_columns(config_folder: str, visible_cols: list[str]):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Transactions")
-    config.set("Transactions", "visible_columns", ",".join(visible_cols))
-    _save_config(path, config)
+    _update_section(config_folder, "Transactions", {"visible_columns": ",".join(visible_cols)})
 
 
 def load_tx_columns(config_folder: str) -> list[str] | None:
@@ -140,13 +126,7 @@ def reset_application(config_folder: str):
 # ── Multi-user management ────────────────────────────────────
 
 def save_users(config_folder: str, users: dict[int, str]):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Users")
-    for key in list(config["Users"].keys()):
-        config.remove_option("Users", key)
-    for idx, name in users.items():
-        config.set("Users", str(idx), name)
-    _save_config(path, config)
+    _update_section(config_folder, "Users", {str(idx): name for idx, name in users.items()}, replace=True)
 
 
 def load_users(config_folder: str) -> dict[int, str]:
@@ -157,10 +137,7 @@ def load_users(config_folder: str) -> dict[int, str]:
 
 
 def save_active_user(config_folder: str, user_idx: int):
-    path, config = _load_config(config_folder)
-    _ensure_section(config, "Active")
-    config.set("Active", "user", str(user_idx))
-    _save_config(path, config)
+    _update_section(config_folder, "Active", {"user": str(user_idx)})
 
 
 def load_active_user(config_folder: str) -> int | None:
