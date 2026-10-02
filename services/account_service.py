@@ -2,7 +2,6 @@ import os
 import pandas as pd
 
 from domain.ledger import opening_row
-from utils.columns import rename_from_legacy
 from utils.constants import REPORT_PREFIX
 
 
@@ -32,10 +31,6 @@ def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> di
     filename = report_filename(brokers[account_idx])
     path = os.path.join(save_folder, filename)
     df = pd.read_csv(path)
-
-    # Auto-migrate legacy Italian column names to English
-    if rename_from_legacy(df):
-        df.to_csv(path, index=False)
 
     return {
         "df": df,

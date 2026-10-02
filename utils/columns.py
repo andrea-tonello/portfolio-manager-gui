@@ -3,7 +3,6 @@ Centralised column definitions for internal DataFrame storage.
 
 Internal storage uses English column names.
 Export uses locale-specific headers resolved via the translator (glossary keys).
-Legacy CSVs with Italian column names are auto-migrated on load.
 """
 
 # Ordered list of the internal column names (the column order of every account CSV).
@@ -50,62 +49,6 @@ GLOSSARY_KEYS = [
     "glossary.page_1.nav_title",
     "glossary.page_1.historic_cash_title",
 ]
-
-# Maps old Italian column names → new English internal names.
-OLD_TO_NEW = {
-    "Data": "date",
-    "Conto": "account",
-    "Operazione": "operation",
-    "Prodotto": "product",
-    "Ticker": "ticker",
-    "Nome Asset": "asset_name",
-    "TER": "ter",
-    "Valuta": "curr",
-    "Tasso di Conv.": "conv_rate",
-    "QT. Scambio": "qt_exch",
-    "Prezzo": "price",
-    "Prezzo EUR": "price_eur",
-    "Imp. Nominale Operaz.": "nominal_amount",
-    "Commissioni": "fee",
-    "QT. Attuale": "qt_held",
-    "PMC": "abp",
-    "Imp. Residuo Asset": "residual_amount",
-    "Imp. Effettivo Operaz.": "effective_amount",
-    "Costo Rilasciato": "released_amount",
-    "Plusv. Lorda": "gross_gain",
-    "Minusv. Generata": "generated_loss",
-    "Scadenza": "expiry",
-    "Zainetto Fiscale": "carryforward",
-    "Plusv. Imponibile": "taxable_gain",
-    "Aliquota Fiscale": "tax_bracket",
-    "Imposta": "tax",
-    "P&L": "pl",
-    "Liquidita Attuale": "cash_held",
-    "Valore Titoli": "assets_value",
-    "NAV": "nav",
-    "Liq. Impegnata": "committed_cash",
-}
-
-
-# Maps old Italian operation values → new English internal values.
-OLD_OPERATIONS = {
-    "Deposito": "Deposit",
-    "Prelievo": "Withdrawal",
-    "Acquisto": "Buy",
-    "Vendita": "Sell",
-    "Dividendo": "Dividend",
-    "Imposta": "Tax",
-    "Frazionamento": "Split",
-}
-
-# Maps old Italian product values → new English internal values.
-OLD_PRODUCTS = {
-    "Contanti": "Cash",
-    "Azioni": "Stock",
-    "Dividendo": "Dividend",
-    "Imposta": "Tax",
-    # "ETF" stays "ETF"
-}
 
 # Maps internal English operation values → locale keys for export.
 OPERATION_LOCALE_KEYS = {
@@ -155,33 +98,3 @@ def rename_for_export(df, translator):
     _translate_values(out, translator)
     mapping = export_headers(translator)
     return out.rename(columns=mapping)
-
-
-def rename_from_legacy(df):
-    """Rename old Italian columns and values to new English names (in-place).
-
-    Returns True if migration was performed, False otherwise.
-    """
-    migrated = False
-    current_cols = set(df.columns)
-    if current_cols & set(OLD_TO_NEW.keys()):
-        df.rename(columns=OLD_TO_NEW, inplace=True)
-        migrated = True
-
-    # Migrate operation values
-    op_col = "operation" if "operation" in df.columns else None
-    if op_col:
-        mask = df[op_col].isin(OLD_OPERATIONS.keys())
-        if mask.any():
-            df[op_col] = df[op_col].map(lambda x: OLD_OPERATIONS.get(x, x))
-            migrated = True
-
-    # Migrate product values
-    prod_col = "product" if "product" in df.columns else None
-    if prod_col:
-        mask = df[prod_col].isin(OLD_PRODUCTS.keys())
-        if mask.any():
-            df[prod_col] = df[prod_col].map(lambda x: OLD_PRODUCTS.get(x, x))
-            migrated = True
-
-    return migrated
