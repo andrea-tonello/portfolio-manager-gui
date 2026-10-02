@@ -16,6 +16,8 @@ _HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
     ),
 }
+# Yahoo's ticker for the USD->EUR exchange rate (how many EUR one USD buys).
+USDEUR_TICKER = "USDEUR=X"
 
 
 def _to_unix(dt) -> int:
@@ -114,6 +116,43 @@ def download_close(tickers, start=None, end=None, period=None, adjusted=False):
     return df, names
 
 
+def download_prices_eur(tickers_with_currency, start, end):
+    """Download daily closing prices in EUR: one column per ticker, all on the same days.
+
+    `tickers_with_currency` is a list of (ticker, currency) pairs, currency
+    "EUR" or "USD". USD prices are multiplied by that day's USD->EUR rate.
+    Only days with a rate are kept (when the rate can be downloaded), a
+    missing price repeats the previous day's, and days before every ticker
+    has a price are dropped. Returns an empty DataFrame when there are no
+    tickers or no prices; raises RuntimeError when USD prices can't be
+    converted because the rate is unavailable.
+
+    Example: [("ISP.MI", "EUR"), ("AAPL", "USD")] -> columns ISP.MI and AAPL,
+    where AAPL at 200 USD on a day the rate is 0.92 becomes 184 EUR.
+    """
+    if not tickers_with_currency:
+        return pd.DataFrame()
+    prices, _ = download_close([ticker for ticker, _ in tickers_with_currency], start=start, end=end)
+    if prices.empty:
+        return prices
+    rates, _ = download_close(USDEUR_TICKER, start=start, end=end)
+
+    if not rates.empty:
+        common_dates = prices.index.intersection(rates.index)
+        prices = prices.loc[common_dates]
+        rates = rates.loc[common_dates].ffill().dropna()
+    prices = prices.ffill().dropna()
+    if prices.empty:
+        return prices
+
+    usd_tickers = [t for t, currency in tickers_with_currency if currency == "USD" and t in prices.columns]
+    if usd_tickers:
+        if rates.empty:
+            raise RuntimeError("No USD->EUR exchange rate available to convert USD prices")
+        prices[usd_tickers] = prices[usd_tickers].mul(rates[USDEUR_TICKER], axis=0)
+    return prices
+
+
 def fetch_ticker_name(ticker: str) -> str:
     """Fetch the long name for a ticker symbol (e.g. "ISP.MI" -> "Intesa Sanpaolo S.p.A.").
 
@@ -138,12 +177,12 @@ def fetch_exchange_rate(ref_date=None) -> float:
     ref_dt = datetime.strptime(ref_date, "%Y-%m-%d").date()
 
     if ref_dt == date.today():
-        chart = _fetch_chart("USDEUR=X", period="2d", interval="1m")
+        chart = _fetch_chart(USDEUR_TICKER, period="2d", interval="1m")
     else:
         # Widen window to cover weekends and holidays
         start_day = (ref_dt - timedelta(days=5)).strftime("%Y-%m-%d")
         next_day = (ref_dt + timedelta(days=1)).strftime("%Y-%m-%d")
-        chart = _fetch_chart("USDEUR=X", start=start_day, end=next_day)
+        chart = _fetch_chart(USDEUR_TICKER, start=start_day, end=next_day)
 
     closes = chart.get("indicators", {}).get("quote", [{}])[0].get("close", [])
     if not closes:

@@ -8,7 +8,7 @@ from domain.history import portfolio_history
 from domain.ledger import Op, Product, get_pf_date, holding_rows
 from domain.positions import aggregate_positions, get_tickers, priced_positions
 from domain.returns import xirr
-from services.market_data import download_close, fetch_ticker_name
+from services.market_data import download_close, download_prices_eur, fetch_ticker_name
 from utils.other_utils import round_half_up
 
 # Days a stock exchange is open in a year; turns daily returns and volatility into yearly ones.
@@ -281,8 +281,6 @@ def compute_var_mc(data, confidence_interval, projected_days):
     end_dt = datetime.now()
 
     _, total_tickers = get_tickers(data)
-    usd_tickers = [t[0] for t in total_tickers if t[1] == "USD"]
-    eur_tickers = [t[0] for t in total_tickers if t[1] == "EUR"]
 
     total_positions = []
     total_liquidity = []
@@ -305,57 +303,8 @@ def compute_var_mc(data, confidence_interval, projected_days):
     weights = np.array(assets_value) / portfolio_value
     portfolio_value = portfolio_value + cash
 
-    tickers_to_download = []
-    if usd_tickers:
-        tickers_to_download.extend(usd_tickers)
-    if eur_tickers:
-        tickers_to_download.extend(eur_tickers)
-
-    if tickers_to_download:
-        tickers_to_download.append("USDEUR=X")
-    else:
-        return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
-
-    close_prices, _ = download_close(tickers_to_download, start=start_ref_date, end=end_dt)
-
-    if close_prices.empty:
-        return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
-
-    close_prices = close_prices.ffill()
-
-    final_usd_df = pd.DataFrame([])
-    final_eur_df = pd.DataFrame([])
-    indices_to_intersect = []
-
-    exch_df = close_prices["USDEUR=X"].dropna()
-    indices_to_intersect.append(exch_df.index)
-
-    if eur_tickers:
-        eur_prices_df = close_prices[eur_tickers].dropna(how="all")
-        indices_to_intersect.append(eur_prices_df.index)
-        final_eur_df = eur_prices_df
-
-    if usd_tickers:
-        usd_prices_df = close_prices[usd_tickers].dropna(how="all")
-        indices_to_intersect.append(usd_prices_df.index)
-        final_usd_df = usd_prices_df.mul(exch_df, axis=0)
-
-    if not indices_to_intersect:
-        common_dates = pd.DatetimeIndex([])
-    else:
-        common_dates = indices_to_intersect[0]
-        for idx in indices_to_intersect[1:]:
-            common_dates = common_dates.intersection(idx)
-
-    dfs_to_concat = []
-    if usd_tickers:
-        dfs_to_concat.append(final_usd_df.loc[common_dates])
-    if eur_tickers:
-        dfs_to_concat.append(final_eur_df.loc[common_dates])
-
-    if dfs_to_concat:
-        prices_df = pd.concat(dfs_to_concat, axis=1)
-    else:
+    prices_df = download_prices_eur(total_tickers, start_ref_date, end_dt)
+    if prices_df.empty:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
     prices_df = prices_df[asset_tickers]

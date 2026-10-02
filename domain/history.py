@@ -64,39 +64,20 @@ def _compute_total_quantities(final_df):
     return final_df
 
 
-def _download_price_data(only_tickers, start_ref_date, end_ref_date):
-    prices_df = pd.DataFrame([])
-    exch_df = pd.DataFrame([])
-    fallback_index = pd.date_range(start=start_ref_date, end=end_ref_date)
+def _download_price_data(total_tickers, start_ref_date, end_ref_date):
+    """Return (prices in EUR, the days the history covers) for the (ticker, currency) pairs in `total_tickers`.
 
-    try:
-        prices_df, _ = market_data.download_close(only_tickers, start=start_ref_date, end=end_ref_date)
-        exch_df, _ = market_data.download_close("USDEUR=X", start=start_ref_date, end=end_ref_date)
-
-        if not prices_df.empty and not exch_df.empty:
-            common_dates = prices_df.index.intersection(exch_df.index)
-            prices_df = prices_df.loc[common_dates]
-            exch_df = exch_df.loc[common_dates]
-
-            prices_df = prices_df.ffill().dropna()
-            exch_df = exch_df.ffill().dropna()
-            target_index = prices_df.index
-
-            if target_index.empty:
-                target_index = fallback_index
-        elif not prices_df.empty:
-            prices_df = prices_df.ffill().dropna()
-            target_index = prices_df.index if not prices_df.empty else fallback_index
-        else:
-            target_index = fallback_index
-
-    except Exception:
-        target_index = fallback_index
-
-    return prices_df, exch_df, target_index
+    The days are the trading days that have prices. Without any price (an
+    account holding only cash, or nothing downloaded) they are every calendar
+    day from start to end.
+    """
+    prices_df = market_data.download_prices_eur(total_tickers, start_ref_date, end_ref_date)
+    if prices_df.empty:
+        return prices_df, pd.date_range(start=start_ref_date, end=end_ref_date)
+    return prices_df, prices_df.index
 
 
-def _build_portfolio_timeseries(final_df, prices_df, exch_df, target_index, total_tickers, only_tickers):
+def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers, only_tickers):
     try:
         portfolio_data = final_df.copy()
         portfolio_data = portfolio_data.drop(columns=["curr"])
@@ -137,10 +118,6 @@ def _build_portfolio_timeseries(final_df, prices_df, exch_df, target_index, tota
 
             if not prices_df.empty:
                 prices_df_for_calc = prices_df.reindex(columns=only_tickers, fill_value=0.0)
-
-                for ticker, currency in total_tickers:
-                    if currency == "USD":
-                        prices_df_for_calc[ticker] = prices_df_for_calc[ticker] * exch_df["USDEUR=X"]
                 portfolio_history_df['assets_value'] = (prices_df_for_calc * portfolio_history_df[only_tickers]).sum(axis=1)
             else:
                 portfolio_history_df['assets_value'] = 0.0
@@ -187,10 +164,8 @@ def portfolio_history(start_ref_date, end_ref_date, data):
     final_df = _compute_total_liquidity(final_df)
     final_df = _compute_total_quantities(final_df)
 
-    prices_df, exch_df, target_index = _download_price_data(
-        only_tickers, start_ref_date, end_ref_date
-    )
+    prices_df, target_index = _download_price_data(total_tickers, start_ref_date, end_ref_date)
 
     return _build_portfolio_timeseries(
-        final_df, prices_df, exch_df, target_index, total_tickers, only_tickers
+        final_df, prices_df, target_index, total_tickers, only_tickers
     )
