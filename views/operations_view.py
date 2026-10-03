@@ -10,7 +10,7 @@ from components.ticker_search import TickerSearchField
 from domain.ledger import LEDGER_START_DATE, Product
 from domain.positions import held_tickers
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
-from services import account_service, operations_service
+from services import operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
 from utils.constants import CURRENCIES, DATE_FORMAT, DEFAULT_LANG, I18N_DIR
@@ -386,9 +386,7 @@ class OperationsView:
                     df, broker, service_kind, date_str, ref_date, amount,
                     ticker=ticker, description=descr,
                 )
-                account = s.get_account(acc_idx)
-                account.df = new_df
-                account_service.save_account(account)
+                s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
@@ -880,9 +878,7 @@ class OperationsView:
                     currency, conv_rate, ticker, quantity, price,
                     fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
-                account = s.get_account(acc_idx)
-                account.df = new_df
-                account_service.save_account(account)
+                s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
@@ -1012,9 +1008,7 @@ class OperationsView:
                 new_df = operations_service.execute_split(
                     df, broker, date_str, ref_date, ticker, ratio,
                 )
-                account = s.get_account(acc_idx)
-                account.df = new_df
-                account_service.save_account(account)
+                s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:

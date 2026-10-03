@@ -31,7 +31,7 @@ def home(page, state, monkeypatch):
 
 def test_failed_live_refresh_is_logged(home, state, monkeypatch, caplog):
     """If live prices can't be fetched, Home keeps its last values and logs why."""
-    state._split_checked_session = True  # skip the split check that follows a refresh
+    state.split_checked_session = True  # skip the split check that follows a refresh
     monkeypatch.setattr(views.home_view, "priced_positions", _offline)
 
     with caplog.at_level(logging.ERROR):

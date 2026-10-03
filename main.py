@@ -2,7 +2,8 @@ import os
 import flet as ft
 
 from app_state import AppState
-from components.snack import show_snack
+from components.snack import error_message, show_snack
+from domain.errors import ValidationError
 from services import config_service
 from views import _rebuild_page
 from views.settings_view import PALETTE_COLORS
@@ -138,18 +139,11 @@ def _show_user_creation(page: ft.Page, state: AppState, on_complete=None, first_
         name = username_field.value.strip()
         if not name:
             return
-        if name in state.users.values():
-            show_snack(page, t.get("settings.user_mgmt.duplicate"), error=True)
+        try:
+            state.add_user(name)
+        except ValidationError as ex:
+            show_snack(page, error_message(t, ex), error=True)
             return
-
-        next_idx = max(state.users.keys(), default=0) + 1
-        state.users[next_idx] = name
-        config_service.save_users(state.config_folder, state.users)
-        config_service.save_active_user(state.config_folder, next_idx)
-        # Create user folder structure
-        user_res = config_service.get_user_res_folder(state.config_folder, name)
-        os.makedirs(user_res, exist_ok=True)
-        state.load_config()
 
         if on_complete:
             on_complete()
@@ -206,6 +200,10 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on
         name = broker_field.value.strip()
         if not name:
             return
+        # Same rule as AppState.add_broker: names differing only in capitals count as the same.
+        if name.casefold() in {existing.casefold() for existing in brokers_temp.values()}:
+            show_snack(page, t.get("settings.account.duplicate", account=name), error=True)
+            return
         next_idx = max(brokers_temp.keys(), default=0) + 1
         brokers_temp[next_idx] = name
 
@@ -234,10 +232,8 @@ def _show_broker_onboarding(page: ft.Page, state: AppState, on_complete=None, on
             page.overlay.append(snack)
             page.update()
             return
-        state.brokers = brokers_temp
-        config_service.save_brokers(state.user_config_folder, state.brokers, reset=True)
-        state.ensure_defaults()
-        state.load_config()
+        for name in brokers_temp.values():
+            state.add_broker(name)
         if on_complete:
             page.controls.clear()
             on_complete()

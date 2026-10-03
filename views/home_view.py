@@ -7,7 +7,7 @@ from datetime import datetime
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.positions import held_tickers, priced_positions
-from services import account_service, config_service, operations_service
+from services import config_service, operations_service
 from services.market_data import download_close
 from utils.constants import DATE_FORMAT
 from utils.other_utils import round_half_up
@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 WIDTH_CARD = 600
 WIDTH_POSITIONS = 800
 WIDTH_WATCHLIST = 800
+
+# Home reuses its last values until the user has switched tabs this many times, then fetches live ones.
+REFRESH_AFTER_TAB_SWITCHES = 10
 
 
 def _longpress_tooltip(control: ft.Control, name: str) -> ft.Control:
@@ -85,7 +88,7 @@ class HomeView:
 
     def _on_selection_change(self, e):
         self.state.home_selection = e.control.value
-        self.state._home_cache = None
+        self.state.home_cache = None
         from views import _rebuild_page
         _rebuild_page(self.page, self.state, selected_index=0)
 
@@ -365,7 +368,7 @@ class HomeView:
         self.state.haptic(self.page)
         self._pos_display_mode = (self._pos_display_mode + 1) % 3
         self._pos_mode_btn.content = ft.Text(self._pos_mode_labels[self._pos_display_mode])
-        hidden = self.state._home_values_hidden
+        hidden = self.state.home_values_hidden
         self._update_positions(self._positions_data, hidden)
         self.page.update()
 
@@ -437,10 +440,10 @@ class HomeView:
     def _auto_fetch_or_restore(self):
         """Use cached data if fresh enough, otherwise fetch live values."""
         s = self.state
-        cache = s._home_cache
+        cache = s.home_cache
         if (cache is not None
                 and cache.get("selection") == s.home_selection
-                and s._home_nav_count < s._home_nav_threshold):
+                and s.home_nav_count < REFRESH_AFTER_TAB_SWITCHES):
             self._restore_from_cache(cache)
         else:
             self._fetch_live_values()
@@ -460,7 +463,7 @@ class HomeView:
         self._current_tpnl_pct_str = cache.get("tpnl_pct_str", "---")
         self._current_dpnl_pct_str = cache.get("dpnl_pct_str", "---")
 
-        hidden = self.state._home_values_hidden
+        hidden = self.state.home_values_hidden
         self._apply_subtotals()
         if not hidden:
             self._set_nav_value(self._current_nav_str)
@@ -573,7 +576,7 @@ class HomeView:
                 self._current_tpnl_pct_str = _fmt_pct(total_pnl, total_committed)
                 self._current_dpnl_pct_str = _fmt_pct(daily_pnl, prev_positions_value)
 
-                hidden = s._home_values_hidden
+                hidden = s.home_values_hidden
                 self._apply_subtotals()
                 if not hidden:
                     self._set_nav_value(self._current_nav_str)
@@ -582,7 +585,7 @@ class HomeView:
                 self._update_positions(all_positions, hidden)
 
                 # Save to cache
-                s._home_cache = {
+                s.home_cache = {
                     "selection": s.home_selection,
                     "nav_str": self._current_nav_str,
                     "assets_str": self._current_assets_str,
@@ -598,7 +601,7 @@ class HomeView:
                     "dpnl_pct_str": self._current_dpnl_pct_str,
                     "positions": all_positions,
                 }
-                s._home_nav_count = 0
+                s.home_nav_count = 0
             except Exception:
                 # Keep showing the last values (e.g. offline), and log why.
                 logger.exception("Could not refresh live values on Home")
@@ -613,7 +616,7 @@ class HomeView:
     def _check_splits_async(self):
         """Look for unrecorded splits on held tickers and prompt the user. Runs once per session."""
         s = self.state
-        if s._split_checked_session:
+        if s.split_checked_session:
             return
         sel = s.home_selection
         if sel == "overview":
@@ -634,9 +637,9 @@ class HomeView:
             return
 
         def worker():
-            s._split_checked_session = True
+            s.split_checked_session = True
             for ticker in tickers:
-                if f"{ticker}|*" in s._split_ignores:
+                if f"{ticker}|*" in s.split_ignores:
                     continue
                 try:
                     unrecorded = operations_service.detect_unrecorded_splits(df, ticker)
@@ -645,7 +648,7 @@ class HomeView:
                     logger.exception("Could not check %s for splits", ticker)
                     continue
                 for ev_date, ratio in unrecorded:
-                    if f"{ticker}|{ev_date}" in s._split_ignores:
+                    if f"{ticker}|{ev_date}" in s.split_ignores:
                         continue
                     # Marshal dialog back to the event loop — show_dialog
                     # mutates page.overlay and must not run on a worker thread
@@ -669,23 +672,23 @@ class HomeView:
 
         def on_record(e):
             self.page.pop_dialog()
-            s._split_checked_session = False
+            s.split_checked_session = False
             self._record_detected_split(acc_idx, ticker, ev_date, ratio)
 
         def on_ignore_once(e):
             self.page.pop_dialog()
-            s._split_ignores.add(f"{ticker}|{ev_date}")
+            s.split_ignores.add(f"{ticker}|{ev_date}")
             if s.user_config_folder:
-                config_service.save_split_ignores(s.user_config_folder, s._split_ignores)
-            s._split_checked_session = False
+                config_service.save_split_ignores(s.user_config_folder, s.split_ignores)
+            s.split_checked_session = False
             self._check_splits_async()
 
         def on_ignore_always(e):
             self.page.pop_dialog()
-            s._split_ignores.add(f"{ticker}|*")
+            s.split_ignores.add(f"{ticker}|*")
             if s.user_config_folder:
-                config_service.save_split_ignores(s.user_config_folder, s._split_ignores)
-            s._split_checked_session = False
+                config_service.save_split_ignores(s.user_config_folder, s.split_ignores)
+            s.split_checked_session = False
             self._check_splits_async()
 
         dlg = ft.AlertDialog(
@@ -710,10 +713,10 @@ class HomeView:
 
         def worker():
             try:
-                account.df = operations_service.execute_split(
+                new_df = operations_service.execute_split(
                     account.df, account.name, date_str, ref_date, ticker, ratio,
                 )
-                account_service.save_account(account)
+                s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._fetch_live_values()
             except Exception as ex:
@@ -743,7 +746,7 @@ class HomeView:
     def _apply_subtotals(self):
         """Write assets/cash subtitle texts from current state, honoring hidden mode."""
         t = self.state.translator
-        hidden = self.state._home_values_hidden
+        hidden = self.state.home_values_hidden
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
         assets_val = hidden_mask if hidden else self._current_assets_str
         cash_val = hidden_mask if hidden else self._current_cash_str
@@ -752,7 +755,7 @@ class HomeView:
 
     def _build_stats_cards(self) -> ft.Control:
         t = self.state.translator
-        hidden = self.state._home_values_hidden
+        hidden = self.state.home_values_hidden
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
         loading_str = "---"
 
@@ -769,7 +772,7 @@ class HomeView:
         self._current_tpnl_pct_str = loading_str
         self._current_dpnl_pct_str = loading_str
         # 0 = unrealized daily, 1 = unrealized total, 2 = total. Persisted per user.
-        self._pnl_mode = self.state._home_pnl_mode
+        self._pnl_mode = self.state.home_pnl_mode
 
         initial_nav = hidden_mask if hidden else loading_str
         self._nav_text = ft.Text(
@@ -862,8 +865,8 @@ class HomeView:
 
     def _toggle_visibility(self, e):
         self.state.haptic(self.page)
-        hidden = not self.state._home_values_hidden
-        self.state._home_values_hidden = hidden
+        hidden = not self.state.home_values_hidden
+        self.state.home_values_hidden = hidden
         config_service.save_home_hidden(self.state.user_config_folder, hidden)
         hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
 
@@ -908,9 +911,9 @@ class HomeView:
     def _cycle_pnl_mode(self, e):
         self.state.haptic(self.page)
         self._pnl_mode = (self._pnl_mode + 1) % 3
-        self.state._home_pnl_mode = self._pnl_mode
+        self.state.home_pnl_mode = self._pnl_mode
         config_service.save_home_pnl_mode(self.state.user_config_folder, self._pnl_mode)
-        hidden = self.state._home_values_hidden
+        hidden = self.state.home_values_hidden
         if not hidden:
             self._update_pnl_display()
         self.page.update()

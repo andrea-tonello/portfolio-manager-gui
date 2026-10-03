@@ -1,7 +1,6 @@
 import os
 import flet as ft
 
-from services import config_service
 from utils.constants import DEFAULT_LANG, GITHUB_URL, I18N_DIR
 
 
@@ -101,8 +100,7 @@ def show_user_manager(page: ft.Page, state):
     def _do_delete(user_idx):
         page.pop_dialog()  # pop confirm dialog
         page.pop_dialog()  # pop stale user manager underneath
-        config_service.delete_user(state.config_folder, state.users, user_idx)
-        state.load_config()
+        state.remove_user(user_idx)
         show_user_manager(page, state)
 
     def _confirm_switch(user_idx):
@@ -118,7 +116,7 @@ def show_user_manager(page: ft.Page, state):
 
     def _do_switch(user_idx):
         page.pop_dialog()
-        config_service.save_active_user(state.config_folder, user_idx)
+        state.switch_user(user_idx)
         page.data["restart"]()
 
     def _on_add_user():
@@ -135,13 +133,14 @@ def show_user_manager(page: ft.Page, state):
         original_user_idx = state.active_user_idx
 
         def _restore_and_restart():
-            config_service.save_active_user(state.config_folder, original_user_idx)
-            state.load_config()
+            state.switch_user(original_user_idx)
             restart()
 
         def cancel_broker(created_idx):
-            config_service.delete_user(state.config_folder, state.users, created_idx)
-            _restore_and_restart()
+            # Switch back first: the new user is still the active one, and can't be removed while active.
+            state.switch_user(original_user_idx)
+            state.remove_user(created_idx)
+            restart()
 
         def after_user_created():
             created_idx = state.active_user_idx

@@ -406,8 +406,7 @@ class TransactionsView:
         t = s.translator
         account = s.get_account(idx)
         if account and account.has_transactions:
-            account.df = account.df.iloc[:-1]
-            account_service.save_account(account)
+            s.commit(idx, account.df.iloc[:-1])
             show_snack(self.page, t.get("transactions.row_removed"))
             from views import _rebuild_page
             _rebuild_page(self.page, s, selected_index=3)

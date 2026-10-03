@@ -3,6 +3,7 @@ import io
 import os
 import shutil
 import zipfile
+from dataclasses import dataclass, field
 
 from domain.errors import ValidationError
 from services.account_service import report_filename
@@ -80,11 +81,55 @@ def save_split_ignores(config_folder: str, ignores: set[str]):
 
 
 def load_split_ignores(config_folder: str) -> set[str]:
+    """Return the ignored split identifiers saved by save_split_ignores (an empty set if none)."""
     _, config = _load_config(config_folder)
+    return _split_ignores_from(config)
+
+
+def _split_ignores_from(config: configparser.ConfigParser) -> set[str]:
+    """Read the [SplitIgnores] entries of an already-loaded config.ini."""
     raw = config.get("SplitIgnores", "entries", fallback="")
-    if not raw:
-        return set()
     return {s.strip() for s in raw.split(",") if s.strip()}
+
+
+@dataclass
+class UserSettings:
+    """A user's own settings, from config/users/<name>/config.ini.
+
+    `brokers` maps each account's number to its name; `pnl_mode` is which
+    P&L Home shows (0, 1 or 2); `split_ignores` holds entries like
+    "AAA.MI|2024-07-01" or "AAA.MI|*" for splits the user chose not to record.
+    """
+
+    brokers: dict[int, str] = field(default_factory=dict)
+    watchlist: list[str] = field(default_factory=list)
+    values_hidden: bool = False
+    pnl_mode: int = 0
+    split_ignores: set[str] = field(default_factory=set)
+
+
+def load_user_settings(user_folder: str) -> UserSettings:
+    """Read a user's config.ini; any section missing or unreadable keeps its default.
+
+    Example: "[Home]\\npnl_mode = 7" gives pnl_mode 0, since only 0, 1 and 2
+    exist; broker numbers that aren't integers give no brokers at all.
+    """
+    _, config = _load_config(user_folder)
+    settings = UserSettings(split_ignores=_split_ignores_from(config))
+    if config.has_section("Brokers"):
+        try:
+            settings.brokers = {int(k): v for k, v in config.items("Brokers")}
+        except ValueError:
+            pass
+    tickers = config.get("Watchlist", "tickers", fallback="")
+    settings.watchlist = [t.strip() for t in tickers.split(",") if t.strip()]
+    settings.values_hidden = config.get("Home", "hidden", fallback="false") == "true"
+    try:
+        mode = int(config.get("Home", "pnl_mode", fallback="0"))
+        settings.pnl_mode = mode if mode in (0, 1, 2) else 0
+    except ValueError:
+        pass
+    return settings
 
 
 def save_tx_filter(config_folder: str, mode: str, value: int):
@@ -155,13 +200,11 @@ def get_user_res_folder(config_folder: str, username: str) -> str:
     return os.path.join(config_folder, "users", username, "resources")
 
 
-def delete_user(config_folder: str, users: dict[int, str], user_idx: int):
-    username = users[user_idx]
+def delete_user_files(config_folder: str, username: str):
+    """Delete a user's folder: their config.ini and all their account CSVs."""
     user_folder = get_user_folder(config_folder, username)
     if os.path.exists(user_folder):
         shutil.rmtree(user_folder)
-    del users[user_idx]
-    save_users(config_folder, users)
 
 
 # ── Backup export / import ─────────────────────────────────────

@@ -19,7 +19,7 @@ _ANALYSIS_GLOSSARY_PAGE_OFFSET = 2
 
 def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     t = state.translator
-    state._last_nav_index = selected_index
+    state.last_nav_index = selected_index
     is_small_screen = page.width < 600
     page.on_view_pop = None
     if page.views:
@@ -141,7 +141,7 @@ def _rebuild_page(page: ft.Page, state, selected_index: int = 0):
     if selected_index in (2, 3):
         if selected_index == 2:
             def _info_click(_):
-                p = state._analysis_tab_index + _ANALYSIS_GLOSSARY_PAGE_OFFSET
+                p = state.analysis_tab_index + _ANALYSIS_GLOSSARY_PAGE_OFFSET
                 _show_glossary(page, state, p)
             info_handler = _info_click
         else:
@@ -206,7 +206,7 @@ def _show_settings(page: ft.Page, state):
         # Force full rebuild so navbar/drawer pick up any locale changes
         page.data.pop("_nav_wrapper", None)
         page.update()
-        _rebuild_page(page, state, selected_index=state._last_nav_index)
+        _rebuild_page(page, state, selected_index=state.last_nav_index)
 
     page.on_view_pop = lambda _: _go_back()
 
@@ -264,7 +264,7 @@ def _show_glossary(page, state, page_num):
 def _on_nav_change(e, page, state):
     idx = e.control.selected_index
     if idx != 0:
-        state._home_nav_count += 1
+        state.home_nav_count += 1
 
     wrapper = page.data.get("_nav_wrapper")
     if wrapper is not None:

@@ -1,3 +1,20 @@
+## [0.3.5] (2026-XX-XX)
+
+### Bug Fixes
+
+- Fixed the history dropping operations dated 01-01-2000
+- Duplicate account and broker names are now rejected
+- Home View now shows updated totals right after a new transaction, without needing a manual refresh
+
+### Refactoring
+
+- Removed primitive obsessions regarding accounts by introducing the Account dataclass
+- 
+
+
+
+
+
 ## [0.3.4] (2026-10-02)
 
 ### Refactoring
@@ -10,12 +27,6 @@
 - Saving user settings is now formalized in `config_service` with helpers
 - Removed support for legacy backups, removed legacy italian-to-english CSV migration
 - Narrowed Yahoo error handling, made `round_half_up` reject non-numbers, and logged Home's background failures
-
-
-
-
-
-
 
 
 

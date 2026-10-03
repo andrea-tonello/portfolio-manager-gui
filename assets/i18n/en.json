@@ -244,6 +244,7 @@
       "add_account": "Add account...",
       "op_denied": "You must add at least one account.",
       "accounts_added": "Account added ",
+      "duplicate": "An account called \"{account}\" already exists",
       "delete_account": "Delete account",
       "delete_confirm": "Are you sure you want to delete the account\n\"{account}\"?\nThis will remove all associated data.",
       "delete_last": "Cannot delete the last remaining account.",

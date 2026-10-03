@@ -53,7 +53,7 @@ class AnalysisView:
 
         self.form_container.content = ft.Tabs(
             length=5,
-            selected_index=self.state._analysis_tab_index,
+            selected_index=self.state.analysis_tab_index,
             on_change=self._on_tab_change,
             content=ft.Column([
                 ft.TabBar(tabs=[
@@ -114,7 +114,7 @@ class AnalysisView:
         )
 
     def _on_tab_change(self, e):
-        self.state._analysis_tab_index = e.control.selected_index
+        self.state.analysis_tab_index = e.control.selected_index
 
     def _on_account_selected(self, e):
         val = e.control.value

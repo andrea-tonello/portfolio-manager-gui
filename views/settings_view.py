@@ -2,7 +2,7 @@ import flet as ft
 
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
-from services import config_service, account_service
+from services import config_service
 from utils.constants import APP_VERSION, DEFAULT_LANG, LANGUAGES
 from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
 
@@ -240,11 +240,11 @@ class SettingsView:
         if not name:
             return
         s = self.state
-        next_idx = max(s.brokers.keys(), default=0) + 1
-        s.brokers[next_idx] = name
-        config_service.save_brokers(s.user_config_folder, s.brokers, reset=False)
-        account_service.create_defaults(s.config_res_folder, name)
-        s.load_all_accounts()
+        try:
+            s.add_broker(name)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(s.translator, ex), error=True)
+            return
         show_snack(self.page, s.translator.get("settings.account.accounts_added"))
         from views import _show_settings
         _show_settings(self.page, s)
@@ -266,31 +266,18 @@ class SettingsView:
                 ft.TextButton(
                     t.get("settings.account.delete_account"),
                     style=ft.ButtonStyle(color=ft.Colors.RED),
-                    on_click=lambda e, i=idx, name=broker_name: self._confirm_delete(i, name),
+                    on_click=lambda e, i=idx: self._confirm_delete(i),
                 ),
             ],
         )
         self.page.show_dialog(dlg)
 
-    def _confirm_delete(self, idx: int, broker_name: str):
+    def _confirm_delete(self, idx: int):
         s = self.state
         t = s.translator
         self.page.pop_dialog()
         try:
-            account_service.delete_account_files(broker_name, s.config_res_folder)
-            del s.brokers[idx]
-            config_service.save_brokers(s.user_config_folder, s.brokers, reset=True)
-            s.accounts.pop(idx, None)
-            s.load_all_accounts()
-            # Reset per-page selections if they pointed to this account
-            if s.ops_acc_idx == idx:
-                s.ops_acc_idx = None
-            if s.analysis_acc_idx == idx:
-                s.analysis_acc_idx = None
-            if s.home_selection == str(idx):
-                s.home_selection = "overview"
-            if s.tx_selection == str(idx):
-                s.tx_selection = "overview"
+            s.remove_broker(idx)
             show_snack(self.page, t.get("settings.account.account_deleted"))
             from views import _show_settings
             _show_settings(self.page, s)

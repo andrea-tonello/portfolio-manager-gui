@@ -244,6 +244,7 @@
       "add_account": "Aggiungi conto...",
       "op_denied": "È necessario aggiungere almeno un conto.",
       "accounts_added": "Conto aggiunto",
+      "duplicate": "Esiste già un conto chiamato \"{account}\"",
       "delete_account": "Elimina conto",
       "delete_confirm": "Sei sicuro di voler eliminare il conto\n\"{account}\"?\nTutti i dati associati verranno rimossi.",
       "delete_last": "Impossibile eliminare l'ultimo conto rimasto.",
