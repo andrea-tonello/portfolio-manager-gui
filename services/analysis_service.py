@@ -21,8 +21,9 @@ VAR_SIMULATIONS = 50_000
 VAR_HISTORY_START = "2010-01-01"
 
 
-def compute_summary(brokers, data, ref_date, dt_str):
-    """
+def compute_summary(accounts, ref_date, dt_str):
+    """Statistics of each Account in `accounts` and of all of them together, on `ref_date`.
+
     Returns dict:
     {
         "accounts": [{ acc_idx, broker_name, nav, current_liq, asset_value,
@@ -46,11 +47,10 @@ def compute_summary(brokers, data, ref_date, dt_str):
     accounts_with_positions = 0
     account_results = []
 
-    for account in data:
-        df_copy = account[1].copy()
-        positions = priced_positions(df_copy, ref_date)
+    for account in accounts:
+        positions = priced_positions(account.df, ref_date)
 
-        df_valid, first_date = get_pf_date(df_copy, dt_str, ref_date)
+        df_valid, first_date = get_pf_date(account, dt_str, ref_date)
 
         current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         historic_liq = df_valid["committed_cash"].iloc[-1]
@@ -89,8 +89,8 @@ def compute_summary(brokers, data, ref_date, dt_str):
             first_dates.append(first_date)
 
         account_results.append({
-            "acc_idx": account[0],
-            "broker_name": brokers[account[0]],
+            "acc_idx": account.idx,
+            "broker_name": account.name,
             "nav": nav,
             "current_liq": current_liq,
             "asset_value": asset_value,
@@ -114,7 +114,7 @@ def compute_summary(brokers, data, ref_date, dt_str):
 
     if first_dates:
         min_date = min(first_dates)
-        pf_history_df = portfolio_history(min_date, ref_date, data)
+        pf_history_df = portfolio_history(min_date, ref_date, accounts)
 
     if accounts_with_positions > 0:
         # XIRR
@@ -166,8 +166,9 @@ def compute_summary(brokers, data, ref_date, dt_str):
     }
 
 
-def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
-    """
+def compute_correlation(accounts, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
+    """Correlation between the assets held in `accounts` (a list of Account), or between two given tickers.
+
     Returns dict:
     {
         "correlation_matrix": DataFrame or None,
@@ -177,7 +178,7 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
     When asset1/asset2/window are None, only simple correlation is computed.
     When they are provided, only rolling correlation is computed.
     """
-    _, active_tickers = get_tickers(data)
+    _, active_tickers = get_tickers(accounts)
     correlation_matrix = None
     rolling_corr = None
 
@@ -213,8 +214,9 @@ def compute_correlation(data, start_ref_date, end_ref_date, asset1=None, asset2=
     }
 
 
-def compute_drawdown(data, start_ref_date, end_ref_date):
-    """
+def compute_drawdown(accounts, start_ref_date, end_ref_date):
+    """Drawdown of the portfolio made of `accounts` (a list of Account) between the two dates.
+
     Returns dict:
     {
         "pf_history": DataFrame,
@@ -223,12 +225,12 @@ def compute_drawdown(data, start_ref_date, end_ref_date):
         "has_data": bool,
     }
     """
-    data = [account for account in data if len(account[1]) > 1]
+    accounts = [account for account in accounts if account.has_transactions]
 
-    if not data:
+    if not accounts:
         return {"pf_history": None, "drawdown": None, "mdd": None, "has_data": False}
 
-    pf_history_df = portfolio_history(start_ref_date, end_ref_date, data)
+    pf_history_df = portfolio_history(start_ref_date, end_ref_date, accounts)
     pf_history_df = pf_history_df.dropna()
     running_max = pf_history_df["nav"].expanding().max()
     drawdown = (pf_history_df["nav"] - running_max) / running_max
@@ -259,8 +261,9 @@ def _simulate_outcomes(value, daily_return, daily_std, days, num_simulations, rn
     return value * daily_return * days + value * daily_std * z * np.sqrt(days)
 
 
-def compute_var_mc(data, confidence_interval, projected_days):
-    """
+def compute_var_mc(accounts, confidence_interval, projected_days):
+    """Monte Carlo Value at Risk of the portfolio made of `accounts` (a list of Account).
+
     Returns dict:
     {
         "var": float,
@@ -269,25 +272,24 @@ def compute_var_mc(data, confidence_interval, projected_days):
         "has_positions": bool,
     }
     """
-    data = [account for account in data if account[1]["assets_value"].iloc[-1] > 0.0]
+    accounts = [account for account in accounts if account.last("assets_value") > 0.0]
 
-    if not data:
+    if not accounts:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": 0.0, "has_positions": False}
 
     start_ref_date = VAR_HISTORY_START
     end_dt = datetime.now()
 
-    _, total_tickers = get_tickers(data)
+    _, total_tickers = get_tickers(accounts)
 
     total_positions = []
     total_liquidity = []
 
-    for account in data:
-        df_copy = account[1].copy()
-        positions = priced_positions(df_copy, end_dt)
+    for account in accounts:
+        positions = priced_positions(account.df, end_dt)
         total_positions.extend(positions)
 
-        df_valid, _ = get_pf_date(df_copy, end_dt, end_dt)
+        df_valid, _ = get_pf_date(account, end_dt, end_dt)
         current_liq = round_half_up(float(df_valid.iloc[-1]["cash_held"]))
         total_liquidity.append(current_liq)
 
@@ -338,8 +340,8 @@ def compute_var_mc(data, confidence_interval, projected_days):
     }
 
 
-def compute_allocation(data, ref_date):
-    """Compute asset allocation by product type across accounts.
+def compute_allocation(accounts, ref_date):
+    """Compute asset allocation by product type across `accounts` (a list of Account).
 
     Returns dict mapping product type → market value in EUR.
     Categories: Stock, Stock ETF, MM ETF, Bond ETF, Cash.
@@ -347,16 +349,14 @@ def compute_allocation(data, ref_date):
     ref_date = pd.Timestamp(ref_date)
     allocation = {}
 
-    for account in data:
-        df = account[1].copy()
-
+    for account in accounts:
         # Cash from latest row
-        cash = round_half_up(float(df.iloc[-1]["cash_held"]))
+        cash = round_half_up(account.last("cash_held"))
         allocation[Product.CASH] = allocation.get(Product.CASH, 0) + cash
 
         # Active positions with product type
-        positions = priced_positions(df, ref_date)
-        product_by_ticker = holding_rows(df).groupby("ticker")["product"].last().to_dict()
+        positions = priced_positions(account.df, ref_date)
+        product_by_ticker = holding_rows(account.df).groupby("ticker")["product"].last().to_dict()
 
         for pos in positions:
             product = product_by_ticker.get(pos["ticker"], Product.STOCK)

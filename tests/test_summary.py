@@ -10,6 +10,7 @@ after an intended change.
 import json
 from datetime import date
 
+from domain.account import Account
 from services.analysis_service import compute_summary
 from test_ledger_snapshots import ETFS_AND_USD, STOCKS_EUR, _replay
 
@@ -53,11 +54,11 @@ def summary_as_json(result) -> str:
 
 def test_summary_matches_snapshot(tmp_path, fake_market, snapshot):
     """Statistics for both accounts on 31-12-2024 are identical to tests/snapshots/summary.json."""
-    data = [
-        [1, _replay(STOCKS_EUR, tmp_path / "stocks")],
-        [2, _replay(ETFS_AND_USD, tmp_path / "etfs")],
+    accounts = [
+        Account(1, "Stocks", "", _replay(STOCKS_EUR, tmp_path / "stocks")),
+        Account(2, "ETFs", "", _replay(ETFS_AND_USD, tmp_path / "etfs")),
     ]
 
-    result = compute_summary({1: "Stocks", 2: "ETFs"}, data, date(2024, 12, 31), "31-12-2024")
+    result = compute_summary(accounts, date(2024, 12, 31), "31-12-2024")
 
     snapshot("summary.json", summary_as_json(result))

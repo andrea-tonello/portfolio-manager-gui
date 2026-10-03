@@ -485,13 +485,12 @@ class HomeView:
                     total_assets = 0.0
                     total_committed = 0.0
                     aggr = {}  # ticker -> {quantity, total_cost, price}
-                    for idx, acc in s.accounts.items():
-                        df = acc["df"]
-                        if df is None or df.empty:
+                    for account in s.accounts.values():
+                        if account.df is None or account.df.empty:
                             continue
-                        total_cash += float(df.iloc[-1].get("cash_held", 0) or 0)
-                        total_committed += float(df.iloc[-1].get("committed_cash", 0) or 0)
-                        positions = priced_positions(df, ref_date)
+                        total_cash += account.last("cash_held")
+                        total_committed += account.last("committed_cash")
+                        positions = priced_positions(account.df, ref_date)
                         if positions:
                             total_assets += round_half_up(sum(p["value"] for p in positions))
                             for p in positions:
@@ -522,14 +521,12 @@ class HomeView:
                     self._current_assets_str = f"{total_assets:,.2f}\u20ac"
                     self._current_cash_str = f"{total_cash:,.2f}\u20ac"
                 else:
-                    idx = int(sel)
-                    acc = s.get_account(idx)
-                    if acc is None:
+                    account = s.get_account(int(sel))
+                    if account is None:
                         return
-                    df = acc["df"]
-                    cash = float(df.iloc[-1].get("cash_held", 0) or 0) if not df.empty else 0
-                    total_committed = float(df.iloc[-1].get("committed_cash", 0) or 0) if not df.empty else 0
-                    positions = priced_positions(df, ref_date)
+                    cash = account.last("cash_held")
+                    total_committed = account.last("committed_cash")
+                    positions = priced_positions(account.df, ref_date)
                     assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
                     nav = cash + assets
                     nav_num = nav
@@ -625,10 +622,10 @@ class HomeView:
             acc_idx = int(sel)
         except (ValueError, TypeError):
             return
-        acc = s.get_account(acc_idx)
-        if acc is None:
+        account = s.get_account(acc_idx)
+        if account is None:
             return
-        df = acc["df"]
+        df = account.df
         if df is None or df.empty:
             return
 
@@ -705,21 +702,18 @@ class HomeView:
     def _record_detected_split(self, acc_idx, ticker, ev_date, ratio):
         s = self.state
         t = s.translator
-        acc = s.get_account(acc_idx)
-        if acc is None:
+        account = s.get_account(acc_idx)
+        if account is None:
             return
-        df = acc["df"]
-        broker = s.brokers.get(acc_idx)
         ref_date = datetime.strptime(ev_date, "%Y-%m-%d").date()
         date_str = ref_date.strftime(DATE_FORMAT)
 
         def worker():
             try:
-                new_df = operations_service.execute_split(
-                    df, broker, date_str, ref_date, ticker, ratio,
+                account.df = operations_service.execute_split(
+                    account.df, account.name, date_str, ref_date, ticker, ratio,
                 )
-                s.accounts[acc_idx]["df"] = new_df
-                account_service.save_account(new_df, acc["path"])
+                account_service.save_account(account)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._fetch_live_values()
             except Exception as ex:

@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+from domain.account import Account
 from domain.ledger import opening_row
 from utils.constants import REPORT_PREFIX
 
@@ -27,21 +28,16 @@ def create_defaults(save_folder, broker_name):
         df_template.to_csv(path_rep, index=False)
 
 
-def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> dict:
-    filename = report_filename(brokers[account_idx])
-    path = os.path.join(save_folder, filename)
-    df = pd.read_csv(path)
-
-    return {
-        "df": df,
-        "file": filename,
-        "path": path,
-    }
+def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> Account:
+    """Load the account `brokers[account_idx]` from its CSV in `save_folder`."""
+    name = brokers[account_idx]
+    path = report_path(save_folder, name)
+    return Account(idx=account_idx, name=name, path=path, df=pd.read_csv(path))
 
 
-def save_account(df: pd.DataFrame, path: str):
-    """Save account DataFrame to its internal config path."""
-    df.to_csv(path, index=False)
+def save_account(account: Account):
+    """Write the account's ledger to its CSV."""
+    account.df.to_csv(account.path, index=False)
 
 
 def delete_account_files(broker_name: str, save_folder: str):

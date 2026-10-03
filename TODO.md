@@ -19,6 +19,7 @@
     - [TABLET] New-account wizard: reduce textfields width
     - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
 
+- red cash balance in Home View if cash is negative
 - focus_chain does not work when going from TER to Tax Bracket
 - "?" Fee Management popup is not vertically limited
 - XEON tickers appears when Stocks ETFs is selected

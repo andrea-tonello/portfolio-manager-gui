@@ -91,21 +91,20 @@ def opening_row(broker_name):
     return row
 
 
-def get_pf_date(df_copy, dt, ref_date):
-    """Returns (rows up to `ref_date`, date of the account's first operation).
+def get_pf_date(account, dt, ref_date):
+    """Returns (account's rows up to `ref_date`, date of its first operation).
 
-    The first operation is the row after the opening row (index 1); it is None
-    if the account has no operations yet. `dt` is only used in the error
-    message raised when no row is on or before `ref_date`. Converts
-    `df_copy["date"]` to datetimes in place, so pass a copy.
+    The rows are a copy, with the "date" column parsed to datetimes. The first
+    operation is the account's first transaction; it is None if there is none
+    on or before `ref_date`. `dt` is only used in the error message raised
+    when no row is on or before `ref_date`.
     """
-    df_copy["date"] = pd.to_datetime(df_copy["date"], dayfirst=True, errors="coerce")
+    df = account.df.copy()
+    df["date"] = pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
     ref_date = pd.Timestamp(ref_date)
-    df_valid = df_copy[df_copy["date"] <= ref_date]
+    df_valid = df[df["date"] <= ref_date]
     if df_valid.empty:
         raise ValidationError("misc_errors.nodates", dt=dt)
-    try:
-        first_date = df_valid["date"][1]
-    except KeyError:
-        first_date = None
+    first_dates = pd.to_datetime(account.transactions["date"].iloc[:1], dayfirst=True, errors="coerce")
+    first_date = first_dates.iloc[0] if not first_dates.empty and first_dates.iloc[0] <= ref_date else None
     return df_valid, first_date

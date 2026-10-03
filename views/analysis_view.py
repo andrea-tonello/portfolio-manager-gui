@@ -126,20 +126,12 @@ class AnalysisView:
         _rebuild_page(self.page, self.state, selected_index=2)
 
     def _get_analysis_data(self):
-        """Build the data list for analysis functions based on current selection."""
+        """Return the accounts to analyse: every account, or only the selected one."""
         s = self.state
         if s.analysis_acc_idx is None:
-            # All accounts
-            data = []
-            for idx in sorted(s.accounts.keys()):
-                acc = s.accounts[idx]
-                data.append([idx, acc["df"]])
-            return data
-        else:
-            acc = s.get_account(s.analysis_acc_idx)
-            if acc is None:
-                return []
-            return [[s.analysis_acc_idx, acc["df"]]]
+            return [s.accounts[idx] for idx in sorted(s.accounts)]
+        account = s.get_account(s.analysis_acc_idx)
+        return [account] if account is not None else []
 
     # ── Statistics Tab ────────────────────────────────────────────────
 
@@ -239,9 +231,7 @@ class AnalysisView:
                 ref_date = self.sum_date_value
                 dt_str = ref_date.strftime(DATE_FORMAT)
 
-                result = analysis_service.compute_summary(
-                    s.brokers, data, ref_date, dt_str
-                )
+                result = analysis_service.compute_summary(data, ref_date, dt_str)
                 self._display_summary(result, dt_str)
             except Exception as ex:
                 show_snack(self.page, error_message(t, ex), error=True)

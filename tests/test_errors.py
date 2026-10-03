@@ -24,6 +24,7 @@ from components.snack import error_message
 from domain.errors import TickerNotFound, ValidationError
 from services import analysis_service, config_service, market_data
 from utils.constants import I18N_DIR
+from domain.account import Account
 from domain.ledger import get_pf_date
 from utils.translator import Translator
 from views.settings_view import SettingsView
@@ -144,10 +145,10 @@ def test_rejected_operations_raise_a_key_and_its_values(steps, key, params, tmp_
 
 def test_valuing_before_the_first_row_raises_a_key():
     """Asking for the portfolio on a date before the account's first row is reported with a locale key."""
-    df = pd.DataFrame({"date": ["01-01-2000"], "cash_held": [0.0]})
+    account = Account(1, "Main", "", pd.DataFrame({"date": ["01-01-2000"], "cash_held": [0.0]}))
 
     with pytest.raises(ValidationError) as info:
-        get_pf_date(df, "31-12-1999", date(1999, 12, 31))
+        get_pf_date(account, "31-12-1999", date(1999, 12, 31))
 
     assert (info.value.key, info.value.params) == ("misc_errors.nodates", {"dt": "31-12-1999"})
 

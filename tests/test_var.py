@@ -16,6 +16,7 @@ from conftest import FX_TICKER, fake_download_close
 from test_ledger_snapshots import _replay, buy, deposit
 from test_summary import round_floats
 
+from domain.account import Account
 from services import analysis_service, market_data
 from services.analysis_service import _simulate_outcomes
 
@@ -100,6 +101,6 @@ def test_var_inputs_match_snapshot(tmp_path, fake_market, monkeypatch, snapshot)
         buy(date(2024, 1, 4), "UUU", 5, 200.0, 1.0, currency="USD", conv_rate=0.9),
     ], tmp_path)
 
-    analysis_service.compute_var_mc([[1, df]], 0.99, 10)
+    analysis_service.compute_var_mc([Account(1, "Test Broker", "", df)], 0.99, 10)
 
     snapshot("var_inputs.json", json.dumps(round_floats(received), indent=2, sort_keys=True))

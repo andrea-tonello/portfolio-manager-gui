@@ -108,8 +108,8 @@ class OperationsView:
         idx = self.state.ops_acc_idx
         if idx is None:
             return None
-        acc = self.state.get_account(idx)
-        return acc["df"] if acc else None
+        account = self.state.get_account(idx)
+        return account.df if account else None
 
     def _get_ops_broker(self):
         idx = self.state.ops_acc_idx
@@ -386,8 +386,9 @@ class OperationsView:
                     df, broker, service_kind, date_str, ref_date, amount,
                     ticker=ticker, description=descr,
                 )
-                s.accounts[acc_idx]["df"] = new_df
-                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
+                account = s.get_account(acc_idx)
+                account.df = new_df
+                account_service.save_account(account)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
@@ -879,8 +880,9 @@ class OperationsView:
                     currency, conv_rate, ticker, quantity, price,
                     fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
                 )
-                s.accounts[acc_idx]["df"] = new_df
-                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
+                account = s.get_account(acc_idx)
+                account.df = new_df
+                account_service.save_account(account)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:
@@ -1010,8 +1012,9 @@ class OperationsView:
                 new_df = operations_service.execute_split(
                     df, broker, date_str, ref_date, ticker, ratio,
                 )
-                s.accounts[acc_idx]["df"] = new_df
-                account_service.save_account(new_df, s.get_account(acc_idx)["path"])
+                account = s.get_account(acc_idx)
+                account.df = new_df
+                account_service.save_account(account)
                 show_snack(self.page, t.get("operations.added_transaction"))
                 self._refresh_page()
             except Exception as ex:

@@ -3,6 +3,7 @@ import configparser
 
 import flet as ft
 
+from domain.account import Account
 from services import account_service, config_service
 from utils.translator import Translator
 from utils.constants import DEFAULT_LANG, I18N_DIR
@@ -35,8 +36,8 @@ class AppState:
         self.theme_mode: str = "system"   # "system", "light", "dark"
         self.color_seed: str = "blue"     # palette key
 
-        # Per-account storage: {broker_idx: {"df", "file", "path"}}
-        self.accounts: dict[int, dict] = {}
+        # The loaded accounts, by broker index
+        self.accounts: dict[int, Account] = {}
 
         # Per-page selection
         self.home_selection: str = "overview"  # "overview" or str(broker_idx)
@@ -164,10 +165,9 @@ class AppState:
         self.accounts = {}
         for idx in sorted(self.brokers.keys()):
             try:
-                acc = account_service.load_single_account(self.brokers, self.config_res_folder, idx)
-                self.accounts[idx] = acc
+                self.accounts[idx] = account_service.load_single_account(self.brokers, self.config_res_folder, idx)
             except FileNotFoundError:
                 pass
 
-    def get_account(self, idx: int) -> dict | None:
+    def get_account(self, idx: int) -> Account | None:
         return self.accounts.get(idx)

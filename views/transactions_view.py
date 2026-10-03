@@ -79,21 +79,16 @@ class TransactionsView:
     def _get_tx_df(self):
         sel = self.state.tx_selection
         if sel == "overview":
-            all_rows = []
-            for idx, acc in self.state.accounts.items():
-                df = acc["df"]
-                if df is not None and not df.empty and len(df) > 1:
-                    all_rows.append(df.iloc[1:].copy())
+            all_rows = [account.transactions.copy()
+                        for account in self.state.accounts.values() if account.has_transactions]
             if all_rows:
                 return pd.concat(all_rows, ignore_index=True)
             return None
         else:
-            idx = int(sel)
-            acc = self.state.get_account(idx)
-            if acc is None:
+            account = self.state.get_account(int(sel))
+            if account is None:
                 return None
-            df = acc["df"]
-            return df.iloc[1:].copy() if len(df) > 1 else None
+            return account.transactions.copy() if account.has_transactions else None
 
     # ── Transactions Section ─────────────────────────────────────────
 
@@ -379,11 +374,11 @@ class TransactionsView:
         return df.to_csv(index=False).encode("utf-8")
 
     async def _on_export(self, e, idx):
-        acc = self.state.get_account(idx)
-        if acc is None:
+        account = self.state.get_account(idx)
+        if account is None:
             return
-        csv_bytes = self._prepare_export_csv(acc["df"].iloc[1:])
-        await self._save_via_picker(acc["file"], csv_bytes)
+        csv_bytes = self._prepare_export_csv(account.transactions)
+        await self._save_via_picker(account_service.report_filename(account.name), csv_bytes)
 
     async def _on_export_overview(self, e):
         t = self.state.translator
@@ -409,10 +404,10 @@ class TransactionsView:
     def _on_remove_row(self, e, idx):
         s = self.state
         t = s.translator
-        acc = s.get_account(idx)
-        if acc and len(acc["df"]) > 1:
-            acc["df"] = acc["df"].iloc[:-1]
-            account_service.save_account(acc["df"], acc["path"])
+        account = s.get_account(idx)
+        if account and account.has_transactions:
+            account.df = account.df.iloc[:-1]
+            account_service.save_account(account)
             show_snack(self.page, t.get("transactions.row_removed"))
             from views import _rebuild_page
             _rebuild_page(self.page, s, selected_index=3)

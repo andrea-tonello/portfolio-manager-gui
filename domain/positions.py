@@ -134,15 +134,12 @@ def unrecorded_splits(df, ticker, splits):
     return [(day.strftime("%Y-%m-%d"), ratio) for day, ratio in splits if day not in recorded_dates]
 
 
-def get_tickers(data):
-    """Return (all, active): the (ticker, currency) pairs ever held and still held, across all accounts in `data`.
-
-    `data` is a list of [account index, ledger DataFrame] pairs.
-    """
+def get_tickers(accounts):
+    """Return (all, active): the (ticker, currency) pairs ever held and still held, across `accounts` (a list of Account)."""
     total_tickers = []
     active_tickers = []
-    for account in data:
-        total_assets, active_assets = holdings(account[1])
+    for account in accounts:
+        total_assets, active_assets = holdings(account.df)
 
         total_ticker_list = total_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()
         active_ticker_list = active_assets[["ticker", "curr"]].dropna(subset=["ticker", "curr"]).drop_duplicates().apply(tuple, axis=1).tolist()

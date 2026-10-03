@@ -144,21 +144,20 @@ def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers
         raise RuntimeError(f"Error building portfolio timeseries: {e}") from e
 
 
-def portfolio_history(start_ref_date, end_ref_date, data):
-
-    total_tickers, _ = get_tickers(data)
+def portfolio_history(start_ref_date, end_ref_date, accounts):
+    """Return the day-by-day history of the `accounts` (a list of Account) between the two dates."""
+    total_tickers, _ = get_tickers(accounts)
     only_tickers = [t[0] for t in total_tickers]
 
     all_dfs = []
-    for account in data:
-        df_copy = account[1].copy()
+    for account in accounts:
+        df_copy = account.transactions.copy()
         df_copy["date"] = pd.to_datetime(df_copy["date"], dayfirst=True, errors="coerce")
         df_copy = df_copy[["date", "account", "ticker", "curr", "qt_held", "cash_held", "committed_cash"]]
         all_dfs.append(df_copy)
 
     final_df = pd.concat(all_dfs, ignore_index=True)
     final_df = final_df.sort_values(by="date", ascending=True, kind="mergesort")
-    final_df = final_df.iloc[len(data):]
     final_df = final_df.reset_index(drop=True)
 
     final_df = _compute_total_liquidity(final_df)
