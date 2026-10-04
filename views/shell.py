@@ -5,6 +5,9 @@ controller instead (app.refresh(), app.show_settings(), ...).
 """
 
 import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass
+
 import flet as ft
 
 from views.home_view import HomeView
@@ -16,16 +19,40 @@ from utils.constants import APP_VERSION, GITHUB_URL
 from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager
 
 
-_NAV_LABELS = ["nav.home", "nav.operations", "nav.analysis", "nav.transactions"]
-_VIEW_BUILDERS = [HomeView, OperationsView, AnalysisView, TransactionsView]
+@dataclass(frozen=True)
+class TabSpec:
+    """One tab of the bottom navigation bar: its name, icons, screen and info button.
 
-# analysis:   tab 0 -> glossary page 2,   tab 1 -> page 3, etc.
-_TRANSACTIONS_GLOSSARY_PAGE = 1
-_ANALYSIS_GLOSSARY_PAGE_OFFSET = 2
+    `glossary_page` receives the AppState and returns the glossary page the
+    tab's floating info button opens; None means the tab has no info button.
+    """
+
+    label_key: str
+    icon: str
+    selected_icon: str | None
+    view: type
+    glossary_page: Callable[..., int] | None = None
 
 
-def show_tab(app, selected_index: int = 0):
-    """Show tab `selected_index` (0 Home, 1 Operations, 2 Analysis, 3 Transactions) inside the shell.
+# Analysis tool 0 is explained on glossary page 2, tool 1 on page 3, and so on.
+_ANALYSIS_FIRST_GLOSSARY_PAGE = 2
+
+# The tabs, in navigation-bar order. Everything about a tab is on its line.
+TABS = (
+    TabSpec("nav.home", ft.Icons.HOME_OUTLINED, ft.Icons.HOME, HomeView),
+    TabSpec("nav.operations", ft.Icons.SWAP_HORIZ, None, OperationsView),
+    TabSpec("nav.analysis", ft.Icons.ANALYTICS_OUTLINED, ft.Icons.ANALYTICS, AnalysisView,
+            glossary_page=lambda state: _ANALYSIS_FIRST_GLOSSARY_PAGE + state.analysis_tab_index),
+    TabSpec("nav.transactions", ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, TransactionsView,
+            glossary_page=lambda state: 1),  # the page explaining the table's columns
+)
+
+# Where Home is in TABS: the app opens on it, and its app bar shows the user's name.
+HOME_TAB = [tab.view for tab in TABS].index(HomeView)
+
+
+def show_tab(app, selected_index: int = HOME_TAB):
+    """Show tab `selected_index` (its position in TABS) inside the shell.
 
     The first call, or the first after app.nav_wrapper is cleared, builds the
     whole page: drawer, navigation bar and the animated wrapper holding the
@@ -38,7 +65,7 @@ def show_tab(app, selected_index: int = 0):
         page.views[0].can_pop = True
         page.views[0].on_confirm_pop = None
 
-    current_view = _with_info_button(app, selected_index, _VIEW_BUILDERS[selected_index](app).build())
+    current_view = _with_info_button(app, selected_index, TABS[selected_index].view(app).build())
 
     # Build the drawer only when the page structure is being (re)initialized.
     # Replacing page.end_drawer on every tab switch caused the Flutter client
@@ -152,10 +179,10 @@ def _build_appbar(app, selected_index: int) -> ft.AppBar:
     async def handle_show_drawer():
         await page.show_end_drawer()
 
-    if selected_index == 0:
+    if selected_index == HOME_TAB:
         appbar_title = ft.Text(state.active_user_name or t.get("settings.user"))
     else:
-        appbar_title = ft.Text(t.get(_NAV_LABELS[selected_index]))
+        appbar_title = ft.Text(t.get(TABS[selected_index].label_key))
 
     return ft.AppBar(
         title=appbar_title,
@@ -177,28 +204,22 @@ def _build_nav_bar(app, selected_index: int) -> ft.NavigationBar:
     return ft.NavigationBar(
         selected_index=selected_index,
         destinations=[
-            ft.NavigationBarDestination(icon=ft.Icons.HOME_OUTLINED, label=t.get("nav.home"),
-                                        selected_icon=ft.Icons.HOME),
-            ft.NavigationBarDestination(icon=ft.Icons.SWAP_HORIZ, label=t.get("nav.operations")),
-            ft.NavigationBarDestination(icon=ft.Icons.ANALYTICS_OUTLINED, label=t.get("nav.analysis"),
-                                        selected_icon=ft.Icons.ANALYTICS),
-            ft.NavigationBarDestination(icon=ft.Icons.RECEIPT_LONG_OUTLINED, label=t.get("nav.transactions"),
-                                        selected_icon=ft.Icons.RECEIPT_LONG),
+            ft.NavigationBarDestination(icon=tab.icon, label=t.get(tab.label_key), selected_icon=tab.selected_icon)
+            for tab in TABS
         ],
         on_change=lambda e: _on_nav_change(app, e),
     )
 
 
 def _with_info_button(app, selected_index: int, view: ft.Control) -> ft.Control:
-    """Add the floating info button that opens the glossary to Analysis and Transactions; other tabs are returned unchanged."""
-    if selected_index not in (2, 3):
+    """Add the floating info button opening the tab's glossary page; tabs without one are returned unchanged."""
+    glossary_page = TABS[selected_index].glossary_page
+    if glossary_page is None:
         return view
-    if selected_index == 2:
-        def info_handler(_):
-            show_glossary(app, app.state.analysis_tab_index + _ANALYSIS_GLOSSARY_PAGE_OFFSET)
-    else:
-        def info_handler(_):
-            show_glossary(app, _TRANSACTIONS_GLOSSARY_PAGE)
+
+    def info_handler(_):
+        show_glossary(app, glossary_page(app.state))
+
     return ft.Stack([
         ft.Column([view], expand=True),
         ft.Container(
@@ -283,7 +304,7 @@ def _on_nav_change(app, e):
     """Switch to the tab tapped in the navigation bar: fade the current one out, then show the new one."""
     page, state = app.page, app.state
     idx = e.control.selected_index
-    if idx != 0:
+    if idx != HOME_TAB:
         state.home_nav_count += 1
 
     wrapper = app.nav_wrapper

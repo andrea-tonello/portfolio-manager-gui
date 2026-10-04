@@ -77,7 +77,7 @@ class AppController:
 
         self.state.ensure_defaults()
         self.state.load_all_accounts()
-        self.show_tab(0)
+        self.show_tab(shell.HOME_TAB)
 
     def _apply_theme(self) -> None:
         """Apply the saved light/dark mode and colour palette to the page."""
@@ -89,7 +89,7 @@ class AppController:
         page.dark_theme = ft.Theme(color_scheme_seed=color, page_transitions=_PAGE_TRANSITIONS)
 
     def show_tab(self, index: int) -> None:
-        """Show tab `index`: 0 Home, 1 Operations, 2 Analysis, 3 Transactions."""
+        """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions)."""
         shell.show_tab(self, index)
 
     def refresh(self) -> None:

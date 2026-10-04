@@ -10,6 +10,8 @@
 
 - Removed primitive obsessions regarding accounts by introducing the Account dataclass
 - Introduced AppController for navigation, replacing page.data and in-function view imports
+- Added TABS, a tab registry for the navigation bar, app bar and info buttons
+
 
 
 
