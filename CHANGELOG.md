@@ -9,7 +9,8 @@
 ### Refactoring
 
 - Removed primitive obsessions regarding accounts by introducing the Account dataclass
-- 
+- Introduced AppController for navigation, replacing page.data and in-function view imports
+
 
 
 

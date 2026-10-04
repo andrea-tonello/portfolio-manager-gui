@@ -12,11 +12,12 @@ import os
 import flet as ft
 import pandas as pd
 import pytest
+from conftest import find_controls, snack_texts
 
-import main
 from domain.errors import ValidationError
 from services import account_service
 from utils.dialogs import show_user_manager
+from views import onboarding_view
 from views.home_view import HomeView
 from views.settings_view import SettingsView
 
@@ -43,7 +44,7 @@ def test_commit_stores_and_saves_the_new_ledger(state):
     assert len(pd.read_csv(account.path)) == len(new_df)
 
 
-def test_commit_makes_home_fetch_fresh_values(state, page, monkeypatch):
+def test_commit_makes_home_fetch_fresh_values(app, state, monkeypatch):
     """After a commit, Home recomputes its totals instead of showing the cached ones from before.
 
     It used to keep showing the old NAV and P&L until the user tapped refresh
@@ -55,7 +56,7 @@ def test_commit_makes_home_fetch_fresh_values(state, page, monkeypatch):
     monkeypatch.setattr(HomeView, "_fetch_live_values", lambda self: fetched.append(True))
     monkeypatch.setattr(HomeView, "_restore_from_cache", lambda self, cache: pytest.fail("used stale cache"))
 
-    HomeView(page, state).build()
+    HomeView(app).build()
 
     assert fetched == [True]
 
@@ -186,71 +187,57 @@ def test_the_active_user_cant_be_removed(state):
 
 # ── From the screens ─────────────────────────────────────────────────
 
-def _find(control, kind):
-    """Yield every control of exactly type `kind` inside `control`, depth first, in screen order."""
-    if type(control) is kind:
-        yield control
-    for child in [getattr(control, "content", None), *(getattr(control, "controls", None) or [])]:
-        if isinstance(child, ft.Control):
-            yield from _find(child, kind)
-
-
-def _snack_texts(page):
-    """The messages of the snack bars currently on the page."""
-    return [c.content.value for c in page.overlay if isinstance(c, ft.SnackBar)]
-
-
-def test_first_launch_saves_the_accounts_and_refuses_a_duplicate(state, page):
+def test_first_launch_saves_the_accounts_and_refuses_a_duplicate(app, state, page):
     """On the first-launch account screen, a repeated name is refused, and Confirm saves the others with their CSVs."""
     state.add_user("Bob")  # a new user, still without accounts
-    main._show_broker_onboarding(page, state, on_complete=lambda: None)
+    onboarding_view.show_broker_onboarding(app, on_complete=lambda: None)
     screen = page.controls[0]
-    field = next(_find(screen, ft.TextField))
-    add, confirm = next(_find(screen, ft.Button)), next(_find(screen, ft.FilledButton))
+    field = next(find_controls(screen, ft.TextField))
+    add, confirm = next(find_controls(screen, ft.Button)), next(find_controls(screen, ft.FilledButton))
 
     for name in ["Fineco", "fineco", "Directa"]:
         field.value = name
         add.on_click(None)
     confirm.on_click(None)
 
-    assert _snack_texts(page) == ['An account called "fineco" already exists']
+    assert snack_texts(page) == ['An account called "fineco" already exists']
     assert state.brokers == {1: "Fineco", 2: "Directa"}
     assert read_section(state.user_config_folder, "Brokers") == {"1": "Fineco", "2": "Directa"}
     assert set(state.accounts) == {1, 2}
 
 
-def test_settings_refuses_a_duplicate_account_name(state, page):
+def test_settings_refuses_a_duplicate_account_name(app, state, page):
     """Adding an account in Settings with a name already in use shows the error and adds nothing."""
-    view = SettingsView(page, state)
+    view = SettingsView(app)
     view.build()
     view.new_broker_field.value = "test broker"
 
     view._on_add_broker(None)
 
-    assert _snack_texts(page) == ['An account called "test broker" already exists']
+    assert snack_texts(page) == ['An account called "test broker" already exists']
     assert state.brokers == {1: "Test Broker"}
 
 
-def test_user_creation_refuses_a_name_already_in_use(state, page):
+def test_user_creation_refuses_a_name_already_in_use(app, state, page):
     """The user-creation screen shows an error for a name already in use and adds nothing."""
-    main._show_user_creation(page, state)
+    onboarding_view.show_user_creation(app)
     screen = page.controls[0]
-    next(_find(screen, ft.TextField)).value = "tester"
+    next(find_controls(screen, ft.TextField)).value = "tester"
 
-    next(_find(screen, ft.FilledButton)).on_click(None)
+    next(find_controls(screen, ft.FilledButton)).on_click(None)
 
-    assert _snack_texts(page) == ["Username already exists"]
+    assert snack_texts(page) == ["Username already exists"]
     assert state.users == {1: "Tester"}
 
 
-def test_user_manager_deletes_another_user(state, page):
+def test_user_manager_deletes_another_user(app, state, page):
     """In the user manager, tapping delete on another user and confirming removes them; the list reopens."""
     state.add_user("Bob")
     bob_folder = state.user_config_folder
     state.switch_user(1)
-    show_user_manager(page, state)
+    show_user_manager(app)
 
-    next(_find(page.dialogs[-1].content, ft.IconButton)).on_click(None)  # Bob's delete button
+    next(find_controls(page.dialogs[-1].content, ft.IconButton)).on_click(None)  # Bob's delete button
     page.dialogs[-1].actions[1].on_click(None)                             # confirm "Delete user"
 
     assert state.users == {1: "Tester"}
@@ -258,30 +245,26 @@ def test_user_manager_deletes_another_user(state, page):
     assert len(page.dialogs) == 1, "the user manager should be open again"
 
 
-def test_cancelling_the_new_users_accounts_removes_the_new_user(state, page, monkeypatch):
+def test_cancelling_the_new_users_accounts_removes_the_new_user(app, state, page, monkeypatch):
     """Adding a user and then closing their first-launch account screen deletes that user and goes back to the previous one.
 
     Drives the real flow: user manager → "+" → user creation → account screen → close.
     """
     restarts = []
-    page.data = {
-        "restart": lambda: restarts.append(True),
-        "show_user_creation": main._show_user_creation,
-        "show_broker_onboarding": main._show_broker_onboarding,
-    }
+    monkeypatch.setattr(app, "restart", lambda: restarts.append(True))
 
     async def close_end_drawer():
         """Stand-in for closing the side drawer, which the "+" button does first."""
 
     page.close_end_drawer = close_end_drawer
     monkeypatch.setattr(page, "run_task", lambda fn, *args: asyncio.run(fn(*args)))
-    show_user_manager(page, state)
+    show_user_manager(app)
 
-    page.dialogs[-1].actions[0].on_click(None)                    # "+": add a user
-    next(_find(page.controls[0], ft.TextField)).value = "Bob"
-    next(_find(page.controls[0], ft.FilledButton)).on_click(None)  # confirm the name
+    page.dialogs[-1].actions[0].on_click(None)                            # "+": add a user
+    next(find_controls(page.controls[0], ft.TextField)).value = "Bob"
+    next(find_controls(page.controls[0], ft.FilledButton)).on_click(None)  # confirm the name
     created_folder = state.user_config_folder
-    next(_find(page.controls[0], ft.IconButton)).on_click(None)    # close the account screen
+    next(find_controls(page.controls[0], ft.IconButton)).on_click(None)    # close the account screen
 
     assert state.users == {1: "Tester"}
     assert (state.active_user_idx, state.active_user_name) == (1, "Tester")

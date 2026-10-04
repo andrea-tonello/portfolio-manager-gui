@@ -18,9 +18,11 @@ _INT_FILTER = ft.NumbersOnlyInputFilter()
 
 
 class AnalysisView:
-    def __init__(self, page: ft.Page, state):
-        self.page = page
-        self.state = state
+    def __init__(self, app):
+        """Build the Analysis tab for the controller's page and current state."""
+        self.app = app
+        self.page = app.page
+        self.state = app.state
 
     def build(self) -> ft.Control:
         t = self.state.translator
@@ -122,8 +124,7 @@ class AnalysisView:
             self.state.analysis_acc_idx = None
         else:
             self.state.analysis_acc_idx = int(val)
-        from views import _rebuild_page
-        _rebuild_page(self.page, self.state, selected_index=2)
+        self.app.refresh()
 
     def _get_analysis_data(self):
         """Return the accounts to analyse: every account, or only the selected one."""

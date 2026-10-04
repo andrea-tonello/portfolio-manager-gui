@@ -88,7 +88,7 @@ def test_unknown_currency_is_refused(account, currency):
 # ── From the Operations screen ───────────────────────────────────────
 
 @pytest.fixture
-def open_trade_form(monkeypatch, page, state):
+def open_trade_form(monkeypatch, app, page, state):
     """Return a function that opens one of the Operations screen's trade forms, filled in, with submitted trades recorded.
 
     Background work runs straight away instead of in a thread, the ticker
@@ -107,7 +107,7 @@ def open_trade_form(monkeypatch, page, state):
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
 
     state.ops_acc_idx = 1
-    view = OperationsView(page, state)
+    view = OperationsView(app)
     view.build()
 
     def open_form(tab):

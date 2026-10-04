@@ -42,7 +42,7 @@ EXPORTS = {
 
 @pytest.mark.parametrize("platform", [ft.PagePlatform.ANDROID, ft.PagePlatform.LINUX], ids=["android", "desktop"])
 @pytest.mark.parametrize("export", EXPORTS)
-def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, platform, page, state):
+def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, platform, app, page):
     """Each export passes its bytes to save_file and shows the success message, without writing a file itself.
 
     The picker returns Android's "/document/753"; opening it as a file (the old
@@ -50,7 +50,7 @@ def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, pl
     """
     page.platform = platform
     view_cls, run_export = EXPORTS[export]
-    view = view_cls(page, state)
+    view = view_cls(app)
     view.build()
     view.file_picker = FakeFilePicker(ANDROID_SAVE_PATH)
 
@@ -62,10 +62,10 @@ def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, pl
 
 
 @pytest.mark.parametrize("export", EXPORTS)
-def test_cancelled_export_shows_no_message(export, page, state):
+def test_cancelled_export_shows_no_message(export, app, page):
     """If the user cancels the save dialog (save_file returns None), no success message appears."""
     view_cls, run_export = EXPORTS[export]
-    view = view_cls(page, state)
+    view = view_cls(app)
     view.build()
     view.file_picker = FakeFilePicker(None)
 

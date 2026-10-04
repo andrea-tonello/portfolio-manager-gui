@@ -44,7 +44,9 @@ def show_contacts(page: ft.Page, state):
     page.show_dialog(dlg)
 
 
-def show_user_manager(page: ft.Page, state):
+def show_user_manager(app):
+    """Show the list of users: switch to one, delete one, or add a new one (which takes over the screen)."""
+    page, state = app.page, app.state
     t = state.translator
 
     def _build_user_list():
@@ -101,7 +103,7 @@ def show_user_manager(page: ft.Page, state):
         page.pop_dialog()  # pop confirm dialog
         page.pop_dialog()  # pop stale user manager underneath
         state.remove_user(user_idx)
-        show_user_manager(page, state)
+        show_user_manager(app)
 
     def _confirm_switch(user_idx):
         name = state.users[user_idx]
@@ -117,41 +119,35 @@ def show_user_manager(page: ft.Page, state):
     def _do_switch(user_idx):
         page.pop_dialog()
         state.switch_user(user_idx)
-        page.data["restart"]()
+        app.restart()
 
     def _on_add_user():
         page.pop_dialog()
         # Take over full screen: hide appbar and navbar
         page.appbar = None
         page.navigation_bar = None
-        if isinstance(page.data, dict):
-            page.data.pop("_nav_wrapper", None)
-
-        show_user_creation = page.data.get("show_user_creation")
-        show_broker_onboarding = page.data.get("show_broker_onboarding")
-        restart = page.data["restart"]
+        app.nav_wrapper = None
         original_user_idx = state.active_user_idx
 
         def _restore_and_restart():
             state.switch_user(original_user_idx)
-            restart()
+            app.restart()
 
         def cancel_broker(created_idx):
             # Switch back first: the new user is still the active one, and can't be removed while active.
             state.switch_user(original_user_idx)
             state.remove_user(created_idx)
-            restart()
+            app.restart()
 
         def after_user_created():
             created_idx = state.active_user_idx
             page.controls.clear()
-            show_broker_onboarding(
-                page, state,
-                on_complete=lambda: page.data["restart"](),
+            app.show_broker_onboarding(
+                on_complete=app.restart,
                 on_cancel=lambda: cancel_broker(created_idx),
             )
 
-        show_user_creation(page, state, on_complete=after_user_created, first_time=False, on_cancel=_restore_and_restart)
+        app.show_user_creation(on_complete=after_user_created, first_time=False, on_cancel=_restore_and_restart)
 
     user_rows = _build_user_list()
 

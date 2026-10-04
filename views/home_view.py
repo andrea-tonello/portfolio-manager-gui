@@ -34,9 +34,11 @@ def _longpress_tooltip(control: ft.Control, name: str) -> ft.Control:
 
 
 class HomeView:
-    def __init__(self, page: ft.Page, state):
-        self.page = page
-        self.state = state
+    def __init__(self, app):
+        """Build the Home tab for the controller's page and current state."""
+        self.app = app
+        self.page = app.page
+        self.state = app.state
 
     def build(self) -> ft.Control:
         t = self.state.translator
@@ -89,8 +91,7 @@ class HomeView:
     def _on_selection_change(self, e):
         self.state.home_selection = e.control.value
         self.state.home_cache = None
-        from views import _rebuild_page
-        _rebuild_page(self.page, self.state, selected_index=0)
+        self.app.refresh()
 
     def _on_refresh(self, e):
         self._fetch_live_values()

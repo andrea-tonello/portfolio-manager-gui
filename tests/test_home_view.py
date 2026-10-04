@@ -21,9 +21,9 @@ def _offline(*args, **kwargs):
 
 
 @pytest.fixture
-def home(page, state, monkeypatch):
+def home(app, page, monkeypatch):
     """A built HomeView for the test account, whose background work then runs immediately."""
-    view = HomeView(page, state)
+    view = HomeView(app)
     view.build()
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     return view

@@ -21,9 +21,11 @@ _DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 
 
 class OperationsView:
-    def __init__(self, page: ft.Page, state):
-        self.page = page
-        self.state = state
+    def __init__(self, app):
+        """Build the Operations tab for the controller's page and current state."""
+        self.app = app
+        self.page = app.page
+        self.state = app.state
 
 
     def build(self) -> ft.Control:
@@ -97,8 +99,7 @@ class OperationsView:
     def _on_account_selected(self, e):
         idx = int(e.control.value)
         self.state.ops_acc_idx = idx
-        from views import _rebuild_page
-        _rebuild_page(self.page, self.state, selected_index=1)
+        self.app.refresh()
 
     def _on_ops_tab_change(self, e):
         self._ops_tab_index = e.control.selected_index
@@ -388,7 +389,7 @@ class OperationsView:
                 )
                 s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
-                self._refresh_page()
+                self.app.refresh()
             except Exception as ex:
                 show_snack(self.page, error_message(t, ex), error=True)
             finally:
@@ -880,7 +881,7 @@ class OperationsView:
                 )
                 s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
-                self._refresh_page()
+                self.app.refresh()
             except Exception as ex:
                 show_snack(self.page, error_message(t, ex), error=True)
             finally:
@@ -1010,7 +1011,7 @@ class OperationsView:
                 )
                 s.commit(acc_idx, new_df)
                 show_snack(self.page, t.get("operations.added_transaction"))
-                self._refresh_page()
+                self.app.refresh()
             except Exception as ex:
                 show_snack(self.page, error_message(t, ex), error=True)
             finally:
@@ -1018,7 +1019,3 @@ class OperationsView:
                 self.page.update()
 
         self.page.run_thread(worker)
-
-    def _refresh_page(self):
-        from views import _rebuild_page
-        _rebuild_page(self.page, self.state, selected_index=1)

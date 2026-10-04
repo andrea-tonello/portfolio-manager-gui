@@ -30,3 +30,13 @@ class Translator:
             return template.format(**kwargs)
         except (KeyError, TypeError, AttributeError):
             return f"<{key}>"
+
+    def section(self, key):
+        """Return the group of messages under `key` as a dict, in file order; {} if there is no such group.
+
+        Example: section("glossary.page_1") -> {"title": "Glossary", "date_title": "Date", ...}
+        """
+        value = self.strings
+        for part in key.split("."):
+            value = value.get(part) if isinstance(value, dict) else None
+        return value if isinstance(value, dict) else {}

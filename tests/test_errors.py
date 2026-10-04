@@ -315,10 +315,10 @@ class FakeImportPicker:
         return [ft.FilePickerFile(id=0, name="backup.zip", size=len(self.data), bytes=self.data)]
 
 
-def test_backup_import_error_is_shown_in_the_users_language(page, state):
+def test_backup_import_error_is_shown_in_the_users_language(app, page, state):
     """Importing a broken backup shows the problem in the app's current language (here Italian)."""
     state.translator.load_language("it")
-    view = SettingsView(page, state)
+    view = SettingsView(app)
     view.build()
     view.file_picker = FakeImportPicker(_zip({"notes.txt": "hello"}))
 

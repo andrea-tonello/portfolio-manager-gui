@@ -9,6 +9,7 @@ import flet as ft
 import pandas as pd
 import pytest
 
+from app_controller import AppController
 from app_state import AppState
 from services import config_service, market_data
 from utils.constants import I18N_DIR
@@ -116,7 +117,6 @@ class FakePage:
     def __init__(self):
         """Start as an empty page with one root view, like a freshly opened app."""
         self.width = 400
-        self.data = {}
         self.views = [ft.View(route="/")]
         self.controls = []
         self.overlay = []
@@ -178,6 +178,28 @@ def state(tmp_path, fake_market):
     app_state.load_all_accounts()
     assert app_state.accounts, "the test account should have loaded"
     return app_state
+
+
+@pytest.fixture
+def app(page, state):
+    """An AppController on the FakePage, already holding the `state` above (as if the app had just started)."""
+    controller = AppController(page, base_path=state.base_path)
+    controller.state = state
+    return controller
+
+
+def find_controls(control, kind):
+    """Yield every control of exactly type `kind` inside `control`, depth first, in screen order."""
+    if type(control) is kind:
+        yield control
+    for child in [getattr(control, "content", None), *(getattr(control, "controls", None) or [])]:
+        if isinstance(child, ft.Control):
+            yield from find_controls(child, kind)
+
+
+def snack_texts(page):
+    """The messages of the snack bars currently on the page."""
+    return [c.content.value for c in page.overlay if isinstance(c, ft.SnackBar)]
 
 
 # ── Snapshots ────────────────────────────────────────────────────────

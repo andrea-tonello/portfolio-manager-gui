@@ -22,9 +22,11 @@ PALETTE_COLORS = {
 
 
 class SettingsView:
-    def __init__(self, page: ft.Page, state):
-        self.page = page
-        self.state = state
+    def __init__(self, app):
+        """Build the Settings page for the controller's page and current state."""
+        self.app = app
+        self.page = app.page
+        self.state = app.state
 
     def build(self) -> ft.Control:
         self.file_picker = ft.FilePicker()
@@ -187,8 +189,7 @@ class SettingsView:
         s.lang_code = lang_code
         s.translator.load_language(lang_code)
         show_snack(self.page, s.translator.get("settings.language.changed"))
-        from views import _show_settings
-        _show_settings(self.page, s)
+        self.app.show_settings()
 
     # ── Accounts ──────────────────────────────────────────────────────
 
@@ -246,8 +247,7 @@ class SettingsView:
             show_snack(self.page, error_message(s.translator, ex), error=True)
             return
         show_snack(self.page, s.translator.get("settings.account.accounts_added"))
-        from views import _show_settings
-        _show_settings(self.page, s)
+        self.app.show_settings()
 
     def _on_delete_account(self, idx: int):
         s = self.state
@@ -279,8 +279,7 @@ class SettingsView:
         try:
             s.remove_broker(idx)
             show_snack(self.page, t.get("settings.account.account_deleted"))
-            from views import _show_settings
-            _show_settings(self.page, s)
+            self.app.show_settings()
         except Exception as ex:
             show_snack(self.page, str(ex), error=True)
 
@@ -396,7 +395,7 @@ class SettingsView:
         self.page.pop_dialog()
         try:
             config_service.import_backup(self.state.config_folder, self._pending_import)
-            self.page.data["restart"]()
+            self.app.restart()
         except Exception as ex:
             show_snack(self.page, str(ex), error=True)
 
@@ -458,7 +457,7 @@ class SettingsView:
             self.page.pop_dialog()
             try:
                 config_service.reset_application(s.config_folder)
-                self.page.data["restart"]()
+                self.app.restart()
             except OSError as ex:
                 show_snack(self.page, s.translator.get("settings.account.deletion_error", e=str(ex)), error=True)
 
