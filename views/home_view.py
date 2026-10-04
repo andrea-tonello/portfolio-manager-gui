@@ -4,8 +4,9 @@ import flet as ft
 import pandas as pd
 from datetime import datetime
 
+from components.background import run_in_background
 from components.inputs import account_selector
-from components.snack import error_message, show_snack
+from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from domain.positions import held_tickers, priced_positions
 from services import config_service, operations_service
@@ -691,18 +692,16 @@ class HomeView:
         ref_date = datetime.strptime(ev_date, "%Y-%m-%d").date()
         date_str = ref_date.strftime(DATE_FORMAT)
 
-        def worker():
-            try:
-                new_df = operations_service.execute_split(
-                    account.df, account.name, date_str, ref_date, ticker, ratio,
-                )
-                s.commit(acc_idx, new_df)
-                show_snack(self.page, t.get("operations.added_transaction"))
-                self._fetch_live_values()
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
+        def save():
+            """Record the split, save the account and refresh Home's values."""
+            new_df = operations_service.execute_split(
+                account.df, account.name, date_str, ref_date, ticker, ratio,
+            )
+            s.commit(acc_idx, new_df)
+            show_snack(self.page, t.get("operations.added_transaction"))
+            self._fetch_live_values()
 
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, save)
 
     # ── Shared Components ─────────────────────────────────────────────
 

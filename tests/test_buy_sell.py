@@ -14,6 +14,7 @@ from datetime import date
 
 import numpy as np
 import pytest
+from conftest import snack_texts
 from test_ledger_snapshots import BROKER, NAMES, _replay, deposit
 
 import views.operations_view
@@ -192,3 +193,19 @@ def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bra
 
     args, kwargs = calls[0]
     assert (args[11], kwargs["tax_rate"]) == (picked, tax_rate)
+
+
+def test_a_ticker_of_the_wrong_kind_is_refused(stock_form, page, monkeypatch):
+    """Buying an ETF ticker from the Stock form shows an error and records nothing; the spinner goes away.
+
+    Yahoo is asked what kind of security the ticker is before the trade is saved.
+    """
+    form, submit, calls = stock_form
+    monkeypatch.setattr(views.operations_view, "search_tickers",
+                        lambda *args, **kwargs: [{"symbol": "UUU", "quote_type": "etf"}])
+
+    submit()
+
+    assert calls == []
+    assert snack_texts(page) == ["This Ticker is not comprised in this asset class"]
+    assert form["loading"].visible is False

@@ -7,10 +7,8 @@ border_radius / border_color / border_width properties are removed in Flet 1.3.
 
 import flet as ft
 import pytest
-from conftest import find_controls
 
 from components.inputs import account_selector, rounded_dropdown, rounded_text_field
-from views import onboarding_view
 
 GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)
 LEGACY_BORDER_PROPS = ("border_radius", "border_color", "border_width", "focused_border_color", "focused_border_width")

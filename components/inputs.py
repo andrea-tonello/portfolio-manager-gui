@@ -31,17 +31,14 @@ def outlined_border(color, width=1.0, focused_width=2.0) -> dict:
 
 
 def _rounded_menu() -> ft.MenuStyle:
-    """The rounded shape of the list a dropdown opens."""
     return ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=_RADIUS))
 
 
 def rounded_text_field(**kwargs) -> ft.TextField:
-    """A TextField with the app's rounded grey outline; accepts every TextField option."""
     return ft.TextField(border=outlined_border(_GREY), **kwargs)
 
 
 def rounded_dropdown(**kwargs) -> ft.Dropdown:
-    """A Dropdown with the app's rounded grey outline and rounded menu; accepts every Dropdown option."""
     return ft.Dropdown(border=outlined_border(_GREY), menu_style=_rounded_menu(), **kwargs)
 
 

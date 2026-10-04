@@ -4,10 +4,11 @@ import numpy as np
 import pandas as pd
 from datetime import date
 
+from components.background import run_in_background
 from components.date_field import DateField, date_range_fields
 from components.focus_chain import chain_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
-from components.snack import error_message, show_snack
+from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
@@ -167,23 +168,15 @@ class AnalysisView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        self.sum_loading.visible = True
-        self.page.update()
+        def calculate():
+            """Compute the statistics on the chosen date and show them."""
+            ref_date = self.sum_date.value
+            dt_str = ref_date.strftime(DATE_FORMAT)
 
-        def worker():
-            try:
-                ref_date = self.sum_date.value
-                dt_str = ref_date.strftime(DATE_FORMAT)
+            result = analysis_service.compute_summary(data, ref_date, dt_str)
+            self._display_summary(result, dt_str)
 
-                result = analysis_service.compute_summary(data, ref_date, dt_str)
-                self._display_summary(result, dt_str)
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.sum_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, calculate, loading=self.sum_loading)
 
     def _display_summary(self, result, dt_str):
         t = self.state.translator
@@ -383,25 +376,17 @@ class AnalysisView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        self.corr_loading.visible = True
-        self.page.update()
+        def calculate():
+            """Compute the correlation over the chosen period and show it."""
+            start_dt = self.corr_start.value.strftime("%Y-%m-%d")
+            end_dt = self.corr_end.value.strftime("%Y-%m-%d")
 
-        def worker():
-            try:
-                start_dt = self.corr_start.value.strftime("%Y-%m-%d")
-                end_dt = self.corr_end.value.strftime("%Y-%m-%d")
+            result = analysis_service.compute_correlation(
+                data, start_dt, end_dt, asset1, asset2, window
+            )
+            self._display_correlation(result, asset1, asset2, window)
 
-                result = analysis_service.compute_correlation(
-                    data, start_dt, end_dt, asset1, asset2, window
-                )
-                self._display_correlation(result, asset1, asset2, window)
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.corr_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, calculate, loading=self.corr_loading)
 
     def _display_correlation(self, result, asset1, asset2, window):
         t = self.state.translator
@@ -508,49 +493,41 @@ class AnalysisView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        self.dd_loading.visible = True
-        self.page.update()
+        def calculate():
+            """Compute the drawdown over the chosen period and show the result and chart."""
+            start_dt = self.dd_start.value
+            end_dt = self.dd_end.value
 
-        def worker():
-            try:
-                start_dt = self.dd_start.value
-                end_dt = self.dd_end.value
+            result = analysis_service.compute_drawdown(data, start_dt, end_dt)
 
-                result = analysis_service.compute_drawdown(data, start_dt, end_dt)
+            if not result["has_data"]:
+                self.dd_result_text.value = t.get("analysis.drawdown.error")
+                self.dd_chart.content = None
+                self._dd_data = None
+                self.dd_export_row.visible = False
+            elif len(result["pf_history"]) < 10:
+                show_snack(self.page, t.get("analysis.drawdown.min_range"), error=True)
+                self.dd_result_text.value = ""
+                self.dd_chart.content = None
+                self._dd_data = None
+                self.dd_export_row.visible = False
+            else:
+                start_str = start_dt.strftime(DATE_FORMAT)
+                end_str = end_dt.strftime(DATE_FORMAT)
+                self.dd_result_text.value = t.get(
+                    "analysis.drawdown.result",
+                    start_dt=start_str, end_dt=end_str, mdd=result["mdd"] * 100
+                )
+                self.dd_chart.content = chart_service.chart_drawdown(
+                    t, result["pf_history"], result["drawdown"], result["mdd"]
+                )
+                self._dd_data = {
+                    "pf_history": result["pf_history"],
+                    "drawdown": result["drawdown"],
+                }
+                self.dd_export_row.visible = True
 
-                if not result["has_data"]:
-                    self.dd_result_text.value = t.get("analysis.drawdown.error")
-                    self.dd_chart.content = None
-                    self._dd_data = None
-                    self.dd_export_row.visible = False
-                elif len(result["pf_history"]) < 10:
-                    show_snack(self.page, t.get("analysis.drawdown.min_range"), error=True)
-                    self.dd_result_text.value = ""
-                    self.dd_chart.content = None
-                    self._dd_data = None
-                    self.dd_export_row.visible = False
-                else:
-                    start_str = start_dt.strftime(DATE_FORMAT)
-                    end_str = end_dt.strftime(DATE_FORMAT)
-                    self.dd_result_text.value = t.get(
-                        "analysis.drawdown.result",
-                        start_dt=start_str, end_dt=end_str, mdd=result["mdd"] * 100
-                    )
-                    self.dd_chart.content = chart_service.chart_drawdown(
-                        t, result["pf_history"], result["drawdown"], result["mdd"]
-                    )
-                    self._dd_data = {
-                        "pf_history": result["pf_history"],
-                        "drawdown": result["drawdown"],
-                    }
-                    self.dd_export_row.visible = True
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.dd_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, calculate, loading=self.dd_loading)
 
     # ── VaR Tab ───────────────────────────────────────────────────────
 
@@ -630,40 +607,32 @@ class AnalysisView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        self.var_loading.visible = True
-        self.page.update()
+        def calculate():
+            """Run the Value at Risk simulation and show the result and chart."""
+            result = analysis_service.compute_var_mc(data, ci, days)
 
-        def worker():
-            try:
-                result = analysis_service.compute_var_mc(data, ci, days)
+            if not result["has_positions"]:
+                self.var_result_text.value = t.get("analysis.var.error")
+                self.var_chart.content = None
+                self._var_data = None
+                self.var_export_row.visible = False
+            else:
+                self.var_result_text.value = t.get(
+                    "analysis.var.result",
+                    ci=ci, days=days, var=result["var"]
+                )
+                self.var_chart.content = chart_service.chart_var_mc(
+                    t, result["scenario_return"], result["var"], ci
+                )
+                self._var_data = {
+                    "scenario_return": result["scenario_return"],
+                    "var": result["var"],
+                    "ci": ci,
+                    "days": days,
+                }
+                self.var_export_row.visible = True
 
-                if not result["has_positions"]:
-                    self.var_result_text.value = t.get("analysis.var.error")
-                    self.var_chart.content = None
-                    self._var_data = None
-                    self.var_export_row.visible = False
-                else:
-                    self.var_result_text.value = t.get(
-                        "analysis.var.result",
-                        ci=ci, days=days, var=result["var"]
-                    )
-                    self.var_chart.content = chart_service.chart_var_mc(
-                        t, result["scenario_return"], result["var"], ci
-                    )
-                    self._var_data = {
-                        "scenario_return": result["scenario_return"],
-                        "var": result["var"],
-                        "ci": ci,
-                        "days": days,
-                    }
-                    self.var_export_row.visible = True
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.var_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, calculate, loading=self.var_loading)
 
     # ── Allocation Tab ───────────────────────────────────────────────
 
@@ -710,20 +679,12 @@ class AnalysisView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        self.alloc_loading.visible = True
-        self.page.update()
+        def calculate():
+            """Compute the allocation on the chosen date and draw the pie chart."""
+            allocation = analysis_service.compute_allocation(data, self.alloc_date.value)
+            self.alloc_chart.content = chart_service.chart_allocation(allocation, t)
 
-        def worker():
-            try:
-                allocation = analysis_service.compute_allocation(data, self.alloc_date.value)
-                self.alloc_chart.content = chart_service.chart_allocation(allocation, t)
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.alloc_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, calculate, loading=self.alloc_loading)
 
     # ── Export helpers ────────────────────────────────────────────────
 

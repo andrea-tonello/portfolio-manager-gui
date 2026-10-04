@@ -4,10 +4,11 @@ import pandas as pd
 import os
 from datetime import date
 
+from components.background import run_in_background
 from components.date_field import DateField
 from components.focus_chain import chain_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
-from components.snack import error_message, show_snack
+from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from domain.ledger import Product
 from domain.positions import held_tickers
@@ -316,25 +317,17 @@ class OperationsView:
         descr = self.cash_descr.value if kind == "charge" else None
         acc_idx = s.ops_acc_idx
 
-        self.cash_loading.visible = True
-        self.page.update()
+        def save():
+            """Record the cash operation, save the account and show the tab again."""
+            new_df = operations_service.execute_cash_operation(
+                df, broker, service_kind, date_str, ref_date, amount,
+                ticker=ticker, description=descr,
+            )
+            s.commit(acc_idx, new_df)
+            show_snack(self.page, t.get("operations.added_transaction"))
+            self.app.refresh()
 
-        def worker():
-            try:
-                new_df = operations_service.execute_cash_operation(
-                    df, broker, service_kind, date_str, ref_date, amount,
-                    ticker=ticker, description=descr,
-                )
-                s.commit(acc_idx, new_df)
-                show_snack(self.page, t.get("operations.added_transaction"))
-                self.app.refresh()
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.cash_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, save, loading=self.cash_loading)
 
     # ── ETF / Stock Tab ───────────────────────────────────────────────
 
@@ -737,38 +730,26 @@ class OperationsView:
         ref_date = tab["date"].value
         acc_idx = s.ops_acc_idx
 
-        tab["loading"].visible = True
-        self.page.update()
-
         expected_type = "etf" if product_type == "ETF" else "equity"
 
-        def worker():
-            try:
-                results = search_tickers(ticker, quotes_count=1)
-                if results and results[0]["symbol"].upper() == ticker.upper():
-                    actual_type = results[0]["quote_type"]
-                    if actual_type != expected_type:
-                        msg = t.get("operations.stock.ticker_wrong_type")
-                        show_snack(self.page, msg, error=True)
-                        tab["loading"].visible = False
-                        self.page.update()
-                        return
+        def save():
+            """Check the ticker's kind with Yahoo, then record the trade, save the account and show the tab again."""
+            results = search_tickers(ticker, quotes_count=1)
+            if results and results[0]["symbol"].upper() == ticker.upper():
+                if results[0]["quote_type"] != expected_type:
+                    show_snack(self.page, t.get("operations.stock.ticker_wrong_type"), error=True)
+                    return
 
-                new_df = operations_service.execute_etf_stock(
-                    df, broker, date_str, ref_date,
-                    currency, conv_rate, ticker, quantity, price,
-                    fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
-                )
-                s.commit(acc_idx, new_df)
-                show_snack(self.page, t.get("operations.added_transaction"))
-                self.app.refresh()
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                tab["loading"].visible = False
-                self.page.update()
+            new_df = operations_service.execute_etf_stock(
+                df, broker, date_str, ref_date,
+                currency, conv_rate, ticker, quantity, price,
+                fee, ter, stored_product, is_buy=is_buy, tax_rate=tax_rate, fee_mode=fee_mode,
+            )
+            s.commit(acc_idx, new_df)
+            show_snack(self.page, t.get("operations.added_transaction"))
+            self.app.refresh()
 
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, save, loading=tab["loading"])
 
     def _show_ticker_help(self, e):
         t = self.state.translator
@@ -881,21 +862,13 @@ class OperationsView:
         ref_date = self.cash_date.value
         acc_idx = s.ops_acc_idx
 
-        self.cash_loading.visible = True
-        self.page.update()
+        def save():
+            """Record the split, save the account and show the tab again."""
+            new_df = operations_service.execute_split(
+                df, broker, date_str, ref_date, ticker, ratio,
+            )
+            s.commit(acc_idx, new_df)
+            show_snack(self.page, t.get("operations.added_transaction"))
+            self.app.refresh()
 
-        def worker():
-            try:
-                new_df = operations_service.execute_split(
-                    df, broker, date_str, ref_date, ticker, ratio,
-                )
-                s.commit(acc_idx, new_df)
-                show_snack(self.page, t.get("operations.added_transaction"))
-                self.app.refresh()
-            except Exception as ex:
-                show_snack(self.page, error_message(t, ex), error=True)
-            finally:
-                self.cash_loading.visible = False
-                self.page.update()
-
-        self.page.run_thread(worker)
+        run_in_background(self.page, t, save, loading=self.cash_loading)

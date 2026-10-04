@@ -4,6 +4,7 @@
 
 - New shared DateField component used by all eight date inputs
 - Added shared input factories for custom textfields, dropdowns and account selectors, using Flet's new border property
+- Added run_in_background for loading sequences, replacing nine copies of the spinner/thread/error code
 
 
 
