@@ -30,6 +30,7 @@
 - [INVESTIGATE] Can app size be brought further down?
 - [INVESTIGATE] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
 - [INVESTIGATE] Does Flet 1.0.3 have better support for floating buttons?
+- [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
 
 
 

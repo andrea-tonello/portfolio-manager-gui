@@ -6,6 +6,7 @@ from datetime import date
 
 from components.background import run_in_background
 from components.date_field import DateField, date_range_fields
+from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scroll_into_view_on_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
 from components.snack import show_snack
@@ -28,12 +29,7 @@ class AnalysisView:
         if not self.state.brokers:
             return ft.Text(t.get("home.no_account"), size=16)
 
-        # Set up FilePicker service for export
-        self.file_picker = ft.FilePicker()
-        self.page.services[:] = [
-            s for s in self.page.services if not isinstance(s, ft.FilePicker)
-        ]
-        self.page.services.append(self.file_picker)
+        self.file_picker = get_file_picker(self.page)  # for the CSV exports
 
         # Data storage for CSV export
         self._sum_history = None
@@ -662,16 +658,9 @@ class AnalysisView:
     # ── Export helpers ────────────────────────────────────────────────
 
     async def _save_csv(self, file_name, csv_bytes):
+        """Let the user save a chart's data as `file_name`, confirming once saved."""
         t = self.state.translator
-        # Flet writes src_bytes to the chosen location itself, on every platform.
-        # Never open the returned path: on Android it is not a real file path.
-        path = await self.file_picker.save_file(
-            file_name=file_name,
-            allowed_extensions=["csv"],
-            src_bytes=csv_bytes,
-        )
-        if path:
-            show_snack(self.page, t.get("transactions.export_success"))
+        await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _df_to_csv_bytes(self, df):
         buf = io.StringIO()

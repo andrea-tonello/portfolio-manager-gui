@@ -1,5 +1,6 @@
 import flet as ft
 
+from components.file_export import get_file_picker, save_bytes
 from components.inputs import rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
@@ -30,11 +31,7 @@ class SettingsView:
         self.state = app.state
 
     def build(self) -> ft.Control:
-        self.file_picker = ft.FilePicker()
-        self.page.services[:] = [
-            s for s in self.page.services if not isinstance(s, ft.FilePicker)
-        ]
-        self.page.services.append(self.file_picker)
+        self.file_picker = get_file_picker(self.page)  # for backup export and import
 
 
         return ft.Row([
@@ -325,15 +322,8 @@ class SettingsView:
         t = self.state.translator
         zip_bytes = config_service.export_backup(self.state.config_folder)
         filename = "portfolio_backup.zip"
-        # Flet writes src_bytes to the chosen location itself, on every platform.
-        # Never open the returned path: on Android it is not a real file path.
-        path = await self.file_picker.save_file(
-            file_name=filename,
-            allowed_extensions=["zip"],
-            src_bytes=zip_bytes,
-        )
-        if path:  # None means the user cancelled the save dialog
-            show_snack(self.page, t.get("settings.account.export_success", filename=filename))
+        await save_bytes(self.page, self.file_picker, filename, zip_bytes, "zip",
+                         t.get("settings.account.export_success", filename=filename))
 
     async def _on_import_backup(self, e):
         t = self.state.translator

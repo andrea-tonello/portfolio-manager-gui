@@ -10,6 +10,8 @@
 - Added shared input factories for custom textfields, dropdowns and account selectors, using Flet's new border property
 - Added run_in_background for loading sequences, replacing nine copies of the spinner/thread/error code
 - Added shared scroll_into_view_on_focus helper
+- Shared file picker and save_bytes helper for the CSV and backup exports
+
 
 
 

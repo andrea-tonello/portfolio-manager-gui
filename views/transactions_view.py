@@ -2,6 +2,7 @@ import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
 
+from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
 from components.snack import show_snack
 from services import account_service, config_service
@@ -29,12 +30,7 @@ class TransactionsView:
         if not self.state.brokers:
             return ft.Column([ft.Text(t.get("home.no_account"), size=16)])
 
-        # Set up FilePicker service for export
-        self.file_picker = ft.FilePicker()
-        self.page.services[:] = [
-            s for s in self.page.services if not isinstance(s, ft.FilePicker)
-        ]
-        self.page.services.append(self.file_picker)
+        self.file_picker = get_file_picker(self.page)  # for the CSV exports
 
         df = self._get_tx_df()
         sel = self.state.tx_selection
@@ -373,16 +369,9 @@ class TransactionsView:
         await self._save_via_picker(REPORT_PREFIX + "All Accounts.csv", csv_bytes)
 
     async def _save_via_picker(self, file_name, csv_bytes):
+        """Let the user save the transactions as `file_name`, confirming once saved."""
         t = self.state.translator
-        # Flet writes src_bytes to the chosen location itself, on every platform.
-        # Never open the returned path: on Android it is not a real file path.
-        path = await self.file_picker.save_file(
-            file_name=file_name,
-            allowed_extensions=["csv"],
-            src_bytes=csv_bytes,
-        )
-        if path:
-            show_snack(self.page, t.get("transactions.export_success"))
+        await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
         s = self.state
