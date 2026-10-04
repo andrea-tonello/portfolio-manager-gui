@@ -1,5 +1,6 @@
 import flet as ft
 
+from components.inputs import rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
@@ -166,16 +167,11 @@ class SettingsView:
         return ft.Container(
             content=ft.Column([
                 ft.Text(t.get("settings.language.title"), size=16, weight=ft.FontWeight.BOLD),
-                ft.Dropdown(
-                    menu_style=ft.MenuStyle(
-                        shape=ft.RoundedRectangleBorder(radius=15),
-                    ),
+                rounded_dropdown(
                     value=current,
                     options=options,
                     on_select=self._on_language_change,
                     expand=True,
-                    border_radius=ft.BorderRadius.all(15),
-                    border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
                 ),
             ], spacing=10),
             padding=20,
@@ -211,10 +207,8 @@ class SettingsView:
                 )
             )
 
-        self.new_broker_field = ft.TextField(
+        self.new_broker_field = rounded_text_field(
             label=t.get("settings.account.add_account"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
 
@@ -420,10 +414,8 @@ class SettingsView:
 
     def _on_reset_click(self, e):
         t = self.state.translator
-        self.reset_field = ft.TextField(
+        self.reset_field = rounded_text_field(
             label=t.get("settings.account.reset_confirm"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             on_change=self._on_reset_field_change,
             expand=True,
         )

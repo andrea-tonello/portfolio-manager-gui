@@ -4,12 +4,10 @@ from datetime import date, datetime, timedelta
 
 import flet as ft
 
+from components.inputs import DATE_INPUT_FILTER, rounded_text_field
 from domain.ledger import LEDGER_START_DATE
 from utils.constants import DATE_FORMAT
 from utils.date_utils import parse_date_input
-
-# Only digits and dashes can be typed.
-_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 
 
 class DateField:
@@ -31,13 +29,11 @@ class DateField:
         self.min_date = min_date
         self.max_date = max_date
         self._value = None
-        self.field = ft.TextField(
+        self.field = rounded_text_field(
             label=label,
             hint_text=hint_text,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
+            input_filter=DATE_INPUT_FILTER,
             on_change=self._on_typed,
             expand=True,
         )

@@ -3,6 +3,7 @@ import time
 
 import flet as ft
 
+from components.inputs import rounded_text_field
 from services.market_data import search_tickers
 
 
@@ -20,7 +21,7 @@ class TickerSearchField:
         expand = kwargs.pop("expand", False)
         col = kwargs.pop("col", None)
 
-        self._field = ft.TextField(
+        self._field = rounded_text_field(
             label=label,
             on_change=self._on_change,
             on_blur=self._on_blur,

@@ -6,6 +6,7 @@ account screens are also reused when adding a user from the user manager.
 
 import flet as ft
 
+from components.inputs import rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
@@ -16,14 +17,9 @@ def show_language_picker(app):
     """Show the language choice; applying it saves the language and restarts into the next setup step."""
     page, t = app.page, app.state.translator
     options = [ft.dropdown.Option(key=code, text=name) for code, name in LANGUAGES.items()]
-    dd = ft.Dropdown(
-        menu_style=ft.MenuStyle(
-            shape=ft.RoundedRectangleBorder(radius=15),
-        ),
+    dd = rounded_dropdown(
         label=t.get("settings.language.title"),
         options=options,
-        border_radius=ft.BorderRadius.all(15),
-        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
 
@@ -62,10 +58,8 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
     """
     page, state = app.page, app.state
     t = state.translator
-    username_field = ft.TextField(
+    username_field = rounded_text_field(
         label=t.get("settings.user_mgmt.username_hint"),
-        border_radius=ft.BorderRadius.all(15),
-        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
 
@@ -127,10 +121,8 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
     """
     page, state = app.page, app.state
     t = state.translator
-    broker_field = ft.TextField(
+    broker_field = rounded_text_field(
         label=t.get("settings.account.add_account"),
-        border_radius=ft.BorderRadius.all(15),
-        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         expand=True,
     )
     broker_list = ft.Column([], spacing=5)

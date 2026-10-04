@@ -6,12 +6,12 @@ from datetime import date
 
 from components.date_field import DateField, date_range_fields
 from components.focus_chain import chain_focus
+from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
 
-_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 _INT_FILTER = ft.NumbersOnlyInputFilter()
 
 
@@ -87,31 +87,9 @@ class AnalysisView:
 
     def _build_account_dropdown(self) -> ft.Control:
         t = self.state.translator
-        options = [
-            ft.dropdown.Option(key="all", text=t.get("analysis.all_accounts")),
-        ]
-        for k, v in sorted(self.state.brokers.items()):
-            options.append(ft.dropdown.Option(key=str(k), text=v))
-
-        # Determine current value
-        if self.state.analysis_acc_idx is None:
-            current = "all"
-        else:
-            current = str(self.state.analysis_acc_idx)
-
-        return ft.Dropdown(
-            menu_style=ft.MenuStyle(
-                shape=ft.RoundedRectangleBorder(radius=15),
-            ),
-            value=current,
-            options=options,
-            on_select=self._on_account_selected,
-            expand=True,
-            border_width=2.5,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.SECONDARY_CONTAINER,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-        )
+        idx = self.state.analysis_acc_idx
+        return account_selector(self.state, "all" if idx is None else str(idx), self._on_account_selected,
+                                all_option=("all", t.get("analysis.all_accounts")))
 
     def _on_tab_change(self, e):
         self.state.analysis_tab_index = e.control.selected_index
@@ -288,19 +266,13 @@ class AnalysisView:
         self.corr_asset1 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset1"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 4})
         self.corr_asset2 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset2"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             col={"xs": 12, "md": 4})
-        self.corr_window = ft.TextField(
+        self.corr_window = rounded_text_field(
             label=t.get("analysis.corr.window"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="100",
             col={"xs": 12, "md": 4})
 
@@ -584,16 +556,12 @@ class AnalysisView:
 
     def _build_var_tab(self) -> ft.Control:
         t = self.state.translator
-        self.var_ci = ft.TextField(
+        self.var_ci = rounded_text_field(
             label=t.get("analysis.var.ci"),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            border_radius=ft.BorderRadius.all(15),
-            keyboard_type=ft.KeyboardType.NUMBER, input_filter=_DECIMAL_FILTER, value="0.99",
+            keyboard_type=ft.KeyboardType.NUMBER, input_filter=DECIMAL_INPUT_FILTER, value="0.99",
             col={"xs": 6, "md": 6})
-        self.var_days = ft.TextField(
+        self.var_days = rounded_text_field(
             label=t.get("analysis.var.days"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="10",
             col={"xs": 6, "md": 6})
         # Chain on_submit for keyboard "next field" navigation

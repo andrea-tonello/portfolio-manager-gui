@@ -6,6 +6,7 @@ from datetime import date
 
 from components.date_field import DateField
 from components.focus_chain import chain_focus
+from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.ledger import Product
@@ -15,8 +16,6 @@ from services import operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
 from utils.constants import CURRENCIES, DATE_FORMAT, DEFAULT_LANG, I18N_DIR
-
-_DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 
 
 class OperationsView:
@@ -75,25 +74,9 @@ class OperationsView:
 
     def _build_account_dropdown(self) -> ft.Control:
         t = self.state.translator
-        options = [
-            ft.dropdown.Option(key=str(k), text=v)
-            for k, v in sorted(self.state.brokers.items())
-        ]
-        return ft.Dropdown(
-            menu_style=ft.MenuStyle(
-                shape=ft.RoundedRectangleBorder(radius=15),
-            ),
-            hint_text=t.get("operations.select_account"),
-            hint_style=ft.TextStyle(color=ft.Colors.GREY_500),
-            value=str(self.state.ops_acc_idx) if self.state.ops_acc_idx is not None else None,
-            options=options,
-            on_select=self._on_account_selected,
-            expand=True,
-            border_width=2.5,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.SECONDARY_CONTAINER,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-        )
+        idx = self.state.ops_acc_idx
+        return account_selector(self.state, None if idx is None else str(idx), self._on_account_selected,
+                                hint_text=t.get("operations.select_account"))
 
     def _on_account_selected(self, e):
         idx = int(e.control.value)
@@ -167,17 +150,13 @@ class OperationsView:
         )
         self.cash_date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
 
-        self.cash_amount = ft.TextField(label=t.get("operations.cash.amount"),
-                                        keyboard_type=ft.KeyboardType.NUMBER,
-                                        input_filter=_DECIMAL_FILTER,
-                                        border_radius=ft.BorderRadius.all(15),
-                                        border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                        col={"xs": 12, "md": 6})
+        self.cash_amount = rounded_text_field(label=t.get("operations.cash.amount"),
+                                              keyboard_type=ft.KeyboardType.NUMBER,
+                                              input_filter=DECIMAL_INPUT_FILTER,
+                                              col={"xs": 12, "md": 6})
         self.cash_ticker = TickerSearchField(
             self.page,
             label=t.get("operations.stock.ticker"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         self.cash_ticker_help = ft.FilledTonalIconButton(
@@ -188,32 +167,25 @@ class OperationsView:
             content=ft.Row([self.cash_ticker.control, self.cash_ticker_help]),
             visible=False, col={"xs": 12, "md": 6},
         )
-        self.cash_descr = ft.TextField(label=t.get("operations.cash.charge_descr"),
-                                       border_radius=ft.BorderRadius.all(15),
-                                       border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                       visible=False, col={"xs": 12, "md": 6})
+        self.cash_descr = rounded_text_field(label=t.get("operations.cash.charge_descr"),
+                                             visible=False, col={"xs": 12, "md": 6})
 
         split_ticker_options = [
             ft.dropdown.Option(key=tk, text=f"{tk}  ·  {name}" if name and name != tk else tk)
             for tk, name in holdings
         ]
-        self.split_ticker_dd = ft.Dropdown(
-            menu_style=ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=15)),
+        self.split_ticker_dd = rounded_dropdown(
             label=t.get("operations.split.ticker"),
             options=split_ticker_options,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         self.split_ticker_row = ft.Container(
             content=self.split_ticker_dd, visible=False, col={"xs": 12, "md": 6},
         )
-        self.split_ratio_field = ft.TextField(
+        self.split_ratio_field = rounded_text_field(
             label=t.get("operations.split.ratio"),
             keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=_DECIMAL_FILTER,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            input_filter=DECIMAL_INPUT_FILTER,
             expand=True,
         )
         split_ratio_help = ft.FilledTonalIconButton(
@@ -410,8 +382,6 @@ class OperationsView:
             self.page,
             label="Ticker",
             type_filter="etf" if product_type == "ETF" else "equity",
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
         ticker_help = ft.FilledTonalIconButton(
@@ -424,12 +394,10 @@ class OperationsView:
         )
 
 
-        ter_field = ft.TextField(
+        ter_field = rounded_text_field(
             label=t.get("operations.stock.ter"),
             keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=_DECIMAL_FILTER,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            input_filter=DECIMAL_INPUT_FILTER,
             col={"xs":12, "md": 6},
             expand=True
         )
@@ -443,12 +411,10 @@ class OperationsView:
             visible=(product_type == "ETF"),
         )
 
-        tax_bracket_field = ft.TextField(
+        tax_bracket_field = rounded_text_field(
             label=t.get("operations.stock.tax_bracket"),
             keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=_DECIMAL_FILTER,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            input_filter=DECIMAL_INPUT_FILTER,
             col={"xs": 12, "md": 6},
             expand=True
         )
@@ -463,60 +429,42 @@ class OperationsView:
         )
 
 
-        currency_dd = ft.Dropdown(
-            menu_style=ft.MenuStyle(
-                shape=ft.RoundedRectangleBorder(radius=15),
-            ),
+        currency_dd = rounded_dropdown(
             label=t.get("operations.stock.currency"),
             options=[ft.dropdown.Option(key=code, text=code) for code in CURRENCIES],
             value="EUR",
             on_select=lambda e, pt=product_type: self._on_currency_change(e, pt),
             col={"xs": 6, "md": 6},
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
-        exch_rate = ft.TextField(label=t.get("operations.stock.exch_rate"),
+        exch_rate = rounded_text_field(label=t.get("operations.stock.exch_rate"),
             keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=_DECIMAL_FILTER,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
+            input_filter=DECIMAL_INPUT_FILTER,
             visible=False, col={"xs": 6, "md": 6}
         )
-        
-        
-        quantity_field = ft.TextField(label=t.get("operations.stock.qt"),
-                                     border_radius=ft.BorderRadius.all(15),
-                                     keyboard_type=ft.KeyboardType.NUMBER,
-                                     input_filter=_DECIMAL_FILTER,
-                                     border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                     col={"xs": 6, "md": 6})
-        price_field = ft.TextField(label=t.get("operations.stock.price"),
-                                   border_radius=ft.BorderRadius.all(15),
-                                   border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                   keyboard_type=ft.KeyboardType.NUMBER,
-                                   input_filter=_DECIMAL_FILTER,
-                                   col={"xs": 6, "md": 6})
-        
-        
-        fee_currency_dd = ft.Dropdown(
-            menu_style=ft.MenuStyle(
-                shape=ft.RoundedRectangleBorder(radius=15),
-            ),
+
+
+        quantity_field = rounded_text_field(label=t.get("operations.stock.qt"),
+                                            keyboard_type=ft.KeyboardType.NUMBER,
+                                            input_filter=DECIMAL_INPUT_FILTER,
+                                            col={"xs": 6, "md": 6})
+        price_field = rounded_text_field(label=t.get("operations.stock.price"),
+                                         keyboard_type=ft.KeyboardType.NUMBER,
+                                         input_filter=DECIMAL_INPUT_FILTER,
+                                         col={"xs": 6, "md": 6})
+
+
+        fee_currency_dd = rounded_dropdown(
             label=t.get("operations.stock.currency_fee"),
             options=[ft.dropdown.Option(key=code, text=code) for code in CURRENCIES],
             value="EUR",
             visible=False, col={"xs": 6, "md": 6},
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
             expand=True,
         )
-        fee_field = ft.TextField(label=t.get("operations.stock.fee"),
-                                 border_radius=ft.BorderRadius.all(15),
-                                 border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-                                 keyboard_type=ft.KeyboardType.NUMBER,
-                                 input_filter=_DECIMAL_FILTER,
-                                 col={"xs": 6, "md": 6})
+        fee_field = rounded_text_field(label=t.get("operations.stock.fee"),
+                                       keyboard_type=ft.KeyboardType.NUMBER,
+                                       input_filter=DECIMAL_INPUT_FILTER,
+                                       col={"xs": 6, "md": 6})
 
 
         fee_mode_help = ft.FilledTonalIconButton(

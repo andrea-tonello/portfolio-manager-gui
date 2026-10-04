@@ -4,6 +4,7 @@ import flet as ft
 import pandas as pd
 from datetime import datetime
 
+from components.inputs import account_selector
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.positions import held_tickers, priced_positions
@@ -65,28 +66,8 @@ class HomeView:
 
     def _build_dropdown(self) -> ft.Control:
         t = self.state.translator
-        options = [
-            ft.dropdown.Option(
-                key="overview",
-                text=t.get("home.overview"),
-            ),
-        ]
-        for k, v in sorted(self.state.brokers.items()):
-            options.append(ft.dropdown.Option(key=str(k), text=v))
-
-        return ft.Dropdown(
-            menu_style=ft.MenuStyle(
-                shape=ft.RoundedRectangleBorder(radius=15),
-            ),
-            value=self.state.home_selection,
-            options=options,
-            on_select=self._on_selection_change,
-            expand=True,
-            border_width=2.5,
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.SECONDARY_CONTAINER,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-        )
+        return account_selector(self.state, self.state.home_selection, self._on_selection_change,
+                                all_option=("overview", t.get("home.overview")))
 
     def _on_selection_change(self, e):
         self.state.home_selection = e.control.value
@@ -180,9 +161,7 @@ class HomeView:
             self.page,
             label=t.get("home.watchlist_add"),
             expand=True,
-            border_radius=ft.BorderRadius.all(15),
             height=40,
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
         )
         self._watchlist_ticker_search.on_submit = self._on_watchlist_add
         add_row = ft.Row([

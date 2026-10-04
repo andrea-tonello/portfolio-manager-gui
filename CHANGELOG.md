@@ -1,3 +1,24 @@
+## [0.3.6] (2026-XX-XX)
+
+### Refactoring
+
+- New shared DateField component used by all eight date inputs
+- Added shared input factories for custom textfields, dropdowns and account selectors, using Flet's new border property
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [0.3.5] (2026-10-04)
 
 ### Bug Fixes
@@ -11,10 +32,6 @@
 - Removed primitive obsessions regarding accounts by introducing the Account dataclass
 - Introduced AppController for navigation, replacing page.data and in-function view imports
 - Added TABS, a tab registry for the navigation bar, app bar and info buttons
-
-
-
-
 
 
 
