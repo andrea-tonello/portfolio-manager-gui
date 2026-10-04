@@ -10,13 +10,13 @@ from dataclasses import dataclass
 
 import flet as ft
 
+from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
 from views.home_view import HomeView
 from views.operations_view import OperationsView
 from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
 from utils.constants import APP_VERSION, GITHUB_URL
-from utils.dialogs import show_privacy_policy, show_contacts, show_user_manager
 
 
 @dataclass(frozen=True)

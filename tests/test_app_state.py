@@ -14,9 +14,9 @@ import pandas as pd
 import pytest
 from conftest import find_controls, snack_texts
 
+from components.dialogs import show_user_manager
 from domain.errors import ValidationError
 from services import account_service
-from utils.dialogs import show_user_manager
 from views import onboarding_view
 from views.home_view import HomeView
 from views.settings_view import SettingsView

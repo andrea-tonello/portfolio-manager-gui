@@ -31,6 +31,17 @@ class Translator:
         except (KeyError, TypeError, AttributeError):
             return f"<{key}>"
 
+    def load_text(self, name):
+        """Return the longer text `<name>_<language>.txt` from the translations folder, or None if it is missing.
+
+        Example: load_text("privacy_policy") reads privacy_policy_it.txt when the app is in Italian.
+        """
+        try:
+            with open(os.path.join(self.locales_dir, f"{name}_{self.language_code}.txt"), encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
+
     def section(self, key):
         """Return the group of messages under `key` as a dict, in file order; {} if there is no such group.
 

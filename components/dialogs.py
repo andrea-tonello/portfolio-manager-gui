@@ -1,47 +1,40 @@
-import os
 import flet as ft
 
-from utils.constants import DEFAULT_LANG, GITHUB_URL, I18N_DIR
+from utils.constants import GITHUB_URL
+
+
+def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None):
+    """Show a read-only dialog: a title, an explanation and an OK button that closes it.
+
+    Used by the "?" help buttons, the privacy policy and the contacts. With markdown=True the
+    body can contain formatting and links (opened in the browser), and it scrolls when it is
+    taller than the dialog; pass `height` to fix the dialog's height instead of fitting the text.
+    """
+    if markdown:
+        content = ft.Column([
+            ft.Markdown(body, auto_follow_links=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
+        ], scroll=ft.ScrollMode.AUTO, tight=True)
+    else:
+        content = ft.Text(body)
+    page.show_dialog(ft.AlertDialog(
+        title=ft.Text(title, size=title_size),
+        content=ft.Container(content=content, width=450, height=height),
+        actions=[ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
+    ))
 
 
 def show_privacy_policy(page: ft.Page, state):
+    """Show the privacy policy, read from privacy_policy_<language>.txt."""
     t = state.translator
-    lang = state.lang_code or DEFAULT_LANG
-    pp_path = os.path.join(I18N_DIR, f"privacy_policy_{lang}.txt")
-    try:
-        with open(pp_path, encoding="utf-8") as f:
-            pp_text = f.read()
-    except FileNotFoundError:
-        pp_text = "Privacy policy not available."
-    dlg = ft.AlertDialog(
-        title=ft.Text(t.get("settings.privacy_policy")),
-        content=ft.Container(
-            content=ft.Column([
-                ft.Markdown(pp_text, auto_follow_links=True,
-                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
-            ], scroll=ft.ScrollMode.AUTO, tight=True),
-            width=450, height=450,
-        ),
-        actions=[ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
-    )
-    page.show_dialog(dlg)
+    show_info_dialog(page, t.get("settings.privacy_policy"),
+                     t.load_text("privacy_policy") or "Privacy policy not available.",
+                     markdown=True, height=450)
 
 
 def show_contacts(page: ft.Page, state):
+    """Show how to reach the developer, with clickable links."""
     t = state.translator
-    dlg = ft.AlertDialog(
-        title=ft.Text(t.get("settings.contacts")),
-        content=ft.Container(
-            content=ft.Markdown(
-                t.get("settings.contacts_content"),
-                auto_follow_links=True,
-                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB
-            ),
-            width=450,
-        ),
-        actions=[ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
-    )
-    page.show_dialog(dlg)
+    show_info_dialog(page, t.get("settings.contacts"), t.get("settings.contacts_content"), markdown=True)
 
 
 def show_user_manager(app):

@@ -1,11 +1,11 @@
 import flet as ft
 import numpy as np
 import pandas as pd
-import os
 from datetime import date
 
 from components.background import run_in_background
 from components.date_field import DateField
+from components.dialogs import show_info_dialog
 from components.focus_chain import chain_focus, scroll_into_view_on_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import show_snack
@@ -16,7 +16,7 @@ from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from services import operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
-from utils.constants import CURRENCIES, DATE_FORMAT, DEFAULT_LANG, I18N_DIR
+from utils.constants import CURRENCIES, DATE_FORMAT
 
 
 class OperationsView:
@@ -120,10 +120,7 @@ class OperationsView:
         holdings = self._get_held_tickers(df) if df is not None else []
         header_color = ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE)
 
-        split_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_split_help,
-        )
+        split_help = self._help_button("operations.split.title", "operations.split.descr")
 
         self.cash_type = ft.RadioGroup(
             value="deposit",
@@ -160,12 +157,9 @@ class OperationsView:
             label=t.get("operations.stock.ticker"),
             expand=True,
         )
-        self.cash_ticker_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_ticker_help,
-        )
+        cash_ticker_help = self._help_button("operations.stock.ticker", "operations.stock.ticker_explained")
         self.cash_ticker_row = ft.Container(
-            content=ft.Row([self.cash_ticker.control, self.cash_ticker_help]),
+            content=ft.Row([self.cash_ticker.control, cash_ticker_help]),
             visible=False, col={"xs": 12, "md": 6},
         )
         self.cash_descr = rounded_text_field(label=t.get("operations.cash.charge_descr"),
@@ -189,10 +183,7 @@ class OperationsView:
             input_filter=DECIMAL_INPUT_FILTER,
             expand=True,
         )
-        split_ratio_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_split_ratio_help,
-        )
+        split_ratio_help = self._help_button("operations.split.ratio_example", "operations.split.ratio_descr")
         self.split_ratio_row = ft.Container(
             content=ft.Row([self.split_ratio_field, split_ratio_help]),
             visible=False, col={"xs": 12, "md": 6},
@@ -368,10 +359,7 @@ class OperationsView:
             type_filter="etf" if product_type == "ETF" else "equity",
             expand=True,
         )
-        ticker_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_ticker_help,
-        )
+        ticker_help = self._help_button("operations.stock.ticker", "operations.stock.ticker_explained")
         ticker_row = ft.Container(
             content=ft.Row([ticker_field.control, ticker_help]),
             col={"xs": 12, "md": 6},
@@ -385,10 +373,7 @@ class OperationsView:
             col={"xs":12, "md": 6},
             expand=True
         )
-        ter_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_ter_help,
-        )
+        ter_help = self._help_button("operations.stock.ter", "operations.stock.ter_explained")
         ter_row = ft.Container(
             content=ft.Row([ter_field, ter_help]),
             col={"xs": 12, "md": 6},
@@ -402,10 +387,7 @@ class OperationsView:
             col={"xs": 12, "md": 6},
             expand=True
         )
-        tax_help = ft.FilledTonalIconButton(
-            icon=ft.Icons.HELP_OUTLINE,
-            on_click=self._show_tax_help,
-        )
+        tax_help = self._help_button("operations.stock.tax_bracket", "operations.stock.tax_explained")
         tax_row = ft.Container(
             content=ft.Row([tax_bracket_field, tax_help]),
             col={"xs": 12, "md": 6},
@@ -722,63 +704,24 @@ class OperationsView:
 
         run_in_background(self.page, t, save, loading=tab["loading"])
 
-    def _show_ticker_help(self, e):
-        t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.stock.ticker")),
-            content=ft.Container(
-                content=ft.Text(t.get("operations.stock.ticker_explained")),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
+    def _help_button(self, title_key, body_key):
+        """Return the round "?" button that opens a short explanation next to a field.
 
-    def _show_ter_help(self, e):
+        Both texts come from the translations, e.g. ("operations.stock.ter",
+        "operations.stock.ter_explained") explains what the TER of an ETF is.
+        """
         t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.stock.ter")),
-            content=ft.Container(
-                content=ft.Text(t.get("operations.stock.ter_explained")),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
+        return ft.FilledTonalIconButton(
+            icon=ft.Icons.HELP_OUTLINE,
+            on_click=lambda _: show_info_dialog(self.page, t.get(title_key), t.get(body_key)),
         )
-        self.page.show_dialog(dlg)
-
-    def _show_tax_help(self, e):
-        t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.stock.tax_bracket")),
-            content=ft.Container(
-                content=ft.Text(t.get("operations.stock.tax_explained")),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
 
     def _show_fee_help(self, e):
+        """Explain the fee modes, with the longer text from fee_mode_help_<language>.txt."""
         t = self.state.translator
-        lang = self.state.lang_code or DEFAULT_LANG
-        fee_help_path = os.path.join(I18N_DIR, f"fee_mode_help_{lang}.txt")
-        try:
-            with open(fee_help_path, encoding="utf-8") as f:
-                fee_help_text = f.read()
-        except FileNotFoundError:
-            fee_help_text = "Fee mode description not available."
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.stock.fee_mode_title"), size=21),
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Markdown(fee_help_text, auto_follow_links=True,
-                                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
-                ], scroll=ft.ScrollMode.AUTO, tight=True),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
+        show_info_dialog(self.page, t.get("operations.stock.fee_mode_title"),
+                         t.load_text("fee_mode_help") or "Fee mode description not available.",
+                         markdown=True, title_size=21)
 
     # ── Split helpers (shares the General tab layout) ────────────────
 
@@ -787,30 +730,6 @@ class OperationsView:
         if df is None or df.empty:
             return []
         return [(ticker, name or ticker) for ticker, name in held_tickers(df).items()]
-
-    def _show_split_help(self, e):
-        t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.split.title")),
-            content=ft.Container(
-                content=ft.Text(t.get("operations.split.descr")),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
-
-    def _show_split_ratio_help(self, e):
-        t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("operations.split.ratio_example")),
-            content=ft.Container(
-                content=ft.Text(t.get("operations.split.ratio_descr")),
-                width=450,
-            ),
-            actions=[ft.TextButton("OK", on_click=lambda _: self.page.pop_dialog())],
-        )
-        self.page.show_dialog(dlg)
 
     def _submit_split_from_general(self):
         s = self.state

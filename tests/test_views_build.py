@@ -10,9 +10,12 @@ as a screen is built, e.g. after upgrading Flet. With the pyproject.toml
 warning filter, any Flet deprecation fails the test.
 """
 
+import flet as ft
 import pytest
+from conftest import find_controls
 
-from utils.dialogs import show_contacts, show_privacy_policy, show_user_manager
+from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
+from utils.constants import LANGUAGES
 from views import onboarding_view
 from views.operations_view import OperationsView
 from views.shell import show_glossary
@@ -83,19 +86,28 @@ def test_first_launch_screens_build(screen, app, page):
     assert page.controls, "the screen should put its content on the page"
 
 
-@pytest.mark.parametrize("method", ["_show_ticker_help", "_show_ter_help", "_show_tax_help",
-                                    "_show_fee_help", "_show_split_help", "_show_split_ratio_help"])
-def test_operations_help_dialogs_build(method, app, page):
-    """Every "?" help dialog in the Operations tab builds."""
-    view = OperationsView(app)
-    view.build()
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_every_operations_help_button_opens_its_explanation(language, app, page, state):
+    """Each "?" button in the Operations tab opens a dialog whose title and text are translated.
 
-    getattr(view, method)(None)
+    A key missing from the translation file shows "<the.key>" on screen instead of
+    raising an error, so a mistyped or forgotten key would otherwise go unnoticed.
+    """
+    state.translator.load_language(language)
+    buttons = [b for b in find_controls(OperationsView(app).build(), ft.FilledTonalIconButton)
+               if b.icon == ft.Icons.HELP_OUTLINE]
+    assert len(buttons) == 11  # 3 in General, 4 each in ETF and Stock
 
-    assert len(page.dialogs) == 1
+    for button in buttons:
+        button.on_click(None)
+        dialog = page.dialogs.pop()
+        texts = [dialog.title.value] + [c.value for kind in (ft.Text, ft.Markdown)
+                                        for c in find_controls(dialog.content, kind)]
+        assert len(texts) == 2
+        assert all(text and not (text.startswith("<") and text.endswith(">")) for text in texts), texts
 
 
-@pytest.mark.parametrize("language", ["en", "it"])
+@pytest.mark.parametrize("language", LANGUAGES)
 def test_help_texts_are_read_from_their_files(language, app, page, state):
     """The privacy policy and the fee-mode help show the text of their per-language files.
 
@@ -104,7 +116,7 @@ def test_help_texts_are_read_from_their_files(language, app, page, state):
     otherwise go unnoticed.
     """
     fallbacks = {"Privacy policy not available.", "Fee mode description not available."}
-    state.lang_code = language
+    state.translator.load_language(language)
 
     show_privacy_policy(page, state)
     OperationsView(app)._show_fee_help(None)

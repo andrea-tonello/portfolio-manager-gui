@@ -1,12 +1,12 @@
 import flet as ft
 
+from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
 from utils.constants import APP_VERSION, DEFAULT_LANG, LANGUAGES
-from utils.dialogs import show_privacy_policy, show_contacts, build_github_repo
 
 PAGE_WIDTH = 720
 

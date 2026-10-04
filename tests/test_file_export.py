@@ -11,9 +11,6 @@ from conftest import snack_texts
 from test_exports import FakeFilePicker
 
 from components.file_export import get_file_picker, save_bytes
-from views.analysis_view import AnalysisView
-from views.settings_view import SettingsView
-from views.transactions_view import TransactionsView
 
 
 def test_the_file_picker_is_registered_once_and_reused(page):
