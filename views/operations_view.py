@@ -2,21 +2,20 @@ import flet as ft
 import numpy as np
 import pandas as pd
 import os
-from datetime import date, datetime, timedelta
+from datetime import date
 
+from components.date_field import DateField
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
-from domain.ledger import LEDGER_START_DATE, Product
+from domain.ledger import Product
 from domain.positions import held_tickers
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 from services import operations_service
 from services.market_data import search_tickers
 from utils.other_utils import round_half_up
 from utils.constants import CURRENCIES, DATE_FORMAT, DEFAULT_LANG, I18N_DIR
-from utils.date_utils import parse_date_input
 
-_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 _DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 
 
@@ -166,21 +165,7 @@ class OperationsView:
             ], spacing=0, opacity=0.4 if no_account else 1.0),
             on_change=self._on_cash_type_change,
         )
-        self.cash_date_field = ft.TextField(
-            label=t.get("components.pick_date"),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=self._on_cash_date_typed,
-            expand=True,
-        )
-        self.cash_date_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=self._open_cash_date_picker,
-        )
-        self.cash_date_value = None
+        self.cash_date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
 
         self.cash_amount = ft.TextField(label=t.get("operations.cash.amount"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
@@ -245,7 +230,7 @@ class OperationsView:
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
         # Tuples: (field_to_focus, control_to_check_visibility)
         cash_fields = [
-            self.cash_date_field,
+            self.cash_date.field,
             (self.cash_amount, self.cash_amount),
             (self.cash_ticker._field, self.cash_ticker_row),
             (self.cash_descr, self.cash_descr),
@@ -263,7 +248,7 @@ class OperationsView:
 
         col = ft.Column([
             self.cash_type,
-            ft.Row([self.cash_date_field, self.cash_date_icon],),
+            self.cash_date.control,
             ft.ResponsiveRow([
                 self.cash_amount, self.cash_ticker_row, self.cash_descr,
                 self.split_ticker_row, self.split_ratio_row,
@@ -277,8 +262,8 @@ class OperationsView:
             if hasattr(e.control, "key") and e.control.key:
                 await col.scroll_to(scroll_key=e.control.key, duration=300)
 
-        self.cash_date_field.key = "cash_date"
-        self.cash_date_field.on_focus = on_focus
+        self.cash_date.field.key = "cash_date"
+        self.cash_date.field.on_focus = on_focus
         self.cash_amount.key = "cash_amount"
         self.cash_amount.on_focus = on_focus
         self.cash_ticker.key = "cash_ticker"
@@ -309,25 +294,6 @@ class OperationsView:
         )
         self.page.update()
 
-    def _open_cash_date_picker(self, e):
-        dp = ft.DatePicker(
-            first_date=LEDGER_START_DATE,
-            last_date=datetime.now(),
-            on_change=self._on_cash_date_picked,
-        )
-        self.page.show_dialog(dp)
-
-    def _on_cash_date_typed(self, e):
-        self.cash_date_value = parse_date_input(e.control.value)
-
-    def _on_cash_date_picked(self, e):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        self.cash_date_value = picked
-        self.cash_date_field.value = picked.strftime(DATE_FORMAT)
-        self.page.update()
-
     def _submit_cash(self, e):
         s = self.state
         t = s.translator
@@ -337,13 +303,13 @@ class OperationsView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        if self.cash_date_value is None:
+        if self.cash_date.value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if self.cash_date_value > date.today():
+        if self.cash_date.value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self._is_before_last_entry(df, self.cash_date_value):
+        if self._is_before_last_entry(df, self.cash_date.value):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
@@ -372,8 +338,8 @@ class OperationsView:
             amount = -amount
         service_kind = "deposit_withdrawal" if kind in ("deposit", "withdrawal") else kind
 
-        date_str = self.cash_date_value.strftime(DATE_FORMAT)
-        ref_date = self.cash_date_value
+        date_str = self.cash_date.value.strftime(DATE_FORMAT)
+        ref_date = self.cash_date.value
         ticker = self.cash_ticker.value if kind == "dividend" else None
         descr = self.cash_descr.value if kind == "charge" else None
         acc_idx = s.ops_acc_idx
@@ -433,22 +399,9 @@ class OperationsView:
             opacity=0.4 if no_account else 1.0,
         )
 
-        date_field = ft.TextField(
-            label=t.get("components.pick_date"),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=lambda e, pt=product_type: self._on_es_date_typed(e, pt),
-            expand=True,
-        )
-        date_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=lambda e, pt=product_type: self._open_es_date_picker(e, pt),
-        )
+        date_input = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
         date_row = ft.Container(
-            content=ft.Row([date_field, date_icon]),
+            content=date_input.control,
             col={"xs": 12, "md": 6},
         )
 
@@ -600,14 +553,14 @@ class OperationsView:
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
         es_fields = [
-            date_field, ticker_field._field, exch_rate,
+            date_input.field, ticker_field._field, exch_rate,
             quantity_field, price_field, fee_field, ter_field,
         ]
         chain_focus(es_fields)
 
         tab_data = {
             "es_type": es_type,
-            "date_field": date_field, "date_icon": date_icon, "date_value": None,
+            "date": date_input,
             "currency_dd": currency_dd, "exch_rate": exch_rate,
             "ticker": ticker_field, "quantity": quantity_field, "price": price_field,
             "fee_currency_dd": fee_currency_dd, "fee": fee_field, "ter": ter_field,
@@ -648,7 +601,7 @@ class OperationsView:
                     await stock_etf_form.scroll_to(scroll_key=e.control.key, duration=300)
 
             for name, field in [
-                ("date", date_field), ("exch_rate", exch_rate),
+                ("date", date_input.field), ("exch_rate", exch_rate),
                 ("ticker", ticker_field), ("quantity", quantity_field),
                 ("price", price_field), ("fee", fee_field), ("ter", ter_field),
             ]:
@@ -714,7 +667,7 @@ class OperationsView:
                 await outer.scroll_to(scroll_key=e.control.key, duration=300)
 
         for name, field in [
-            ("date", date_field), ("exch_rate", exch_rate),
+            ("date", date_input.field), ("exch_rate", exch_rate),
             ("ticker", ticker_field), ("quantity", quantity_field),
             ("price", price_field), ("fee", fee_field), ("ter", ter_field),
         ]:
@@ -722,27 +675,6 @@ class OperationsView:
             field.on_focus = on_focus_etf
 
         return ft.Container(content=outer, padding=20, expand=True)
-
-    def _open_es_date_picker(self, e, product_type):
-        dp = ft.DatePicker(
-            first_date=LEDGER_START_DATE,
-            last_date=datetime.now(),
-            on_change=lambda ev, pt=product_type: self._on_es_date_picked(ev, pt),
-        )
-        self.page.show_dialog(dp)
-
-    def _on_es_date_typed(self, e, product_type):
-        tab = self._es_tabs[product_type]
-        tab["date_value"] = parse_date_input(e.control.value)
-
-    def _on_es_date_picked(self, e, product_type):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        tab = self._es_tabs[product_type]
-        tab["date_value"] = picked
-        tab["date_field"].value = picked.strftime(DATE_FORMAT)
-        self.page.update()
 
     def _on_currency_change(self, e, product_type):
         tab = self._es_tabs[product_type]
@@ -764,13 +696,13 @@ class OperationsView:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
-        if tab["date_value"] is None:
+        if tab["date"].value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if tab["date_value"] > date.today():
+        if tab["date"].value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self._is_before_last_entry(df, tab["date_value"]):
+        if self._is_before_last_entry(df, tab["date"].value):
             show_snack(self.page, t.get("misc_errors.date_sequential"), error=True)
             return
 
@@ -853,8 +785,8 @@ class OperationsView:
         # The product stored in the CSV: the ETF type picked (already a product code), or Stock
         stored_product = tab["etf_subtype"] if product_type == "ETF" else Product.STOCK
 
-        date_str = tab["date_value"].strftime(DATE_FORMAT)
-        ref_date = tab["date_value"]
+        date_str = tab["date"].value.strftime(DATE_FORMAT)
+        ref_date = tab["date"].value
         acc_idx = s.ops_acc_idx
 
         tab["loading"].visible = True
@@ -997,8 +929,8 @@ class OperationsView:
             show_snack(self.page, t.get("operations.split.ratio_error"), error=True)
             return
 
-        date_str = self.cash_date_value.strftime(DATE_FORMAT)
-        ref_date = self.cash_date_value
+        date_str = self.cash_date.value.strftime(DATE_FORMAT)
+        ref_date = self.cash_date.value
         acc_idx = s.ops_acc_idx
 
         self.cash_loading.visible = True

@@ -2,17 +2,15 @@ import io
 import flet as ft
 import numpy as np
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date
 
+from components.date_field import DateField, date_range_fields
 from components.focus_chain import chain_focus
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
-from domain.ledger import LEDGER_START_DATE
 from services import analysis_service, chart_service
 from utils.constants import DATE_FORMAT
-from utils.date_utils import parse_date_input
 
-_DATE_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 _DECIMAL_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 _INT_FILTER = ft.NumbersOnlyInputFilter()
 
@@ -138,21 +136,7 @@ class AnalysisView:
 
     def _build_summary_tab(self) -> ft.Control:
         t = self.state.translator
-        self.sum_date_field = ft.TextField(
-            label=t.get("components.pick_date"),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=self._on_sum_date_typed,
-            expand=True,
-        )
-        self.sum_date_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=self._open_sum_date_picker,
-        )
-        self.sum_date_value = None
+        self.sum_date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
         self.sum_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.sum_results = ft.Column([], spacing=5)
         self.sum_chart = ft.Container()
@@ -172,7 +156,7 @@ class AnalysisView:
 
         col = ft.Column([
             ft.Container(height=5),
-            ft.Row([self.sum_date_field, self.sum_date_icon]),
+            self.sum_date.control,
             ft.Row([ft.Container(width=5), self.sum_loading]),
             ft.Row([sum_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.sum_results,
@@ -185,37 +169,18 @@ class AnalysisView:
             if hasattr(e.control, "key") and e.control.key:
                 await col.scroll_to(scroll_key=e.control.key, duration=300)
 
-        self.sum_date_field.key = "sum_date"
-        self.sum_date_field.on_focus = on_focus
+        self.sum_date.field.key = "sum_date"
+        self.sum_date.field.on_focus = on_focus
 
         return ft.Container(content=col, padding=10, expand=True)
-
-    def _open_sum_date_picker(self, e):
-        dp = ft.DatePicker(
-            first_date=LEDGER_START_DATE,
-            last_date=datetime.now(),
-            on_change=self._on_sum_date_picked,
-        )
-        self.page.show_dialog(dp)
-
-    def _on_sum_date_typed(self, e):
-        self.sum_date_value = parse_date_input(e.control.value)
-
-    def _on_sum_date_picked(self, e):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        self.sum_date_value = picked
-        self.sum_date_field.value = picked.strftime(DATE_FORMAT)
-        self.page.update()
 
     def _submit_summary(self, e):
         s = self.state
         t = s.translator
-        if self.sum_date_value is None:
+        if self.sum_date.value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if self.sum_date_value > date.today():
+        if self.sum_date.value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
 
@@ -229,7 +194,7 @@ class AnalysisView:
 
         def worker():
             try:
-                ref_date = self.sum_date_value
+                ref_date = self.sum_date.value
                 dt_str = ref_date.strftime(DATE_FORMAT)
 
                 result = analysis_service.compute_summary(data, ref_date, dt_str)
@@ -315,37 +280,10 @@ class AnalysisView:
             on_change=self._on_corr_type_change,
         )
 
-        self.corr_start_field = ft.TextField(
-            label=t.get("analysis.corr.start_dt").strip(),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=lambda e: self._on_corr_date_typed(e, "start"),
-            expand=True,
+        self.corr_start, self.corr_end = date_range_fields(
+            self.page, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip(),
+            t.get("components.date_format_hint"),
         )
-        self.corr_start_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=lambda e: self._open_corr_date_picker(e, "start"),
-        )
-        self.corr_start_value = None
-
-        self.corr_end_field = ft.TextField(
-            label=t.get("analysis.corr.end_dt").strip(),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=lambda e: self._on_corr_date_typed(e, "end"),
-            expand=True,
-        )
-        self.corr_end_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=lambda e: self._open_corr_date_picker(e, "end"),
-        )
-        self.corr_end_value = None
 
         self.corr_asset1 = TickerSearchField(
             self.page,
@@ -373,8 +311,8 @@ class AnalysisView:
 
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([
-            self.corr_start_field,
-            self.corr_end_field,
+            self.corr_start.field,
+            self.corr_end.field,
             (self.corr_asset1._field, self.corr_rolling_fields),
             (self.corr_asset2._field, self.corr_rolling_fields),
             (self.corr_window, self.corr_rolling_fields),
@@ -401,8 +339,8 @@ class AnalysisView:
         col = ft.Column([
             self.corr_type,
             ft.Container(height=5),
-            ft.Row([self.corr_start_field, self.corr_start_icon]),
-            ft.Row([self.corr_end_field, self.corr_end_icon]),
+            self.corr_start.control,
+            self.corr_end.control,
             self.corr_rolling_fields,
             ft.Row([ft.Container(width=5), self.corr_loading]),
             ft.Row([corr_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
@@ -418,7 +356,7 @@ class AnalysisView:
                 await col.scroll_to(scroll_key=e.control.key, duration=300)
 
         for name, field in [
-            ("corr_start", self.corr_start_field), ("corr_end", self.corr_end_field),
+            ("corr_start", self.corr_start.field), ("corr_end", self.corr_end.field),
             ("corr_asset1", self.corr_asset1), ("corr_asset2", self.corr_asset2),
             ("corr_window", self.corr_window),
         ]:
@@ -437,49 +375,16 @@ class AnalysisView:
         self.corr_export_row.visible = False
         self.page.update()
 
-    def _open_corr_date_picker(self, e, which):
-        first = LEDGER_START_DATE
-        last = datetime.now()
-        if which == "start" and self.corr_end_value:
-            last = datetime.combine(self.corr_end_value, datetime.min.time()) - timedelta(days=1)
-        elif which == "end" and self.corr_start_value:
-            first = datetime.combine(self.corr_start_value, datetime.min.time()) + timedelta(days=1)
-        dp = ft.DatePicker(
-            first_date=first,
-            last_date=last,
-            on_change=lambda ev, w=which: self._on_corr_date_picked(ev, w),
-        )
-        self.page.show_dialog(dp)
-
-    def _on_corr_date_typed(self, e, which):
-        parsed = parse_date_input(e.control.value)
-        if which == "start":
-            self.corr_start_value = parsed
-        else:
-            self.corr_end_value = parsed
-
-    def _on_corr_date_picked(self, e, which):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        if which == "start":
-            self.corr_start_value = picked
-            self.corr_start_field.value = picked.strftime(DATE_FORMAT)
-        else:
-            self.corr_end_value = picked
-            self.corr_end_field.value = picked.strftime(DATE_FORMAT)
-        self.page.update()
-
     def _submit_correlation(self, e):
         s = self.state
         t = s.translator
-        if self.corr_start_value is None or self.corr_end_value is None:
+        if self.corr_start.value is None or self.corr_end.value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if self.corr_start_value > date.today() or self.corr_end_value > date.today():
+        if self.corr_start.value > date.today() or self.corr_end.value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self.corr_start_value >= self.corr_end_value:
+        if self.corr_start.value >= self.corr_end.value:
             show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
             return
 
@@ -511,8 +416,8 @@ class AnalysisView:
 
         def worker():
             try:
-                start_dt = self.corr_start_value.strftime("%Y-%m-%d")
-                end_dt = self.corr_end_value.strftime("%Y-%m-%d")
+                start_dt = self.corr_start.value.strftime("%Y-%m-%d")
+                end_dt = self.corr_end.value.strftime("%Y-%m-%d")
 
                 result = analysis_service.compute_correlation(
                     data, start_dt, end_dt, asset1, asset2, window
@@ -566,40 +471,13 @@ class AnalysisView:
 
     def _build_drawdown_tab(self) -> ft.Control:
         t = self.state.translator
-        self.dd_start_field = ft.TextField(
-            label=t.get("analysis.drawdown.start_dt").strip(),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=lambda e: self._on_dd_date_typed(e, "start"),
-            expand=True,
+        self.dd_start, self.dd_end = date_range_fields(
+            self.page, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip(),
+            t.get("components.date_format_hint"),
         )
-        self.dd_start_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=lambda e: self._open_dd_date_picker(e, "start"),
-        )
-        self.dd_start_value = None
-
-        self.dd_end_field = ft.TextField(
-            label=t.get("analysis.drawdown.end_dt").strip(),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=lambda e: self._on_dd_date_typed(e, "end"),
-            expand=True,
-        )
-        self.dd_end_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=lambda e: self._open_dd_date_picker(e, "end"),
-        )
-        self.dd_end_value = None
 
         # Chain on_submit for keyboard "next field" navigation
-        chain_focus([self.dd_start_field, self.dd_end_field])
+        chain_focus([self.dd_start.field, self.dd_end.field])
 
         self.dd_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.dd_result_text = ft.Text("", size=14, selectable=True)
@@ -620,8 +498,8 @@ class AnalysisView:
 
         col = ft.Column([
             ft.Container(height=5),
-            ft.Row([self.dd_start_field, self.dd_start_icon]),
-            ft.Row([self.dd_end_field, self.dd_end_icon]),
+            self.dd_start.control,
+            self.dd_end.control,
             ft.Row([ft.Container(width=5), self.dd_loading]),
             ft.Row([dd_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.dd_result_text,
@@ -634,56 +512,23 @@ class AnalysisView:
             if hasattr(e.control, "key") and e.control.key:
                 await col.scroll_to(scroll_key=e.control.key, duration=300)
 
-        self.dd_start_field.key = "dd_start"
-        self.dd_start_field.on_focus = on_focus
-        self.dd_end_field.key = "dd_end"
-        self.dd_end_field.on_focus = on_focus
+        self.dd_start.field.key = "dd_start"
+        self.dd_start.field.on_focus = on_focus
+        self.dd_end.field.key = "dd_end"
+        self.dd_end.field.on_focus = on_focus
 
         return ft.Container(content=col, padding=10, expand=True)
-
-    def _open_dd_date_picker(self, e, which):
-        first = LEDGER_START_DATE
-        last = datetime.now()
-        if which == "start" and self.dd_end_value:
-            last = datetime.combine(self.dd_end_value, datetime.min.time()) - timedelta(days=1)
-        elif which == "end" and self.dd_start_value:
-            first = datetime.combine(self.dd_start_value, datetime.min.time()) + timedelta(days=1)
-        dp = ft.DatePicker(
-            first_date=first,
-            last_date=last,
-            on_change=lambda ev, w=which: self._on_dd_date_picked(ev, w),
-        )
-        self.page.show_dialog(dp)
-
-    def _on_dd_date_typed(self, e, which):
-        parsed = parse_date_input(e.control.value)
-        if which == "start":
-            self.dd_start_value = parsed
-        else:
-            self.dd_end_value = parsed
-
-    def _on_dd_date_picked(self, e, which):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        if which == "start":
-            self.dd_start_value = picked
-            self.dd_start_field.value = picked.strftime(DATE_FORMAT)
-        else:
-            self.dd_end_value = picked
-            self.dd_end_field.value = picked.strftime(DATE_FORMAT)
-        self.page.update()
 
     def _submit_drawdown(self, e):
         s = self.state
         t = s.translator
-        if self.dd_start_value is None or self.dd_end_value is None:
+        if self.dd_start.value is None or self.dd_end.value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if self.dd_start_value > date.today() or self.dd_end_value > date.today():
+        if self.dd_start.value > date.today() or self.dd_end.value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
-        if self.dd_start_value >= self.dd_end_value:
+        if self.dd_start.value >= self.dd_end.value:
             show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
             return
         data = self._get_analysis_data()
@@ -696,8 +541,8 @@ class AnalysisView:
 
         def worker():
             try:
-                start_dt = self.dd_start_value
-                end_dt = self.dd_end_value
+                start_dt = self.dd_start.value
+                end_dt = self.dd_end.value
 
                 result = analysis_service.compute_drawdown(data, start_dt, end_dt)
 
@@ -856,21 +701,7 @@ class AnalysisView:
 
     def _build_allocation_tab(self) -> ft.Control:
         t = self.state.translator
-        self.alloc_date_field = ft.TextField(
-            label=t.get("components.pick_date"),
-            hint_text=t.get("components.date_format_hint"),
-            border_radius=ft.BorderRadius.all(15),
-            border_color=ft.Colors.with_opacity(0.40, ft.Colors.GREY),
-            keyboard_type=ft.KeyboardType.DATETIME,
-            input_filter=_DATE_FILTER,
-            on_change=self._on_alloc_date_typed,
-            expand=True,
-        )
-        self.alloc_date_icon = ft.FilledTonalIconButton(
-            icon=ft.Icons.CALENDAR_MONTH,
-            on_click=self._open_alloc_date_picker,
-        )
-        self.alloc_date_value = None
+        self.alloc_date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
         self.alloc_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.alloc_chart = ft.Container()
 
@@ -885,43 +716,24 @@ class AnalysisView:
 
         col = ft.Column([
             ft.Container(height=5),
-            ft.Row([self.alloc_date_field, self.alloc_date_icon]),
+            self.alloc_date.control,
             ft.Row([ft.Container(width=5), self.alloc_loading]),
             ft.Row([alloc_submit_btn], alignment=ft.MainAxisAlignment.CENTER),
             self.alloc_chart,
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        self.alloc_date_field.key = "alloc_date"
+        self.alloc_date.field.key = "alloc_date"
 
         return ft.Container(content=col, padding=10, expand=True)
-
-    def _open_alloc_date_picker(self, e):
-        dp = ft.DatePicker(
-            first_date=LEDGER_START_DATE,
-            last_date=datetime.now(),
-            on_change=self._on_alloc_date_picked,
-        )
-        self.page.show_dialog(dp)
-
-    def _on_alloc_date_typed(self, e):
-        self.alloc_date_value = parse_date_input(e.control.value)
-
-    def _on_alloc_date_picked(self, e):
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        self.alloc_date_value = picked
-        self.alloc_date_field.value = picked.strftime(DATE_FORMAT)
-        self.page.update()
 
     def _submit_allocation(self, e):
         s = self.state
         t = s.translator
-        if self.alloc_date_value is None:
+        if self.alloc_date.value is None:
             show_snack(self.page, t.get("misc_errors.nodate"), error=True)
             return
-        if self.alloc_date_value > date.today():
+        if self.alloc_date.value > date.today():
             show_snack(self.page, t.get("misc_errors.date_future"), error=True)
             return
 
@@ -935,7 +747,7 @@ class AnalysisView:
 
         def worker():
             try:
-                allocation = analysis_service.compute_allocation(data, self.alloc_date_value)
+                allocation = analysis_service.compute_allocation(data, self.alloc_date.value)
                 self.alloc_chart.content = chart_service.chart_allocation(allocation, t)
             except Exception as ex:
                 show_snack(self.page, error_message(t, ex), error=True)

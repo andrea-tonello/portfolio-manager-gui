@@ -116,7 +116,7 @@ def open_trade_form(monkeypatch, app, page, state):
         Returns (form fields, submit function, recorded calls).
         """
         form = view._es_tabs[tab]
-        form["date_value"] = date(2025, 1, 10)   # after the account's last operation
+        form["date"].value = date(2025, 1, 10)   # after the account's last operation
         form["ticker"].value = "UUU"
         form["quantity"].value = "5"
         form["price"].value = "200"
