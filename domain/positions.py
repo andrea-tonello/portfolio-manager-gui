@@ -134,6 +134,18 @@ def unrecorded_splits(df, ticker, splits):
     return [(day.strftime("%Y-%m-%d"), ratio) for day, ratio in splits if day not in recorded_dates]
 
 
+def split_ratio_label(ratio):
+    """Write a split ratio the way brokers do: new shares to old shares.
+
+    Examples: 2.0 -> "2:1" (each share becomes two), 1.5 -> "1.5:1",
+    0.25 -> "1:4" (a reverse split: four shares become one), 1/3 -> "1:3".
+    """
+    if ratio >= 1:
+        return f"{int(ratio) if ratio.is_integer() else ratio}:1"
+    inverse = 1 / ratio
+    return f"1:{int(inverse) if inverse.is_integer() else round(inverse, 4)}"
+
+
 def get_tickers(accounts):
     """Return (all, active): the (ticker, currency) pairs ever held and still held, across `accounts` (a list of Account)."""
     total_tickers = []

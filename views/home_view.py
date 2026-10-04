@@ -8,11 +8,12 @@ from components.background import run_in_background
 from components.inputs import account_selector
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
-from domain.positions import held_tickers, priced_positions
+from domain.positions import held_tickers, split_ratio_label
 from services import config_service, operations_service
 from services.market_data import download_close
+from services.portfolio_service import compute_snapshot
 from utils.constants import DATE_FORMAT
-from utils.other_utils import round_half_up
+from utils.formatting import HIDDEN_MASK, LOADING, fmt_eur, fmt_pct
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,19 @@ WIDTH_WATCHLIST = 800
 
 # Home reuses its last values until the user has switched tabs this many times, then fetches live ones.
 REFRESH_AFTER_TAB_SWITCHES = 10
+
+# What the P&L card shows, in the order a tap cycles through them (the user's choice is saved as
+# the index): the label's translation key, and how to read (amount, percentage) from a Snapshot.
+PNL_MODES = [
+    ("home.pnl_unrealized_daily", lambda snap: (snap.daily_pnl, snap.daily_pct)),
+    ("home.pnl_unrealized_total", lambda snap: (snap.unrealized_pnl, snap.unrealized_pct)),
+    ("home.pnl_total", lambda snap: (snap.total_pnl, snap.total_pct)),
+]
+
+
+def _pnl_color(amount):
+    """Green for a gain (or zero), red for a loss."""
+    return ft.Colors.GREEN if amount >= 0 else ft.Colors.RED
 
 
 def _longpress_tooltip(control: ft.Control, name: str) -> ft.Control:
@@ -41,26 +55,33 @@ class HomeView:
         self.app = app
         self.page = app.page
         self.state = app.state
+        self._snapshot = None  # the values shown (a Snapshot); None until the first fetch ends
+        self._pnl_mode = self.state.home_pnl_mode  # index in PNL_MODES, saved per user
+        self._pos_display_mode = 0  # 0 = value, 1 = total %, 2 = daily %
+        self._active_section_tab = 0  # 0 = open positions, 1 = watchlist
+        self._watchlist_fetched = False
 
     def build(self) -> ft.Control:
         t = self.state.translator
         if not self.state.brokers:
             return ft.Column([ft.Text(t.get("home.no_account"), size=16)])
 
+        accounts = self._selected_accounts()
+        header = [self._build_dropdown()]
+        if accounts:  # with no account file loaded there are no cards, so nothing to refresh
+            header.append(ft.IconButton(
+                icon=ft.Icons.REFRESH,
+                tooltip=t.get("components.loading"),
+                on_click=self._on_refresh,
+            ))
+
         return ft.Column([
             ft.Container(
-                ft.Row([
-                    self._build_dropdown(),
-                    ft.IconButton(
-                        icon=ft.Icons.REFRESH,
-                        tooltip=t.get("components.loading"),
-                        on_click=self._on_refresh,
-                    ),
-                ]),
+                ft.Row(header),
                 padding=ft.Padding.only(top=5, left=5, right=5),
             ),
             ft.Container(
-                content=self._build_content(),
+                content=self._build_content() if accounts else ft.Text(t.get("home.no_account"), size=14),
                 alignment=ft.alignment.Alignment.TOP_CENTER,
             ),
         ], scroll=ft.ScrollMode.AUTO, expand=True,)
@@ -78,20 +99,18 @@ class HomeView:
     def _on_refresh(self, e):
         self._fetch_live_values()
 
-    def _build_content(self) -> ft.Control:
+    def _selected_accounts(self) -> list:
+        """The loaded accounts Home shows: all of them for the overview, or just the selected one."""
         sel = self.state.home_selection
         if sel == "overview":
-            return self._build_overview()
-        else:
-            idx = int(sel)
-            return self._build_single_account(idx)
+            return list(self.state.accounts.values())
+        account = self.state.get_account(int(sel))
+        return [account] if account is not None else []
 
     # ── Section Tab Switcher ─────────────────────────────────────────
 
     def _build_section_tabs(self) -> ft.Control:
         t = self.state.translator
-        self._active_section_tab = 0
-        self._watchlist_fetched = False
 
         self._tab_positions_text = ft.Text(
             t.get("home.open_positions"), size=14,
@@ -314,13 +333,10 @@ class HomeView:
             key=ticker,
         )
 
-    # ── Overview ──────────────────────────────────────────────────────
+    # ── Open Positions ────────────────────────────────────────────────
 
-    # (also shared with single accounts)
     def _open_positions_header(self) -> ft.Control:
         t = self.state.translator
-        self._pos_display_mode = 0
-        self._positions_data = []
         self._pos_mode_labels = [
             t.get("home.pos_value"),
             t.get("home.pos_total_pct"),
@@ -349,49 +365,13 @@ class HomeView:
         self.state.haptic(self.page)
         self._pos_display_mode = (self._pos_display_mode + 1) % 3
         self._pos_mode_btn.content = ft.Text(self._pos_mode_labels[self._pos_display_mode])
-        hidden = self.state.home_values_hidden
-        self._update_positions(self._positions_data, hidden)
+        self._update_positions()
         self.page.update()
 
+    # ── Content (the overview or a single account) ────────────────────
 
-    def _build_overview(self) -> ft.Control:
-        t = self.state.translator
-        accounts = self.state.accounts
-        if not accounts:
-            return ft.Text(t.get("home.no_account"), size=14)
-
-        cards = self._build_stats_cards()
-        tabs = self._build_section_tabs()
-        self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
-        header = self._open_positions_header()
-        watchlist_content = self._build_watchlist_content()
-
-        self._positions_section = ft.Column([header, self._positions_container], spacing=6)
-        self._watchlist_section = ft.Container(
-            content=watchlist_content,
-            visible=False,
-            padding=ft.Padding.only(left=16, right=16, bottom=8),
-        )
-
-        content = ft.Column([
-            cards,
-            tabs,
-            self._positions_section,
-            self._watchlist_section,
-        ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-
-        self._auto_fetch_or_restore()
-
-        return content
-
-    # ── Single Account ────────────────────────────────────────────────
-
-    def _build_single_account(self, idx: int) -> ft.Control:
-        t = self.state.translator
-        acc = self.state.get_account(idx)
-        if acc is None:
-            return ft.Text(t.get("home.no_account"), size=14)
-
+    def _build_content(self) -> ft.Control:
+        """Build the cards, the positions/watchlist switcher and both sections, then fill in the values."""
         cards = self._build_stats_cards()
         tabs = self._build_section_tabs()
         self._positions_container = ft.Column([], spacing=6, width=WIDTH_POSITIONS)
@@ -421,167 +401,33 @@ class HomeView:
     def _auto_fetch_or_restore(self):
         """Use cached data if fresh enough, otherwise fetch live values."""
         s = self.state
-        cache = s.home_cache
-        if (cache is not None
-                and cache.get("selection") == s.home_selection
+        selection, snapshot = s.home_cache or (None, None)
+        if (snapshot is not None
+                and selection == s.home_selection
                 and s.home_nav_count < REFRESH_AFTER_TAB_SWITCHES):
-            self._restore_from_cache(cache)
+            self._render(snapshot)
         else:
             self._fetch_live_values()
 
-    def _restore_from_cache(self, cache):
-        """Populate widgets from cached data without network fetch."""
-        self._current_nav_str = cache["nav_str"]
-        self._current_assets_str = cache["assets_str"]
-        self._current_cash_str = cache["cash_str"]
-        self._current_upnl_str = cache["upnl_str"]
-        self._current_upnl_color = cache["upnl_color"]
-        self._current_tpnl_str = cache["tpnl_str"]
-        self._current_tpnl_color = cache["tpnl_color"]
-        self._current_dpnl_str = cache.get("dpnl_str", "---")
-        self._current_dpnl_color = cache.get("dpnl_color")
-        self._current_upnl_pct_str = cache.get("upnl_pct_str", "---")
-        self._current_tpnl_pct_str = cache.get("tpnl_pct_str", "---")
-        self._current_dpnl_pct_str = cache.get("dpnl_pct_str", "---")
-
-        hidden = self.state.home_values_hidden
+    def _render(self, snapshot):
+        """Show `snapshot` on the cards and in the positions list (amounts stay masked while hidden)."""
+        self._snapshot = snapshot
         self._apply_subtotals()
-        if not hidden:
-            self._set_nav_value(self._current_nav_str)
-            self._update_pnl_display()
-
-        self._update_positions(cache["positions"], hidden)
+        if not self.state.home_values_hidden:
+            self._show_nav_and_pnl()
+        self._update_positions()
 
     def _fetch_live_values(self):
-        """Fetch live asset values from yfinance in background and update cards."""
+        """Fetch live prices in the background, show the new values and keep them for the next visits."""
         self._refresh_loading.visible = True
         self.page.update()
 
         def worker():
+            s = self.state
             try:
-                s = self.state
-                ref_date = pd.Timestamp(datetime.now())
-                sel = s.home_selection
-                all_positions = []
-
-                if sel == "overview":
-                    total_cash = 0.0
-                    total_assets = 0.0
-                    total_committed = 0.0
-                    aggr = {}  # ticker -> {quantity, total_cost, price}
-                    for account in s.accounts.values():
-                        if account.df is None or account.df.empty:
-                            continue
-                        total_cash += account.last("cash_held")
-                        total_committed += account.last("committed_cash")
-                        positions = priced_positions(account.df, ref_date)
-                        if positions:
-                            total_assets += round_half_up(sum(p["value"] for p in positions))
-                            for p in positions:
-                                tk = p["ticker"]
-                                if tk in aggr:
-                                    aggr[tk]["quantity"] += p["quantity"]
-                                    aggr[tk]["total_cost"] += p["quantity"] * p["pmc"]
-                                else:
-                                    aggr[tk] = {
-                                        "quantity": p["quantity"],
-                                        "total_cost": p["quantity"] * p["pmc"],
-                                        "price": p["price"],
-                                        "prev_close": p.get("prev_close", p["price"]),
-                                        "name": p.get("name", tk),
-                                    }
-                    for tk, d in aggr.items():
-                        all_positions.append({
-                            "ticker": tk,
-                            "quantity": d["quantity"],
-                            "pmc": d["total_cost"] / d["quantity"] if d["quantity"] else 0,
-                            "price": d["price"],
-                            "prev_close": d["prev_close"],
-                            "name": d["name"],
-                        })
-                    total_nav = total_cash + total_assets
-                    nav_num = total_nav
-                    self._current_nav_str = f"{total_nav:,.2f}\u20ac"
-                    self._current_assets_str = f"{total_assets:,.2f}\u20ac"
-                    self._current_cash_str = f"{total_cash:,.2f}\u20ac"
-                else:
-                    account = s.get_account(int(sel))
-                    if account is None:
-                        return
-                    cash = account.last("cash_held")
-                    total_committed = account.last("committed_cash")
-                    positions = priced_positions(account.df, ref_date)
-                    assets = round_half_up(sum(p["value"] for p in positions)) if positions else 0.0
-                    nav = cash + assets
-                    nav_num = nav
-                    self._current_nav_str = f"{nav:,.2f}\u20ac"
-                    self._current_assets_str = f"{assets:,.2f}\u20ac"
-                    self._current_cash_str = f"{cash:,.2f}\u20ac"
-                    all_positions = [
-                        {"ticker": p["ticker"], "quantity": p["quantity"],
-                         "pmc": p["pmc"], "price": p["price"],
-                         "prev_close": p.get("prev_close", p["price"]),
-                         "name": p.get("name", p["ticker"])}
-                        for p in (positions or [])
-                    ]
-
-                # Compute unrealized P&L
-                unrealized_pnl = sum(
-                    p["quantity"] * (p["price"] - p["pmc"])
-                    for p in all_positions
-                )
-                self._current_upnl_str = f"{unrealized_pnl:+,.2f}\u20ac"
-                self._current_upnl_color = ft.Colors.GREEN if unrealized_pnl >= 0 else ft.Colors.RED
-
-                # Compute total P&L (NAV - Committed Cash)
-                total_pnl = nav_num - total_committed
-                self._current_tpnl_str = f"{total_pnl:+,.2f}\u20ac"
-                self._current_tpnl_color = ft.Colors.GREEN if total_pnl >= 0 else ft.Colors.RED
-
-                # Daily unrealized P&L = sum of qty * (price - prev_close)
-                daily_pnl = sum(
-                    p["quantity"] * (p["price"] - p["prev_close"])
-                    for p in all_positions
-                )
-                self._current_dpnl_str = f"{daily_pnl:+,.2f}€"
-                self._current_dpnl_color = ft.Colors.GREEN if daily_pnl >= 0 else ft.Colors.RED
-
-                # Percentages: upnl/cost_basis, tpnl/committed, dpnl/prev_positions_value
-                cost_basis = sum(p["quantity"] * p["pmc"] for p in all_positions)
-                prev_positions_value = sum(p["quantity"] * p["prev_close"] for p in all_positions)
-                def _fmt_pct(num, denom):
-                    if not denom:
-                        return "—"
-                    return f"{(num / denom) * 100:+.2f}%"
-                self._current_upnl_pct_str = _fmt_pct(unrealized_pnl, cost_basis)
-                self._current_tpnl_pct_str = _fmt_pct(total_pnl, total_committed)
-                self._current_dpnl_pct_str = _fmt_pct(daily_pnl, prev_positions_value)
-
-                hidden = s.home_values_hidden
-                self._apply_subtotals()
-                if not hidden:
-                    self._set_nav_value(self._current_nav_str)
-                    self._update_pnl_display()
-
-                self._update_positions(all_positions, hidden)
-
-                # Save to cache
-                s.home_cache = {
-                    "selection": s.home_selection,
-                    "nav_str": self._current_nav_str,
-                    "assets_str": self._current_assets_str,
-                    "cash_str": self._current_cash_str,
-                    "upnl_str": self._current_upnl_str,
-                    "upnl_color": self._current_upnl_color,
-                    "tpnl_str": self._current_tpnl_str,
-                    "tpnl_color": self._current_tpnl_color,
-                    "dpnl_str": self._current_dpnl_str,
-                    "dpnl_color": self._current_dpnl_color,
-                    "upnl_pct_str": self._current_upnl_pct_str,
-                    "tpnl_pct_str": self._current_tpnl_pct_str,
-                    "dpnl_pct_str": self._current_dpnl_pct_str,
-                    "positions": all_positions,
-                }
+                snapshot = compute_snapshot(self._selected_accounts(), pd.Timestamp(datetime.now()))
+                self._render(snapshot)
+                s.home_cache = (s.home_selection, snapshot)
                 s.home_nav_count = 0
             except Exception:
                 # Keep showing the last values (e.g. offline), and log why.
@@ -644,44 +490,39 @@ class HomeView:
     def _prompt_split(self, acc_idx, ticker, ev_date, ratio):
         s = self.state
         t = s.translator
-        if ratio >= 1:
-            ratio_label = f"{int(ratio) if ratio.is_integer() else ratio}:1"
-        else:
-            ratio_label = f"1:{int(1 / ratio) if (1 / ratio).is_integer() else round(1 / ratio, 4)}"
         msg = t.get("operations.split.detected_msg",
-                    ticker=ticker, ratio=ratio_label, date=ev_date)
+                    ticker=ticker, ratio=split_ratio_label(ratio), date=ev_date)
 
         def on_record(e):
             self.page.pop_dialog()
             s.split_checked_session = False
             self._record_detected_split(acc_idx, ticker, ev_date, ratio)
 
-        def on_ignore_once(e):
-            self.page.pop_dialog()
-            s.split_ignores.add(f"{ticker}|{ev_date}")
-            if s.user_config_folder:
-                config_service.save_split_ignores(s.user_config_folder, s.split_ignores)
-            s.split_checked_session = False
-            self._check_splits_async()
-
-        def on_ignore_always(e):
-            self.page.pop_dialog()
-            s.split_ignores.add(f"{ticker}|*")
-            if s.user_config_folder:
-                config_service.save_split_ignores(s.user_config_folder, s.split_ignores)
-            s.split_checked_session = False
-            self._check_splits_async()
-
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("operations.split.detected_title")),
             content=ft.Container(content=ft.Text(msg), width=450),
             actions=[
-                ft.TextButton(t.get("operations.split.detected_ignore_always"), on_click=on_ignore_always),
-                ft.TextButton(t.get("operations.split.detected_ignore_once"), on_click=on_ignore_once),
+                ft.TextButton(t.get("operations.split.detected_ignore_always"),
+                              on_click=lambda _: self._ignore_split(f"{ticker}|*")),
+                ft.TextButton(t.get("operations.split.detected_ignore_once"),
+                              on_click=lambda _: self._ignore_split(f"{ticker}|{ev_date}")),
                 ft.FilledButton(t.get("operations.split.detected_record"), on_click=on_record),
             ],
         )
         self.page.show_dialog(dlg)
+
+    def _ignore_split(self, key):
+        """Close the split prompt, remember not to ask again, and look for the next unrecorded split.
+
+        `key` is "TICKER|YYYY-MM-DD" to skip that one split, or "TICKER|*" to skip every split of the ticker.
+        """
+        s = self.state
+        self.page.pop_dialog()
+        s.split_ignores.add(key)
+        if s.user_config_folder:
+            config_service.save_split_ignores(s.user_config_folder, s.split_ignores)
+        s.split_checked_session = False
+        self._check_splits_async()
 
     def _record_detected_split(self, acc_idx, ticker, ev_date, ratio):
         s = self.state
@@ -725,35 +566,21 @@ class HomeView:
     def _apply_subtotals(self):
         """Write assets/cash subtitle texts from current state, honoring hidden mode."""
         t = self.state.translator
-        hidden = self.state.home_values_hidden
-        hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
-        assets_val = hidden_mask if hidden else self._current_assets_str
-        cash_val = hidden_mask if hidden else self._current_cash_str
+        snap = self._snapshot
+        if self.state.home_values_hidden:
+            assets_val = cash_val = HIDDEN_MASK
+        elif snap is None:
+            assets_val = cash_val = LOADING
+        else:
+            assets_val, cash_val = fmt_eur(snap.assets), fmt_eur(snap.cash)
         self._assets_text.value = "  " + t.get("home.subt_assets") + f"   {assets_val}"
         self._cash_text.value = "  " + t.get("home.subt_cash") + f"   {cash_val}"
 
     def _build_stats_cards(self) -> ft.Control:
         t = self.state.translator
         hidden = self.state.home_values_hidden
-        hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
-        loading_str = "---"
 
-        self._current_nav_str = loading_str
-        self._current_assets_str = loading_str
-        self._current_cash_str = loading_str
-        self._current_upnl_str = loading_str
-        self._current_upnl_color = None
-        self._current_tpnl_str = loading_str
-        self._current_tpnl_color = None
-        self._current_dpnl_str = loading_str
-        self._current_dpnl_color = None
-        self._current_upnl_pct_str = loading_str
-        self._current_tpnl_pct_str = loading_str
-        self._current_dpnl_pct_str = loading_str
-        # 0 = unrealized daily, 1 = unrealized total, 2 = total. Persisted per user.
-        self._pnl_mode = self.state.home_pnl_mode
-
-        initial_nav = hidden_mask if hidden else loading_str
+        initial_nav = HIDDEN_MASK if hidden else LOADING
         self._nav_text = ft.Text(
             initial_nav, size=self._compute_nav_size(initial_nav),
             weight=ft.FontWeight.BOLD,
@@ -780,14 +607,13 @@ class HomeView:
         self._apply_subtotals()
 
         self._pnl_label = ft.Text("P&L", size=14)
-        _initial_pnl_key = ("home.pnl_unrealized_daily", "home.pnl_unrealized_total", "home.pnl_total")[self._pnl_mode]
-        self._pnl_type = ft.Text(t.get(_initial_pnl_key), size=14,
+        self._pnl_type = ft.Text(t.get(PNL_MODES[self._pnl_mode][0]), size=14,
                                  weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SECONDARY_CONTAINER)
         self._pnl_value = ft.Text(
-            hidden_mask if hidden else loading_str,
+            HIDDEN_MASK if hidden else LOADING,
             size=14, weight=ft.FontWeight.BOLD,
         )
-        self._pnl_pct = ft.Text("" if hidden else loading_str, size=12)
+        self._pnl_pct = ft.Text("" if hidden else LOADING, size=12)
         self._pnl_container = ft.Card(
             content=ft.Container(
                 content=ft.Row([
@@ -847,7 +673,6 @@ class HomeView:
         hidden = not self.state.home_values_hidden
         self.state.home_values_hidden = hidden
         config_service.save_home_hidden(self.state.user_config_folder, hidden)
-        hidden_mask = "\u2022\u2022\u2022\u2022\u2022\u2022"
 
         self._nav_text.visible = not hidden
         self._hidden_placeholder.visible = hidden
@@ -855,41 +680,39 @@ class HomeView:
         self._apply_subtotals()
 
         if hidden:
-            self._pnl_value.value = hidden_mask
+            self._pnl_value.value = HIDDEN_MASK
             self._pnl_value.color = None
             self._pnl_pct.value = ""
             self._positions_container.visible = False
         else:
-            self._set_nav_value(self._current_nav_str)
-            self._update_pnl_display()
+            self._show_nav_and_pnl()
             self._positions_container.visible = True
         self.page.update()
 
+    def _show_nav_and_pnl(self):
+        """Write the NAV and the P&L card from the values shown ("---" while they are still loading)."""
+        self._set_nav_value(fmt_eur(self._snapshot.nav) if self._snapshot else LOADING)
+        self._update_pnl_display()
+
     def _update_pnl_display(self):
-        """Update P&L label and value based on current mode."""
+        """Show the P&L of the current mode on its card: label, amount and percentage."""
         t = self.state.translator
-        if self._pnl_mode == 0:
-            self._pnl_type.value = t.get("home.pnl_unrealized_daily")
-            self._pnl_value.value = self._current_dpnl_str
-            self._pnl_value.color = self._current_dpnl_color
-            self._pnl_pct.value = self._current_dpnl_pct_str
-            self._pnl_pct.color = self._current_dpnl_color
-        elif self._pnl_mode == 1:
-            self._pnl_type.value = t.get("home.pnl_unrealized_total")
-            self._pnl_value.value = self._current_upnl_str
-            self._pnl_value.color = self._current_upnl_color
-            self._pnl_pct.value = self._current_upnl_pct_str
-            self._pnl_pct.color = self._current_upnl_color
+        label_key, read = PNL_MODES[self._pnl_mode]
+        self._pnl_type.value = t.get(label_key)
+        if self._snapshot is None:
+            amount_str = pct_str = LOADING
+            color = None
         else:
-            self._pnl_type.value = t.get("home.pnl_total")
-            self._pnl_value.value = self._current_tpnl_str
-            self._pnl_value.color = self._current_tpnl_color
-            self._pnl_pct.value = self._current_tpnl_pct_str
-            self._pnl_pct.color = self._current_tpnl_color
+            amount, pct = read(self._snapshot)
+            amount_str, pct_str, color = fmt_eur(amount, signed=True), fmt_pct(pct), _pnl_color(amount)
+        self._pnl_value.value = amount_str
+        self._pnl_value.color = color
+        self._pnl_pct.value = pct_str
+        self._pnl_pct.color = color
 
     def _cycle_pnl_mode(self, e):
         self.state.haptic(self.page)
-        self._pnl_mode = (self._pnl_mode + 1) % 3
+        self._pnl_mode = (self._pnl_mode + 1) % len(PNL_MODES)
         self.state.home_pnl_mode = self._pnl_mode
         config_service.save_home_pnl_mode(self.state.user_config_folder, self._pnl_mode)
         hidden = self.state.home_values_hidden
@@ -897,25 +720,20 @@ class HomeView:
             self._update_pnl_display()
         self.page.update()
 
-    def _update_positions(self, positions, hidden=False):
-        """Build position rows from fetched data."""
-        self._positions_data = positions
+    def _update_positions(self):
+        """Build one row per position shown, in the chosen display mode (value, total % or daily %)."""
+        positions = self._snapshot.positions if self._snapshot else []
         if not positions:
             self._positions_container.controls = []
             return
         mode = self._pos_display_mode
         rows = []
         for pos in positions:
-            ticker = pos["ticker"]
-            name = pos.get("name", ticker)
-            qty = pos["quantity"]
-            pmc = pos["pmc"]
-            price = pos["price"]
-            prev_close = pos.get("prev_close", price)
+            qty = pos.quantity
             qty_str = f"{int(qty)}" if qty == int(qty) else f"{qty:.2f}"
             chip = ft.Container(
                 content=ft.Column([
-                    ft.Text(ticker, weight=ft.FontWeight.BOLD, size=13),
+                    ft.Text(pos.ticker, weight=ft.FontWeight.BOLD, size=13),
                     ft.Text("\u00d7"+qty_str, size=11, color=ft.Colors.GREY_500),
                 ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
@@ -923,30 +741,26 @@ class HomeView:
                 padding=ft.Padding.symmetric(vertical=6, horizontal=12),
             )
             if mode == 0:
-                value = qty * price
-                extra_ctrl = ft.Text(f"{value:,.2f}\u20ac", size=14, weight=ft.FontWeight.BOLD)
+                extra_ctrl = ft.Text(fmt_eur(pos.value), size=14, weight=ft.FontWeight.BOLD)
             elif mode == 1:
-                pct = (price - pmc) / pmc * 100 if pmc else 0
-                val_change = qty * (price - pmc)
-                clr = ft.Colors.GREEN if pct >= 0 else ft.Colors.RED
+                clr = _pnl_color(pos.unrealized_pnl)
                 extra_ctrl = ft.Column([
-                    ft.Text(f"{pct:+.2f}%", size=14, weight=ft.FontWeight.BOLD, color=clr),
-                    ft.Text(f"{val_change:+,.2f}\u20ac", size=11, color=clr),
+                    ft.Text(fmt_pct(pos.unrealized_pct), size=14, weight=ft.FontWeight.BOLD, color=clr),
+                    ft.Text(fmt_eur(pos.unrealized_pnl, signed=True), size=11, color=clr),
                 ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.START)
             else:
-                pct = (price - prev_close) / prev_close * 100 if prev_close else 0
-                clr = ft.Colors.GREEN if pct >= 0 else ft.Colors.RED
-                extra_ctrl = ft.Text(f"{pct:+.2f}%", size=14, weight=ft.FontWeight.BOLD, color=clr)
-            chip_with_tooltip = _longpress_tooltip(chip, name)
+                extra_ctrl = ft.Text(fmt_pct(pos.daily_pct), size=14, weight=ft.FontWeight.BOLD,
+                                     color=_pnl_color(pos.daily_pnl))
+            chip_with_tooltip = _longpress_tooltip(chip, pos.name)
             row = ft.ResponsiveRow([
                 ft.Container(chip_with_tooltip, width=100, col={"xs": 4, "md": 4},
                              padding=ft.Padding.only(left=10, right=10)),
                 ft.ResponsiveRow([
-                    ft.Container(ft.Text(f"{pmc:.3f}", size=14), col={"xs": 3, "md": 3}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
-                    ft.Container(ft.Text(f"{price:.3f}", size=14), col={"xs": 4, "md": 4}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                    ft.Container(ft.Text(f"{pos.pmc:.3f}", size=14), col={"xs": 3, "md": 3}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
+                    ft.Container(ft.Text(f"{pos.price:.3f}", size=14), col={"xs": 4, "md": 4}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
                     ft.Container(extra_ctrl, padding=ft.Padding.only(right=10), col={"xs": 5, "md": 5}, alignment=ft.alignment.Alignment.CENTER_RIGHT),
                 ], col={"xs": 8, "md": 8})
             ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
             rows.append(row)
         self._positions_container.controls = rows
-        self._positions_container.visible = not hidden
+        self._positions_container.visible = not self.state.home_values_hidden

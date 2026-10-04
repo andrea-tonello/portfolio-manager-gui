@@ -2,6 +2,24 @@
 
 ### Bug Fixes
 
+- HomeView: with no accounts loaded, the refresh button does not crash the app anymore (defensive: this state was only reachable artificially by editing the config files)
+
+### Refactoring
+
+- HomeView: one render path, values computed as a Snapshot in `portfolio_service`, merged `_build_overview` and `_build_single_account` into `_build_content` 
+
+
+
+
+
+
+
+
+
+## [0.3.6] (2026-10-04)
+
+### Bug Fixes
+
 - Fixed focused inputs not scrolling into view, with the keyboard covering them
 
 ### Refactoring

@@ -53,9 +53,9 @@ class AppState:
         # Home view
         self.home_values_hidden: bool = False
         self.home_pnl_mode: int = 0
-        # Home's last computed values; None makes Home fetch fresh ones. Cleared
-        # whenever an account changes (commit, add_broker, remove_broker).
-        self.home_cache: dict | None = None
+        # Home's last computed values, as (selection, Snapshot); None makes Home fetch fresh
+        # ones. Cleared whenever an account changes (commit, add_broker, remove_broker).
+        self.home_cache: tuple | None = None
         self.home_nav_count: int = 0  # tab switches since Home last fetched live values
 
         # Split auto-detection: set of "TICKER|YYYY-MM-DD" or "TICKER|*" entries to suppress prompts

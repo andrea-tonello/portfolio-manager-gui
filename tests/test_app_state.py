@@ -17,11 +17,12 @@ from conftest import find_controls, snack_texts
 from components.dialogs import show_user_manager
 from domain.errors import ValidationError
 from services import account_service
+from services.portfolio_service import Snapshot
 from views import onboarding_view
 from views.home_view import HomeView
 from views.settings_view import SettingsView
 
-STALE_CACHE = {"selection": "overview", "nav_str": "1.00€"}
+STALE_CACHE = ("overview", Snapshot(cash=1.0, assets=0.0, committed=0.0, positions=[]))
 
 
 def read_section(folder, section):
@@ -50,11 +51,11 @@ def test_commit_makes_home_fetch_fresh_values(app, state, monkeypatch):
     It used to keep showing the old NAV and P&L until the user tapped refresh
     (REFACTORING.md, Appendix A item 1).
     """
-    state.home_cache = dict(STALE_CACHE)
+    state.home_cache = STALE_CACHE
     state.commit(1, state.get_account(1).df.iloc[:-1])
     fetched = []
     monkeypatch.setattr(HomeView, "_fetch_live_values", lambda self: fetched.append(True))
-    monkeypatch.setattr(HomeView, "_restore_from_cache", lambda self, cache: pytest.fail("used stale cache"))
+    monkeypatch.setattr(HomeView, "_render", lambda self, snapshot: pytest.fail("used stale cache"))
 
     HomeView(app).build()
 
@@ -99,7 +100,7 @@ def test_remove_broker_deletes_it_everywhere(state):
     """The broker leaves config.ini, its CSV is deleted, its account is unloaded, and Home's cache is cleared."""
     idx = state.add_broker("Directa")
     path = account_service.report_path(state.config_res_folder, "Directa")
-    state.home_cache = dict(STALE_CACHE)
+    state.home_cache = STALE_CACHE
 
     state.remove_broker(idx)
 
@@ -152,7 +153,7 @@ def test_switch_user_loads_the_other_users_settings_and_accounts(state):
     """Switching saves the choice in config.ini and loads that user's brokers and accounts; Home's cache is cleared."""
     state.add_user("Bob")
     state.add_broker("Directa")
-    state.home_cache = dict(STALE_CACHE)
+    state.home_cache = STALE_CACHE
 
     state.switch_user(1)
 

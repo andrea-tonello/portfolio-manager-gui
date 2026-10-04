@@ -1,0 +1,51 @@
+{
+  "nav": "9,997.12€",
+  "subtotals": [
+    "  Assets   1,274.00€",
+    "  Cash   8,723.12€"
+  ],
+  "pnl": [
+    [
+      "P&L",
+      "Daily (onsecondarycontainer)",
+      "+1.00€ (green)",
+      "+0.08% (green)"
+    ],
+    [
+      "P&L",
+      "Total (onsecondarycontainer)",
+      "+273.00€ (green)",
+      "+27.27% (green)"
+    ],
+    [
+      "P&L",
+      "Total + Realized (onsecondarycontainer)",
+      "+497.12€ (green)",
+      "+5.23% (green)"
+    ]
+  ],
+  "positions": [
+    [
+      "BBB.MI",
+      "×20 (grey500)",
+      "50.050",
+      "63.700",
+      "1,274.00€"
+    ],
+    [
+      "BBB.MI",
+      "×20 (grey500)",
+      "50.050",
+      "63.700",
+      "+27.27% (green)",
+      "+273.00€ (green)"
+    ],
+    [
+      "BBB.MI",
+      "×20 (grey500)",
+      "50.050",
+      "63.700",
+      "+0.08% (green)"
+    ]
+  ]
+}
