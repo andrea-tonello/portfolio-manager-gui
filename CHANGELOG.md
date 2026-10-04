@@ -1,10 +1,16 @@
 ## [0.3.6] (2026-XX-XX)
 
+### Bug Fixes
+
+- Fixed focused inputs not scrolling into view, with the keyboard covering them
+
 ### Refactoring
 
 - New shared DateField component used by all eight date inputs
 - Added shared input factories for custom textfields, dropdowns and account selectors, using Flet's new border property
 - Added run_in_background for loading sequences, replacing nine copies of the spinner/thread/error code
+- Added shared scroll_into_view_on_focus helper
+
 
 
 

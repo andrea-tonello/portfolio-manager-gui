@@ -6,7 +6,7 @@ from datetime import date
 
 from components.background import run_in_background
 from components.date_field import DateField
-from components.focus_chain import chain_focus
+from components.focus_chain import chain_focus, scroll_into_view_on_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
@@ -231,18 +231,9 @@ class OperationsView:
             ft.Container(height=20),
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
-
-        self.cash_date.field.key = "cash_date"
-        self.cash_date.field.on_focus = on_focus
-        self.cash_amount.key = "cash_amount"
-        self.cash_amount.on_focus = on_focus
-        self.cash_ticker.key = "cash_ticker"
-        self.cash_ticker.on_focus = on_focus
-        self.cash_descr.key = "cash_descr"
-        self.cash_descr.on_focus = on_focus
+        scroll_into_view_on_focus(col, [
+            self.cash_date.field, self.cash_amount, self.cash_ticker, self.cash_descr, self.split_ratio_field,
+        ], prefix="cash")
 
         return ft.Container(content=col, padding=20, expand=True)
 
@@ -534,20 +525,10 @@ class OperationsView:
             ft.Container(height=20),
         ], spacing=12)
 
+        scrolling_fields = [date_input.field, exch_rate, ticker_field, quantity_field, price_field, fee_field, ter_field]
         if product_type != "ETF":
             stock_etf_form.scroll = ft.ScrollMode.AUTO
-
-            async def on_focus_stock(e):
-                if hasattr(e.control, "key") and e.control.key:
-                    await stock_etf_form.scroll_to(scroll_key=e.control.key, duration=300)
-
-            for name, field in [
-                ("date", date_input.field), ("exch_rate", exch_rate),
-                ("ticker", ticker_field), ("quantity", quantity_field),
-                ("price", price_field), ("fee", fee_field), ("ter", ter_field),
-            ]:
-                field.key = f"{product_type}_{name}"
-                field.on_focus = on_focus_stock
+            scroll_into_view_on_focus(stock_etf_form, scrolling_fields, prefix=product_type)
             return ft.Container(content=stock_etf_form, padding=20, expand=True)
 
         # ── ETF sub-type selector ───────────────────────────────
@@ -603,17 +584,7 @@ class OperationsView:
             bond_placeholder,
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus_etf(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await outer.scroll_to(scroll_key=e.control.key, duration=300)
-
-        for name, field in [
-            ("date", date_input.field), ("exch_rate", exch_rate),
-            ("ticker", ticker_field), ("quantity", quantity_field),
-            ("price", price_field), ("fee", fee_field), ("ter", ter_field),
-        ]:
-            field.key = f"{product_type}_{name}"
-            field.on_focus = on_focus_etf
+        scroll_into_view_on_focus(outer, scrolling_fields, prefix=product_type)
 
         return ft.Container(content=outer, padding=20, expand=True)
 

@@ -6,7 +6,7 @@ from datetime import date
 
 from components.background import run_in_background
 from components.date_field import DateField, date_range_fields
-from components.focus_chain import chain_focus
+from components.focus_chain import chain_focus, scroll_into_view_on_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
@@ -144,12 +144,7 @@ class AnalysisView:
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
-
-        self.sum_date.field.key = "sum_date"
-        self.sum_date.field.on_focus = on_focus
+        scroll_into_view_on_focus(col, [self.sum_date.field], prefix="sum")
 
         return ft.Container(content=col, padding=10, expand=True)
 
@@ -316,17 +311,9 @@ class AnalysisView:
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
-
-        for name, field in [
-            ("corr_start", self.corr_start.field), ("corr_end", self.corr_end.field),
-            ("corr_asset1", self.corr_asset1), ("corr_asset2", self.corr_asset2),
-            ("corr_window", self.corr_window),
-        ]:
-            field.key = name
-            field.on_focus = on_focus
+        scroll_into_view_on_focus(col, [
+            self.corr_start.field, self.corr_end.field, self.corr_asset1, self.corr_asset2, self.corr_window,
+        ], prefix="corr")
 
         return ft.Container(content=col, padding=10, expand=True)
 
@@ -465,14 +452,7 @@ class AnalysisView:
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
-
-        self.dd_start.field.key = "dd_start"
-        self.dd_start.field.on_focus = on_focus
-        self.dd_end.field.key = "dd_end"
-        self.dd_end.field.on_focus = on_focus
+        scroll_into_view_on_focus(col, [self.dd_start.field, self.dd_end.field], prefix="dd")
 
         return ft.Container(content=col, padding=10, expand=True)
 
@@ -572,14 +552,7 @@ class AnalysisView:
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        async def on_focus(e):
-            if hasattr(e.control, "key") and e.control.key:
-                await col.scroll_to(scroll_key=e.control.key, duration=300)
-
-        self.var_ci.key = "var_ci"
-        self.var_ci.on_focus = on_focus
-        self.var_days.key = "var_days"
-        self.var_days.on_focus = on_focus
+        scroll_into_view_on_focus(col, [self.var_ci, self.var_days], prefix="var")
 
         return ft.Container(content=col, padding=10, expand=True)
 
@@ -660,7 +633,7 @@ class AnalysisView:
             ft.Container(height=20),
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
-        self.alloc_date.field.key = "alloc_date"
+        scroll_into_view_on_focus(col, [self.alloc_date.field], prefix="alloc")
 
         return ft.Container(content=col, padding=10, expand=True)
 
