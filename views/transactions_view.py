@@ -2,6 +2,7 @@ import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
 
+from components.action_card import action_card
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
 from components.snack import show_snack
@@ -91,22 +92,8 @@ class TransactionsView:
     def _build_button_row(self, acc_idx) -> ft.Control:
         t = self.state.translator
 
-        filters_btn = ft.Card(
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.FILTER_LIST, size=32),
-                    ft.Text(t.get("transactions.filters"), text_align=ft.TextAlign.CENTER),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-                padding=15,
-                border_radius=15,
-                height=90,
-                bgcolor=ft.Colors.SECONDARY_CONTAINER,
-                on_click=self._on_open_filters,
-                ink=True,
-            ),
-            elevation=3,
-            col={"xs": 4, "md": 4},
-        )
+        filters_btn = action_card(ft.Icons.FILTER_LIST, t.get("transactions.filters"), self._on_open_filters,
+                                  padding=15, height=90, col={"xs": 4, "md": 4})
 
         if acc_idx is not None:
             async def on_export(e):

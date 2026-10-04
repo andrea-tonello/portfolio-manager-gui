@@ -163,8 +163,8 @@ class HomeView:
             label=t.get("home.watchlist_add"),
             expand=True,
             height=40,
+            on_submit=self._on_watchlist_add,
         )
-        self._watchlist_ticker_search.on_submit = self._on_watchlist_add
         add_row = ft.Row([
             self._watchlist_ticker_search.control,
             ft.IconButton(

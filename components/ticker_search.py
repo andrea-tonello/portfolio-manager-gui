@@ -8,7 +8,11 @@ from services.market_data import search_tickers
 
 
 class TickerSearchField:
-    """TextField with live Yahoo Finance ticker search suggestions."""
+    """TextField with live Yahoo Finance ticker search suggestions.
+
+    Like DateField: put `control` on the screen, give `field` (the text box) to the
+    focus and scroll helpers, and read or set the ticker through `value`.
+    """
 
     def __init__(self, page: ft.Page, *, label: str = "Ticker",
                  on_select=None, type_filter=None, **kwargs):
@@ -21,7 +25,7 @@ class TickerSearchField:
         expand = kwargs.pop("expand", False)
         col = kwargs.pop("col", None)
 
-        self._field = rounded_text_field(
+        self.field = rounded_text_field(
             label=label,
             on_change=self._on_change,
             on_blur=self._on_blur,
@@ -46,45 +50,21 @@ class TickerSearchField:
         )
 
         self.control = ft.Container(
-            content=ft.Column([self._field, self._overlay], spacing=2, tight=True,
+            content=ft.Column([self.field, self._overlay], spacing=2, tight=True,
                               horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
             expand=expand,
             col=col,
         )
 
-    # ── public interface (mimic TextField) ──────────────────────
+    # ── public interface ────────────────────────────────────────
 
     @property
     def value(self):
-        return self._field.value or ""
+        return self.field.value or ""
 
     @value.setter
     def value(self, v):
-        self._field.value = v
-
-    @property
-    def key(self):
-        return self._field.key
-
-    @key.setter
-    def key(self, v):
-        self._field.key = v
-
-    @property
-    def on_focus(self):
-        return self._field.on_focus
-
-    @on_focus.setter
-    def on_focus(self, v):
-        self._field.on_focus = v
-
-    @property
-    def on_submit(self):
-        return self._field.on_submit
-
-    @on_submit.setter
-    def on_submit(self, v):
-        self._field.on_submit = v
+        self.field.value = v
 
     # ── internal ────────────────────────────────────────────────
 
@@ -166,7 +146,7 @@ class TickerSearchField:
             self._page.update()
 
     def _pick(self, symbol):
-        self._field.value = symbol
+        self.field.value = symbol
         self._overlay.visible = False
         self._suggestions.controls = []
         self._page.update()

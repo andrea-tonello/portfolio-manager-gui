@@ -1,5 +1,6 @@
 import flet as ft
 
+from components.action_card import action_card
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import rounded_dropdown, rounded_text_field
@@ -278,36 +279,10 @@ class SettingsView:
 
     def _build_backup_section(self) -> ft.Control:
         t = self.state.translator
-        export_btn = ft.Card(
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.UPLOAD_FILE, size=32),
-                    ft.Text(t.get("settings.account.export_backup"), text_align=ft.TextAlign.CENTER),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-                padding=20,
-                border_radius=15,
-                bgcolor=ft.Colors.SECONDARY_CONTAINER,
-                on_click=self._on_export_backup,
-                ink=True,
-            ),
-            elevation=3,
-            expand=True,
-        )
-        import_btn = ft.Card(
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Icon(ft.Icons.DOWNLOAD, size=32),
-                    ft.Text(t.get("settings.account.import_backup"), text_align=ft.TextAlign.CENTER),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
-                padding=20,
-                border_radius=15,
-                bgcolor=ft.Colors.SECONDARY_CONTAINER,
-                on_click=self._on_import_backup,
-                ink=True,
-            ),
-            elevation=3,
-            expand=True,
-        )
+        export_btn = action_card(ft.Icons.UPLOAD_FILE, t.get("settings.account.export_backup"),
+                                 self._on_export_backup, expand=True)
+        import_btn = action_card(ft.Icons.DOWNLOAD, t.get("settings.account.import_backup"),
+                                 self._on_import_backup, expand=True)
         return ft.Container(
             content=ft.Column([
                 ft.Text(t.get("settings.account.backup_title"), size=16, weight=ft.FontWeight.BOLD),

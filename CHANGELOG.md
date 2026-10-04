@@ -11,6 +11,8 @@
 - Added run_in_background for loading sequences, replacing nine copies of the spinner/thread/error code
 - Added shared scroll_into_view_on_focus helper
 - Shared file picker and save_bytes helper for the CSV and backup exports
+- Shared info dialog and Translator.load_text for the help, privacy and contacts dialogs
+- Shared Calculate button and action card
 
 
 

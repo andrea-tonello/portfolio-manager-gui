@@ -196,7 +196,7 @@ class OperationsView:
         cash_fields = [
             self.cash_date.field,
             (self.cash_amount, self.cash_amount),
-            (self.cash_ticker._field, self.cash_ticker_row),
+            (self.cash_ticker.field, self.cash_ticker_row),
             (self.cash_descr, self.cash_descr),
             (self.split_ratio_field, self.split_ratio_row),
         ]
@@ -223,7 +223,7 @@ class OperationsView:
         ], spacing=15, scroll=ft.ScrollMode.AUTO)
 
         scroll_into_view_on_focus(col, [
-            self.cash_date.field, self.cash_amount, self.cash_ticker, self.cash_descr, self.split_ratio_field,
+            self.cash_date.field, self.cash_amount, self.cash_ticker.field, self.cash_descr, self.split_ratio_field,
         ], prefix="cash")
 
         return ft.Container(content=col, padding=20, expand=True)
@@ -467,7 +467,7 @@ class OperationsView:
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
         es_fields = [
-            date_input.field, ticker_field._field, exch_rate,
+            date_input.field, ticker_field.field, exch_rate,
             quantity_field, price_field, fee_field, ter_field,
         ]
         chain_focus(es_fields)
@@ -507,7 +507,8 @@ class OperationsView:
             ft.Container(height=20),
         ], spacing=12)
 
-        scrolling_fields = [date_input.field, exch_rate, ticker_field, quantity_field, price_field, fee_field, ter_field]
+        scrolling_fields = [date_input.field, exch_rate, ticker_field.field, quantity_field, price_field, fee_field,
+                            ter_field]
         if product_type != "ETF":
             stock_etf_form.scroll = ft.ScrollMode.AUTO
             scroll_into_view_on_focus(stock_etf_form, scrolling_fields, prefix=product_type)

@@ -17,6 +17,18 @@ from utils.constants import DATE_FORMAT
 _INT_FILTER = ft.NumbersOnlyInputFilter()
 
 
+def calculate_button(t, on_click) -> ft.FilledButton:
+    """Return the "Calculate »" button that each analysis tab puts under its inputs."""
+    return ft.FilledButton(
+        ft.Row([
+            ft.Text(t.get("components.calculate")),
+            ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
+        ]),
+        on_click=on_click,
+        style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
+    )
+
+
 class AnalysisView:
     def __init__(self, app):
         """Build the Analysis tab for the controller's page and current state."""
@@ -120,14 +132,7 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_sum_csv)),
         ], visible=False)
 
-        sum_submit_btn = ft.FilledButton(
-            ft.Row([
-                ft.Text(t.get("components.calculate")),
-                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-            ]),
-            on_click=self._submit_summary,
-            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-        )
+        sum_submit_btn = calculate_button(t, self._submit_summary)
 
         col = ft.Column([
             ft.Container(height=5),
@@ -269,8 +274,8 @@ class AnalysisView:
         chain_focus([
             self.corr_start.field,
             self.corr_end.field,
-            (self.corr_asset1._field, self.corr_rolling_fields),
-            (self.corr_asset2._field, self.corr_rolling_fields),
+            (self.corr_asset1.field, self.corr_rolling_fields),
+            (self.corr_asset2.field, self.corr_rolling_fields),
             (self.corr_window, self.corr_rolling_fields),
         ])
 
@@ -283,14 +288,7 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_corr_csv)),
         ], visible=False)
 
-        corr_submit_btn = ft.FilledButton(
-            ft.Row([
-                ft.Text(t.get("components.calculate")),
-                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-            ]),
-            on_click=self._submit_correlation,
-            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-        )
+        corr_submit_btn = calculate_button(t, self._submit_correlation)
 
         col = ft.Column([
             self.corr_type,
@@ -308,7 +306,8 @@ class AnalysisView:
         ], spacing=12, scroll=ft.ScrollMode.AUTO)
 
         scroll_into_view_on_focus(col, [
-            self.corr_start.field, self.corr_end.field, self.corr_asset1, self.corr_asset2, self.corr_window,
+            self.corr_start.field, self.corr_end.field, self.corr_asset1.field, self.corr_asset2.field,
+            self.corr_window,
         ], prefix="corr")
 
         return ft.Container(content=col, padding=10, expand=True)
@@ -427,14 +426,7 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_dd_csv)),
         ], visible=False)
 
-        dd_submit_btn = ft.FilledButton(
-            ft.Row([
-                ft.Text(t.get("components.calculate")),
-                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-            ]),
-            on_click=self._submit_drawdown,
-            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-        )
+        dd_submit_btn = calculate_button(t, self._submit_drawdown)
 
         col = ft.Column([
             ft.Container(height=5),
@@ -528,14 +520,7 @@ class AnalysisView:
                           on_click=lambda _: self.page.run_task(self._export_var_csv)),
         ], visible=False)
 
-        var_submit_btn = ft.FilledButton(
-            ft.Row([
-                ft.Text(t.get("components.calculate")),
-                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-            ]),
-            on_click=self._submit_var,
-            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-        )
+        var_submit_btn = calculate_button(t, self._submit_var)
 
         col = ft.Column([
             ft.Container(height=5),
@@ -611,14 +596,7 @@ class AnalysisView:
         self.alloc_loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.alloc_chart = ft.Container()
 
-        alloc_submit_btn = ft.FilledButton(
-            ft.Row([
-                ft.Text(t.get("components.calculate")),
-                ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-            ]),
-            on_click=self._submit_allocation,
-            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-        )
+        alloc_submit_btn = calculate_button(t, self._submit_allocation)
 
         col = ft.Column([
             ft.Container(height=5),

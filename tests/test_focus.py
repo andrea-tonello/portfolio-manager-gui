@@ -14,7 +14,6 @@ import pytest
 from conftest import find_controls
 
 from components.focus_chain import scroll_into_view_on_focus
-from components.ticker_search import TickerSearchField
 
 
 class FakeColumn:
@@ -31,14 +30,13 @@ class FakeColumn:
 
 def _focus(field):
     """Simulate the user tapping into `field`, as Flet reports it, and run its focus handler."""
-    control = field._field if isinstance(field, TickerSearchField) else field
-    asyncio.run(control.on_focus(SimpleNamespace(control=control)))
+    asyncio.run(field.on_focus(SimpleNamespace(control=field)))
 
 
-def test_focusing_a_field_scrolls_the_column_to_it(page):
+def test_focusing_a_field_scrolls_the_column_to_it():
     """Each field gets its own scroll key; focusing it asks the column to scroll to that key."""
     column = FakeColumn()
-    amount, ticker = ft.TextField(), TickerSearchField(page)
+    amount, ticker = ft.TextField(), ft.TextField()
 
     scroll_into_view_on_focus(column, [amount, ticker], prefix="cash")
     _focus(ticker)
