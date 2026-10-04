@@ -1,4 +1,4 @@
-## [0.3.6] (2026-XX-XX)
+## [0.3.6] (2026-10-04)
 
 ### Bug Fixes
 
@@ -13,20 +13,6 @@
 - Shared file picker and save_bytes helper for the CSV and backup exports
 - Shared info dialog and Translator.load_text for the help, privacy and contacts dialogs
 - Shared Calculate button and action card
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
