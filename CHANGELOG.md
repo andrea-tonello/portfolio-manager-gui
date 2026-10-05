@@ -10,6 +10,8 @@
 - OperationsView: Operations forms as classes (GeneralForm, EtfStockForm("ETF"), EtfStockForm("Stock")) with pure trade/cash parsing; 
 - OperationsView: new date and number check helpers 
 - AnalysisView: checks shared with Analysis
+- TransactionsView: export uses the screen's order (same-day rows were scrambled); one column table, shared value maps, columns read once
+
 
 
 

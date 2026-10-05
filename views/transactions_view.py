@@ -7,7 +7,7 @@ from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
 from components.snack import show_snack
 from services import account_service, config_service
-from utils.columns import COLUMNS, rename_for_export, export_headers, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS
+from utils.columns import COLUMNS, rename_for_export, export_headers, localized_value_maps
 from utils.constants import DEFAULT_TX_FILTER, REPORT_PREFIX
 
 _DEFAULT_DISPLAY_COLS = [
@@ -17,6 +17,22 @@ _DEFAULT_DISPLAY_COLS = [
 
 _ALL_COLS = COLUMNS
 _PAGE_SIZE = 20
+
+
+def _parsed_dates(df):
+    """The `date` column of `df` as timestamps (dates stored as DD-MM-YYYY); NaT where unreadable."""
+    return pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
+
+
+def _newest_first(df):
+    """Return `df` sorted newest first; operations of the same day go from the last entered to the first.
+
+    Same order on screen and in the export, so running totals (cash held,
+    quantity held) read in sequence. Example: deposits A, B, C entered in this
+    order on the same day are listed C, B, A.
+    """
+    ordered = df.assign(_date=_parsed_dates(df), _position=range(len(df)))
+    return ordered.sort_values(["_date", "_position"], ascending=False).drop(columns=["_date", "_position"])
 
 
 class TransactionsView:
@@ -80,6 +96,8 @@ class TransactionsView:
         saved_mode, saved_value = config_service.load_tx_filter(self.state.user_config_folder)
         self._tx_filter_mode = saved_mode
         self._tx_filter_value = saved_value
+        self._visible_cols = (config_service.load_tx_columns(self.state.user_config_folder)
+                              or list(_DEFAULT_DISPLAY_COLS))
 
         self.tx_table_container = ft.Container(padding=ft.Padding.only(top=10))
         self._update_tx_table()
@@ -156,13 +174,10 @@ class TransactionsView:
         dlg_radio.on_change = on_radio_change
 
         # Column visibility checkboxes (one per column in COLUMNS)
-        saved_cols = config_service.load_tx_columns(self.state.user_config_folder)
-        visible_set = set(saved_cols) if saved_cols else set(_DEFAULT_DISPLAY_COLS)
-
         checkboxes = {}
         for col in _ALL_COLS:
             label = col_labels.get(col, col)
-            cb = ft.Checkbox(label=label, value=(col in visible_set))
+            cb = ft.Checkbox(label=label, value=(col in self._visible_cols))
             checkboxes[col] = cb
 
         def on_cancel(ev):
@@ -186,6 +201,7 @@ class TransactionsView:
             if not visible:
                 visible = list(_DEFAULT_DISPLAY_COLS)
             config_service.save_tx_columns(self.state.user_config_folder, visible)
+            self._visible_cols = visible
 
             self.page.pop_dialog()
             self._update_tx_table()
@@ -226,18 +242,14 @@ class TransactionsView:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             return
 
-        df_sorted = df.copy()
-        df_sorted["_date_parsed"] = pd.to_datetime(df_sorted["date"], dayfirst=True, errors="coerce")
-        df_sorted["_orig_idx"] = range(len(df_sorted))
-        df_sorted = df_sorted.sort_values(["_date_parsed", "_orig_idx"], ascending=[False, False])
+        df_sorted = _newest_first(df)
 
         if self._tx_filter_mode == "days":
             cutoff = pd.Timestamp(datetime.now() - timedelta(days=self._tx_filter_value))
-            df_sorted = df_sorted[df_sorted["_date_parsed"] >= cutoff]
+            df_sorted = df_sorted[_parsed_dates(df_sorted) >= cutoff]
         else:
             df_sorted = df_sorted.head(self._tx_filter_value)
 
-        df_sorted = df_sorted.drop(columns=["_date_parsed", "_orig_idx"])
         self._tx_filtered_df = df_sorted
 
         if reset_page:
@@ -295,13 +307,10 @@ class TransactionsView:
         if df is None or df.empty:
             return ft.Text(t.get("transactions.empty"), size=16)
 
-        saved_cols = config_service.load_tx_columns(self.state.user_config_folder)
-        display_cols = saved_cols if saved_cols else list(_DEFAULT_DISPLAY_COLS)
-        available_cols = [c for c in display_cols if c in df.columns]
+        available_cols = [c for c in self._visible_cols if c in df.columns]
 
         col_labels = export_headers(t)
-        op_map = {k: t.get(v).strip() for k, v in OPERATION_LOCALE_KEYS.items()}
-        prod_map = {k: t.get(v).strip() for k, v in PRODUCT_LOCALE_KEYS.items()}
+        value_maps = localized_value_maps(t)
 
         columns = [ft.DataColumn(ft.Text(col_labels.get(col, col), size=11, weight=ft.FontWeight.BOLD)) for col in available_cols]
         rows = []
@@ -313,10 +322,7 @@ class TransactionsView:
                     val = ""
                 else:
                     val = str(val)
-                    if col == "operation":
-                        val = op_map.get(val, val)
-                    elif col == "product":
-                        val = prod_map.get(val, val)
+                    val = value_maps.get(col, {}).get(val, val)
                 cells.append(ft.DataCell(ft.Text(val, size=10)))
             rows.append(ft.DataRow(cells=cells))
 
@@ -332,11 +338,8 @@ class TransactionsView:
     # ── Export / Remove ───────────────────────────────────────────────
 
     def _prepare_export_csv(self, df):
-        """Sort df by date descending, rename to locale headers, return CSV bytes."""
-        df = df.copy()
-        df["_date_parsed"] = pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
-        df = df.sort_values("_date_parsed", ascending=False).drop(columns=["_date_parsed"])
-        df = rename_for_export(df, self.state.translator)
+        """Sort df newest first (as on screen), rename to locale headers, return CSV bytes."""
+        df = rename_for_export(_newest_first(df), self.state.translator)
         return df.to_csv(index=False).encode("utf-8")
 
     async def _on_export(self, e, idx):
