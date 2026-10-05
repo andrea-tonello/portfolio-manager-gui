@@ -5,6 +5,30 @@ utils/columns.py), starting with an opening row. Op and Product list the
 exact strings stored in its `operation` and `product` columns. They are
 StrEnums, so Op.BUY == "Buy" is True: values read back from a CSV compare
 equal to them, and writing them stores the same plain strings as before.
+
+How the rows work together:
+
+- Every row carries the account's running totals after its operation:
+  cash_held, assets_value (the positions, valued on the row's date), nav
+  (cash_held + assets_value), committed_cash (money deposited minus money
+  withdrawn) and carryforward (capital losses that can still offset future
+  gains, the Italian "zainetto fiscale"; see domain/tax.py). The last row
+  gives the account as it stands.
+- Buy, sell and split rows also carry the totals of their own asset: qt_held
+  (units held) and abp (average buy price). An asset's current holding is on
+  its last such row (see holding_rows); other rows leave both empty.
+- Each new row is built from the totals of the row before it, so the rows
+  must stay in date order: a row slipped in among older ones would leave
+  every later total wrong. That is why the screens refuse a date earlier
+  than the last operation (several on the same day are fine, in the order
+  entered), and why Transactions can only remove the last row.
+- The stored values are a record of the day of each operation: assets_value
+  and nav use that day's prices and are never updated afterwards. Home and
+  Analysis value the positions again when they need current figures.
+
+Described elsewhere: the opening row in domain/account.py, the sign
+convention of buys and sells in newrow_etf_stock (domain/newrow.py), and
+split rows in newrow_split.
 """
 
 from datetime import datetime
