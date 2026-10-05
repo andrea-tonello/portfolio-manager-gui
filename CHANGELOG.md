@@ -1,4 +1,4 @@
-## [0.3.9] (2026-10-05)
+## [0.3.8] (2026-10-05)
 
 ### Bug Fixes
 
@@ -6,28 +6,12 @@
 
 ### Refactoring
 
-- Documentation: documented in domain/ledger.py: running totals, per-asset columns, date order
-- Documentation: documented tax rules: loss expiry, fee modes, carryforward use, ETF gains vs losses
-- Type hints on public `domain/` and `services/` functions
-
-
-
-
-
-
-
-
-
-
-## [0.3.8] (2026-10-05)
-
-### Bug Fixes
-
-### Refactoring
-
 - AnalysisView: one shared tab frame and a class per tool (TOOLS); info button reads the tool's glossary page
 - Charts moved to `components/charts.py` with shared card, line-chart, legend and tooltip helpers
 - Theme module shared by the controller and Settings; Settings keeps page transitions on theme change
+- Documentation: documented in domain/ledger.py: running totals, per-asset columns, date order
+- Documentation: documented tax rules: loss expiry, fee modes, carryforward use, ETF gains vs losses
+- Type hints on public `domain/` and `services/` functions
 
 
 
