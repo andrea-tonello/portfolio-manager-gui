@@ -341,17 +341,19 @@ def compute_var_mc(accounts, confidence_interval, projected_days):
 
 
 def compute_allocation(accounts, ref_date):
-    """Compute asset allocation by product type across `accounts` (a list of Account).
+    """Compute asset allocation by product type across `accounts` (a list of Account), on `ref_date`.
 
-    Returns dict mapping product type → market value in EUR.
+    Returns dict mapping product type → market value in EUR, all as of
+    `ref_date`: the cash held that day and the positions at that day's prices.
     Categories: Stock, Stock ETF, MM ETF, Bond ETF, Cash.
     """
     ref_date = pd.Timestamp(ref_date)
     allocation = {}
 
     for account in accounts:
-        # Cash from latest row
-        cash = round_half_up(account.last("cash_held"))
+        # Cash held on ref_date: the last row on or before it (the opening row, at zero, before any operation)
+        rows, _ = get_pf_date(account, ref_date, ref_date)
+        cash = round_half_up(float(rows.iloc[-1]["cash_held"]))
         allocation[Product.CASH] = allocation.get(Product.CASH, 0) + cash
 
         # Active positions with product type

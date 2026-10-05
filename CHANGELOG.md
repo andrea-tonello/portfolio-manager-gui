@@ -1,3 +1,19 @@
+## [0.3.9] (2026-10-05)
+
+### Bug Fixes
+
+- Allocation pie chart mixed user-selected investement date with current-day cash (cash was not following the user-selected date)
+
+### Refactoring
+
+
+
+
+
+
+
+
+
 ## [0.3.8] (2026-10-05)
 
 ### Bug Fixes
@@ -7,14 +23,6 @@
 - AnalysisView: one shared tab frame and a class per tool (TOOLS); info button reads the tool's glossary page
 - Charts moved to `components/charts.py` with shared card, line-chart, legend and tooltip helpers
 - Theme module shared by the controller and Settings; Settings keeps page transitions on theme change
-
-
-
-
-
-
-
-
 
 
 
