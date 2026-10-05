@@ -13,6 +13,7 @@ import flet as ft
 from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
 from views.home_view import HomeView
 from views.operations_view import OperationsView
+from views.analysis_view import TOOLS as ANALYSIS_TOOLS
 from views.analysis_view import AnalysisView
 from views.transactions_view import TransactionsView
 from views.settings_view import SettingsView
@@ -34,15 +35,12 @@ class TabSpec:
     glossary_page: Callable[..., int] | None = None
 
 
-# Analysis tool 0 is explained on glossary page 2, tool 1 on page 3, and so on.
-_ANALYSIS_FIRST_GLOSSARY_PAGE = 2
-
 # The tabs, in navigation-bar order. Everything about a tab is on its line.
 TABS = (
     TabSpec("nav.home", ft.Icons.HOME_OUTLINED, ft.Icons.HOME, HomeView),
     TabSpec("nav.operations", ft.Icons.SWAP_HORIZ, None, OperationsView),
     TabSpec("nav.analysis", ft.Icons.ANALYTICS_OUTLINED, ft.Icons.ANALYTICS, AnalysisView,
-            glossary_page=lambda state: _ANALYSIS_FIRST_GLOSSARY_PAGE + state.analysis_tab_index),
+            glossary_page=lambda state: ANALYSIS_TOOLS[state.analysis_tab_index].glossary_page),
     TabSpec("nav.transactions", ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, TransactionsView,
             glossary_page=lambda state: 1),  # the page explaining the table's columns
 )

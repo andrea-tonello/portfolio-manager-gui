@@ -1,3 +1,21 @@
+## [0.3.8] (2026-10-05)
+
+### Bug Fixes
+
+### Refactoring
+
+- AnalysisView: one shared tab frame and a class per tool (TOOLS); info button reads the tool's glossary page
+
+
+
+
+
+
+
+
+
+
+
 ## [0.3.7] (2026-10-05)
 
 ### Bug Fixes
@@ -11,14 +29,6 @@
 - OperationsView: new date and number check helpers 
 - AnalysisView: checks shared with Analysis
 - TransactionsView: export uses the screen's order (same-day rows were scrambled); one column table, shared value maps, columns read once
-
-
-
-
-
-
-
-
 
 
 
