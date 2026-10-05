@@ -2,16 +2,17 @@ import io
 import flet as ft
 import numpy as np
 import pandas as pd
-from datetime import date
 
 from components.background import run_in_background
 from components.date_field import DateField, date_range_fields
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scroll_into_view_on_focus
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
-from components.snack import show_snack
+from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
+from domain.errors import ValidationError
 from services import analysis_service, chart_service
+from services.validation import parse_positive, validate_date, validate_date_range
 from utils.constants import DATE_FORMAT
 
 _INT_FILTER = ft.NumbersOnlyInputFilter()
@@ -152,11 +153,10 @@ class AnalysisView:
     def _submit_summary(self, e):
         s = self.state
         t = s.translator
-        if self.sum_date.value is None:
-            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
-            return
-        if self.sum_date.value > date.today():
-            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+        try:
+            validate_date(self.sum_date.value)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
 
         data = self._get_analysis_data()
@@ -325,33 +325,18 @@ class AnalysisView:
     def _submit_correlation(self, e):
         s = self.state
         t = s.translator
-        if self.corr_start.value is None or self.corr_end.value is None:
-            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
+        asset1 = asset2 = window = None
+        try:
+            validate_date_range(self.corr_start.value, self.corr_end.value)
+            if self.corr_type.value == "rolling":
+                asset1 = self.corr_asset1.value.strip()
+                asset2 = self.corr_asset2.value.strip()
+                if not asset1 or not asset2:
+                    raise ValidationError("analysis.corr.ticker_error")
+                window = parse_positive(self.corr_window.value, "analysis.corr.window_error", integer=True)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
-        if self.corr_start.value > date.today() or self.corr_end.value > date.today():
-            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
-            return
-        if self.corr_start.value >= self.corr_end.value:
-            show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
-            return
-
-        is_rolling = self.corr_type.value == "rolling"
-        asset1 = asset2 = None
-        window = None
-
-        if is_rolling:
-            asset1 = self.corr_asset1.value.strip()
-            asset2 = self.corr_asset2.value.strip()
-            if not asset1 or not asset2:
-                show_snack(self.page, t.get("analysis.corr.ticker_error"), error=True)
-                return
-            try:
-                window = int(self.corr_window.value)
-                if window <= 0:
-                    raise ValueError
-            except (ValueError, TypeError):
-                show_snack(self.page, t.get("analysis.corr.window_error"), error=True)
-                return
 
         data = self._get_analysis_data()
         if not data:
@@ -447,14 +432,10 @@ class AnalysisView:
     def _submit_drawdown(self, e):
         s = self.state
         t = s.translator
-        if self.dd_start.value is None or self.dd_end.value is None:
-            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
-            return
-        if self.dd_start.value > date.today() or self.dd_end.value > date.today():
-            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
-            return
-        if self.dd_start.value >= self.dd_end.value:
-            show_snack(self.page, t.get("misc_errors.date_start_end"), error=True)
+        try:
+            validate_date_range(self.dd_start.value, self.dd_end.value)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
         data = self._get_analysis_data()
         if not data:
@@ -540,20 +521,13 @@ class AnalysisView:
     def _submit_var(self, e):
         s = self.state
         t = s.translator
-
         try:
-            ci = float(self.var_ci.value)
-            if ci <= 0 or ci >= 1:
-                raise ValueError
-        except (ValueError, TypeError):
-            show_snack(self.page, t.get("analysis.var.ci_error"), error=True)
-            return
-        try:
-            days = int(self.var_days.value)
-            if days <= 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            show_snack(self.page, t.get("analysis.var.days_error"), error=True)
+            ci = parse_positive(self.var_ci.value, "analysis.var.ci_error")
+            if ci >= 1:
+                raise ValidationError("analysis.var.ci_error")
+            days = parse_positive(self.var_days.value, "analysis.var.days_error", integer=True)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
 
         data = self._get_analysis_data()
@@ -614,11 +588,10 @@ class AnalysisView:
     def _submit_allocation(self, e):
         s = self.state
         t = s.translator
-        if self.alloc_date.value is None:
-            show_snack(self.page, t.get("misc_errors.nodate"), error=True)
-            return
-        if self.alloc_date.value > date.today():
-            show_snack(self.page, t.get("misc_errors.date_future"), error=True)
+        try:
+            validate_date(self.alloc_date.value)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
             return
 
         data = self._get_analysis_data()

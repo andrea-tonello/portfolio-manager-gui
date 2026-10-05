@@ -17,7 +17,7 @@ from conftest import find_controls
 from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
 from utils.constants import LANGUAGES
 from views import onboarding_view
-from views.operations_view import OperationsView
+from views.operations_view import OperationsView, _show_fee_help
 from views.shell import show_glossary
 
 TABS = {0: "Home", 1: "Operations", 2: "Analysis", 3: "Transactions"}
@@ -119,7 +119,7 @@ def test_help_texts_are_read_from_their_files(language, app, page, state):
     state.translator.load_language(language)
 
     show_privacy_policy(page, state)
-    OperationsView(app)._show_fee_help(None)
+    _show_fee_help(page, state.translator)
 
     texts = [dialog.content.content.controls[0].value for dialog in page.dialogs]
     assert len(texts) == 2

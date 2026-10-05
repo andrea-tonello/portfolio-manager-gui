@@ -10,7 +10,7 @@ The currency is passed as its code, "EUR" or "USD", from the Operations
 screen's dropdown down to the CSV's `curr` column.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pytest
@@ -114,15 +114,15 @@ def open_trade_form(monkeypatch, app, page, state):
     def open_form(tab):
         """Fill in the `tab` form ("Stock" or "ETF") with a buy of 5 UUU at 200 plus a 2 EUR fee.
 
-        Returns (form fields, submit function, recorded calls).
+        Returns (form, submit function, recorded calls).
         """
-        form = view._es_tabs[tab]
-        form["date"].value = date(2025, 1, 10)   # after the account's last operation
-        form["ticker"].value = "UUU"
-        form["quantity"].value = "5"
-        form["price"].value = "200"
-        form["fee"].value = "2"
-        return form, lambda: view._submit_es(None, tab), calls
+        form = {"ETF": view.etf, "Stock": view.stock}[tab]
+        form.date.value = date(2025, 1, 10)   # after the account's last operation
+        form.ticker.value = "UUU"
+        form.quantity.value = "5"
+        form.price.value = "200"
+        form.fee.value = "2"
+        return form, lambda: form.submit(None), calls
 
     return open_form
 
@@ -151,9 +151,9 @@ def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
     Example: rate 0.9 USD->EUR, fee 2 USD -> 1.8 EUR.
     """
     form, submit, calls = stock_form
-    form["currency_dd"].value = "USD"
-    form["exch_rate"].value = "0.9"
-    form["fee_currency_dd"].value = "USD"
+    form.currency.value = "USD"
+    form.exch_rate.value = "0.9"
+    form.fee_currency.value = "USD"
 
     submit()
 
@@ -184,15 +184,56 @@ def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bra
     the plain string the screen hands back when the user picks a type.
     """
     form, submit, calls = open_trade_form("ETF")
-    form["etf_subtype"] = picked
-    form["fee_mode"].value = "abp"
+    form.etf_subtype.value = picked
+    form.fee_mode.value = "abp"
     if tax_bracket:
-        form["tax_bracket"].value = tax_bracket
+        form.tax_bracket.value = tax_bracket
 
     submit()
 
     args, kwargs = calls[0]
     assert (args[11], kwargs["tax_rate"]) == (picked, tax_rate)
+
+
+def test_a_blank_fee_is_recorded_as_zero(stock_form):
+    """The fee is optional: left empty, the trade is recorded with no fee."""
+    form, submit, calls = stock_form
+    form.fee.value = ""
+
+    submit()
+
+    args, _ = calls[0]
+    assert args[9] == 0.0
+
+
+@pytest.mark.parametrize("tab, changes, message", [
+    ("Stock", {"date": None}, "Date is missing"),
+    ("Stock", {"date": date.today() + timedelta(days=1)}, "Cannot insert future dates"),
+    ("Stock", {"date": date(2024, 9, 1)}, "The date cannot be earlier than the last one recorded"),
+    ("Stock", {"ticker": " "}, "Ticker is missing"),
+    ("Stock", {"quantity": "5.5"}, "The quantity must be an integer greater than 0"),
+    ("Stock", {"quantity": "0"}, "The quantity must be an integer greater than 0"),
+    ("Stock", {"price": "0"}, "The price must be greater than 0"),
+    ("Stock", {"fee": "1.2.3"}, "The fee must be a number greater than or equal to 0"),
+    ("Stock", {"currency": "USD", "exch_rate": ""}, "The conversion rate must be a number greater than 0"),
+    ("ETF", {"etf_subtype": "ETF-M", "tax_bracket": "150"}, "The tax bracket must be a number between 0 and 100"),
+    ("ETF", {}, "Please select a fee management mode"),
+], ids=["no-date", "future", "before-last-operation", "no-ticker", "fractional-quantity", "zero-quantity",
+        "zero-price", "bad-fee", "usd-without-rate", "tax-bracket-over-100", "etf-without-fee-mode"])
+def test_form_refuses_invalid_values(open_trade_form, page, tab, changes, message):
+    """Each invalid value shows its own message, and nothing is recorded.
+
+    The account's last operation is on 02-09-2024, so an earlier date would
+    break the running totals.
+    """
+    form, submit, calls = open_trade_form(tab)
+    for field, value in changes.items():
+        getattr(form, field).value = value
+
+    submit()
+
+    assert calls == []
+    assert snack_texts(page) == [message]
 
 
 def test_a_ticker_of_the_wrong_kind_is_refused(stock_form, page, monkeypatch):
@@ -208,4 +249,4 @@ def test_a_ticker_of_the_wrong_kind_is_refused(stock_form, page, monkeypatch):
 
     assert calls == []
     assert snack_texts(page) == ["This Ticker is not comprised in this asset class"]
-    assert form["loading"].visible is False
+    assert form.loading.visible is False

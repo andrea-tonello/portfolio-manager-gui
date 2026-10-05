@@ -1,4 +1,4 @@
-## [0.3.6] (2026-10-04)
+## [0.3.7] (2026-10-05)
 
 ### Bug Fixes
 
@@ -7,6 +7,10 @@
 ### Refactoring
 
 - HomeView: one render path, values computed as a Snapshot in `portfolio_service`, merged `_build_overview` and `_build_single_account` into `_build_content` 
+- OperationsView: Operations forms as classes (GeneralForm, EtfStockForm("ETF"), EtfStockForm("Stock")) with pure trade/cash parsing; 
+- OperationsView: new date and number check helpers 
+- AnalysisView: checks shared with Analysis
+
 
 
 
