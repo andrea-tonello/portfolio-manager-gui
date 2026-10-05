@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from domain.account import Account
 from domain.positions import priced_positions
+from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
 
@@ -131,7 +132,7 @@ def _merge(positions: list[Position]) -> Position:
                     first.price, first.prev_close)
 
 
-def compute_snapshot(accounts: list[Account], ref_date) -> Snapshot:
+def compute_snapshot(accounts: list[Account], ref_date: DateLike) -> Snapshot:
     """Value `accounts` together at `ref_date`, fetching the prices of what they hold.
 
     Positions in the same ticker are merged across accounts, in the order they

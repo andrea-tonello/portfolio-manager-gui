@@ -8,6 +8,7 @@
 
 - Documentation: documented in domain/ledger.py: running totals, per-asset columns, date order
 - Documentation: documented tax rules: loss expiry, fee modes, carryforward use, ETF gains vs losses
+- Type hints on public `domain/` and `services/` functions
 
 
 

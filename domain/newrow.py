@@ -4,13 +4,16 @@ operations_service calls them when the user records a cash operation, a
 trade or a split.
 """
 
+from datetime import date
+
 import pandas as pd
 import numpy as np
 
 from domain.errors import ValidationError
-from domain.ledger import Op, base_row, holding_rows
+from domain.ledger import Op, TextCell, base_row, holding_rows
 from domain.positions import priced_positions
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, sell_asset
+from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
 
@@ -19,7 +22,8 @@ def _append_row(df, row):
     return pd.concat([df, new_row], ignore_index=True)
 
 
-def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name):
+def newrow_cash(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str, cash: float, op_type: Op,
+                product: str, ticker: TextCell, name: TextCell) -> pd.DataFrame:
 
     current_liq = float(df["cash_held"].iloc[-1]) + cash
 
@@ -33,7 +37,7 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
 
     row = base_row()
     row.update({
-        "date": date,
+        "date": date_str,
         "account": broker,
         "operation": op_type,
         "product": product,
@@ -53,7 +57,10 @@ def newrow_cash(df, date, ref_date, broker, cash, op_type, product, ticker, name
     return _append_row(df, row)
 
 
-def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quantity, price, conv_rate, ter, fee, *, is_buy, asset_name, tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
+def newrow_etf_stock(df: pd.DataFrame, date_str: str, ref_date: date, broker: str, currency: str, product: str,
+                     ticker: str, quantity: int, price: float, conv_rate: float, ter: TextCell, fee: float, *,
+                     is_buy: bool, asset_name: str, tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE,
+                     fee_mode: str = "abp") -> pd.DataFrame:
     """Record a buy or a sell of `quantity` units of `ticker` and return the account with the new row.
 
     `price` is the price of one unit in `currency`, always positive; `is_buy`
@@ -82,7 +89,7 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
 
     row = base_row()
     row.update({
-        "date": date,
+        "date": date_str,
         "account": broker,
         "operation": results["operation"],
         "product": product,
@@ -118,7 +125,8 @@ def newrow_etf_stock(df, date, ref_date, broker, currency, product, ticker, quan
     return _append_row(df, row)
 
 
-def newrow_split(df, date, ref_date, broker, ticker, ratio):
+def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str, ticker: str,
+                 ratio: float) -> pd.DataFrame:
     """Record a stock split as a unit-conversion row.
 
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
@@ -153,7 +161,7 @@ def newrow_split(df, date, ref_date, broker, ticker, ratio):
 
     row = base_row()
     row.update({
-        "date": date,
+        "date": date_str,
         "account": broker,
         "operation": Op.SPLIT,
         "product": product,

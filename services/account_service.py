@@ -6,17 +6,17 @@ from domain.ledger import opening_row
 from utils.constants import REPORT_PREFIX
 
 
-def report_filename(broker_name):
+def report_filename(broker_name: str) -> str:
     """Return the file name of an account's CSV, e.g. "Report Fineco.csv" for the account "Fineco"."""
     return REPORT_PREFIX + broker_name + ".csv"
 
 
-def report_path(folder, broker_name):
+def report_path(folder: str, broker_name: str) -> str:
     """Return the path of an account's CSV inside `folder`, e.g. <folder>/Report Fineco.csv."""
     return os.path.join(folder, report_filename(broker_name))
 
 
-def create_defaults(save_folder, broker_name):
+def create_defaults(save_folder: str, broker_name: str) -> None:
     """Create the CSV of a new account `broker_name` in `save_folder`, holding only its opening row.
 
     Does nothing if the file already exists: it holds the user's transactions.

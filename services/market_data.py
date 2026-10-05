@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 import pandas as pd
 
 from domain.errors import TickerNotFound
+from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,8 @@ def _fetch_chart(ticker: str, start=None, end=None, period=None, interval="1d", 
     return result[0]
 
 
-def download_close(tickers, start=None, end=None, period=None, adjusted=False):
+def download_close(tickers: str | list[str], start: DateLike | None = None, end: DateLike | None = None,
+                   period: str | None = None, adjusted: bool = False) -> tuple[pd.DataFrame, dict[str, str]]:
     """Fetch daily closing prices for one or more tickers.
 
     Returns (prices, names): `prices` is always a DataFrame with one row per
@@ -128,7 +130,7 @@ def download_close(tickers, start=None, end=None, period=None, adjusted=False):
     return df, names
 
 
-def download_prices_eur(tickers_with_currency, start, end):
+def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: DateLike, end: DateLike) -> pd.DataFrame:
     """Download daily closing prices in EUR: one column per ticker, all on the same days.
 
     `tickers_with_currency` is a list of (ticker, currency) pairs, currency
@@ -181,7 +183,7 @@ def fetch_ticker_name(ticker: str) -> str:
     raise TickerNotFound(ticker)
 
 
-def fetch_exchange_rate(ref_date=None) -> float:
+def fetch_exchange_rate(ref_date: str | None = None) -> float:
     """Fetch the USDEUR exchange rate for a given date."""
     if ref_date is None:
         ref_date = date.today().strftime("%Y-%m-%d")
@@ -208,7 +210,7 @@ def fetch_exchange_rate(ref_date=None) -> float:
     return round_half_up(valid[-1], decimal="0.000001")
 
 
-def fetch_splits(ticker: str, start, end) -> list[tuple]:
+def fetch_splits(ticker: str, start: DateLike, end: DateLike) -> list[tuple[date, float]]:
     """Return the stock splits Yahoo reports for `ticker` between `start` and `end`, oldest first.
 
     Each split is (date, ratio), ratio being new shares per old share: 4.0 for

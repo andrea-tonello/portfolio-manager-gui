@@ -1,14 +1,16 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import date, datetime
 from itertools import chain
 
+from domain.account import Account
 from domain.errors import ValidationError
 from domain.history import portfolio_history
 from domain.ledger import Op, Product, get_pf_date, holding_rows
 from domain.positions import aggregate_positions, get_tickers, priced_positions
 from domain.returns import xirr
 from services.market_data import download_close, download_prices_eur, fetch_ticker_name
+from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
 # Days a stock exchange is open in a year; turns daily returns and volatility into yearly ones.
@@ -21,7 +23,7 @@ VAR_SIMULATIONS = 50_000
 VAR_HISTORY_START = "2010-01-01"
 
 
-def compute_summary(accounts, ref_date, dt_str):
+def compute_summary(accounts: list[Account], ref_date: date, dt_str: str) -> dict:
     """Statistics of each Account in `accounts` and of all of them together, on `ref_date`.
 
     Returns dict:
@@ -166,7 +168,8 @@ def compute_summary(accounts, ref_date, dt_str):
     }
 
 
-def compute_correlation(accounts, start_ref_date, end_ref_date, asset1=None, asset2=None, window=None):
+def compute_correlation(accounts: list[Account], start_ref_date: DateLike, end_ref_date: DateLike,
+                        asset1: str | None = None, asset2: str | None = None, window: int | None = None) -> dict:
     """Correlation between the assets held in `accounts` (a list of Account), or between two given tickers.
 
     Returns dict:
@@ -214,7 +217,7 @@ def compute_correlation(accounts, start_ref_date, end_ref_date, asset1=None, ass
     }
 
 
-def compute_drawdown(accounts, start_ref_date, end_ref_date):
+def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_date: DateLike) -> dict:
     """Drawdown of the portfolio made of `accounts` (a list of Account) between the two dates.
 
     Returns dict:
@@ -261,7 +264,7 @@ def _simulate_outcomes(value, daily_return, daily_std, days, num_simulations, rn
     return value * daily_return * days + value * daily_std * z * np.sqrt(days)
 
 
-def compute_var_mc(accounts, confidence_interval, projected_days):
+def compute_var_mc(accounts: list[Account], confidence_interval: float, projected_days: int) -> dict:
     """Monte Carlo Value at Risk of the portfolio made of `accounts` (a list of Account).
 
     Returns dict:
@@ -340,7 +343,7 @@ def compute_var_mc(accounts, confidence_interval, projected_days):
     }
 
 
-def compute_allocation(accounts, ref_date):
+def compute_allocation(accounts: list[Account], ref_date: DateLike) -> dict[str, float]:
     """Compute asset allocation by product type across `accounts` (a list of Account), on `ref_date`.
 
     Returns dict mapping product type → market value in EUR, all as of
@@ -348,7 +351,7 @@ def compute_allocation(accounts, ref_date):
     Categories: Stock, Stock ETF, MM ETF, Bond ETF, Cash.
     """
     ref_date = pd.Timestamp(ref_date)
-    allocation = {}
+    allocation: dict[str, float] = {}
 
     for account in accounts:
         # Cash held on ref_date: the last row on or before it (the opening row, at zero, before any operation)

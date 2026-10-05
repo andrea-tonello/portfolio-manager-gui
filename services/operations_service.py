@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 import numpy as np
+import pandas as pd
 
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.market_data import fetch_splits
@@ -10,7 +11,7 @@ from services.validation import parse_positive, validate_date
 from utils.constants import CURRENCIES
 from utils.other_utils import round_half_up
 from domain.errors import ValidationError
-from domain.ledger import ETF_PRODUCTS, Op, Product
+from domain.ledger import ETF_PRODUCTS, Op, Product, TextCell
 from domain.positions import first_trade_date, unrecorded_splits
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 
@@ -24,7 +25,7 @@ _CASH_AMOUNT_ERRORS = {
 }
 
 
-def parse_cash_amount(kind, text):
+def parse_cash_amount(kind: str, text: str | None) -> float:
     """Return the amount typed for a cash operation of `kind`: negative for a withdrawal, positive otherwise.
 
     The user always types a positive number. Raises ValidationError with the
@@ -48,13 +49,15 @@ class TradeInput:
     conv_rate: float   # USD -> EUR rate; 1.0 for EUR
     fee: float         # in EUR, even when paid in USD
     ter: str | float   # an ETF's yearly cost, e.g. "0.2%"; NaN when not given
-    product: Product   # the product code stored in the CSV
+    product: str       # the product code stored in the CSV, a Product value such as "ETF-M"
     tax_rate: float    # on capital gains, e.g. 0.26
     fee_mode: str      # how the fee is accounted for: "abp", "buy_loss" or "sell_loss"
 
 
-def parse_trade(*, product, is_buy, day, ticker, quantity, price, fee, currency, exch_rate,
-                fee_currency, ter, tax_bracket, fee_mode, ledger_df) -> TradeInput:
+def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | None, quantity: str | None,
+                price: str | None, fee: str | None, currency: str, exch_rate: str | None, fee_currency: str,
+                ter: str | None, tax_bracket: str | None, fee_mode: str | None,
+                ledger_df: pd.DataFrame) -> TradeInput:
     """Check the values of an ETF or Stock form, in the order of its fields, and return them ready to record.
 
     The text arguments are what the user typed. `product` is Product.STOCK or
@@ -101,8 +104,9 @@ def parse_trade(*, product, is_buy, day, ticker, quantity, price, fee, currency,
                       ter_value, product, tax_rate, fee_mode)
 
 
-def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
-                           amount, ticker=None, description=None, asset_name=None):
+def execute_cash_operation(df: pd.DataFrame, broker: str, op_kind: str, date_str: str, ref_date: date,
+                           amount: float, ticker: str | None = None, description: str | None = None,
+                           asset_name: str | None = None) -> pd.DataFrame:
     if op_kind == "deposit_withdrawal":
         op_type = Op.DEPOSIT if amount > 0 else Op.WITHDRAWAL
         product, tk, name = Product.CASH, np.nan, np.nan
@@ -125,10 +129,10 @@ def execute_cash_operation(df, broker, op_kind, date_str, ref_date,
                        op_type, product, tk, name)
 
 
-def execute_etf_stock(df, broker, date_str, ref_date,
-                      currency, conv_rate, ticker, quantity, price,
-                      fee, ter, product_type, *, is_buy, asset_name=None,
-                      tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
+def execute_etf_stock(df: pd.DataFrame, broker: str, date_str: str, ref_date: date,
+                      currency: str, conv_rate: float, ticker: str, quantity: int, price: float,
+                      fee: float, ter: TextCell, product_type: str, *, is_buy: bool, asset_name: str | None = None,
+                      tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp") -> pd.DataFrame:
     """Record a buy (`is_buy=True`) or a sell of a stock or ETF; `price` is always positive.
 
     `currency` is the trade's currency code, "EUR" or "USD"; `conv_rate` converts
@@ -147,13 +151,14 @@ def execute_etf_stock(df, broker, date_str, ref_date,
                             asset_name=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
 
 
-def execute_split(df, broker, date_str, ref_date, ticker, ratio):
+def execute_split(df: pd.DataFrame, broker: str, date_str: str, ref_date: date, ticker: str,
+                  ratio: float) -> pd.DataFrame:
     if not isinstance(ratio, (int, float)) or not (0.001 <= ratio <= 1000):
         raise ValidationError("operations.split.ratio_error")
     return newrow_split(df, date_str, ref_date, broker, ticker, float(ratio))
 
 
-def detect_unrecorded_splits(df, ticker):
+def detect_unrecorded_splits(df: pd.DataFrame | None, ticker: str) -> list[tuple[str, float]]:
     """Return the splits of `ticker` that Yahoo reports but the ledger `df` doesn't record yet.
 
     Each is (ISO date, ratio), oldest first, e.g. [("2024-10-15", 0.1)] for a

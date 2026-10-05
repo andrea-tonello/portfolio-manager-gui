@@ -9,8 +9,10 @@ Statistics and Drawdown analyses are built on it.
 import numpy as np
 import pandas as pd
 
+from domain.account import Account
 from domain.positions import get_tickers
 from services import market_data
+from utils.date_utils import DateLike
 
 
 def _compute_total_liquidity(final_df):
@@ -144,7 +146,7 @@ def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers
         raise RuntimeError(f"Error building portfolio timeseries: {e}") from e
 
 
-def portfolio_history(start_ref_date, end_ref_date, accounts):
+def portfolio_history(start_ref_date: DateLike, end_ref_date: DateLike, accounts: list[Account]) -> pd.DataFrame:
     """Return the day-by-day history of the `accounts` (a list of Account) between the two dates."""
     total_tickers, _ = get_tickers(accounts)
     only_tickers = [t[0] for t in total_tickers]

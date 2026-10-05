@@ -4,6 +4,9 @@ XIRR is the yearly interest rate at which all deposits, withdrawals and the
 final portfolio value balance out, so it accounts for when money went in and out.
 """
 
+from collections.abc import Sequence
+from datetime import date
+
 import numpy as np
 
 
@@ -35,7 +38,8 @@ def _secant(f, x0, x1, tol=1e-7, max_iter=100):
     raise RuntimeError(f"secant method: no convergence after {max_iter} iterations")
 
 
-def xirr(cash_flows, flows_dates, annualization=365, x0=0.1, x1=0.2, max_iter=100):
+def xirr(cash_flows: Sequence[float], flows_dates: Sequence[date], annualization: int = 365,
+         x0: float = 0.1, x1: float = 0.2, max_iter: int = 100) -> float:
     days = [(day - flows_dates[0]).days for day in flows_dates]
     years = np.array(days) / annualization
 

@@ -6,15 +6,20 @@ fetches closing prices (and the USD->EUR rate) from Yahoo Finance through
 services.market_data.
 """
 
+from datetime import date, datetime
+
 import numpy as np
 import pandas as pd
 
+from domain.account import Account
 from domain.ledger import Op, holding_rows
 from services import market_data
 from utils.constants import DATE_FORMAT
+from utils.date_utils import DateLike
 
 
-def holdings(df, ref_date=None, exclude_ticker=None):
+def holdings(df: pd.DataFrame, ref_date: DateLike | None = None,
+             exclude_ticker: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return (all_assets, active_assets) from the ledger `df`, without fetching prices.
 
     all_assets has one row per asset ever bought: the latest values of its
@@ -38,7 +43,7 @@ def holdings(df, ref_date=None, exclude_ticker=None):
     return total_assets, total_active_assets
 
 
-def priced_positions(df, ref_date, exclude_ticker=None):
+def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str | None = None) -> list[dict]:
     """Return one dict per asset held on `ref_date`, valued at that day's closing price in EUR.
 
     Keys: ticker, name, quantity, pmc (average buy price), exchange_rate
@@ -97,7 +102,7 @@ def priced_positions(df, ref_date, exclude_ticker=None):
     return positions
 
 
-def held_tickers(df):
+def held_tickers(df: pd.DataFrame) -> dict[str, str]:
     """Return {ticker: asset_name} for every asset currently held (quantity above zero).
 
     Assets are ordered by their latest buy, sell or split. Used to look for
@@ -108,13 +113,13 @@ def held_tickers(df):
     return dict(zip(held["ticker"], held["asset_name"]))
 
 
-def first_trade_date(df, ticker):
+def first_trade_date(df: pd.DataFrame, ticker: str) -> datetime | None:
     """Return the date (a datetime) of the first buy, sell or split of `ticker` in `df`, or None if there is none."""
     dates = pd.to_datetime(holding_rows(df, ticker)["date"], dayfirst=True, errors="coerce").dropna()
     return dates.min().to_pydatetime() if not dates.empty else None
 
 
-def unrecorded_splits(df, ticker, splits):
+def unrecorded_splits(df: pd.DataFrame, ticker: str, splits: list[tuple[date, float]]) -> list[tuple[str, float]]:
     """Return the splits of `ticker` not yet recorded in `df`, as (ISO date, ratio), in the order given.
 
     `splits` is a list of (date, ratio) pairs, as market_data.fetch_splits
@@ -134,7 +139,7 @@ def unrecorded_splits(df, ticker, splits):
     return [(day.strftime("%Y-%m-%d"), ratio) for day, ratio in splits if day not in recorded_dates]
 
 
-def split_ratio_label(ratio):
+def split_ratio_label(ratio: float) -> str:
     """Write a split ratio the way brokers do: new shares to old shares.
 
     Examples: 2.0 -> "2:1" (each share becomes two), 1.5 -> "1.5:1",
@@ -146,7 +151,7 @@ def split_ratio_label(ratio):
     return f"1:{int(inverse) if inverse.is_integer() else round(inverse, 4)}"
 
 
-def get_tickers(accounts):
+def get_tickers(accounts: list[Account]) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Return (all, active): the (ticker, currency) pairs ever held and still held, across `accounts` (a list of Account)."""
     total_tickers = []
     active_tickers = []
@@ -162,7 +167,7 @@ def get_tickers(accounts):
     return list(set(total_tickers)), list(set(active_tickers))
 
 
-def aggregate_positions(total_positions):
+def aggregate_positions(total_positions: list[dict]) -> list[dict]:
     """Merge positions of the same ticker held in several accounts into one {ticker, value} each."""
     aggr_positions_dict = {}
     for pos in total_positions:

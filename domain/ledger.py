@@ -37,9 +37,14 @@ from enum import StrEnum
 import numpy as np
 import pandas as pd
 
+from domain.account import Account
 from domain.errors import ValidationError
 from utils.columns import COLUMNS
 from utils.constants import DATE_FORMAT
+from utils.date_utils import DateLike
+
+# A text cell of the ledger as pandas reads it: the text, or NaN (a float) when the cell is empty.
+TextCell = str | float
 
 # Date of every account's opening row (all totals at zero). Nothing can be
 # recorded before it, so the app's date pickers start here too.
@@ -82,7 +87,7 @@ ETF_PRODUCTS = {Product.ETF_STOCK, Product.ETF_MM, Product.ETF_BOND}
 _HOLDING_OPS = (Op.BUY, Op.SELL, Op.SPLIT)
 
 
-def holding_rows(df, ticker=None):
+def holding_rows(df: pd.DataFrame, ticker: str | None = None) -> pd.DataFrame:
     """Return the rows of `df` that change how many units are held: buys, sells and splits.
 
     With `ticker`, only that asset's rows. Rows keep their original index. The
@@ -95,12 +100,12 @@ def holding_rows(df, ticker=None):
     return rows
 
 
-def base_row():
+def base_row() -> dict:
     """Return an empty ledger row: every column of utils/columns.py set to NaN, ready to be filled in."""
     return {col: np.nan for col in COLUMNS}
 
 
-def opening_row(broker_name):
+def opening_row(broker_name: str) -> dict:
     """Return the first row of a new account called `broker_name`: dated LEDGER_START_DATE, every total at zero."""
     row = base_row()
     row.update({
@@ -115,7 +120,7 @@ def opening_row(broker_name):
     return row
 
 
-def get_pf_date(account, dt, ref_date):
+def get_pf_date(account: Account, dt: DateLike, ref_date: DateLike) -> tuple[pd.DataFrame, pd.Timestamp | None]:
     """Returns (account's rows up to `ref_date`, date of its first operation).
 
     The rows are a copy, with the "date" column parsed to datetimes. The first

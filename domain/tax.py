@@ -7,7 +7,7 @@ after the loss), and on cash. compute_carryforward rebuilds the carryforward
 from the ledger.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from domain.errors import ValidationError
 from domain.ledger import ETF_PRODUCTS, Op
 from domain.positions import priced_positions
 from utils.constants import DATE_FORMAT
+from utils.date_utils import DateLike
 from utils.other_utils import round_down, round_half_up
 
 # Rate applied to a sale's taxable gain (gain minus any carryforward used).
@@ -25,7 +26,7 @@ from utils.other_utils import round_down, round_half_up
 DEFAULT_CAPITAL_GAINS_TAX_RATE = 0.26
 
 
-def add_solar_years(loss_date):
+def add_solar_years(loss_date: date) -> str:
     """Return the date (DD-MM-YYYY) until which a capital loss made on `loss_date` can offset gains.
 
     The rule: a loss can be used in the year it is made and in the four
@@ -38,7 +39,8 @@ def add_solar_years(loss_date):
     return expiry.strftime(DATE_FORMAT)
 
 
-def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode="abp"):
+def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: float, conv_rate: float,
+              fee: float, ref_date: date, product: str, ticker: str, fee_mode: str = "abp") -> dict:
     """Work out a buy's effect: the asset's new quantity and average buy price, the carryforward, cash and NAV.
 
     The average buy price (abp) is what each unit held cost on average; a later
@@ -114,7 +116,7 @@ def buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product
     }
 
 
-def compute_carryforward(df, ref_date, as_of_index=None):
+def compute_carryforward(df: pd.DataFrame, ref_date: DateLike, as_of_index: int | None = None) -> float:
     """Return the capital losses in the ledger `df` still available on `ref_date` to offset future gains.
 
     The rules, applied in date order: every loss enters with its expiry date
@@ -173,7 +175,9 @@ def compute_carryforward(df, ref_date, as_of_index=None):
     return max(0.0, total)
 
 
-def sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode="abp"):
+def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: float, conv_rate: float,
+               fee: float, ref_date: date, product: str, ticker: str,
+               tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp") -> dict:
     """Work out a sale's effect: its gain or loss, the tax, the carryforward, what is left held, cash and NAV.
 
     The gain is what the sale brings in (minus its fee) less what the units

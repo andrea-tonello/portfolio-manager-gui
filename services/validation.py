@@ -12,7 +12,8 @@ import pandas as pd
 from domain.errors import ValidationError
 
 
-def parse_positive(text, error_key, *, integer=False, allow_zero=False, empty=None):
+def parse_positive(text: str | None, error_key: str, *, integer: bool = False, allow_zero: bool = False,
+                   empty: float | None = None) -> int | float:
     """Return the number typed in `text`, which must be above zero (or zero too, with `allow_zero`).
 
     Raises ValidationError(error_key) for text that isn't a number, or is too
@@ -35,7 +36,7 @@ def parse_positive(text, error_key, *, integer=False, allow_zero=False, empty=No
     return value
 
 
-def validate_date(day, *, ledger_df=None):
+def validate_date(day: date | None, *, ledger_df: pd.DataFrame | None = None) -> date:
     """Return `day` if it is given and not in the future.
 
     With `ledger_df` (an account's ledger) it also must not be earlier than the
@@ -56,7 +57,7 @@ def validate_date(day, *, ledger_df=None):
     return day
 
 
-def validate_date_range(start, end):
+def validate_date_range(start: date | None, end: date | None) -> tuple[date, date]:
     """Return (start, end) if both are given, neither is in the future, and start comes before end."""
     if start is None or end is None:
         raise ValidationError("misc_errors.nodate")
