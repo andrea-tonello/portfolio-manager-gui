@@ -5,23 +5,12 @@ from components.dialogs import build_github_repo, show_contacts, show_privacy_po
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
+from components.theme import PALETTE_COLORS, THEME_MODES, apply_theme
 from domain.errors import ValidationError
 from services import config_service
 from utils.constants import APP_VERSION, DEFAULT_LANG, LANGUAGES
 
 PAGE_WIDTH = 720
-
-
-PALETTE_COLORS = {
-    "blue": ft.Colors.BLUE,
-    "teal": ft.Colors.TEAL,
-    "green": ft.Colors.GREEN,
-    "yellow": ft.Colors.YELLOW,
-    "orange": ft.Colors.ORANGE,
-    "red": ft.Colors.RED,
-    "purple": ft.Colors.PURPLE,
-    "indigo": ft.Colors.INDIGO,
-}
 
 
 class SettingsView:
@@ -60,9 +49,6 @@ class SettingsView:
 
     # ── Theming ──────────────────────────────────────────────────────
 
-    _THEME_MODES = ["system", "light", "dark"]
-    _PALETTE_KEYS = ["blue", "teal", "green", "yellow", "orange", "red", "purple", "indigo"]
-
     def _build_theming_section(self) -> ft.Control:
         t = self.state.translator
 
@@ -98,62 +84,50 @@ class SettingsView:
         )
 
     def _open_theme_dialog(self, e):
+        """Let the user pick light, dark or the device's mode."""
         t = self.state.translator
-        rg = ft.RadioGroup(
-            value=self.state.theme_mode,
-            on_change=lambda ev: self._on_theme_selected(ev, rg),
-            content=ft.Column([
-                ft.Radio(value=m, label=t.get(f"settings.theme.{m}"))
-                for m in self._THEME_MODES
-            ], spacing=0, tight=True),
+        self._open_choice_dialog(
+            "settings.theme.title", {mode: t.get(f"settings.theme.{mode}") for mode in THEME_MODES},
+            self.state.theme_mode, lambda mode: self._change_theme(mode, self.state.color_seed),
         )
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("settings.theme.title")),
-            content=rg,
-        )
-        self.page.show_dialog(dlg)
-
-    def _on_theme_selected(self, e, rg):
-        new_mode = rg.value
-        self.state.theme_mode = new_mode
-        config_service.save_theme(self.state.config_folder, new_mode, self.state.color_seed)
-        self.page.pop_dialog()
-        self._apply_theme()
 
     def _open_palette_dialog(self, e):
+        """Let the user pick the colour palette."""
         t = self.state.translator
-        rg = ft.RadioGroup(
-            value=self.state.color_seed,
-            on_change=lambda ev: self._on_palette_selected(ev, rg),
+        self._open_choice_dialog(
+            "settings.palette.title", {key: t.get(f"settings.palette.{key}") for key in PALETTE_COLORS},
+            self.state.color_seed, lambda palette: self._change_theme(self.state.theme_mode, palette),
+        )
+
+    def _open_choice_dialog(self, title_key, options, current, on_pick):
+        """Show `options` ({key: label}) as radio buttons, `current` selected; a pick closes it and calls on_pick(key)."""
+        def picked(e):
+            """Close the dialog and hand over the key picked."""
+            self.page.pop_dialog()
+            on_pick(choices.value)
+
+        choices = ft.RadioGroup(
+            value=current,
+            on_change=picked,
             content=ft.Column([
-                ft.Radio(value=k, label=t.get(f"settings.palette.{k}"))
-                for k in self._PALETTE_KEYS
+                ft.Radio(value=key, label=label) for key, label in options.items()
             ], spacing=0, tight=True),
         )
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("settings.palette.title")),
-            content=rg,
-        )
-        self.page.show_dialog(dlg)
+        self.page.show_dialog(ft.AlertDialog(
+            title=ft.Text(self.state.translator.get(title_key)),
+            content=choices,
+        ))
 
-    def _on_palette_selected(self, e, rg):
-        new_color = rg.value
-        self.state.color_seed = new_color
-        config_service.save_theme(self.state.config_folder, self.state.theme_mode, new_color)
-        self.page.pop_dialog()
-        self._apply_theme()
-
-    def _apply_theme(self):
+    def _change_theme(self, mode, palette):
+        """Save the light/dark mode and palette, apply them to the page, and show them on the two buttons."""
         s = self.state
         t = s.translator
-        mode_map = {"system": ft.ThemeMode.SYSTEM, "light": ft.ThemeMode.LIGHT, "dark": ft.ThemeMode.DARK}
-        self.page.theme_mode = mode_map.get(s.theme_mode, ft.ThemeMode.SYSTEM)
-        color = PALETTE_COLORS.get(s.color_seed, ft.Colors.BLUE)
-        self.page.theme = ft.Theme(color_scheme_seed=color)
-        self.page.dark_theme = ft.Theme(color_scheme_seed=color)
+        s.theme_mode, s.color_seed = mode, palette
+        config_service.save_theme(s.config_folder, mode, palette)
+        apply_theme(self.page, mode, palette)
 
-        self._theme_btn.content = ft.Text(t.get(f"settings.theme.{s.theme_mode}"))
-        self._palette_btn.content = ft.Text(t.get(f"settings.palette.{s.color_seed}"))
+        self._theme_btn.content = ft.Text(t.get(f"settings.theme.{mode}"))
+        self._palette_btn.content = ft.Text(t.get(f"settings.palette.{palette}"))
         self.page.update()
 
     # ── Language ──────────────────────────────────────────────────────
