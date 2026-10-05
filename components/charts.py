@@ -1,8 +1,110 @@
+"""The charts of the Analysis tab, built as native Flet controls.
+
+Each chart_* function takes the translator first and returns one control: a
+white card holding a legend and the chart, or a short text when there is
+nothing to draw. The helpers below give every chart the same card, axes,
+grid, tooltips and legend style.
+"""
+
 import flet as ft
 import flet_charts as fch
 import numpy as np
 
 from utils.columns import PRODUCT_LOCALE_KEYS
+from utils.formatting import fmt_eur
+
+
+def _fmt_date(dt):
+    """Write a date as YYYY-MM-DD, whether it is a date/Timestamp or already text."""
+    return dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
+
+
+def _no_data(t):
+    """The text shown in place of a chart with nothing to draw."""
+    return ft.Text(t.get("analysis.charts.no_data"))
+
+
+def _chart_card(*children, spacing=6):
+    """The white rounded card, 320 high with a light shadow, that holds every chart and its legend."""
+    return ft.Container(
+        content=ft.Column(list(children), spacing=spacing, expand=True),
+        bgcolor=ft.Colors.WHITE,
+        border_radius=12,
+        padding=8,
+        height=320,
+        shadow=ft.BoxShadow(
+            spread_radius=1, blur_radius=3,
+            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        ),
+    )
+
+
+def _legend(entries, gap="   "):
+    """A one-line legend: for each (color, label), a coloured square and the label, entries `gap` apart.
+
+    An entry can name another symbol as a third item, e.g. (RED, "Max", "●"), and
+    a colour of None shows the label alone. Example: [(BLUE, "NAV"), (RED, "Cash")]
+    reads "■ NAV   ■ Cash" with blue and red squares.
+    """
+    spans = []
+    for i, (color, label, *symbol) in enumerate(entries):
+        if color is not None:
+            marker = symbol[0] if symbol else "■"
+            # A dot looks smaller than a square of the same size, so it is drawn bigger.
+            spans.append(ft.TextSpan(marker + " ", style=ft.TextStyle(color=color, size=14 if marker == "●" else 10)))
+        spans.append(ft.TextSpan(label + ("" if i == len(entries) - 1 else gap),
+                                 style=ft.TextStyle(color=ft.Colors.BLACK, size=10)))
+    return ft.Text(spans=spans)
+
+
+def _chart_frame():
+    """Settings shared by the line and bar charts: they fill the card, with a thin border, grid lines and tooltips."""
+    return {
+        "expand": True,
+        "border": ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.ON_SURFACE)),
+        "horizontal_grid_lines": fch.ChartGridLines(
+            color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE),
+            width=1,
+        ),
+        "interactive": True,
+    }
+
+
+def _tooltip(kind):
+    """The grey tooltip box every chart uses; `kind` is fch.LineChartTooltip or fch.BarChartTooltip."""
+    return kind(
+        bgcolor="#E0E0E0",
+        border_radius=8,
+        padding=ft.Padding.all(8),
+        max_width=160,
+        fit_inside_horizontally=True,
+        fit_inside_vertically=True,
+    )
+
+
+def _line_chart(data_series, dates, min_y, max_y, y_labels):
+    """A line chart with one point per date (x = the date's position), dates along the bottom and `y_labels` on the left."""
+    return fch.LineChart(
+        data_series=data_series,
+        min_x=0,
+        max_x=len(dates) - 1,
+        min_y=min_y,
+        max_y=max_y,
+        bottom_axis=fch.ChartAxis(
+            label_size=0,
+            labels=_date_axis_labels(dates),
+            show_min=False,
+            show_max=False,
+        ),
+        left_axis=fch.ChartAxis(
+            label_size=0,
+            labels=y_labels,
+            show_min=False,
+            show_max=False,
+        ),
+        tooltip=_tooltip(fch.LineChartTooltip),
+        **_chart_frame(),
+    )
 
 
 def _date_axis_labels(dates, num_labels=6):
@@ -15,15 +117,7 @@ def _date_axis_labels(dates, num_labels=6):
     else:
         step = (n - 1) / (num_labels - 1)
         indices = [int(round(i * step)) for i in range(num_labels)]
-    labels = []
-    for i in indices:
-        dt = dates[i]
-        if hasattr(dt, "strftime"):
-            text = dt.strftime("%Y-%m-%d")
-        else:
-            text = str(dt)[:10]
-        labels.append(fch.ChartAxisLabel(value=i, label=text))
-    return labels
+    return [fch.ChartAxisLabel(value=i, label=_fmt_date(dates[i])) for i in indices]
 
 
 def _y_axis_labels(y_min, y_max, num_labels=5, suffix=""):
@@ -115,13 +209,13 @@ def chart_summary(translator, pf_history) -> ft.Control:
     dates = pf_history["Date"].tolist()
     n = len(dates)
     if n == 0:
-        return ft.Text("No data")
+        return _no_data(translator)
 
     series_config = [
-        ("nav", "NAV", ft.Colors.BLUE, 2.5, None),
-        ("assets_value", "Securities", ft.Colors.RED, 1.5, [8, 4]),
-        ("cash", "Cash", "#1B5E20", 1.5, [8, 4]),
-        ("committed_cash", "Committed Cash", ft.Colors.LIGHT_GREEN, 1.0, [4, 4]),
+        ("nav", translator.get("analysis.charts.nav"), ft.Colors.BLUE, 2.5, None),
+        ("assets_value", translator.get("analysis.charts.securities"), ft.Colors.RED, 1.5, [8, 4]),
+        ("cash", translator.get("analysis.charts.cash"), "#1B5E20", 1.5, [8, 4]),
+        ("committed_cash", translator.get("analysis.charts.committed_cash"), ft.Colors.LIGHT_GREEN, 1.0, [4, 4]),
     ]
 
     # Downsample the NAV series for performance
@@ -136,10 +230,8 @@ def chart_summary(translator, pf_history) -> ft.Control:
         for idx in sample_indices:
             y = float(pf_history.iloc[idx][col])
             if first_series:
-                dt = dates[idx]
-                date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
                 tip = fch.LineChartDataPointTooltip(
-                    text=f"{date_str}\n{label}: {y:,.0f}",
+                    text=f"{_fmt_date(dates[idx])}\n{label}: {y:,.0f}",
                     text_style=ft.TextStyle(size=10),
                 )
             else:
@@ -163,58 +255,9 @@ def chart_summary(translator, pf_history) -> ft.Control:
     y_max = max(all_y)
     y_pad = (y_max - y_min) * 0.05 if y_max != y_min else 1
 
-    chart = fch.LineChart(
-        data_series=data_series,
-        min_x=0,
-        max_x=n - 1,
-        min_y=y_min - y_pad,
-        max_y=y_max + y_pad,
-        expand=True,
-        border=ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.ON_SURFACE)),
-        horizontal_grid_lines=fch.ChartGridLines(
-            color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE),
-            width=1,
-        ),
-        bottom_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_date_axis_labels(dates),
-            show_min=False,
-            show_max=False,
-        ),
-        left_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_y_axis_labels(y_min, y_max),
-            show_min=False,
-            show_max=False,
-        ),
-        interactive=True,
-        tooltip=fch.LineChartTooltip(
-            bgcolor="#E0E0E0",
-            border_radius=8,
-            padding=ft.Padding.all(8),
-            max_width=160,
-            fit_inside_horizontally=True,
-            fit_inside_vertically=True,
-        ),
-    )
-
-    spans = []
-    for _, label, color, _, _ in series_config:
-        spans.append(ft.TextSpan("■ ", style=ft.TextStyle(color=color, size=10)))
-        spans.append(ft.TextSpan(label + "   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)))
-    legend = ft.Text(spans=spans)
-
-    return ft.Container(
-        content=ft.Column([legend, chart], spacing=6, expand=True),
-        bgcolor=ft.Colors.WHITE,
-        border_radius=12,
-        padding=8,
-        height=320,
-        shadow=ft.BoxShadow(
-            spread_radius=1, blur_radius=3,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-        ),
-    )
+    chart = _line_chart(data_series, dates, y_min - y_pad, y_max + y_pad, _y_axis_labels(y_min, y_max))
+    legend = _legend([(color, label) for _, label, color, _, _ in series_config])
+    return _chart_card(legend, chart)
 
 
 def _corr_color(value: float) -> str:
@@ -287,20 +330,8 @@ def chart_correlation_heatmap(translator, correlation_matrix) -> ft.Control:
         *scale_containers,
     ], spacing=4)
 
-    return ft.Container(
-        content=ft.Column([
-            ft.Row([ft.Column([header_row, *data_rows], spacing=0)], scroll=ft.ScrollMode.AUTO),
-            scale,
-        ], spacing=8),
-        bgcolor=ft.Colors.WHITE,
-        border_radius=12,
-        padding=8,
-        height=320,
-        shadow=ft.BoxShadow(
-            spread_radius=1, blur_radius=3,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-        ),
-    )
+    grid = ft.Row([ft.Column([header_row, *data_rows], spacing=0)], scroll=ft.ScrollMode.AUTO)
+    return _chart_card(grid, scale, spacing=8)
 
 
 def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2) -> ft.Control:
@@ -319,14 +350,13 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2) 
 
     points = []
     y_vals = []
+    corr_label = translator.get("analysis.charts.corr")
     for idx in sample_indices:
         y = float(values[idx])
-        dt = orig_dates[idx]
-        date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
         points.append(fch.LineChartDataPoint(
             idx, y,
             tooltip=fch.LineChartDataPointTooltip(
-                text=f"{date_str}\nCorr: {y:.3f}",
+                text=f"{_fmt_date(orig_dates[idx])}\n{corr_label}: {y:.3f}",
                 text_style=ft.TextStyle(size=10),
             ),
         ))
@@ -359,67 +389,15 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2) 
 
     title = translator.get("analysis.corr.plot_title_rolling", window=window, asset1=asset1, asset2=asset2)
 
-    chart = fch.LineChart(
-        data_series=[corr_line, zero_line],
-        min_x=0,
-        max_x=n - 1,
-        min_y=max(y_min - y_pad, -1.0),
-        max_y=min(y_max + y_pad, 1.0),
-        expand=True,
-        border=ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.ON_SURFACE)),
-        horizontal_grid_lines=fch.ChartGridLines(
-            color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE),
-            width=1,
-        ),
-        bottom_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_date_axis_labels(orig_dates),
-            show_min=False,
-            show_max=False,
-        ),
-        left_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_y_axis_labels(
-                max(min(y_vals), -1.0),
-                min(max(y_vals), 1.0),
-                num_labels=5,
-            ),
-            show_min=False,
-            show_max=False,
-        ),
-        interactive=True,
-        tooltip=fch.LineChartTooltip(
-            bgcolor="#E0E0E0",
-            border_radius=8,
-            padding=ft.Padding.all(8),
-            max_width=160,
-            fit_inside_horizontally=True,
-            fit_inside_vertically=True,
-        ),
+    chart = _line_chart(
+        [corr_line, zero_line], orig_dates, max(y_min - y_pad, -1.0), min(y_max + y_pad, 1.0),
+        _y_axis_labels(max(min(y_vals), -1.0), min(max(y_vals), 1.0), num_labels=5),
     )
-
-    legend = ft.Text(spans=[
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.BLUE, size=10)),
-        ft.TextSpan(f"{asset1} / {asset2}   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED, size=10)),
-        ft.TextSpan("Zero", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+    legend = _legend([
+        (ft.Colors.BLUE, f"{asset1} / {asset2}"),
+        (ft.Colors.RED, translator.get("analysis.charts.zero")),
     ])
-
-    return ft.Container(
-        content=ft.Column([
-            ft.Text(title, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
-            legend,
-            chart,
-        ], spacing=6, expand=True),
-        bgcolor=ft.Colors.WHITE,
-        border_radius=12,
-        padding=8,
-        height=320,
-        shadow=ft.BoxShadow(
-            spread_radius=1, blur_radius=3,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-        ),
-    )
+    return _chart_card(ft.Text(title, size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK), legend, chart)
 
 
 def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
@@ -429,7 +407,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     dates = pf_history["Date"].tolist()
     n = len(dates)
     if n == 0:
-        return ft.Text("No data")
+        return _no_data(translator)
 
     mdd_pct = mdd * 100
 
@@ -446,8 +424,6 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     y_vals = []
     for idx in sample_indices:
         y = float(drawdown_pct.iloc[idx])
-        dt = dates[idx]
-        date_str = dt.strftime("%Y-%m-%d") if hasattr(dt, "strftime") else str(dt)[:10]
         pt_marker = (
             fch.ChartCirclePoint(color=ft.Colors.RED, radius=5)
             if idx == mdd_idx else False
@@ -456,7 +432,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
             idx, y,
             point=pt_marker,
             tooltip=fch.LineChartDataPointTooltip(
-                text=f"{date_str}\nDD: {y:.1f}%",
+                text=f"{_fmt_date(dates[idx])}\nDD: {y:.1f}%",
                 text_style=ft.TextStyle(size=10),
             ),
         ))
@@ -485,70 +461,20 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     y_min = mdd_pct - 2.5
     y_max = 2.5
 
-    mdd_label = translator.get("analysis.drawdown.legend", mdd=mdd_pct)
-
-    chart = fch.LineChart(
-        data_series=[dd_line, zero_line],
-        min_x=0,
-        max_x=n - 1,
-        min_y=y_min,
-        max_y=y_max,
-        expand=True,
-        border=ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.ON_SURFACE)),
-        horizontal_grid_lines=fch.ChartGridLines(
-            color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE),
-            width=1,
-        ),
-        bottom_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_date_axis_labels(dates),
-            show_min=False,
-            show_max=False,
-        ),
-        left_axis=fch.ChartAxis(
-            label_size=0,
-            labels=_y_axis_labels(y_min, y_max, suffix="%"),
-            show_min=False,
-            show_max=False,
-        ),
-        interactive=True,
-        tooltip=fch.LineChartTooltip(
-            bgcolor="#E0E0E0",
-            border_radius=8,
-            padding=ft.Padding.all(8),
-            max_width=160,
-            fit_inside_horizontally=True,
-            fit_inside_vertically=True,
-        ),
-    )
-
-    legend = ft.Text(spans=[
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("Drawdown   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.with_opacity(0.5, ft.Colors.GREY), size=10)),
-        ft.TextSpan("Zero   ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("● ", style=ft.TextStyle(color=ft.Colors.RED, size=14)),
-        ft.TextSpan(mdd_label, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
+    chart = _line_chart([dd_line, zero_line], dates, y_min, y_max, _y_axis_labels(y_min, y_max, suffix="%"))
+    legend = _legend([
+        (ft.Colors.BLACK, translator.get("analysis.charts.drawdown")),
+        (ft.Colors.with_opacity(0.5, ft.Colors.GREY), translator.get("analysis.charts.zero")),
+        (ft.Colors.RED, translator.get("analysis.drawdown.legend", mdd=mdd_pct), "●"),
     ])
-
-    return ft.Container(
-        content=ft.Column([legend, chart], spacing=6, expand=True),
-        bgcolor=ft.Colors.WHITE,
-        border_radius=12,
-        padding=8,
-        height=320,
-        shadow=ft.BoxShadow(
-            spread_radius=1, blur_radius=3,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-        ),
-    )
+    return _chart_card(legend, chart)
 
 
 def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
     """VaR Monte Carlo histogram. Returns a native Flet BarChart control."""
     scenario_return = np.array(scenario_return)
     if len(scenario_return) == 0:
-        return ft.Text("No data")
+        return _no_data(translator)
 
     # Compute histogram bins (reduced for performance)
     num_bins = 40
@@ -572,7 +498,7 @@ def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
                 color=color,
                 border_radius=0,
                 tooltip=fch.BarChartRodTooltip(
-                    text=f"{bin_center:,.2f}€",
+                    text=fmt_eur(bin_center),
                     text_style=ft.TextStyle(size=10, color=ft.Colors.BLACK),
                 ),
             )],
@@ -592,19 +518,11 @@ def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
             ),
         ))
 
-    var_legend = translator.get("analysis.var.legend", ci=ci, var=var_value)
-
     chart = fch.BarChart(
         groups=groups,
         group_spacing=0,
         max_y=max_count * 1.1,
         min_y=0,
-        expand=True,
-        border=ft.Border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.ON_SURFACE)),
-        horizontal_grid_lines=fch.ChartGridLines(
-            color=ft.Colors.with_opacity(0.15, ft.Colors.ON_SURFACE),
-            width=1,
-        ),
         bottom_axis=fch.ChartAxis(
             label_size=20,
             labels=x_labels,
@@ -617,34 +535,15 @@ def chart_var_mc(translator, scenario_return, var_value, ci) -> ft.Control:
             show_min=False,
             show_max=False,
         ),
-        interactive=True,
-        tooltip=fch.BarChartTooltip(
-            bgcolor="#E0E0E0",
-            border_radius=8,
-            padding=ft.Padding.all(8),
-            max_width=160,
-            fit_inside_horizontally=True,
-            fit_inside_vertically=True,
-        ),
+        tooltip=_tooltip(fch.BarChartTooltip),
+        **_chart_frame(),
     )
 
-    legend = ft.Text(spans=[
-        ft.TextSpan(translator.get("analysis.var.axes") + "       ", style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-        ft.TextSpan("■ ", style=ft.TextStyle(color=ft.Colors.RED_300, size=10)),
-        ft.TextSpan(var_legend, style=ft.TextStyle(color=ft.Colors.BLACK, size=10)),
-    ])
-
-    return ft.Container(
-        content=ft.Column([legend, chart], spacing=6, expand=True),
-        bgcolor=ft.Colors.WHITE,
-        border_radius=12,
-        padding=8,
-        height=320,
-        shadow=ft.BoxShadow(
-            spread_radius=1, blur_radius=3,
-            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-        ),
-    )
+    legend = _legend([
+        (None, translator.get("analysis.var.axes")),
+        (ft.Colors.RED_300, translator.get("analysis.var.legend", ci=ci, var=var_value)),
+    ], gap="       ")
+    return _chart_card(legend, chart)
 
 
 _ALLOC_COLORS = {
@@ -660,11 +559,11 @@ _ALLOC_COLORS = {
 }
 
 
-def chart_allocation(allocation, translator):
+def chart_allocation(translator, allocation):
     """Build a PieChart from an allocation dict {product_type: value}."""
     total = sum(allocation.values())
     if total <= 0:
-        return ft.Text("No data")
+        return _no_data(translator)
 
     sections = []
     legend_items = []

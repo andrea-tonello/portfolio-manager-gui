@@ -12,6 +12,14 @@ import numpy as np
 import pandas as pd
 
 from components.background import run_in_background
+from components.charts import (
+    chart_allocation,
+    chart_correlation_heatmap,
+    chart_drawdown,
+    chart_rolling_correlation,
+    chart_summary,
+    chart_var_mc,
+)
 from components.date_field import DateField, date_range_fields
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scroll_into_view_on_focus
@@ -19,7 +27,7 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_te
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
-from services import analysis_service, chart_service
+from services import analysis_service
 from services.validation import parse_positive, validate_date, validate_date_range
 from utils.constants import DATE_FORMAT
 
@@ -202,7 +210,7 @@ class AllocationTool(AnalysisTool):
 
     def render(self, allocation, day):
         """The pie chart and its legend."""
-        return [chart_service.chart_allocation(allocation, self.t)]
+        return [chart_allocation(self.t, allocation)]
 
 
 # ── Statistics ───────────────────────────────────────────────────────
@@ -287,7 +295,7 @@ class SummaryTool(AnalysisTool):
         controls = [ft.Column(texts, spacing=5)]
         pf_history = _history(result)
         if pf_history is not None:
-            controls.append(chart_service.chart_summary(t, pf_history))
+            controls.append(chart_summary(t, pf_history))
         return controls
 
     def export(self, result, day):
@@ -388,11 +396,11 @@ class CorrelationTool(AnalysisTool):
             corr_matrix = result.get("correlation_matrix")
             if corr_matrix is None:
                 return [ft.Text(self.t.get("analysis.corr.simple_error"), size=14)]
-            return [chart_service.chart_correlation_heatmap(self.t, corr_matrix)]
+            return [chart_correlation_heatmap(self.t, corr_matrix)]
         rolling_corr = result.get("rolling_corr")
         if rolling_corr is None or rolling_corr.empty:
             return []
-        return [chart_service.chart_rolling_correlation(self.t, rolling_corr, window, asset1, asset2)]
+        return [chart_rolling_correlation(self.t, rolling_corr, window, asset1, asset2)]
 
     def export(self, result, inputs):
         """The correlation matrix, or the rolling correlation day by day."""
@@ -450,7 +458,7 @@ class DrawdownTool(AnalysisTool):
                           end_dt=end.strftime(DATE_FORMAT), mdd=result["mdd"] * 100)
         return [
             ft.Text(text, size=14, selectable=True),
-            chart_service.chart_drawdown(self.t, result["pf_history"], result["drawdown"], result["mdd"]),
+            chart_drawdown(self.t, result["pf_history"], result["drawdown"], result["mdd"]),
         ]
 
     def export(self, result, inputs):
@@ -509,7 +517,7 @@ class VarTool(AnalysisTool):
         ci, days = inputs
         return [
             ft.Text(self.t.get("analysis.var.result", ci=ci, days=days, var=result["var"]), size=14, selectable=True),
-            chart_service.chart_var_mc(self.t, result["scenario_return"], result["var"], ci),
+            chart_var_mc(self.t, result["scenario_return"], result["var"], ci),
         ]
 
     def export(self, result, inputs):

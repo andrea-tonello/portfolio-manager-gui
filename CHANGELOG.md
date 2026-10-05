@@ -5,6 +5,7 @@
 ### Refactoring
 
 - AnalysisView: one shared tab frame and a class per tool (TOOLS); info button reads the tool's glossary page
+- Charts moved to `components/charts.py` with shared card, line-chart, legend and tooltip helpers
 
 
 

@@ -197,6 +197,16 @@
       "error": "No open positions found across all accounts.\nValue at Risk is zero.",
       "legend": "VaR at {ci:.0%} CI: {var:.2f}€",
       "axes": "X: Gain/Loss (€)\nY: Probability Density"
+    },
+    "charts": {
+      "nav": "NAV",
+      "securities": "Securities",
+      "cash": "Cash",
+      "committed_cash": "Committed Cash",
+      "zero": "Zero",
+      "drawdown": "Drawdown",
+      "corr": "Corr",
+      "no_data": "No data"
     }
   },
 

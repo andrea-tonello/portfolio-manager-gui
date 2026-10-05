@@ -197,6 +197,16 @@
       "error": "Non è stata trovata alcuna posizione aperta tra tutti i conti.\nValue at Risk nullo.",
       "legend": "VaR: {var:.2f}€",
       "axes": "X: Guadagno/Perdita (€)\nY: Densità di probabilità"
+    },
+    "charts": {
+      "nav": "NAV",
+      "securities": "Titoli",
+      "cash": "Liquidità",
+      "committed_cash": "Liquidità Impegnata",
+      "zero": "Zero",
+      "drawdown": "Drawdown",
+      "corr": "Corr",
+      "no_data": "Nessun dato"
     }
   },
 
