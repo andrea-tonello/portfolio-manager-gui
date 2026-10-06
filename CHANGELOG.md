@@ -1,3 +1,23 @@
+## [0.3.9] (2026-XX-XX)
+
+- Fixed button positioning near ticker search fields
+
+### Features
+
+- Reorganized Drawer menu items
+- HomeView now displays applogo + appname as header
+- The add-user button on the user manager dialog is now more visible (FilledButton)
+- Settings: per-user broker settings renamed and moved to the top of SettingsView
+- HomeView card: if held cash is negative (may happen under specific circumstances), it will be displayed in RED
+
+
+
+
+
+
+
+
+
 ## [0.3.8] (2026-10-05)
 
 ### Bug Fixes

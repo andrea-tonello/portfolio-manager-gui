@@ -190,7 +190,7 @@ class HomeView:
                 icon=ft.Icons.ADD_CIRCLE_OUTLINE,
                 on_click=self._on_watchlist_add,
             ),
-        ], spacing=8)
+        ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START)
 
         self._watchlist_items_container = ft.ReorderableListView(
             [], spacing=4, on_reorder=self._on_watchlist_reorder,

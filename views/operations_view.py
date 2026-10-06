@@ -176,8 +176,10 @@ class GeneralForm:
         )
         ticker_help = _help_button(self.page, t, "operations.stock.ticker", "operations.stock.ticker_explained")
         self.ticker_row = ft.Container(
-            content=ft.Row([self.ticker.control, ticker_help]),
-            visible=False, col={"xs": 12, "md": 6},
+            content=ft.Row([
+                self.ticker.control, 
+                ft.Container(content=ticker_help, padding=ft.Padding.only(top=4)),
+            ], vertical_alignment=ft.CrossAxisAlignment.START), visible=False, col={"xs": 12, "md": 6},
         )
         self.description = rounded_text_field(label=t.get("operations.cash.charge_descr"),
                                               visible=False, col={"xs": 12, "md": 6})
@@ -366,8 +368,10 @@ class EtfStockForm:
         )
         ticker_help = _help_button(self.page, t, "operations.stock.ticker", "operations.stock.ticker_explained")
         ticker_row = ft.Container(
-            content=ft.Row([self.ticker.control, ticker_help]),
-            col={"xs": 12, "md": 6},
+            content=ft.Row([
+                self.ticker.control, 
+                ft.Container(content=ticker_help, padding=ft.Padding.only(top=4)),
+            ], vertical_alignment=ft.CrossAxisAlignment.START), col={"xs": 12, "md": 6},
         )
 
         self.ter = rounded_text_field(
