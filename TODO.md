@@ -1,30 +1,11 @@
 
-## NEXT SPRINT
-
-
-
 ## BACKLOG
 
 - Auto "-" inserted when typing dates
 - Set some defaults dates for every tool in AnalysisView
 
-- "+" add-user button should be colored/colored+text, not icon-only
 - "+" watchlist button follows the ticker search dropdown (should stay near the textfield instead)
-- "+ Add Transaction" button should be dynamic (Aggiungi Aquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
-
-- HAMBURGER MENU-RELATED
-  - Layout
-      - User - add-user popup sh
-     - Divider
-      - Settings
-      - Privacy
-      - Contacts
-      - Open Source
-     - App logo
-      - Portfolio Manager vX.X.X
-
-  - Home's title is now (icon) Portfolio manager
-
+- "+ Add Transaction" button should be dynamic (Aggiungi Acquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 
 
 - NEW USER SETUP SCREEN
@@ -33,7 +14,6 @@
     - [TABLET] New-account wizard: reduce textfields width
     - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
 
-- red cash balance in Home View if cash is negative
 - focus_chain does not work when going from TER to Tax Bracket
 
 - LIMIT POPUPS VERTICALLY
@@ -50,6 +30,9 @@
 - [INVESTIGATE] Does Flet 1.0.3 have better support for floating buttons?
 - [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
 - [POSSIBLE FUTURE REFACTOR] New components/buttons.py with the current action_card.py + other shared button styles (e.g. generalize analysis_view.py/calculate_button)
+
+- [BUG 13] in Appendix A
+- [BUG 14] in Appendix A
 
 
 

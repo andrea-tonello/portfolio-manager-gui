@@ -26,11 +26,11 @@ class SettingsView:
 
         return ft.Row([
             ft.Column([
+                self._build_accounts_section(),
+                ft.Container(ft.Divider(), width=850),
                 self._build_theming_section(),
                 ft.Container(ft.Divider(), width=850),
                 self._build_language_section(),
-                ft.Container(ft.Divider(), width=850),
-                self._build_accounts_section(),
                 ft.Container(ft.Divider(), width=850),
                 self._build_backup_section(),
                 ft.Container(ft.Divider(), width=850),
@@ -186,7 +186,7 @@ class SettingsView:
 
         return ft.Container(
             content=ft.Column([
-                ft.Text(t.get("settings.account.title"), size=16, weight=ft.FontWeight.BOLD),
+                ft.Text((self.state.active_user_name or t.get("settings.user")) + t.get("settings.account.title"), size=16, weight=ft.FontWeight.BOLD),
                 *broker_tiles,
                 ft.Row([
                     self.new_broker_field,
@@ -418,7 +418,7 @@ class SettingsView:
         )
 
         version_text = ft.Container(
-            ft.Text(f"Portfolio Manager {APP_VERSION}", size=12, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+            ft.Text(f"Portfolio Manager v{APP_VERSION}", size=12, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
             alignment=ft.alignment.Alignment.CENTER,
             padding=ft.Padding.only(top=15),
         )
