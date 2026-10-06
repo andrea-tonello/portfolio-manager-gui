@@ -575,6 +575,9 @@ class HomeView:
             assets_val, cash_val = fmt_eur(snap.assets), fmt_eur(snap.cash)
         self._assets_text.value = "  " + t.get("home.subt_assets") + f"   {assets_val}"
         self._cash_text.value = "  " + t.get("home.subt_cash") + f"   {cash_val}"
+        
+        negative = snap is not None and not self.state.home_values_hidden and snap.cash < 0
+        self._cash_text.color = ft.Colors.RED if negative else None
 
     def _build_stats_cards(self) -> ft.Control:
         t = self.state.translator

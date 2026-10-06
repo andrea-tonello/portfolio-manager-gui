@@ -117,6 +117,11 @@ class FakePage:
     def __init__(self):
         """Start as an empty page with one root view, like a freshly opened app."""
         self.width = 400
+        self.height = 780
+        self.media = ft.PageMediaData(
+            padding=ft.Padding.zero(), view_padding=ft.Padding.zero(), view_insets=ft.Padding.zero(),
+            device_pixel_ratio=1.0, orientation=ft.Orientation.PORTRAIT, always_use_24_hour_format=False,
+        )
         self.views = [ft.View(route="/")]
         self.controls = []
         self.overlay = []

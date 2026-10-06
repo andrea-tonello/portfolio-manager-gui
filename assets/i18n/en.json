@@ -253,7 +253,7 @@
       "indigo": "Indigo"
     }, 
     "account": {
-      "title": "Manage Accounts",
+      "title": "'s Accounts",
       "add_account": "Add account...",
       "op_denied": "You must add at least one account.",
       "accounts_added": "Account added ",

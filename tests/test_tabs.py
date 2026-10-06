@@ -38,11 +38,12 @@ def test_navigation_bar_lists_the_tabs_in_order(app, page):
 
 
 @pytest.mark.parametrize("tab", range(4), ids=TAB_LABELS)
-def test_app_bar_shows_the_user_on_home_and_the_tab_name_elsewhere(app, page, tab):
-    """Home's app bar shows the active user's name; the other tabs show their own name."""
+def test_app_bar_shows_the_app_name_on_home_and_the_tab_name_elsewhere(app, page, tab):
+    """Home's app bar shows the app's name next to its icon; the other tabs show their own name."""
     app.show_tab(tab)
 
-    assert page.appbar.title.value == ("Tester" if tab == 0 else TAB_LABELS[tab])
+    texts = [text.value for text in find_controls(page.appbar.title, ft.Text)]
+    assert texts == ["Portfolio Manager" if tab == 0 else TAB_LABELS[tab]]
 
 
 @pytest.mark.parametrize("tab", [0, 1], ids=["Home", "Operations"])
