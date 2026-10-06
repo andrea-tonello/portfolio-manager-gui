@@ -98,6 +98,12 @@ def show_tab(app, selected_index: int = HOME_TAB):
             page.navigation_bar.visible = page.media.view_insets.bottom == 0
             page.update()
         page.on_media_change = _on_keyboard_visibility
+
+        def _on_resize(e):
+            """Keep the drawer's column as tall as the page, e.g. once the window reaches its size just after start."""
+            page.end_drawer.controls[0].height = page.height - page.media.padding.top
+            page.update()
+        page.on_resize = _on_resize
     else:
         # Subsequent calls — swap content and fade in
         app.nav_wrapper.content = current_view
@@ -112,15 +118,19 @@ def _build_drawer(app) -> ft.NavigationDrawer:
     """The side menu: Settings, the user manager, privacy policy, contacts, the GitHub link and the version."""
     page, state = app.page, app.state
     t = state.translator
-    return ft.NavigationDrawer(
-        selected_index=None,
+    # The drawer puts its controls in a scrolling list, where `expand` does nothing. A column as tall
+    # as the drawer (the page minus the status bar) gives the spacer room to push the footer down.
+    content = ft.Column(
+        spacing=0,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
         controls=[
-            ft.Container(
-                content=ft.Row([
-                    ft.Image(src="imgs/appbar-icon.png", width=44, height=44, border_radius=30),
-                    ft.Text("Portfolio Manager", size=20),
-                ], spacing=10, expand=True),
-                padding=ft.Padding.only(left=15, top=10)
+            ft.Container(height=10),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.PERSON),
+                title=ft.Text(state.active_user_name or t.get("settings.user")),
+                on_click=lambda: show_user_manager(app),
+                min_height=60,
+                content_padding=ft.Padding.only(left=25),
             ),
             ft.Divider(),
             ft.ListTile(
@@ -130,13 +140,6 @@ def _build_drawer(app) -> ft.NavigationDrawer:
                 on_click=lambda: app.show_settings(),
                 min_height=60,
                 content_padding=ft.Padding.only(left=25, right=15),
-            ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.PERSON),
-                title=ft.Text(state.active_user_name or t.get("settings.user")),
-                on_click=lambda: show_user_manager(app),
-                min_height=60,
-                content_padding=ft.Padding.only(left=25),
             ),
             ft.ListTile(
                 leading=ft.Icon(ft.Icons.PRIVACY_TIP),
@@ -160,17 +163,27 @@ def _build_drawer(app) -> ft.NavigationDrawer:
                 min_height=60,
                 content_padding=ft.Padding.only(left=25, right=15),
             ),
+            ft.Container(expand=True),
             ft.Container(
-                ft.Text(t.get("components.version") + f" {APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+                content=ft.Image(src="icon.png", width=96, height=96),
+                padding=ft.Padding.only(top=10)
+            ),
+            ft.Container(
+                ft.Text(f"Portfolio Manager v{APP_VERSION}", size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
                 alignment=ft.alignment.Alignment.CENTER,
                 padding=ft.Padding.only(top=10),
-            )
+            ),
+            ft.Container(height=60)
         ],
+    )
+    return ft.NavigationDrawer(
+        selected_index=None,
+        controls=[ft.Container(content, height=page.height - page.media.padding.top)],
     )
 
 
 def _build_appbar(app, selected_index: int) -> ft.AppBar:
-    """The top bar: the user's name on Home, the tab's name elsewhere, and the button opening the drawer."""
+    """The top bar: the app's icon and name on Home, the tab's name elsewhere, and the button opening the drawer."""
     page, state = app.page, app.state
     t = state.translator
 
@@ -178,7 +191,13 @@ def _build_appbar(app, selected_index: int) -> ft.AppBar:
         await page.show_end_drawer()
 
     if selected_index == HOME_TAB:
-        appbar_title = ft.Text(state.active_user_name or t.get("settings.user"))
+        appbar_title = ft.Container(
+            content=ft.Row([
+                ft.Image(src="imgs/appbar-icon.png", width=44, height=44, border_radius=30),
+                ft.Text("Portfolio Manager", size=20),
+            ], spacing=10),
+            padding=ft.Padding.only(top=10)
+        )
     else:
         appbar_title = ft.Text(t.get(TABS[selected_index].label_key))
 
