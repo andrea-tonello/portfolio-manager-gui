@@ -18,6 +18,17 @@ from utils.constants import LANGUAGES
 _HEADER_HEIGHT = 260
 
 
+def _screen(column):
+    """Lay out an onboarding screen: inside the safe area, centred and at most 800 wide like the tabs, padded by 15."""
+    return ft.SafeArea(
+        ft.Container(
+            ft.Container(column, width=800, padding=15),
+            alignment=ft.alignment.Alignment.TOP_CENTER,
+        ),
+        expand=True,
+    )
+
+
 def _header(*controls, top=None):
     """The part of an onboarding screen above its input: `controls` at its bottom, `top` (the close button row) at its top."""
     return ft.Container(
@@ -45,21 +56,15 @@ def show_language_picker(app):
         app.restart()
 
     page.controls.clear()
-    page.controls.append(
-        ft.SafeArea(
-            ft.Container(
-                ft.Column([
-                    _header(ft.Text(t.get("settings.language.select"), size=20, weight=ft.FontWeight.BOLD)),
-                    dd,
-                    ft.Container(height=100, expand=True),
-                    ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK,
-                                    width=150, height=50, on_click=on_submit),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
-                expand=True,
-                padding=15,
-            )
-        )
-    )
+    page.controls.append(_screen(
+        ft.Column([
+            _header(ft.Text(t.get("settings.language.select"), size=20, weight=ft.FontWeight.BOLD)),
+            dd,
+            ft.Container(height=100, expand=True),
+            ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK,
+                            width=150, height=50, on_click=on_submit),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
+    ))
     page.update()
 
 
@@ -100,30 +105,24 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
     )
 
     page.controls.clear()
-    page.controls.append(
-        ft.SafeArea(
-            ft.Container(
-                ft.Column([
-                    _header(
-                        ft.Icon(ft.Icons.PERSON, size=80),
-                        ft.Container(height=30),
-                        ft.Text(t.get("settings.user_mgmt.add_title"), size=20, weight=ft.FontWeight.BOLD),
-                        top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
-                    ),
-                    username_field,
-                    ft.Container(expand=True),
-                    ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
-                            size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
-                    ft.Container(height=20),
-                    ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                                    width=150, height=50, on_click=on_submit),
-                    ft.Container(height=30),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
-                expand=True,
-                padding=15,
-            )
-        )
-    )
+    page.controls.append(_screen(
+        ft.Column([
+            _header(
+                ft.Icon(ft.Icons.PERSON, size=80),
+                ft.Container(height=30),
+                ft.Text(t.get("settings.user_mgmt.add_title"), size=20, weight=ft.FontWeight.BOLD),
+                top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
+            ),
+            username_field,
+            ft.Container(expand=True),
+            ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
+                    size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
+            ft.Container(height=20),
+            ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
+                            width=150, height=50, on_click=on_submit),
+            ft.Container(height=30),
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
+    ))
     page.update()
 
 
@@ -188,30 +187,24 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
     )
 
     page.controls.clear()
-    page.controls.append(
-        ft.SafeArea(
-            ft.Container(
-                ft.Column([
-                    _header(
-                        ft.Text(t.get("settings.new_acc", username=state.active_user_name or ""), size=20),
-                        ft.Text(t.get("settings.new_acc_example"), size=14),
-                        top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
-                    ),
-                    ft.ResponsiveRow([
-                        broker_field,
-                        ft.Button(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
-                        width=150, height=35)
-                    ]),
-                    broker_list,
-                    ft.Container(height=50),
-                    ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                                    width=150, height=50, on_click=on_done),
-                    ft.Container(height=30),
-                ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                   scroll=ft.ScrollMode.AUTO, expand=True),
-                expand=True,
-                padding=15,
-            )
-        )
-    )
+    page.controls.append(_screen(
+        ft.Column([
+            _header(
+                ft.Text(t.get("settings.new_acc", username=state.active_user_name or ""), size=20),
+                ft.Text(t.get("settings.new_acc_example"), size=14),
+                top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
+            ),
+            ft.ResponsiveRow([
+                broker_field,
+                ft.Button(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
+                width=150, height=35)
+            ]),
+            broker_list,
+            ft.Container(height=50),
+            ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
+                            width=150, height=50, on_click=on_done),
+            ft.Container(height=30),
+        ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+           scroll=ft.ScrollMode.AUTO, expand=True),
+    ))
     page.update()
