@@ -1,21 +1,16 @@
-## [0.3.9] (2026-XX-XX)
+## [0.3.9] (2026-10-07)
 
 - Fixed button positioning near ticker search fields
 
 ### Features
 
+- Date fields now auto-fill the dashes: 21102026 ==> 21-10-2026 
 - Reorganized Drawer menu items
 - HomeView now displays applogo + appname as header
 - The add-user button on the user manager dialog is now more visible (FilledButton)
 - Settings: per-user broker settings renamed and moved to the top of SettingsView
 - HomeView card: if held cash is negative (may happen under specific circumstances), it will be displayed in RED
-- AnalysisView: datefields are now pre-filled with default dates
-
-
-
-
-
-
+- AnalysisView: date fields are now pre-filled with default dates
 
 
 

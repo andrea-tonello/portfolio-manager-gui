@@ -1,5 +1,6 @@
 """A date input: a text field for typing DD-MM-YYYY plus a calendar button opening Flet's date picker."""
 
+import re
 from datetime import date, datetime, timedelta
 
 import flet as ft
@@ -52,8 +53,19 @@ class DateField:
         self.field.value = day.strftime(DATE_FORMAT) if day else ""
 
     def _on_typed(self, e):
-        """Update the value while the user types; the text is left as typed."""
-        self._value = parse_date_input(e.control.value)
+        """Add the dashes while the user types digits, and update the value.
+
+        Examples: typing 02102026 shows 02-10-2026; "021" shows "02-1". A dash
+        typed after a one-digit day or month adds its zero ("2-" shows "02"),
+        and digits past a full date are dropped.
+        """
+        typed = e.control.value or ""
+        digits = "".join(c for c in re.sub(r"(?<!\d)(\d)-", r"0\1-", typed) if c.isdigit())[:8]
+        text = "-".join(part for part in (digits[:2], digits[2:4], digits[4:]) if part)
+        if text != typed:
+            self.field.value = text
+            self.page.update()
+        self._value = parse_date_input(text)
 
     def _open_picker(self, e):
         """Open the date picker, limited to the dates allowed right now."""

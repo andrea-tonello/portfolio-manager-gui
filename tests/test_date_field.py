@@ -55,6 +55,21 @@ def test_typing_sets_the_value_once_the_text_is_a_valid_date(field, text, expect
     assert field.value == expected
 
 
+@pytest.mark.parametrize("keys, shown, expected", [
+    ("02102026", "02-10-2026", date(2026, 10, 2)),
+    ("021", "02-1", None),
+    ("02-10-2026", "02-10-2026", date(2026, 10, 2)),   # dashes typed by hand
+    ("2-1-2026", "02-01-2026", date(2026, 1, 2)),      # one-digit day and month
+    ("0210202699", "02-10-2026", date(2026, 10, 2)),   # digits past the date
+])
+def test_dashes_are_added_while_typing(field, keys, shown, expected):
+    """Typed one key at a time, the digits get their dashes: 02102026 shows 02-10-2026."""
+    for key in keys:
+        _type(field, (field.field.value or "") + key)
+
+    assert (field.field.value, field.value) == (shown, expected)
+
+
 @pytest.mark.parametrize("picked", [
     datetime(2024, 5, 10, 0, 0),
     datetime(2024, 5, 9, 22, 0),   # the picker's midnight UTC, seen from a time zone behind UTC
