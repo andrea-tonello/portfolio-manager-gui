@@ -11,7 +11,7 @@ import flet as ft
 DATE_INPUT_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 DECIMAL_INPUT_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 
-_RADIUS = 15
+RADIUS = 15
 _GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)
 
 
@@ -25,13 +25,13 @@ def outlined_border(color, width=1.0, focused_width=2.0) -> dict:
     Example: outlined_border(GREY) -> 1-wide grey outline, 2-wide grey on focus.
     """
     return {
-        ft.ControlState.DEFAULT: ft.OutlineInputBorder(border_radius=_RADIUS, side=ft.BorderSide(width, color)),
-        ft.ControlState.FOCUSED: ft.OutlineInputBorder(border_radius=_RADIUS, side=ft.BorderSide(focused_width, color)),
+        ft.ControlState.DEFAULT: ft.OutlineInputBorder(border_radius=RADIUS, side=ft.BorderSide(width, color)),
+        ft.ControlState.FOCUSED: ft.OutlineInputBorder(border_radius=RADIUS, side=ft.BorderSide(focused_width, color)),
     }
 
 
 def _rounded_menu() -> ft.MenuStyle:
-    return ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=_RADIUS))
+    return ft.MenuStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS))
 
 
 def rounded_text_field(**kwargs) -> ft.TextField:

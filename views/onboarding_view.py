@@ -6,7 +6,7 @@ account screens are also reused when adding a user from the user manager.
 
 import flet as ft
 
-from components.inputs import rounded_dropdown, rounded_text_field
+from components.inputs import rounded_dropdown, rounded_text_field, RADIUS
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
@@ -188,6 +188,13 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
         else:
             app.restart()
 
+    add_button = ft.FilledButton(
+        content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),
+        height=46,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS)),
+        on_click=on_add,
+    )
+
     close_btn = ft.IconButton(
         icon=ft.Icons.CLOSE,
         icon_size=28,
@@ -203,11 +210,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
                 ft.Text(t.get("settings.new_acc_example"), size=14),
                 top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
             ),
-            ft.ResponsiveRow([
-                broker_field,
-                ft.Button(t.get("components.add"), icon=ft.Icons.ADD, on_click=on_add,
-                width=150, height=35)
-            ]),
+            ft.Container(content=ft.Row([broker_field, add_button])),
             broker_list,
         ],
         [ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK, width=150, height=50, on_click=on_done)],

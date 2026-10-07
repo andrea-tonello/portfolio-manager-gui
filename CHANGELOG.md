@@ -7,6 +7,7 @@
 ### Features
 
 - User onboarding: limited the width of user onboarding's contents (tablets/fullscreens)
+- User onboarding: add-broker button is now next to the textfield, not below it
 
 
 
