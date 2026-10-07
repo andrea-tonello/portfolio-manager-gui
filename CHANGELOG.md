@@ -2,11 +2,11 @@
 
 ### Bug Fixes
 
-- User onboarding: all the 3 sections are now vertically aligned properly
+- User onboarding: all the 3 sections are now properly vertically aligned
 
 ### Features
 
-
+- User onboarding: limited the width of user onboarding's contents (tablets/fullscreens)
 
 
 

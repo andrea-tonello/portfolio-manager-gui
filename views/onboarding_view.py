@@ -15,14 +15,28 @@ from utils.constants import LANGUAGES
 # Height of what sits above each screen's input. It is the same on all three
 # screens, so the language dropdown and the user and account text fields are
 # at the same place on each.
-_HEADER_HEIGHT = 260
+_HEADER_HEIGHT = 220
 
 
-def _screen(column):
-    """Lay out an onboarding screen: inside the safe area, centred and at most 800 wide like the tabs, padded by 15."""
+def _screen(content, bottom):
+    """Lay out an onboarding screen inside the safe area, centred and at most 800 wide like the tabs.
+
+    `content` (the header, the input, the accounts added) fills the screen from
+    the top and scrolls when it doesn't fit, e.g. with the keyboard open or a
+    long list of accounts. `bottom` (the button, and any note above it) stays
+    at the bottom, so the button is at the same place on every screen.
+    """
+    center = ft.CrossAxisAlignment.CENTER
     return ft.SafeArea(
         ft.Container(
-            ft.Container(column, width=800, padding=15),
+            ft.Container(
+                ft.Column([
+                    ft.Column(content, spacing=15, horizontal_alignment=center, scroll=ft.ScrollMode.AUTO, expand=True),
+                    ft.Column(bottom, spacing=15, horizontal_alignment=center, tight=True),
+                ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
+                width=800,
+                padding=15,
+            ),
             alignment=ft.alignment.Alignment.TOP_CENTER,
         ),
         expand=True,
@@ -57,13 +71,11 @@ def show_language_picker(app):
 
     page.controls.clear()
     page.controls.append(_screen(
-        ft.Column([
+        [
             _header(ft.Text(t.get("settings.language.select"), size=20, weight=ft.FontWeight.BOLD)),
-            dd,
-            ft.Container(height=100, expand=True),
-            ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK,
-                            width=150, height=50, on_click=on_submit),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
+            ft.Row([dd]),  # in a Row, the dropdown's expand fills the width instead of the height
+        ],
+        [ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK, width=150, height=50, on_click=on_submit)],
     ))
     page.update()
 
@@ -76,10 +88,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
     """
     page, state = app.page, app.state
     t = state.translator
-    username_field = rounded_text_field(
-        label=t.get("settings.user_mgmt.username_hint"),
-        expand=True,
-    )
+    username_field = rounded_text_field(label=t.get("settings.user_mgmt.username_hint"))
 
     def on_submit(e):
         name = username_field.value.strip()
@@ -106,7 +115,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
 
     page.controls.clear()
     page.controls.append(_screen(
-        ft.Column([
+        [
             _header(
                 ft.Icon(ft.Icons.PERSON, size=80),
                 ft.Container(height=30),
@@ -114,14 +123,14 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
                 top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
             ),
             username_field,
-            ft.Container(expand=True),
+        ],
+        [
             ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
                     size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
             ft.Container(height=20),
             ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
                             width=150, height=50, on_click=on_submit),
-            ft.Container(height=30),
-        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True, spacing=15),
+        ],
     ))
     page.update()
 
@@ -188,7 +197,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
 
     page.controls.clear()
     page.controls.append(_screen(
-        ft.Column([
+        [
             _header(
                 ft.Text(t.get("settings.new_acc", username=state.active_user_name or ""), size=20),
                 ft.Text(t.get("settings.new_acc_example"), size=14),
@@ -200,11 +209,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
                 width=150, height=35)
             ]),
             broker_list,
-            ft.Container(height=50),
-            ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                            width=150, height=50, on_click=on_done),
-            ft.Container(height=30),
-        ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-           scroll=ft.ScrollMode.AUTO, expand=True),
+        ],
+        [ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK, width=150, height=50, on_click=on_done)],
     ))
     page.update()
