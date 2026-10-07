@@ -9,6 +9,7 @@
 - The add-user button on the user manager dialog is now more visible (FilledButton)
 - Settings: per-user broker settings renamed and moved to the top of SettingsView
 - HomeView card: if held cash is negative (may happen under specific circumstances), it will be displayed in RED
+- AnalysisView: datefields are now pre-filled with default dates
 
 
 

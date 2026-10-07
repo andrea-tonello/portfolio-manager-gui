@@ -7,6 +7,8 @@ only says what is particular to it. Adding a tool means writing one class
 and listing it in TOOLS.
 """
 
+from datetime import date
+
 import flet as ft
 import numpy as np
 import pandas as pd
@@ -27,6 +29,7 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_te
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
+from domain.ledger import get_pf_date
 from services import analysis_service
 from services.validation import parse_positive, validate_date, validate_date_range
 from utils.constants import DATE_FORMAT
@@ -71,10 +74,14 @@ class AnalysisTool:
     glossary_page = 0   # glossary page the info button opens while the tool is shown
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
 
-    def __init__(self, page, translator):
-        """Keep the page (date pickers and ticker search need it) and the translator."""
+    def __init__(self, page, translator, first_day=None):
+        """Keep the page (date pickers and ticker search need it), the translator, and the default start of a period.
+
+        `first_day` is the day of the first operation in the accounts analysed (None before any).
+        """
         self.page = page
         self.t = translator
+        self.first_day = first_day
 
     def build_inputs(self, clear_result) -> list[ft.Control]:
         """Create the input controls and return them in screen order.
@@ -192,8 +199,9 @@ class AllocationTool(AnalysisTool):
     scroll_prefix = "alloc"
 
     def build_inputs(self, clear_result):
-        """A date."""
+        """A date, today to start with."""
         self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"))
+        self.date.value = date.today()
         return [ft.Container(height=5), self.date.control]
 
     def text_fields(self):
@@ -242,8 +250,9 @@ class SummaryTool(AnalysisTool):
     scroll_prefix = "sum"
 
     def build_inputs(self, clear_result):
-        """A date."""
+        """A date, today to start with."""
         self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"))
+        self.date.value = date.today()
         return [ft.Container(height=5), self.date.control]
 
     def text_fields(self):
@@ -314,12 +323,18 @@ class CorrelationTool(AnalysisTool):
     scroll_prefix = "corr"
 
     def build_inputs(self, clear_result):
-        """The kind of correlation, a start and end date, and for the rolling one two tickers and a window."""
+        """The kind of correlation, a start and end date, and for the rolling one two tickers and a window.
+
+        The period starts as the whole history: from the first operation to today. The
+        rolling correlation leaves the start empty instead, to be chosen for the two tickers.
+        """
         t = self.t
 
         def on_kind_change(e):
-            """Show the rolling correlation's fields only for it, and drop the result of the other kind."""
-            self.rolling_fields.visible = (self.kind.value == "rolling")
+            """Show the rolling correlation's fields only for it, set its default start, and drop the old result."""
+            rolling = (self.kind.value == "rolling")
+            self.rolling_fields.visible = rolling
+            self.start.value = None if rolling else self.first_day
             clear_result()
             self.page.update()
 
@@ -336,6 +351,7 @@ class CorrelationTool(AnalysisTool):
             self.page, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip(),
             t.get("components.date_format_hint"),
         )
+        self.start.value, self.end.value = self.first_day, date.today()
 
         self.asset1 = TickerSearchField(
             self.page,
@@ -424,12 +440,13 @@ class DrawdownTool(AnalysisTool):
     scroll_prefix = "dd"
 
     def build_inputs(self, clear_result):
-        """A start and end date."""
+        """A start and end date, the whole history to start with: from the first operation to today."""
         t = self.t
         self.start, self.end = date_range_fields(
             self.page, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip(),
             t.get("components.date_format_hint"),
         )
+        self.start.value, self.end.value = self.first_day, date.today()
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([self.start.field, self.end.field])
         return [ft.Container(height=5), self.start.control, self.end.control]
@@ -544,7 +561,16 @@ class AnalysisView:
             return ft.Text(t.get("home.no_account"), size=16)
 
         self.file_picker = get_file_picker(self.page)  # for the CSV exports
-        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t), self._save_csv) for tool in TOOLS]
+        # Periods start on the first operation of the accounts analysed (the earliest of their first
+        # operations), unless that is less than 20 days ago: too short a period, the user picks the start.
+        today = date.today()
+        first_days = [first.date() for account in _accounts_to_analyse(self.state)
+                      if (first := get_pf_date(account, today, today)[1]) is not None]
+        first_day = min(first_days, default=None)
+        if first_day is not None and (today - first_day).days < 20:
+            first_day = None
+        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t, first_day), self._save_csv)
+                     for tool in TOOLS]
 
         has_account = self.state.analysis_acc_idx is not None or len(self.state.accounts) > 0
         form_container = ft.Container(
