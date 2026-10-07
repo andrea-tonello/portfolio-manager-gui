@@ -1,4 +1,21 @@
+## [0.4.0] (2026-XX-XX)
+
+### Bug Fixes
+
+- User onboarding: all the 3 sections are now vertically aligned properly
+
+### Features
+
+
+
+
+
+
+
+
 ## [0.3.9] (2026-10-07)
+
+### Bug Fixes
 
 - Fixed button positioning near ticker search fields
 

@@ -4,12 +4,6 @@
 - "+ Add Transaction" button should be dynamic (Aggiungi Acquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 - Make the ticker suggestion overlay an actual overlay (instead of shifting down the content below it)
 
-- NEW USER SETUP SCREEN
-    - Align vertically language, username and accounts screens
-    - Data import option on app first-ever boot
-    - [TABLET] New-account wizard: reduce textfields width
-    - New-account wizard: the "+ Add" button for the accounts should be right to the textfield, not below it 
-
 - focus_chain does not work when going from TER to Tax Bracket
 
 - LIMIT POPUPS VERTICALLY
