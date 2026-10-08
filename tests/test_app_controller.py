@@ -5,13 +5,17 @@ the current one or open Settings, instead of reaching into page.data or
 importing navigation functions from the views package.
 """
 
+import asyncio
 from types import SimpleNamespace
 
 import flet as ft
 import pytest
 from conftest import find_controls
+from test_errors import FakeImportPicker
 
 from app_controller import AppController
+from services import config_service
+from views import onboarding_view
 from utils.translator import Translator
 from views.analysis_view import AnalysisView
 from views.home_view import HomeView
@@ -34,19 +38,21 @@ def _write(base, files):
 
 
 def _shown(page):
-    """Name the screen the page shows: one of the three first-launch screens, or the tabs."""
+    """Name the screen the page shows: one of the four first-launch screens, or the tabs."""
     if page.navigation_bar is not None:
         return f"tab {page.navigation_bar.selected_index}"
     screen = page.controls[0]
     if next(find_controls(screen, ft.Dropdown), None) is not None:
         return "language picker"
+    if ft.Icons.ARCHIVE in [icon.icon for icon in find_controls(screen, ft.Icon)]:
+        return "backup import"
     label = next(find_controls(screen, ft.TextField)).label
     return {"Your username...": "user creation", "Add account...": "account setup"}[label]
 
 
 @pytest.mark.parametrize("saved, expected", [
     ({}, "language picker"),
-    (LANGUAGE, "user creation"),
+    (LANGUAGE, "backup import"),
     (USER, "account setup"),
     (ACCOUNTS, "tab 0"),
 ], ids=["nothing", "language", "user", "accounts"])
@@ -61,8 +67,8 @@ def test_restart_continues_the_setup_where_it_stopped(tmp_path, page, saved, exp
     assert app.state.base_path == str(tmp_path)
 
 
-def test_choosing_a_language_moves_on_to_user_creation_in_that_language(tmp_path, page):
-    """On first launch, applying a language saves it and restarts into the user-creation screen, translated."""
+def test_choosing_a_language_moves_on_to_the_backup_import_in_that_language(tmp_path, page):
+    """On first launch, applying a language saves it and restarts into the backup-import screen, translated."""
     app = AppController(page, base_path=str(tmp_path))
     app.restart()
     screen = page.controls[0]
@@ -70,7 +76,36 @@ def test_choosing_a_language_moves_on_to_user_creation_in_that_language(tmp_path
 
     next(find_controls(screen, ft.FilledButton)).on_click(None)
 
-    assert next(find_controls(page.controls[0], ft.TextField)).label == "Il tuo nome utente..."
+    assert _shown(page) == "backup import"
+    assert "Importa dati esistenti" in [text.value for text in find_controls(page.controls[0], ft.Text)]
+
+
+def test_skipping_the_backup_import_moves_on_to_user_creation(tmp_path, page):
+    """"No, proceed with setup" continues the usual setup: the user screen, then the account screen."""
+    _write(tmp_path, LANGUAGE)
+    app = AppController(page, base_path=str(tmp_path))
+    app.restart()
+
+    next(find_controls(page.controls[0], ft.FilledButton)).on_click(None)
+
+    assert _shown(page) == "user creation"
+
+
+def test_importing_a_backup_on_first_launch_skips_the_rest_of_the_setup(tmp_path, page, state, monkeypatch):
+    """Restoring a backup from the import screen restarts straight into Home, with the backup's user and accounts."""
+    backup = config_service.export_backup(state.config_folder)
+    fresh = tmp_path / "fresh"
+    _write(fresh, LANGUAGE)
+    monkeypatch.setattr(onboarding_view, "get_file_picker", lambda page: FakeImportPicker(backup))
+    app = AppController(page, base_path=str(fresh))
+    app.restart()
+
+    card = next(find_controls(page.controls[0], ft.Card))
+    asyncio.run(card.content.on_click(None))
+    page.dialogs[-1].actions[1].on_click(None)  # confirm the import
+
+    assert _shown(page) == "tab 0"
+    assert (app.state.active_user_name, app.state.brokers) == ("Tester", {1: "Test Broker"})
 
 
 def _event(value):

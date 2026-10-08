@@ -194,7 +194,7 @@ def test_first_launch_saves_the_accounts_and_refuses_a_duplicate(app, state, pag
     onboarding_view.show_broker_onboarding(app, on_complete=lambda: None)
     screen = page.controls[0]
     field = next(find_controls(screen, ft.TextField))
-    add, confirm = next(find_controls(screen, ft.Button)), next(find_controls(screen, ft.FilledButton))
+    add, confirm = find_controls(screen, ft.FilledButton)  # the "+" next to the field, then Confirm
 
     for name in ["Fineco", "fineco", "Directa"]:
         field.value = name

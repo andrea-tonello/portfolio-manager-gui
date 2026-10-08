@@ -1,6 +1,7 @@
 import flet as ft
 
 from components.action_card import action_card
+from components.backup_import import import_backup
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import rounded_dropdown, rounded_text_field
@@ -275,62 +276,8 @@ class SettingsView:
                          t.get("settings.account.export_success", filename=filename))
 
     async def _on_import_backup(self, e):
-        t = self.state.translator
-        files = await self.file_picker.pick_files(
-            allowed_extensions=["zip"], allow_multiple=False, with_data=True,
-        )
-        if not files:
-            return
-        picked = files[0]
-
-        # with_data=True makes every platform return the file contents in
-        # picked.bytes (Android may give no usable path); the path is a fallback.
-        zip_bytes = picked.bytes
-        if not zip_bytes and picked.path:
-            try:
-                with open(picked.path, "rb") as f:
-                    zip_bytes = f.read()
-            except OSError:
-                pass
-
-        if not zip_bytes:
-            show_snack(self.page, t.get("settings.account.import_error"), error=True)
-            return
-
-        try:
-            config_service.validate_backup(zip_bytes)
-        except ValidationError as ex:
-            show_snack(self.page, error_message(t, ex), error=True)
-            return
-
-        self._pending_import = zip_bytes
-        self._show_import_confirm_dialog()
-
-    def _show_import_confirm_dialog(self):
-        t = self.state.translator
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("settings.account.import_backup")),
-            content=ft.Text(t.get("settings.account.import_warning") +
-                            t.get("settings.account.suggest_backup")),
-            actions=[
-                ft.TextButton(t.get("components.cancel"),
-                              on_click=lambda e: self.page.pop_dialog()),
-                ft.TextButton(
-                    t.get("settings.account.import_backup"),
-                    style=ft.ButtonStyle(color=ft.Colors.RED),
-                    on_click=lambda e: self._confirm_import(),
-                ),
-            ],
-        )
-        self.page.show_dialog(dlg)
-
-    def _confirm_import(self):
-        self.page.pop_dialog()
-        try:
-            config_service.import_backup(self.state.config_folder, self._pending_import)
-            self.app.restart()
-        except Exception as ex:
-            show_snack(self.page, str(ex), error=True)
+        """Restore a backup chosen by the user (see components.backup_import)."""
+        await import_backup(self.app, self.file_picker)
 
     # ── Reset ─────────────────────────────────────────────────────────
 

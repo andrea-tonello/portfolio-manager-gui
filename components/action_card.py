@@ -13,7 +13,7 @@ def action_card(icon, label, on_click, *, padding=20, height=None, **card_kwargs
             content=ft.Column([
                 ft.Icon(icon, size=32),
                 ft.Text(label, text_align=ft.TextAlign.CENTER),
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, spacing=8),
             padding=padding,
             height=height,
             border_radius=15,

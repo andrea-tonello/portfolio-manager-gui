@@ -232,7 +232,7 @@
     "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",
     "language": {
       "title": "Language",
-      "select": "Select Language",
+      "select": "Welcome to Portfolio Manager\n\nFirst, select your Language",
       "changed": "Language set successfully"
     },
     "theme": {
@@ -303,6 +303,14 @@
     "contacts": "Contacts and Feedback",
     "contacts_content": "If you have any questions, or you want to report bugs, suggest new features, or provide general feedback, you can contact us by writing to\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",
     "repo": "This project is Open Source!"
+  },
+
+
+  "onboarding": {
+    "import_title": "Continue from an existing backup",
+    "import_descr": "Backups can be managed\nat any time in the Settings",
+    "import_skip": "No, proceed with setup",
+    "import_warning_onboarding": "Backup compatible. If you change your mind later, you can always reset the application in the Settings."
   },
 
 

@@ -232,7 +232,7 @@
     "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",
     "language": {
       "title": "Lingua",
-      "select": "Seleziona Lingua",
+      "select": "Grazie per aver scelto Portfolio Manager\n\nPer prima cosa, seleziona la Lingua",
       "changed": "Lingua impostata con successo"
     },
     "theme": {
@@ -303,6 +303,14 @@
     "contacts": "Contatti e Feedback",
     "contacts_content": "Se hai una domanda, vorresti riportare un bug, suggerire una nuova feature, o semplicemente darci un feedback, puoi farlo scrivendo a\n\n[andrea.tonello@outlook.it](mailto:andrea.tonello@outlook.it)",
     "repo": "Questa app è Open Source!"
+  },
+
+
+  "onboarding": {
+    "import_title": "Continua da un backup esistente",
+    "import_descr": "I backup possono essere gestiti\nin qualsiasi momento nelle Impostazioni",
+    "import_skip": "No, procedi con la configurazione",
+    "import_warning_onboarding": "Backup compatibile. Se cambi idea in seguito, potrai resettare l'applicazione dalle Impostazioni."
   },
 
 

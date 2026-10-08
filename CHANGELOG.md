@@ -1,4 +1,4 @@
-## [0.4.0] (2026-XX-XX)
+## [0.4.0] (2026-10-08)
 
 ### Bug Fixes
 
@@ -8,6 +8,7 @@
 
 - User onboarding: limited the width of user onboarding's contents (tablets/fullscreens)
 - User onboarding: add-broker button is now next to the textfield, not below it
+- User onboarding: new "Import Data" option on first-ever boot
 
 
 

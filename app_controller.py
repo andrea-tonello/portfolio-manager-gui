@@ -60,7 +60,8 @@ class AppController:
             return
 
         if not self.state.users:
-            self.show_user_creation()
+            # First launch: offer to restore a backup before creating a user.
+            self.show_backup_import()
             return
 
         if not self.state.brokers:
@@ -86,6 +87,10 @@ class AppController:
     def show_language_picker(self) -> None:
         """Show the first-launch language choice."""
         onboarding_view.show_language_picker(self)
+
+    def show_backup_import(self) -> None:
+        """Show the first-launch offer to import a backup, before the user and account screens."""
+        onboarding_view.show_backup_import(self)
 
     def show_user_creation(self, **kwargs) -> None:
         """Show the user-creation screen; see onboarding_view.show_user_creation for the options."""
