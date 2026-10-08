@@ -3,6 +3,7 @@
 ### Bug Fixes
 
 - User onboarding: all the 3 sections are now properly vertically aligned
+- User onboarding: filtered out illegal characters from usernames and brokers (< > : " / \ | ? *)
 
 ### Features
 
