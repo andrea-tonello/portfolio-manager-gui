@@ -9,7 +9,7 @@ import flet as ft
 from components.action_card import action_card
 from components.backup_import import import_backup
 from components.file_export import get_file_picker
-from components.inputs import rounded_dropdown, rounded_text_field, RADIUS
+from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field, RADIUS
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
@@ -59,18 +59,26 @@ def show_language_picker(app):
     """Show the language choice; applying it saves the language and restarts into the next setup step."""
     page, t = app.page, app.state.translator
     options = [ft.dropdown.Option(key=code, text=name) for code, name in LANGUAGES.items()]
+
+    def on_select(e):
+        """Allow Apply once a language is picked."""
+        apply_btn.disabled = not dd.value
+        page.update()
+
     dd = rounded_dropdown(
         label=t.get("settings.language.title"),
         options=options,
+        on_select=on_select,
         expand=True,
     )
 
     def on_submit(e):
-        if not dd.value:
-            return
         config_service.save_language(app.state.config_folder, dd.value)
         page.controls.clear()
         app.restart()
+
+    apply_btn = ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK, width=150, height=50,
+                                on_click=on_submit, disabled=True)
 
     page.controls.clear()
     page.controls.append(_screen(
@@ -81,7 +89,7 @@ def show_language_picker(app):
             ),
             ft.Row([dd]),  # in a Row, the dropdown's expand fills the width instead of the height
         ],
-        [ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK, width=150, height=50, on_click=on_submit)],
+        [apply_btn],
     ))
     page.update()
 
@@ -136,7 +144,13 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
     """
     page, state = app.page, app.state
     t = state.translator
-    username_field = rounded_text_field(label=t.get("settings.user_mgmt.username_hint"))
+    def on_change(e):
+        """Allow Confirm only once the name has a character other than spaces."""
+        confirm_btn.disabled = not username_field.value.strip()
+        page.update()
+
+    username_field = rounded_text_field(label=t.get("settings.user_mgmt.username_hint"), on_change=on_change,
+                                        input_filter=NAME_INPUT_FILTER)
 
     def on_submit(e):
         name = username_field.value.strip()
@@ -153,6 +167,9 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
         else:
             page.controls.clear()
             app.show_broker_onboarding()
+
+    confirm_btn = ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
+                                  width=150, height=50, on_click=on_submit, disabled=True)
 
     close_btn = ft.IconButton(
         icon=ft.Icons.CLOSE,
@@ -176,8 +193,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
             ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
                     size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
             ft.Container(height=20),
-            ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                            width=150, height=50, on_click=on_submit),
+            confirm_btn,
         ],
     ))
     page.update()
@@ -193,6 +209,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
     t = state.translator
     broker_field = rounded_text_field(
         label=t.get("settings.account.add_account"),
+        input_filter=NAME_INPUT_FILTER,
         expand=True,
     )
     broker_list = ft.Column([], spacing=5)
@@ -215,6 +232,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
                 c for c in broker_list.controls
                 if c.data != idx
             ]
+            confirm_btn.disabled = not brokers_temp
             page.update()
 
         broker_list.controls.append(ft.Row([
@@ -222,12 +240,10 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
             ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, on_click=on_remove),
         ], data=next_idx, alignment=ft.MainAxisAlignment.CENTER))
         broker_field.value = ""
+        confirm_btn.disabled = False
         page.update()
 
     def on_done(e):
-        if not brokers_temp:
-            show_snack(page, t.get("settings.account.op_denied"), error=True)
-            return
         for name in brokers_temp.values():
             state.add_broker(name)
         page.controls.clear()
@@ -235,6 +251,10 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
             on_complete()
         else:
             app.restart()
+
+    # Greyed out until at least one account is in the list.
+    confirm_btn = ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
+                                  width=150, height=50, on_click=on_done, disabled=True)
 
     add_button = ft.FilledButton(
         content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),
@@ -262,6 +282,6 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
             ft.Container(content=ft.Row([broker_field, add_button])),
             broker_list,
         ],
-        [ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK, width=150, height=50, on_click=on_done)],
+        [confirm_btn],
     ))
     page.update()

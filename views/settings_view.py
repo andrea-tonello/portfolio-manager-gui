@@ -4,7 +4,7 @@ from components.action_card import action_card
 from components.backup_import import import_backup
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
-from components.inputs import rounded_dropdown, rounded_text_field
+from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from components.theme import PALETTE_COLORS, THEME_MODES, apply_theme
 from domain.errors import ValidationError
@@ -182,6 +182,7 @@ class SettingsView:
 
         self.new_broker_field = rounded_text_field(
             label=t.get("settings.account.add_account"),
+            input_filter=NAME_INPUT_FILTER,
             expand=True,
         )
 

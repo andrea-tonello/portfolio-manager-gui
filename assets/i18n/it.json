@@ -255,7 +255,6 @@
     "account": {
       "title": " - Gestione Conti",
       "add_account": "Aggiungi conto...",
-      "op_denied": "È necessario aggiungere almeno un conto.",
       "accounts_added": "Conto aggiunto",
       "duplicate": "Esiste già un conto chiamato \"{account}\"",
       "delete_account": "Elimina conto",

@@ -77,7 +77,8 @@ def test_choosing_a_language_moves_on_to_the_backup_import_in_that_language(tmp_
     next(find_controls(screen, ft.FilledButton)).on_click(None)
 
     assert _shown(page) == "backup import"
-    assert "Importa dati esistenti" in [text.value for text in find_controls(page.controls[0], ft.Text)]
+    title = Translator("it").get("onboarding.import_title")
+    assert title in [text.value for text in find_controls(page.controls[0], ft.Text)]
 
 
 def test_skipping_the_backup_import_moves_on_to_user_creation(tmp_path, page):

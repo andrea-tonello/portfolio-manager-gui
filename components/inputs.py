@@ -10,6 +10,9 @@ import flet as ft
 # What can be typed: digits and dashes for dates, digits and a dot for amounts.
 DATE_INPUT_FILTER = ft.InputFilter(r"^[0-9\-]*$")
 DECIMAL_INPUT_FILTER = ft.InputFilter(r"^[0-9\.]*$")
+# User and account names become folder and file names, so anything but the characters
+# Windows refuses in them (/ and \ would also nest folders on every system).
+NAME_INPUT_FILTER = ft.InputFilter(r'^[^<>:"/\\|?*]*$')
 
 RADIUS = 15
 _GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)

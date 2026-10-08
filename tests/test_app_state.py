@@ -207,6 +207,38 @@ def test_first_launch_saves_the_accounts_and_refuses_a_duplicate(app, state, pag
     assert set(state.accounts) == {1, 2}
 
 
+def test_setup_buttons_stay_greyed_out_until_there_is_something_to_confirm(app, state, page):
+    """Apply waits for a language; Confirm for a name that isn't only spaces, and for at least one account."""
+    onboarding_view.show_language_picker(app)
+    dropdown = next(find_controls(page.controls[0], ft.Dropdown))
+    apply = next(find_controls(page.controls[0], ft.FilledButton))
+    assert apply.disabled
+    dropdown.value = "it"
+    dropdown.on_select(None)
+    assert not apply.disabled
+
+    onboarding_view.show_user_creation(app)
+    field = next(find_controls(page.controls[0], ft.TextField))
+    confirm = next(find_controls(page.controls[0], ft.FilledButton))
+    assert confirm.disabled
+    disabled = []
+    for text in ["   ", " Bob", ""]:
+        field.value = text
+        field.on_change(None)
+        disabled.append(confirm.disabled)
+    assert disabled == [True, False, True]
+
+    onboarding_view.show_broker_onboarding(app, on_complete=lambda: None)
+    screen = page.controls[0]
+    add, confirm = find_controls(screen, ft.FilledButton)
+    assert confirm.disabled
+    next(find_controls(screen, ft.TextField)).value = "Fineco"
+    add.on_click(None)
+    assert not confirm.disabled
+    next(b for b in find_controls(screen, ft.IconButton) if b.icon == ft.Icons.DELETE).on_click(None)
+    assert confirm.disabled
+
+
 def test_settings_refuses_a_duplicate_account_name(app, state, page):
     """Adding an account in Settings with a name already in use shows the error and adds nothing."""
     view = SettingsView(app)
