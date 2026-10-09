@@ -1,3 +1,19 @@
+## [0.4.1] (2026-XX-XX)
+
+### Bug Fixes
+
+### Features
+
+- Updated application org into `io.github.andreatonello.portfoliomanager"
+
+
+
+
+
+
+
+
+
 ## [0.4.0] (2026-10-09)
 
 ### Bug Fixes
@@ -10,9 +26,6 @@
 - User onboarding: limited the width of user onboarding's contents (tablets/fullscreens)
 - User onboarding: add-broker button is now next to the textfield, not below it
 - User onboarding: new "Import Data" option on first-ever boot
-
-
-
 
 
 

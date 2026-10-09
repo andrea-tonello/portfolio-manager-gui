@@ -17,6 +17,19 @@ dependencies = [
     "python-dateutil>=2.8.2",
 ]
 
+# The app's identity. bundle_id (the Android package, macOS bundle id and Linux
+# application id) and company + product (the Windows data folder,
+# %APPDATA%\<company>\<product>) must never change: a release with different ones
+# is a separate app to Android (it can't update the old one) and starts with an
+# empty data folder. bundle_id uses letters only: Android forbids hyphens, Apple
+# underscores. copyright is only shown in the Windows file properties: update its year freely.
+[tool.flet]
+org = "io.github.andreatonello"
+bundle_id = "io.github.andreatonello.portfoliomanager"
+company = "Andrea Tonello"
+product = "Portfolio Manager"
+copyright = "Copyright (C) 2026 Andrea Tonello"
+
 [tool.flet.app]
 # Left out of the app package. Each entry is an exact path, compared as text:
 # wildcards don't work here (put those in [tool.flet.cleanup] app_files), and
