@@ -39,6 +39,19 @@ def add_solar_years(loss_date: date) -> str:
     return expiry.strftime(DATE_FORMAT)
 
 
+def pending_fees(asset_rows: pd.DataFrame) -> float:
+    """Return an ETF's purchase fees waiting to enter the carryforward (buy_asset's "pending" mode).
+
+    Read from the asset's last row (see holding_rows), like its quantity and
+    average buy price. 0 when there is no row, or the rows were written before
+    the pending_fees column existed.
+    """
+    if asset_rows.empty or "pending_fees" not in asset_rows:
+        return 0.0
+    value = asset_rows["pending_fees"].iloc[-1]
+    return 0.0 if pd.isna(value) else float(value)
+
+
 def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: float, conv_rate: float,
               fee: float, ref_date: date, product: str, ticker: str, fee_mode: str = "abp") -> dict:
     """Work out a buy's effect: the asset's new quantity and average buy price, the carryforward, cash and NAV.
@@ -50,17 +63,20 @@ def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: 
     `fee_mode` says how the fee counts for taxes:
     - "abp": the fee is part of the cost, so it raises the average buy price
       and lowers the gain of a later sale. Stocks always use this mode.
-    - "buy_loss" (ETFs only): an ETF's gains are taxed in full, without
+    - "loss" (ETFs only): an ETF's gains are taxed in full, without
       deducting costs, so the fee is left out of the cost and recorded as a
       capital loss instead, added to the carryforward until it expires (see
       add_solar_years). It can then offset gains on other assets, e.g. stocks.
-    - "sell_loss" (ETFs only): the buy fee is ignored here; the sale's fee is
-      handled by sell_asset.
+    - "pending" (ETFs only): the fee is left out of the cost too, but kept
+      aside in pending_fees rather than added to the carryforward now. It
+      enters the carryforward with the next sale of the ETF at a gain (see
+      sell_asset), so it expires later. Some brokers do this, e.g. Fineco.
 
     Example: holding 10 units at an abp of 100, buying 10 more at 110 with a
     2 EUR fee gives 20 units at an abp of 105.10 ((1000 + 1100 + 2) / 20) in
-    "abp" mode; in "buy_loss" mode the abp is 105.00 and the 2 EUR become a
-    loss in the carryforward.
+    "abp" mode; in "loss" mode the abp is 105.00 and the 2 EUR become a loss
+    in the carryforward; in "pending" mode the abp is 105.00 and the 2 EUR
+    are added to pending_fees.
     """
     price_eur = price * conv_rate
     fee = round_half_up(fee)
@@ -87,11 +103,14 @@ def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: 
 
     fee_loss = np.nan
     expiry = np.nan
+    pending = pending_fees(asset_rows)
 
-    if product in ETF_PRODUCTS and fee_mode == "buy_loss":
+    if product in ETF_PRODUCTS and fee_mode == "loss":
         fee_loss = fee
         expiry = add_solar_years(ref_date)
         carryforward += fee_loss
+    elif product in ETF_PRODUCTS and fee_mode == "pending":
+        pending += fee
 
     current_liq = float(df["cash_held"].iloc[-1]) - round_half_up(round_half_up(quantity * price) * conv_rate) - fee
     positions = priced_positions(df, ref_date, exclude_ticker=ticker)
@@ -107,6 +126,7 @@ def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: 
         "generated_loss": fee_loss,
         "expiry": expiry,
         "carryforward": carryforward,
+        "pending_fees": pending,
         "taxable_gain": np.nan,
         "tax": np.nan,
         "pl": np.nan,
@@ -180,8 +200,8 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
                tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp") -> dict:
     """Work out a sale's effect: its gain or loss, the tax, the carryforward, what is left held, cash and NAV.
 
-    The gain is what the sale brings in (minus its fee, except in "sell_loss"
-    mode) less what the units sold cost at the average buy price. The average buy price of the units
+    The gain is what the sale brings in (minus its fee, except in "loss" mode)
+    less what the units sold cost at the average buy price. The average buy price of the units
     still held doesn't change.
     - A gain is taxed at `tax_rate` (26% by default; money-market ETFs can have
       their own). On anything but an ETF, losses in the carryforward first
@@ -189,16 +209,20 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
       full and leaves the carryforward untouched.
     - A loss, ETFs included, pays no tax and is added to the carryforward
       until it expires (see add_solar_years). It is rounded down to the cent.
-    - In "sell_loss" mode (ETFs), the fee doesn't lower the gain (or raise the
-      loss): it is added to the carryforward as a loss of its own. Cash still
-      goes down by it.
+    - In "loss" mode (ETFs), the fee doesn't lower the gain (or raise the
+      loss): it is added to the carryforward as a loss of its own. A sale at a
+      gain also adds the ETF's pending purchase fees (see buy_asset's "pending"
+      mode); a sale at a loss leaves them pending. Cash still goes down by the fee.
+    - Selling every unit drops the pending purchase fees still left.
     Raises ValidationError when nothing, or less than `quantity`, is held.
 
     Example: selling 5 units with an abp of 100 at 130 with a 2 EUR fee brings
     in 648 against a cost of 500: a 148 EUR gain. A stock with 30 EUR in the
     carryforward is taxed on 118 (30.68 EUR at 26%), using up the 30; an ETF is
     taxed on all 148 (38.48 EUR). Selling at 90 instead: a 52 EUR loss
-    (448 - 500), added to the carryforward.
+    (448 - 500), added to the carryforward. An ETF sold at 130 in "loss" mode
+    with 3 EUR of pending fees is taxed on 150 (650 - 500), and 5 EUR (the
+    2 EUR fee and the 3 pending) enter the carryforward.
     """
     if asset_rows.empty:
         raise ValidationError("operations.stock.sell_noitems")
@@ -211,9 +235,9 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
         raise ValidationError("operations.stock.sell_noqt", quantity=quantity, last_remaining_qt=last_remaining_qt)
 
     proceeds = round_half_up((round_half_up(quantity * price)) * conv_rate)
-    # In "sell_loss" mode the fee enters the carryforward as a loss (below) instead
+    # In "loss" mode the fee enters the carryforward as a loss (below) instead
     # of lowering this sale's gain.
-    fee_as_loss = product in ETF_PRODUCTS and fee_mode == "sell_loss"
+    fee_as_loss = product in ETF_PRODUCTS and fee_mode == "loss"
     effective_amount = proceeds if fee_as_loss else proceeds - fee
     released_amount = quantity * last_abp
 
@@ -248,10 +272,15 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
     residual_amount = last_abp * current_qt
     abp = last_abp if current_qt > 0 else 0.0
 
+    pending = pending_fees(asset_rows)
     if fee_as_loss:
-        carryforward += fee
+        recovered = pending if gross_gain > 0 else 0
+        pending -= recovered
+        carryforward += fee + recovered
         expiry = add_solar_years(ref_date)
-        generated_loss += fee
+        generated_loss += fee + recovered
+    if current_qt == 0:
+        pending = 0
 
     current_liq = float(df["cash_held"].iloc[-1]) + proceeds - fee - round_half_up(tax)
     positions = priced_positions(df, ref_date, exclude_ticker=ticker)
@@ -267,6 +296,7 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
         "generated_loss": np.nan if generated_loss == 0 else generated_loss,
         "expiry": expiry,
         "carryforward": carryforward,
+        "pending_fees": pending,
         "taxable_gain": taxable_gain if gross_gain > 0 else np.nan,
         "tax": tax,
         "pl": net_gain if gross_gain > 0 else gross_gain,

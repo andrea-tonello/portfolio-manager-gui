@@ -182,27 +182,66 @@ def test_etf_gain_does_not_use_carryforward(etf_product):
     assert compute_carryforward(df, date(2024, 12, 31)) == 100
 
 
-# ── sell_asset ───────────────────────────────────────────────────────
+# ── buy_asset and sell_asset: ETF fees as losses ─────────────────────
 
-def test_sell_loss_fee_goes_to_the_carryforward_instead_of_lowering_the_gain(tmp_path, fake_market):
-    """In "sell_loss" mode an ETF sale's fee becomes a loss, and only that: the gain is taxed in full.
+ETF = {"product": "ETF-S", "ter": "0.2%"}
+
+
+def test_sale_fee_goes_to_the_carryforward_instead_of_lowering_the_gain(tmp_path, fake_market):
+    """In "loss" mode an ETF sale's fee becomes a loss, and only that: the gain is taxed in full.
 
     10 units bought at 80 and sold at 90 with a 5 EUR fee: the 100 EUR gain is
     taxed in full (26 EUR) and the 5 EUR enter the carryforward. The fee is
     still paid, so cash goes down by it. Deducting it from the gain as well
     counted it twice: a gain of 95, taxed 24.70.
     """
-    etf = {"product": "ETF-S", "ter": "0.2%", "fee_mode": "sell_loss"}
     df = _replay([
         deposit(date(2024, 1, 2), 1000),
-        buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=0.0, **etf),
-        sell(date(2024, 3, 1), "EEE.MI", 10, price=90.0, fee=5.0, **etf),
+        buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=0.0, fee_mode="loss", **ETF),
+        sell(date(2024, 3, 1), "EEE.MI", 10, price=90.0, fee=5.0, fee_mode="loss", **ETF),
     ], tmp_path)
 
     sale = df.iloc[-1]
     assert (sale["gross_gain"], sale["taxable_gain"], sale["tax"]) == (100, 100, 26)
     assert (sale["generated_loss"], sale["carryforward"]) == (5, 5)
     assert sale["cash_held"] == 1000 - 800 + 900 - 5 - 26
+
+
+def test_pending_purchase_fees_enter_the_carryforward_with_a_sale_at_a_gain(tmp_path, fake_market):
+    """A buy fee left for later ("pending") waits outside the carryforward; a sale at a gain adds it, all of it.
+
+    3 EUR of buy fee pending, then half the units sold at a gain with a 2 EUR
+    fee: the carryforward gets 5 EUR (2 + 3) and nothing is left pending. The
+    buy fee doesn't enter the average buy price, so the 50 EUR gain is taxed in full.
+    """
+    df = _replay([
+        deposit(date(2024, 1, 2), 1000),
+        buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=3.0, fee_mode="pending", **ETF),
+        sell(date(2024, 3, 1), "EEE.MI", 5, price=90.0, fee=2.0, fee_mode="loss", **ETF),
+    ], tmp_path)
+
+    buy_row, sale = df.iloc[-2], df.iloc[-1]
+    assert (buy_row["abp"], buy_row["pending_fees"], buy_row["carryforward"]) == (80, 3, 0)
+    assert (sale["taxable_gain"], sale["generated_loss"], sale["carryforward"], sale["pending_fees"]) == (50, 5, 5, 0)
+
+
+def test_pending_purchase_fees_wait_through_a_sale_at_a_loss_until_the_position_is_closed(tmp_path, fake_market):
+    """A sale at a loss adds only its own fee (with the loss); the pending buy fees stay, and go once every unit is sold.
+
+    3 EUR pending, then two sales of 5 units at a 50 EUR loss with a 2 EUR fee
+    each: each adds 52 EUR to the carryforward. The 3 EUR are still pending
+    after the first sale and dropped by the second, which closes the position.
+    """
+    df = _replay([
+        deposit(date(2024, 1, 2), 1000),
+        buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=3.0, fee_mode="pending", **ETF),
+        sell(date(2024, 3, 1), "EEE.MI", 5, price=70.0, fee=2.0, fee_mode="loss", **ETF),
+        sell(date(2024, 4, 2), "EEE.MI", 5, price=70.0, fee=2.0, fee_mode="loss", **ETF),
+    ], tmp_path)
+
+    first, second = df.iloc[-2], df.iloc[-1]
+    assert (first["generated_loss"], first["carryforward"], first["pending_fees"]) == (52, 52, 3)
+    assert (second["generated_loss"], second["carryforward"], second["pending_fees"]) == (52, 104, 0)
 
 
 # ── add_solar_years ──────────────────────────────────────────────────

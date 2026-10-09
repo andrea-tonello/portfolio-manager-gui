@@ -195,6 +195,30 @@ def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bra
     assert (args[11], kwargs["tax_rate"]) == (picked, tax_rate)
 
 
+@pytest.mark.parametrize("is_sell, card, fee_mode", [
+    (False, "_fee_now_card", "loss"),
+    (False, "_fee_later_card", "pending"),
+    (True, None, "loss"),
+], ids=["buy-now", "buy-when-selling", "sell"])
+def test_etf_form_sends_the_tax_carryforward_choice(open_trade_form, is_sell, card, fee_mode):
+    """With the Tax Carryforward option, a buy sends the card tapped and a sale always "loss".
+
+    The buy's cards: add the fee to the carryforward now ("loss"), or when the
+    ETF is sold ("pending"). A sale has no cards: its fee, and any pending
+    ones, are worked out by sell_asset.
+    """
+    form, submit, calls = open_trade_form("ETF")
+    form.fee_mode.value = "loss"
+    form.side_switch.value = is_sell
+    if card:
+        getattr(form, card).content.on_click(None)
+
+    submit()
+
+    _, kwargs = calls[0]
+    assert kwargs["fee_mode"] == fee_mode
+
+
 def test_a_blank_fee_is_recorded_as_zero(stock_form):
     """The fee is optional: left empty, the trade is recorded with no fee."""
     form, submit, calls = stock_form
@@ -218,8 +242,10 @@ def test_a_blank_fee_is_recorded_as_zero(stock_form):
     ("Stock", {"currency": "USD", "exch_rate": ""}, "The conversion rate must be a number greater than 0"),
     ("ETF", {"etf_subtype": "ETF-M", "tax_bracket": "150"}, "The tax bracket must be a number between 0 and 100"),
     ("ETF", {}, "Please select a fee management mode"),
+    ("ETF", {"fee_mode": "loss"}, "Please select a fee management mode"),  # a buy, but no card tapped
 ], ids=["no-date", "future", "before-last-operation", "no-ticker", "fractional-quantity", "zero-quantity",
-        "zero-price", "bad-fee", "usd-without-rate", "tax-bracket-over-100", "etf-without-fee-mode"])
+        "zero-price", "bad-fee", "usd-without-rate", "tax-bracket-over-100", "etf-without-fee-mode",
+        "etf-buy-without-fee-card"])
 def test_form_refuses_invalid_values(open_trade_form, page, tab, changes, message):
     """Each invalid value shows its own message, and nothing is recorded.
 

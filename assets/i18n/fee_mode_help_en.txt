@@ -1,8 +1,9 @@
- ETFs may have different ways to count fees, depending on your broker. There are three approaches:
+ ETFs may have different ways to count fees, depending on your broker. There are two options:
 
-1. On buy, the fee is added to your Average Buy Price, raising it up a bit. For reference, this is how Stocks are managed
-2. The fee does not raise your ABP. It is instead added to your Tax Carryforward (Zainetto Fiscale) on buy
-3. The fee does not raise your ABP. It is instead added to your Tax Carryforward when selling
+1. **Included in Average Buy Price:** on a buy, the fee is added to your Average Buy Price, raising it up a bit; on a sale, it lowers the gain. For reference, this is how Stocks are managed
+2. **Tax Carryforward:** the fee does not change your ABP or the gain. It is instead added to your Tax Carryforward (Zainetto Fiscale) as a loss:
+    - on a buy, either straight away (e.g. BG Saxo), or only later, when the ETF is sold (e.g. Fineco)
+    - on a sale, the sale's fee is added, together with the purchase fees left for later if the sale is at a gain. At a loss, those stay pending; they are lost if every unit is sold before a sale at a gain
 
 **Note:** this choice won't obviously matter if the fees are 0.
 

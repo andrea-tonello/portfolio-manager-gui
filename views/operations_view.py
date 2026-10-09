@@ -1,5 +1,6 @@
 import flet as ft
 
+from components.action_card import action_card
 from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog
@@ -8,18 +9,31 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dr
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
-from domain.ledger import Product
+from domain.ledger import Product, holding_rows
 from domain.positions import held_tickers
+from domain.tax import pending_fees
 from services import operations_service
 from services.market_data import search_tickers
 from services.validation import parse_positive, validate_date
 from utils.constants import CURRENCIES, DATE_FORMAT
+from utils.formatting import fmt_eur
+
+# Height of the fee cards on a buy and of the panel replacing them on a sale.
+_FEE_CARD_HEIGHT = 150
 
 
 def _selected_account(state):
     """The account picked at the top of Operations, or None when none is picked (or its file isn't loaded)."""
     idx = state.ops_acc_idx
     return None if idx is None else state.get_account(idx)
+
+
+def _number(text):
+    """The number typed in a field, or None while it is empty or not a number yet."""
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
 
 
 def _held_tickers(df):
@@ -364,6 +378,7 @@ class EtfStockForm:
             self.page,
             label=t.get("operations.stock.ticker"),
             type_filter="etf" if is_etf else "equity",
+            on_select=self._on_fee_inputs_change,
             expand=True,
         )
         ticker_help = _help_button(self.page, t, "operations.stock.ticker", "operations.stock.ticker_explained")
@@ -413,6 +428,7 @@ class EtfStockForm:
         self.exch_rate = rounded_text_field(label=t.get("operations.stock.exch_rate"),
             keyboard_type=ft.KeyboardType.NUMBER,
             input_filter=DECIMAL_INPUT_FILTER,
+            on_change=self._on_fee_inputs_change,
             visible=False, col={"xs": 6, "md": 6}
         )
 
@@ -423,18 +439,21 @@ class EtfStockForm:
         self.price = rounded_text_field(label=t.get("operations.stock.price"),
                                         keyboard_type=ft.KeyboardType.NUMBER,
                                         input_filter=DECIMAL_INPUT_FILTER,
+                                        on_change=self._on_fee_inputs_change,
                                         col={"xs": 6, "md": 6})
 
         self.fee_currency = rounded_dropdown(
             label=t.get("operations.stock.currency_fee"),
             options=[ft.dropdown.Option(key=code, text=code) for code in CURRENCIES],
             value="EUR",
+            on_select=self._on_fee_inputs_change,
             visible=False, col={"xs": 6, "md": 6},
             expand=True,
         )
         self.fee = rounded_text_field(label=t.get("operations.stock.fee"),
                                       keyboard_type=ft.KeyboardType.NUMBER,
                                       input_filter=DECIMAL_INPUT_FILTER,
+                                      on_change=self._on_fee_inputs_change,
                                       col={"xs": 6, "md": 6})
 
         fee_mode_help = ft.FilledTonalIconButton(
@@ -446,19 +465,44 @@ class EtfStockForm:
                     opacity=0.4 if no_account else 1.0),
             fee_mode_help
         ], expand=True, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        # "loss" is the Tax Carryforward option. On a buy it needs one of the two
+        # cards below: add the fee now ("loss"), or when selling ("pending").
         self.fee_mode = ft.RadioGroup(
             value=None,
             disabled=no_account,
+            on_change=self._on_fee_inputs_change,
             content=ft.Column([
                 ft.Radio(value="abp", label=t.get("operations.stock.fee_mode_abp")),
-                ft.Radio(value="buy_loss", label=t.get("operations.stock.fee_mode_buy_loss")),
-                ft.Radio(value="sell_loss", label=t.get("operations.stock.fee_mode_sell_loss")),
+                ft.Radio(value="loss", label=t.get("operations.stock.fee_mode_loss")),
             ], spacing=0, opacity=0.4 if no_account else 1.0),
         )
+        self._buy_fee_choice = None  # the card tapped: "loss" or "pending"
+        self._fee_now_text = ft.Text(size=13, text_align=ft.TextAlign.CENTER)
+        self._fee_later_text = ft.Text(size=13, text_align=ft.TextAlign.CENTER)
+        self._fee_now_card = action_card(ft.Icons.BACKPACK, self._fee_now_text,
+                                         lambda _: self._pick_buy_fee("loss"),
+                                         padding=12, height=_FEE_CARD_HEIGHT, expand=True)
+        self._fee_later_card = action_card(ft.Icons.SCHEDULE, self._fee_later_text,
+                                           lambda _: self._pick_buy_fee("pending"),
+                                           padding=12, height=_FEE_CARD_HEIGHT, expand=True)
+        self._buy_fee_cards = ft.Row([self._fee_now_card, self._fee_later_card])
+        # On a sale there is nothing to choose: the panel says what will be added.
+        self._sale_fee_text = ft.Text(size=13, expand=True)
+        self._sale_fee_panel = ft.Container(
+            ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE), self._sale_fee_text], spacing=12),
+            height=_FEE_CARD_HEIGHT,
+            margin=4,  # a Card's default margin, so switching side doesn't move the form
+            padding=12,
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.40, ft.Colors.GREY)),
+            border_radius=15,
+        )
+        self._refresh_fee_section()
         fee_mode_container = ft.Container(
             content=ft.Column([
                 fee_mode_title,
                 self.fee_mode,
+                self._buy_fee_cards,
+                self._sale_fee_panel,
             ], spacing=10,),
             border=ft.Border.all(width=1,
                 color=ft.Colors.with_opacity(0.20, ft.Colors.GREY) if no_account else ft.Colors.with_opacity(0.40, ft.Colors.GREY)),
@@ -538,6 +582,7 @@ class EtfStockForm:
         self._buy_label.weight = ft.FontWeight.NORMAL if is_sell else ft.FontWeight.BOLD
         self._sell_label.weight = ft.FontWeight.BOLD if is_sell else ft.FontWeight.NORMAL
         self.side_switch.thumb_icon = ft.Icons.REMOVE if is_sell else ft.Icons.ADD
+        self._refresh_fee_section()
         self.page.update()
 
     def _on_currency_change(self, e):
@@ -545,7 +590,78 @@ class EtfStockForm:
         is_usd = (self.currency.value == "USD")
         self.exch_rate.visible = is_usd
         self.fee_currency.visible = is_usd
+        self._refresh_fee_section()
         self.page.update()
+
+    def _on_fee_inputs_change(self, e=None):
+        """Redraw the fee section when something it shows changes: the mode, the side, the ticker, the amounts."""
+        self._refresh_fee_section()
+        self.page.update()
+
+    def _pick_buy_fee(self, choice):
+        """Remember the fee card tapped on a buy: add the fee to the carryforward now ("loss") or when selling ("pending")."""
+        self._buy_fee_choice = choice
+        self._on_fee_inputs_change()
+
+    def _refresh_fee_section(self):
+        """Show the fee choices that apply, and what each will do with the amounts typed so far.
+
+        Below the Tax Carryforward option, a buy shows its two cards (the one
+        tapped is outlined and says what will happen), a sale the panel saying
+        what will be added. Both are greyed out unless that option is picked.
+        """
+        t = self.state.translator
+        is_sell = self.side_switch.value
+        to_carryforward = self.fee_mode.value == "loss"
+        self._buy_fee_cards.visible = not is_sell
+        self._sale_fee_panel.visible = is_sell
+        for control in (self._buy_fee_cards, self._sale_fee_panel):
+            control.disabled = not to_carryforward
+            control.opacity = 1.0 if to_carryforward else 0.4
+
+        fee = fmt_eur(self._typed_fee_eur())
+        now, later = self._buy_fee_choice == "loss", self._buy_fee_choice == "pending"
+        self._fee_now_text.value = t.get("operations.stock.fee_added", fee=fee) if now else t.get("operations.stock.fee_now")
+        self._fee_later_text.value = t.get("operations.stock.fee_not_added") if later else t.get("operations.stock.fee_later")
+        for card, picked in ((self._fee_now_card, now), (self._fee_later_card, later)):
+            card.content.border = ft.Border.all(2, ft.Colors.PRIMARY) if picked else None
+        self._sale_fee_text.value = self._sale_fee_message(fee)
+
+    def _typed_rate(self):
+        """The USD->EUR rate typed (None until it is a number), or 1 for a trade in EUR."""
+        return _number(self.exch_rate.value) if self.currency.value == "USD" else 1.0
+
+    def _typed_fee_eur(self):
+        """The fee typed, in EUR; 0 while empty. A fee in USD is converted once the rate is typed."""
+        fee = _number(self.fee.value) or 0.0
+        rate = self._typed_rate()
+        if self.currency.value == "USD" and self.fee_currency.value == "USD" and rate:
+            fee *= rate
+        return fee
+
+    def _sale_fee_message(self, fee):
+        """What a sale in Tax Carryforward mode adds to it: its `fee` and, at a gain, the purchase fees pending.
+
+        Uses sell_asset's rule: the pending fees are added only if the sale is
+        at a gain, i.e. its price in EUR is above the average buy price.
+        Example: 3 EUR pending, a 2 EUR fee and no price typed yet ->
+        "2.00€ + 3.00€ will be added to the Tax Carryforward, if the sale is at a gain".
+        """
+        t = self.state.translator
+        account = _selected_account(self.state)
+        ticker = self.ticker.value.strip()
+        asset_rows = holding_rows(account.df, ticker) if account and ticker else None
+        pending = pending_fees(asset_rows) if asset_rows is not None else 0.0
+        if not pending:
+            return t.get("operations.stock.fee_added", fee=fee)
+        price, rate = _number(self.price.value), self._typed_rate()
+        if not price or not rate:
+            key = "fee_added_with_pending_if_gain"
+        elif price * rate > asset_rows["abp"].iloc[-1]:
+            key = "fee_added_with_pending"
+        else:
+            key = "fee_added_pending_kept"
+        return t.get(f"operations.stock.{key}", fee=fee, pending=fmt_eur(pending))
 
     def _on_etf_subtype_change(self, e):
         """Show the trade fields (with the tax bracket for money-market ETFs), or the note for bond ETFs."""
@@ -575,10 +691,14 @@ class EtfStockForm:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
+        is_buy = not self.side_switch.value
+        fee_mode = self.fee_mode.value
+        if fee_mode == "loss" and is_buy:
+            fee_mode = self._buy_fee_choice  # None until a card is tapped, refused by parse_trade
         try:
             trade = operations_service.parse_trade(
                 product=self.etf_subtype.value if self.etf_subtype is not None else Product.STOCK,
-                is_buy=not self.side_switch.value,
+                is_buy=is_buy,
                 day=self.date.value,
                 ticker=self.ticker.value,
                 quantity=self.quantity.value,
@@ -589,7 +709,7 @@ class EtfStockForm:
                 fee_currency=self.fee_currency.value,
                 ter=self.ter.value,
                 tax_bracket=self.tax_bracket.value,
-                fee_mode=self.fee_mode.value,
+                fee_mode=fee_mode,
                 ledger_df=account.df,
             )
         except ValidationError as ex:

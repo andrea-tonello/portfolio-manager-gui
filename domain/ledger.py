@@ -91,8 +91,8 @@ def holding_rows(df: pd.DataFrame, ticker: str | None = None) -> pd.DataFrame:
     """Return the rows of `df` that change how many units are held: buys, sells and splits.
 
     With `ticker`, only that asset's rows. Rows keep their original index. The
-    last of an asset's rows holds its current quantity (`qt_held`) and average
-    buy price (`abp`).
+    last of an asset's rows holds its current quantity (`qt_held`), average
+    buy price (`abp`) and purchase fees still pending (`pending_fees`, ETFs).
     """
     rows = df[df["operation"].isin(_HOLDING_OPS)]
     if ticker is not None:

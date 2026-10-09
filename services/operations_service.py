@@ -51,7 +51,7 @@ class TradeInput:
     ter: str | float   # an ETF's yearly cost, e.g. "0.2%"; NaN when not given
     product: str       # the product code stored in the CSV, a Product value such as "ETF-M"
     tax_rate: float    # on capital gains, e.g. 0.26
-    fee_mode: str      # how the fee is accounted for: "abp", "buy_loss" or "sell_loss"
+    fee_mode: str      # how the fee is accounted for: "abp", "loss" or "pending" (see buy_asset)
 
 
 def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | None, quantity: str | None,

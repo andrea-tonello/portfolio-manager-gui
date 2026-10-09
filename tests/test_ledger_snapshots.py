@@ -115,18 +115,18 @@ STOCKS_EUR = [
     withdrawal(date(2024, 9, 2), 500),
 ]
 
-# ETFs and USD: fee modes buy_loss / sell_loss, ETF gains that must not be
-# offset by the carryforward (nor consume it), a money-market ETF at 12.5% tax,
-# and a USD stock whose gain is offset by the 10 EUR carryforward built up
-# from the ETF fees.
+# ETFs and USD: fees recorded as losses on the buy and on the sale, ETF gains
+# that must not be offset by the carryforward (nor consume it), a money-market
+# ETF at 12.5% tax, and a USD stock whose gain is offset by the 10 EUR
+# carryforward built up from the ETF fees.
 ETFS_AND_USD = [
     deposit(date(2024, 1, 2), 20_000),
     buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=5.0,
-        product="ETF-S", ter="0.2%", fee_mode="buy_loss"),
+        product="ETF-S", ter="0.2%", fee_mode="loss"),
     buy(date(2024, 1, 4), "UUU", 5, price=200.0, fee=1.0,
         currency="USD", conv_rate=0.9),
     sell(date(2024, 3, 1), "EEE.MI", 10, price=90.0, fee=5.0,
-         product="ETF-S", ter="0.2%", fee_mode="sell_loss"),
+         product="ETF-S", ter="0.2%", fee_mode="loss"),
     buy(date(2024, 3, 4), "MMM.MI", 100, price=10.0, fee=0.0,
         product="ETF-M", ter="0.1%", fee_mode="abp"),
     sell(date(2024, 6, 3), "MMM.MI", 100, price=10.5, fee=0.0,

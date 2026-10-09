@@ -31,6 +31,7 @@ COLUMN_TITLE_KEYS = {
     "generated_loss": "glossary.page_1.cap_loss_title",
     "expiry": "glossary.page_1.exp_date_title",
     "carryforward": "glossary.page_1.backpack_title",
+    "pending_fees": "glossary.page_1.pending_fees_title",
     "taxable_gain": "glossary.page_1.cap_gain_tax_title",
     "tax_bracket": "glossary.page_1.tax_bracket_title",
     "tax": "glossary.page_1.tax_amount_title",

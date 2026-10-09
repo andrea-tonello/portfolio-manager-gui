@@ -1,8 +1,9 @@
-Gli ETF possono avere modi diversi di conteggiare le commissioni, in base al tuo intermediario. Esistono tre opzioni:
+Gli ETF possono avere modi diversi di conteggiare le commissioni, in base al tuo intermediario. Esistono due opzioni:
 
-1. In acquisto, la commissione è aggiunta al Prezzo Medio di Carico, aumentandolo leggermente. Questo è lo stesso modo in cui vengono gestite le Azioni
-2. La commissione non si aggiunge al PMC. È invece registrata come minusvalenza nello Zainetto Fiscale, in acquisto
-3. La commissione non si aggiunge al PMC. È invece registrata come minusvalenza nello Zainetto Fiscale, al momento della vendita
+1. **Incluse nel Prezzo Medio di Carico:** in acquisto, la commissione è aggiunta al Prezzo Medio di Carico, aumentandolo leggermente; in vendita, riduce la plusvalenza. Questo è lo stesso modo in cui vengono gestite le Azioni
+2. **Zainetto Fiscale:** la commissione non modifica il PMC né la plusvalenza. È invece registrata come minusvalenza nello Zainetto Fiscale:
+    - in acquisto, subito (es. BG Saxo), oppure solo più avanti, alla vendita dell'ETF (es. Fineco)
+    - in vendita, viene aggiunta la commissione della vendita, insieme a quelle di acquisto lasciate per dopo se la vendita è in plusvalenza. In minusvalenza, queste restano in sospeso; vengono perse se si vendono tutte le quote prima di una vendita in plusvalenza
 
 **Nota:** questa scelta non avrà ovviamente importanza se le commissioni sono 0.
 

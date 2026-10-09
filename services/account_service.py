@@ -3,6 +3,7 @@ import pandas as pd
 
 from domain.account import Account
 from domain.ledger import opening_row
+from utils.columns import COLUMNS
 from utils.constants import REPORT_PREFIX
 
 
@@ -32,7 +33,9 @@ def load_single_account(brokers: dict, save_folder: str, account_idx: int) -> Ac
     """Load the account `brokers[account_idx]` from its CSV in `save_folder`."""
     name = brokers[account_idx]
     path = report_path(save_folder, name)
-    return Account(idx=account_idx, name=name, path=path, df=pd.read_csv(path))
+    # A file written before a column was added (e.g. pending_fees) gets it, empty, in its place.
+    df = pd.read_csv(path).reindex(columns=COLUMNS)
+    return Account(idx=account_idx, name=name, path=path, df=df)
 
 
 def save_account(account: Account):

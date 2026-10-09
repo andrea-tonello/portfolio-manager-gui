@@ -12,7 +12,7 @@ import numpy as np
 from domain.errors import ValidationError
 from domain.ledger import Op, TextCell, base_row, holding_rows
 from domain.positions import priced_positions
-from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, sell_asset
+from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, pending_fees, sell_asset
 from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
@@ -112,6 +112,7 @@ def newrow_etf_stock(df: pd.DataFrame, date_str: str, ref_date: date, broker: st
         "generated_loss": round_half_up(results["generated_loss"]),
         "expiry": results["expiry"],
         "carryforward": round_half_up(results["carryforward"]),
+        "pending_fees": round_half_up(results["pending_fees"]),
         "taxable_gain": round_half_up(results["taxable_gain"]),
         "tax_bracket": tax_rate * 100,
         "tax": round_half_up(results["tax"]),
@@ -130,7 +131,8 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
     """Record a stock split as a unit-conversion row.
 
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
-    total invested value (qt × abp) is preserved. No fees, no P&L, no tax.
+    total invested value (qt × abp) is preserved. No fees, no P&L, no tax; the
+    pending purchase fees carry over unchanged.
     """
     asset_rows = holding_rows(df, ticker)
 
@@ -173,6 +175,7 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
         "abp": round_half_up(new_abp, decimal="0.0001"),
         "residual_amount": round_half_up(residual),
         "carryforward": round_half_up(float(df["carryforward"].iloc[-1])),
+        "pending_fees": pending_fees(asset_rows),
         "cash_held": round_half_up(current_liq),
         "assets_value": round_half_up(asset_value),
         "nav": round_half_up(asset_value + current_liq),
