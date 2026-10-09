@@ -14,6 +14,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 import pytest
+from test_ledger_snapshots import _replay, buy, deposit, sell
 
 from domain.ledger import ETF_PRODUCTS
 from domain.tax import add_solar_years, compute_carryforward
@@ -179,6 +180,29 @@ def test_etf_gain_does_not_use_carryforward(etf_product):
     """
     df = history(loss("02-04-2024", 100), gain("03-06-2024", 60, product=etf_product))
     assert compute_carryforward(df, date(2024, 12, 31)) == 100
+
+
+# ── sell_asset ───────────────────────────────────────────────────────
+
+def test_sell_loss_fee_goes_to_the_carryforward_instead_of_lowering_the_gain(tmp_path, fake_market):
+    """In "sell_loss" mode an ETF sale's fee becomes a loss, and only that: the gain is taxed in full.
+
+    10 units bought at 80 and sold at 90 with a 5 EUR fee: the 100 EUR gain is
+    taxed in full (26 EUR) and the 5 EUR enter the carryforward. The fee is
+    still paid, so cash goes down by it. Deducting it from the gain as well
+    counted it twice: a gain of 95, taxed 24.70.
+    """
+    etf = {"product": "ETF-S", "ter": "0.2%", "fee_mode": "sell_loss"}
+    df = _replay([
+        deposit(date(2024, 1, 2), 1000),
+        buy(date(2024, 1, 3), "EEE.MI", 10, price=80.0, fee=0.0, **etf),
+        sell(date(2024, 3, 1), "EEE.MI", 10, price=90.0, fee=5.0, **etf),
+    ], tmp_path)
+
+    sale = df.iloc[-1]
+    assert (sale["gross_gain"], sale["taxable_gain"], sale["tax"]) == (100, 100, 26)
+    assert (sale["generated_loss"], sale["carryforward"]) == (5, 5)
+    assert sale["cash_held"] == 1000 - 800 + 900 - 5 - 26
 
 
 # ── add_solar_years ──────────────────────────────────────────────────

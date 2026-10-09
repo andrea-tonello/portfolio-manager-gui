@@ -20,10 +20,10 @@
     {
       "asset_value": 0.0,
       "broker_name": "ETFs",
-      "current_liq": 20193.05,
+      "current_liq": 20191.75,
       "historic_liq": 20000.0,
-      "nav": 20193.05,
-      "pl": 198.05,
+      "nav": 20191.75,
+      "pl": 201.75,
       "pl_unrealized": 0.0,
       "positions": [],
       "xirr_ann": NaN,
@@ -33,17 +33,17 @@
   "min_date": "2024-01-02 00:00:00",
   "portfolio": {
     "asset_value": 1365.0,
-    "current_liq": 28916.17,
+    "current_liq": 28914.87,
     "has_positions": true,
     "historic_liq": 29500.0,
-    "nav": 30281.17,
-    "pl": 422.17,
+    "nav": 30279.87,
+    "pl": 425.87,
     "pl_unrealized": 588.12,
-    "sharpe_ratio": 0.1522654279,
-    "twrr_ann": 0.03042802603,
-    "twrr_full": 0.0314090112,
-    "volatility": 0.1004532163,
-    "xirr_ann": 0.02625447431,
-    "xirr_full": 0.02618161074
+    "sharpe_ratio": 0.1512863287,
+    "twrr_ann": 0.0303277634,
+    "twrr_full": 0.03130546731,
+    "volatility": 0.1004707698,
+    "xirr_ann": 0.0262107829,
+    "xirr_full": 0.02613804213
   }
 }

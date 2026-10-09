@@ -13,6 +13,7 @@
 - XEON tickers appears when Stocks ETFs is selected
 - Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - [TABLET] Reduce account dropdown width in each of the 4 main views
+- If selling: only show held tickers
 
 - Update README images
 - [INVESTIGATE] Can app size be brought further down?
