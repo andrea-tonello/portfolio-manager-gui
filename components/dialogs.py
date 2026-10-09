@@ -3,12 +3,13 @@ import flet as ft
 from utils.constants import GITHUB_URL
 
 
-def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None):
+def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None, actions=None):
     """Show a read-only dialog: a title, an explanation and an OK button that closes it.
 
-    Used by the "?" help buttons, the privacy policy and the contacts. With markdown=True the
-    body can contain formatting and links (opened in the browser), and it scrolls when it is
-    taller than the dialog; pass `height` to fix the dialog's height instead of fitting the text.
+    Used by the "?" help buttons, the privacy policy, the contacts and the update notice. With
+    markdown=True the body can contain formatting and links (opened in the browser), and it
+    scrolls when it is taller than the dialog; pass `height` to fix the dialog's height instead
+    of fitting the text. `actions` replaces the OK button, e.g. with Later and Download.
     """
     if markdown:
         content = ft.Column([
@@ -19,7 +20,7 @@ def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None,
     page.show_dialog(ft.AlertDialog(
         title=ft.Text(title, size=title_size),
         content=ft.Container(content=content, width=450, height=height),
-        actions=[ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
+        actions=actions or [ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
     ))
 
 

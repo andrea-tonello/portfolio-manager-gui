@@ -313,6 +313,13 @@
   },
 
 
+  "update": {
+    "title": "Version {version} available",
+    "later": "Later",
+    "download": "Update"
+  },
+
+
   "values": {
     "op_deposit": "Deposit",
     "op_withdrawal": "Withdrawal",

@@ -250,7 +250,7 @@ def block_network(monkeypatch):
     `autouse=True` means it runs for every test automatically; no test has to ask for it.
 
     The app only goes online through urllib.request.urlopen (in
-    services/market_data.py), so that is replaced with a function that records
+    services/market_data.py and services/update_service.py), so that is replaced with a function that records
     the URL and raises an error. Raising alone is not enough: the app often
     catches the error and carries on with "no data" (e.g. download_close
     returns an empty table). So after the test finishes, any recorded attempt

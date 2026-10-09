@@ -9,6 +9,7 @@ import flet as ft
 
 from app_state import AppState
 from components.theme import apply_theme
+from components.update_check import check_for_update
 from views import onboarding_view, shell
 
 
@@ -18,6 +19,7 @@ class AppController:
     `state` is replaced by a fresh AppState on every restart. `nav_wrapper` is
     the animated container holding the current tab; None means the next
     show_tab rebuilds the whole shell (drawer and navigation bar included).
+    `checked_for_update` turns True once GitHub has been asked for a newer release.
     """
 
     def __init__(self, page: ft.Page, base_path: str):
@@ -26,6 +28,7 @@ class AppController:
         self.base_path = base_path
         self.state: AppState | None = None
         self.nav_wrapper: ft.Container | None = None
+        self.checked_for_update = False
 
     def restart(self) -> None:
         """Start over: reload every setting from disk, then show the first setup step still missing, or Home.
@@ -71,6 +74,11 @@ class AppController:
         self.state.ensure_defaults()
         self.state.load_all_accounts()
         self.show_tab(shell.HOME_TAB)
+        # Once per launch, on reaching Home: not during the setup, nor again on
+        # later restarts (e.g. switching user).
+        if not self.checked_for_update:
+            self.checked_for_update = True
+            check_for_update(page, self.state.translator)
 
     def show_tab(self, index: int) -> None:
         """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions)."""

@@ -313,6 +313,13 @@
   },
 
 
+  "update": {
+    "title": "Versione {version} disponibile",
+    "later": "Più tardi",
+    "download": "Aggiorna"
+  },
+
+
   "values": {
     "op_deposit": "Deposito",
     "op_withdrawal": "Prelievo",
