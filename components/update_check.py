@@ -5,13 +5,14 @@ import flet as ft
 from components.dialogs import show_info_dialog
 from services import update_service
 
-# The file each platform installs, as the release workflow names it. Other
-# platforms (e.g. iOS, which has no build) get the release page instead.
+# The file each platform installs, as the release workflow names it, e.g.
+# portfolio-manager-0.4.1.apk. Other platforms (e.g. iOS, which has no build)
+# get the release page instead.
 _DOWNLOADS = {
-    ft.PagePlatform.ANDROID: "portfolio-manager.apk",
-    ft.PagePlatform.LINUX: "portfolio-manager-linux.zip",
-    ft.PagePlatform.WINDOWS: "portfolio-manager-windows.zip",
-    ft.PagePlatform.MACOS: "portfolio-manager-macos.zip",
+    ft.PagePlatform.ANDROID: "portfolio-manager-{version}.apk",
+    ft.PagePlatform.LINUX: "portfolio-manager-{version}-linux.zip",
+    ft.PagePlatform.WINDOWS: "portfolio-manager-{version}-windows.zip",
+    ft.PagePlatform.MACOS: "portfolio-manager-{version}-macos.zip",
 }
 
 
@@ -27,13 +28,15 @@ def check_for_update(page, translator):
         release = update_service.newer_release()
         if release is None:
             return
+        version = release["tag_name"].removeprefix("v")
         urls = {asset["name"]: asset["browser_download_url"] for asset in release.get("assets", [])}
+        file_name = _DOWNLOADS.get(page.platform, "").format(version=version)
         # BLANK opens the system browser rather than one inside the app, so the download
         # carries on, and can be opened from the notifications, after leaving the app.
-        url = ft.Url(urls.get(_DOWNLOADS.get(page.platform), release["html_url"]), target=ft.UrlTarget.BLANK)
+        url = ft.Url(urls.get(file_name, release["html_url"]), target=ft.UrlTarget.BLANK)
         show_info_dialog(
             page,
-            translator.get("update.title", version=release["tag_name"].removeprefix("v")),
+            translator.get("update.title", version=version),
             release.get("body") or "",
             markdown=True,
             actions=[

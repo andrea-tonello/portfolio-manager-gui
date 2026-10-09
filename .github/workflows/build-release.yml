@@ -19,6 +19,7 @@ jobs:
           VERSION="${VERSION#v}"
           sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
           sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           # Android's internal version number: it only installs an update whose number isn't lower
           # than the installed one, so it must grow with every release.
           # MAJOR*10000 + MINOR*100 + PATCH, e.g. 0.4.1 -> 401 (minor and patch must stay below 100).
@@ -53,12 +54,12 @@ jobs:
             --android-signing-key-alias upload
 
       - name: Rename APK
-        run: mv build/apk/*.apk build/apk/portfolio-manager.apk
+        run: mv build/apk/*.apk "build/apk/portfolio-manager-${VERSION}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: portfolio-manager-android
-          path: build/apk/portfolio-manager.apk
+          path: build/apk/portfolio-manager-${{ env.VERSION }}.apk
 
   build-linux:
     runs-on: ubuntu-latest
@@ -71,6 +72,7 @@ jobs:
           VERSION="${VERSION#v}"
           sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
           sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -91,12 +93,12 @@ jobs:
 
       - name: Archive Linux build
         working-directory: build/linux
-        run: zip -r ../../portfolio-manager-linux.zip .
+        run: zip -r "../../portfolio-manager-${VERSION}-linux.zip" .
 
       - uses: actions/upload-artifact@v4
         with:
           name: portfolio-manager-linux
-          path: portfolio-manager-linux.zip
+          path: portfolio-manager-${{ env.VERSION }}-linux.zip
 
   build-windows:
     runs-on: windows-latest
@@ -110,6 +112,7 @@ jobs:
           VERSION="${VERSION#v}"
           sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
           sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -127,12 +130,12 @@ jobs:
           PYTHONIOENCODING: utf-8
 
       - name: Archive Windows build
-        run: Compress-Archive -Path build\windows\* -DestinationPath portfolio-manager-windows.zip
+        run: Compress-Archive -Path build\windows\* -DestinationPath "portfolio-manager-$env:VERSION-windows.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: portfolio-manager-windows
-          path: portfolio-manager-windows.zip
+          path: portfolio-manager-${{ env.VERSION }}-windows.zip
 
   build-macos:
     runs-on: macos-latest
@@ -145,6 +148,7 @@ jobs:
           VERSION="${VERSION#v}"
           sed -i '' "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
           sed -i '' "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -160,12 +164,12 @@ jobs:
 
       - name: Archive macOS build
         working-directory: build/macos
-        run: zip -r -y ../../portfolio-manager-macos.zip .
+        run: zip -r -y "../../portfolio-manager-${VERSION}-macos.zip" .
 
       - uses: actions/upload-artifact@v4
         with:
           name: portfolio-manager-macos
-          path: portfolio-manager-macos.zip
+          path: portfolio-manager-${{ env.VERSION }}-macos.zip
 
   release:
     runs-on: ubuntu-latest
@@ -200,11 +204,12 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          # Each folder holds the one file its build job uploaded, named with the version.
           files: |
-            artifacts/portfolio-manager-android/portfolio-manager.apk
-            artifacts/portfolio-manager-linux/portfolio-manager-linux.zip
-            artifacts/portfolio-manager-windows/portfolio-manager-windows.zip
-            artifacts/portfolio-manager-macos/portfolio-manager-macos.zip
+            artifacts/portfolio-manager-android/*.apk
+            artifacts/portfolio-manager-linux/*.zip
+            artifacts/portfolio-manager-windows/*.zip
+            artifacts/portfolio-manager-macos/*.zip
           tag_name: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
           body_path: /tmp/release_notes.md
