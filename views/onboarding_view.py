@@ -18,11 +18,11 @@ from utils.constants import LANGUAGES
 # Height of what sits above each screen's input. It is the same on every
 # screen, so the language dropdown, the import card and the user and account
 # text fields are at the same place on each.
-_HEADER_HEIGHT = 220
+_HEADER_HEIGHT = 240
 
 
 def _screen(content, bottom):
-    """Lay out an onboarding screen inside the safe area, centred and at most 800 wide like the tabs.
+    """Lay out an onboarding screen inside the safe area, centred and at most 500 wide like the tabs.
 
     `content` (the header, the input, the accounts added) fills the screen from
     the top and scrolls when it doesn't fit, e.g. with the keyboard open or a
@@ -37,7 +37,7 @@ def _screen(content, bottom):
                     ft.Column(content, spacing=15, horizontal_alignment=center, scroll=ft.ScrollMode.AUTO, expand=True),
                     ft.Column(bottom, spacing=15, horizontal_alignment=center, tight=True),
                 ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
-                width=800,
+                width=500,
                 padding=15,
             ),
             alignment=ft.alignment.Alignment.TOP_CENTER,
@@ -47,12 +47,16 @@ def _screen(content, bottom):
 
 
 def _header(*controls, top=None):
-    """The part of an onboarding screen above its input: `controls` at its bottom, `top` (the close button row) at its top."""
-    return ft.Container(
-        ft.Column([top or ft.Container(), ft.Container(expand=True), *controls],
-                  spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-        height=_HEADER_HEIGHT,
+    """The part of an onboarding screen above its input: `controls` at its bottom, `top` (the close button row) at its top.
+
+    `top` is drawn over the header's top-left corner rather than above the
+    controls, so showing it doesn't push them down or out of the header.
+    """
+    content = ft.Container(
+        ft.Column(list(controls), spacing=15, tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        alignment=ft.alignment.Alignment.BOTTOM_CENTER,
     )
+    return ft.Stack([content, top] if top else [content], height=_HEADER_HEIGHT)
 
 
 def show_language_picker(app):
@@ -150,7 +154,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
         page.update()
 
     username_field = rounded_text_field(label=t.get("settings.user_mgmt.username_hint"), on_change=on_change,
-                                        input_filter=NAME_INPUT_FILTER)
+                                        input_filter=NAME_INPUT_FILTER, expand=True)
 
     def on_submit(e):
         name = username_field.value.strip()
@@ -187,7 +191,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
                 ft.Text(t.get("settings.user_mgmt.add_title"), size=20, weight=ft.FontWeight.BOLD),
                 top=ft.Row([close_btn], alignment=ft.MainAxisAlignment.START),
             ),
-            username_field,
+            ft.Row([username_field]),  # as for the dropdown: in a Row, expand fills the width, not the height
         ],
         [
             ft.Text(t.get("settings.user_mgmt.add_later") if first_time else t.get("settings.user_mgmt.duplicate_hint"),
