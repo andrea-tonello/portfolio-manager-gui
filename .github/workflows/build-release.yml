@@ -19,6 +19,11 @@ jobs:
           VERSION="${VERSION#v}"
           sed -i "s/^APP_VERSION = .*/APP_VERSION = \"${VERSION}\"/" utils/constants.py
           sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+          # Android's internal version number: it only installs an update whose number isn't lower
+          # than the installed one, so it must grow with every release.
+          # MAJOR*10000 + MINOR*100 + PATCH, e.g. 0.4.1 -> 401 (minor and patch must stay below 100).
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+          echo "BUILD_NUMBER=$((MAJOR * 10000 + MINOR * 100 + PATCH))" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -41,6 +46,7 @@ jobs:
         run: |
           (yes || true) | uv run flet build apk \
             --project "Portfolio Manager" \
+            --build-number "$BUILD_NUMBER" \
             --android-signing-key-store /tmp/release.jks \
             --android-signing-key-store-password "${{ secrets.KEYSTORE_PASSWORD }}" \
             --android-signing-key-password "${{ secrets.KEY_PASSWORD }}" \
