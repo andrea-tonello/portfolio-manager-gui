@@ -19,7 +19,8 @@ from utils.constants import CURRENCIES, DATE_FORMAT
 from utils.formatting import fmt_eur
 
 # Height of the fee cards on a buy and of the panel replacing them on a sale.
-_FEE_CARD_HEIGHT = 150
+_FEE_CARD_HEIGHT_BUY = 150
+_FEE_CARD_HEIGHT_SELL = 96
 
 
 def _selected_account(state):
@@ -481,16 +482,16 @@ class EtfStockForm:
         self._fee_later_text = ft.Text(size=13, text_align=ft.TextAlign.CENTER)
         self._fee_now_card = action_card(ft.Icons.BACKPACK, self._fee_now_text,
                                          lambda _: self._pick_buy_fee("loss"),
-                                         padding=12, height=_FEE_CARD_HEIGHT, expand=True)
+                                         padding=12, height=_FEE_CARD_HEIGHT_BUY, expand=True)
         self._fee_later_card = action_card(ft.Icons.SCHEDULE, self._fee_later_text,
                                            lambda _: self._pick_buy_fee("pending"),
-                                           padding=12, height=_FEE_CARD_HEIGHT, expand=True)
+                                           padding=12, height=_FEE_CARD_HEIGHT_BUY, expand=True)
         self._buy_fee_cards = ft.Row([self._fee_now_card, self._fee_later_card])
         # On a sale there is nothing to choose: the panel says what will be added.
         self._sale_fee_text = ft.Text(size=13, expand=True)
         self._sale_fee_panel = ft.Container(
             ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE), self._sale_fee_text], spacing=12),
-            height=_FEE_CARD_HEIGHT,
+            height=_FEE_CARD_HEIGHT_SELL,
             margin=4,  # a Card's default margin, so switching side doesn't move the form
             padding=12,
             border=ft.Border.all(1, ft.Colors.with_opacity(0.40, ft.Colors.GREY)),
@@ -606,25 +607,29 @@ class EtfStockForm:
     def _refresh_fee_section(self):
         """Show the fee choices that apply, and what each will do with the amounts typed so far.
 
-        Below the Tax Carryforward option, a buy shows its two cards (the one
-        tapped is outlined and says what will happen), a sale the panel saying
-        what will be added. Both are greyed out unless that option is picked.
+        Only with the Tax Carryforward option picked: a buy shows its two cards
+        (the one tapped is outlined and says what will happen), a sale the
+        panel saying what will be added. Otherwise neither is shown, and the
+        card tapped is forgotten, so coming back to the option starts afresh.
         """
         t = self.state.translator
         is_sell = self.side_switch.value
         to_carryforward = self.fee_mode.value == "loss"
-        self._buy_fee_cards.visible = not is_sell
-        self._sale_fee_panel.visible = is_sell
-        for control in (self._buy_fee_cards, self._sale_fee_panel):
-            control.disabled = not to_carryforward
-            control.opacity = 1.0 if to_carryforward else 0.4
+        self._buy_fee_cards.visible = to_carryforward and not is_sell
+        self._sale_fee_panel.visible = to_carryforward and is_sell
+        if not to_carryforward:
+            self._buy_fee_choice = None
 
         fee = fmt_eur(self._typed_fee_eur())
         now, later = self._buy_fee_choice == "loss", self._buy_fee_choice == "pending"
+
         self._fee_now_text.value = t.get("operations.stock.fee_added", fee=fee) if now else t.get("operations.stock.fee_now")
+        self._fee_now_text.weight = ft.FontWeight.BOLD if now else None
         self._fee_later_text.value = t.get("operations.stock.fee_not_added") if later else t.get("operations.stock.fee_later")
+        self._fee_later_text.weight = ft.FontWeight.BOLD if later else None
+        
         for card, picked in ((self._fee_now_card, now), (self._fee_later_card, later)):
-            card.content.border = ft.Border.all(2, ft.Colors.PRIMARY) if picked else None
+            card.content.border = ft.Border.all(4, ft.Colors.PRIMARY) if picked else None
         self._sale_fee_text.value = self._sale_fee_message(fee)
 
     def _typed_rate(self):

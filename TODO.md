@@ -1,19 +1,30 @@
 
 ## BACKLOG
 
+
+
+
+
+- Se Commissione == 0 o vuoto --> Fee Management greyed-out
+- If selling: only show held tickers
+- LIMIT POPUPS VERTICALLY
+    - "?" Fee Management popup
+    - Contacts popup
+    - Reset application popup
+
+
+
+
+
+
 - "+ Add Transaction" button should be dynamic (Aggiungi Acquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 - Make the ticker suggestion overlay an actual overlay (instead of shifting down the content below it)
 
 - focus_chain does not work when going from TER to Tax Bracket
 
-- LIMIT POPUPS VERTICALLY
-    - "?" Fee Management popup
-    - Contacts popup
-    - Reset application popup
 - XEON tickers appears when Stocks ETFs is selected
 - Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - [TABLET] Reduce account dropdown width in each of the 4 main views
-- If selling: only show held tickers
 
 - Update README images
 - [INVESTIGATE] Can app size be brought further down?

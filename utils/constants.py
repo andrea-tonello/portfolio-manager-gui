@@ -2,7 +2,7 @@ import os
 
 # The release workflow replaces it with the version being released. "dev" marks a copy
 # run from the source code, which never offers to update (see update_service).
-APP_VERSION = "0.1.0"
+APP_VERSION = "dev"
 GITHUB_URL = "https://github.com/andrea-tonello/portfolio-manager-gui"
 
 DATE_FORMAT = "%d-%m-%Y"

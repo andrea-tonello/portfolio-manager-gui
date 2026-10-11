@@ -112,7 +112,7 @@
       "fee_mode_abp": "Incluse nel Prezzo Medio di Carico",
       "fee_mode_loss": "Zainetto Fiscale",
       "fee_now": "Aggiungi la commissione di questo Acquisto",
-      "fee_later": "Non aggiungere nulla. Verrà recuperata alla Vendita",
+      "fee_later": "Non aggiungere la commissione; verrà recuperata alla Vendita",
       "fee_added": "Verranno aggiunti {fee} allo Zainetto Fiscale",
       "fee_not_added": "La commissione non verrà aggiunta allo Zainetto Fiscale",
       "fee_added_with_pending": "Verranno aggiunti {fee} + {pending} allo Zainetto Fiscale",
