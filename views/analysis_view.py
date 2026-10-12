@@ -24,7 +24,7 @@ from components.charts import (
 )
 from components.date_field import DateField, date_range_fields
 from components.file_export import get_file_picker, save_bytes
-from components.focus_chain import chain_focus, scroll_into_view_on_focus
+from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
@@ -141,11 +141,9 @@ class AnalysisTab:
             self.result,
             self.export_row,
             ft.Container(height=20),
-        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+        ], spacing=12)
 
-        scroll_into_view_on_focus(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix)
-
-        self.content = ft.Container(content=col, padding=10, expand=True)
+        self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10)
         return self.content
 
     def submit(self, e):

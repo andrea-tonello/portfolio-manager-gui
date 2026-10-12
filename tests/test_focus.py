@@ -13,7 +13,7 @@ import flet as ft
 import pytest
 from conftest import find_controls
 
-from components.focus_chain import scroll_into_view_on_focus
+from components.focus_chain import scroll_into_view_on_focus, scrolling_form
 
 
 class FakeColumn:
@@ -44,6 +44,23 @@ def test_focusing_a_field_scrolls_the_column_to_it():
     assert amount.key == ft.ScrollKey("cash-0")
     assert ticker.key == ft.ScrollKey("cash-1")
     assert column.scrolls == [{"scroll_key": ft.ScrollKey("cash-1"), "duration": 300}]
+
+
+def test_a_scrolling_form_starts_at_the_tabs_left_edge():
+    """The space left and right of a form sits inside its scrolling column, not around it.
+
+    Flet's scroll_to also slides the swipeable tabs until the scrolling column
+    is at their left edge. With the column set 20 px in from the edge, the
+    whole tab slid 20 px left and sprang back each time a field was focused.
+    """
+    form = ft.Column([ft.TextField()])
+
+    tab = scrolling_form(form, form.controls, prefix="cash", padding=20)
+
+    scroller = tab.content
+    assert scroller.scroll == ft.ScrollMode.AUTO
+    assert (tab.padding.left, tab.padding.right) == (0, 0)
+    assert (scroller.controls[0].padding.left, scroller.controls[0].content) == (20, form)
 
 
 @pytest.mark.parametrize("tab, minimum", [(1, 19), (2, 11)], ids=["Operations", "Analysis"])

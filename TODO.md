@@ -7,12 +7,11 @@
 - focus_chain does not work when going from TER to Tax Bracket
 
 - XEON tickers appears when Stocks ETFs is selected
-- Allocation analysis: XEON is in portfolio, but no "Money Market ETF" appears in the pie chart
 - [TABLET] Reduce account dropdown width in each of the 4 main views
 
 - Update README images
 - [INVESTIGATE] Can app size be brought further down?
-- [INVESTIGATE] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
+- [NO/ISSUE SENT] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
 - [INVESTIGATE] Does Flet 1.0.3 have better support for floating buttons?
 - [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
 - [POSSIBLE FUTURE REFACTOR] New components/buttons.py with the current action_card.py + other shared button styles (e.g. generalize analysis_view.py/calculate_button)

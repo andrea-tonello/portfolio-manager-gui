@@ -18,6 +18,26 @@ def scroll_into_view_on_focus(column, fields, prefix):
         field.on_focus = on_focus
 
 
+def scrolling_form(form, fields, prefix, padding) -> ft.Container:
+    """Return a tab's `form` inside a column that scrolls, bringing each of `fields` into view when it is focused.
+
+    `padding` is the space around the form. Above and below it goes outside
+    the scrolling column; left and right it goes inside, so the column itself
+    starts at the tab's left edge. Flet's scroll_to moves every scrolling
+    area around the field, the swipeable tabs included, until what it scrolls
+    is at their start: a column set in from the edge made the whole tab slide
+    left by that much, then spring back, whenever a field was focused.
+    `fields` and `prefix` are as for scroll_into_view_on_focus.
+    """
+    scroller = ft.Column(
+        [ft.Container(form, padding=ft.Padding.symmetric(horizontal=padding))],
+        scroll=ft.ScrollMode.AUTO,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+    )
+    scroll_into_view_on_focus(scroller, fields, prefix)
+    return ft.Container(scroller, padding=ft.Padding.symmetric(vertical=padding), expand=True)
+
+
 def chain_focus(fields):
     """Wire on_submit on each field to focus the next visible field in the list.
 

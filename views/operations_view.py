@@ -4,7 +4,7 @@ from components.buttons import action_card_btn
 from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog
-from components.focus_chain import chain_focus, scroll_into_view_on_focus
+from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
@@ -266,13 +266,11 @@ class GeneralForm:
             ft.Row([ft.Container(width=5), self.loading]),
             ft.Row([_add_button(t, self.submit, no_account)], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
-        ], spacing=15, scroll=ft.ScrollMode.AUTO)
+        ], spacing=15)
 
-        scroll_into_view_on_focus(col, [
+        return scrolling_form(col, [
             self.date.field, self.amount, self.ticker.field, self.description, self.split_ratio,
-        ], prefix="cash")
-
-        return ft.Container(content=col, padding=20, expand=True)
+        ], prefix="cash", padding=20)
 
     def _on_kind_change(self, e):
         """Show the fields the chosen operation needs; a split needs something held to split."""
@@ -579,9 +577,7 @@ class EtfStockForm:
         scrolling_fields = [self.date.field, self.exch_rate, self.ticker.field, self.quantity, self.price,
                             self.fee, self.ter]
         if not is_etf:
-            self._trade_fields.scroll = ft.ScrollMode.AUTO
-            scroll_into_view_on_focus(self._trade_fields, scrolling_fields, prefix=self.product_type)
-            return ft.Container(content=self._trade_fields, padding=20, expand=True)
+            return scrolling_form(self._trade_fields, scrolling_fields, prefix=self.product_type, padding=20)
 
         # ── ETF sub-type selector ───────────────────────────────
 
@@ -614,11 +610,9 @@ class EtfStockForm:
             self.etf_subtype,
             self._trade_fields,
             self._bond_placeholder,
-        ], spacing=12, scroll=ft.ScrollMode.AUTO)
+        ], spacing=12)
 
-        scroll_into_view_on_focus(outer, scrolling_fields, prefix=self.product_type)
-
-        return ft.Container(content=outer, padding=20, expand=True)
+        return scrolling_form(outer, scrolling_fields, prefix=self.product_type, padding=20)
 
     def _on_side_change(self, e):
         """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).

@@ -2,11 +2,11 @@
 
 ### Bug Fixes
 
-- 
+- Fixed tabs sliding sideways when a field was focused with ``croll_into_view_on_focus`
 
 ### Features
 
-- Onboarding ==> Brokers, Settings ==> Account, and Home ==> Watchlist now share the new `squircle_add_btn` component 
+- *Onboarding → Brokers*, *Settings → Account*, and *Home → Watchlist* now share the new `squircle_add_btn` component 
 
 
 
