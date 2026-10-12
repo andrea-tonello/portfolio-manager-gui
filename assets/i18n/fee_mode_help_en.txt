@@ -5,7 +5,7 @@
     - on a buy, either straight away (e.g. BG Saxo), or only later, when the ETF is sold (e.g. Fineco)
     - on a sale, the sale's fee is added, together with the purchase fees left for later if the sale is at a gain. At a loss, those stay pending; they are lost if every unit is sold before a sale at a gain
 
-**Note:** this choice won't obviously matter if the fees are 0.
+**Note:** with fees at 0 this choice doesn't matter, except on a sale when the ETF still has purchase fees to recover: in that case choose "Tax Carryforward" to add them.
 
 [This article](https://www.capitalmente.it/perche-le-commissioni-degli-etf-generano-minusvalenze/) offers a more thorough explanation.
 If you are unsure, ask your broker.

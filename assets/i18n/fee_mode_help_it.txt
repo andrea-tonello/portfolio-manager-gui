@@ -5,7 +5,7 @@ Gli ETF possono avere modi diversi di conteggiare le commissioni, in base al tuo
     - in acquisto, subito (es. BG Saxo), oppure solo più avanti, alla vendita dell'ETF (es. Fineco)
     - in vendita, viene aggiunta la commissione della vendita, insieme a quelle di acquisto lasciate per dopo se la vendita è in plusvalenza. In minusvalenza, queste restano in sospeso; vengono perse se si vendono tutte le quote prima di una vendita in plusvalenza
 
-**Nota:** questa scelta non avrà ovviamente importanza se le commissioni sono 0.
+**Nota:** con commissioni a 0 questa scelta non ha importanza, tranne in vendita se l'ETF ha commissioni di acquisto ancora da recuperare: in quel caso scegli "Zainetto Fiscale" per aggiungerle.
 
 [Questo articolo](https://www.capitalmente.it/perche-le-commissioni-degli-etf-generano-minusvalenze/) offre una spiegazione più dettagliata.
 Se non sei sicuro, chiedi al tuo intermediario.

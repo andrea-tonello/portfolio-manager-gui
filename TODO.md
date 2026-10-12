@@ -1,22 +1,6 @@
 
 ## BACKLOG
 
-
-
-
-
-- Se Commissione == 0 o vuoto --> Fee Management greyed-out
-- If selling: only show held tickers
-- LIMIT POPUPS VERTICALLY
-    - "?" Fee Management popup
-    - Contacts popup
-    - Reset application popup
-
-
-
-
-
-
 - "+ Add Transaction" button should be dynamic (Aggiungi Acquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 - Make the ticker suggestion overlay an actual overlay (instead of shifting down the content below it)
 

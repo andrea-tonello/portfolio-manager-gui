@@ -6,6 +6,8 @@
 
 - Updated application org into `io.github.andreatonello.portfoliomanager"
 - Added progressive internal build numbers to APK builds: *major\*10000 + minor\*100 + patch*. v0.4.1 ==> 401
+- New auto-update popup on startup
+- Reworked the Fee Management section, with clearer instructions
 
 
 
