@@ -1,3 +1,28 @@
+## [0.4.2] (2026-XX-XX)
+
+### Bug Fixes
+
+- 
+
+### Features
+
+- Onboarding ==> Brokers, Settings ==> Account, and Home ==> Watchlist now share the new `squircle_add_btn` component 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [0.4.1] (2026-10-12)
 
 ### Bug Fixes
@@ -11,12 +36,6 @@
 - New auto-update popup on startup
 - Reworked the Fee Management section, with clearer instructions
 - Sell operation: ticker search field replaced with a held-tickers dropdown
-
-
-
-
-
-
 
 
 

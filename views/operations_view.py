@@ -1,6 +1,6 @@
 import flet as ft
 
-from components.action_card import action_card
+from components.buttons import action_card_btn
 from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog
@@ -523,10 +523,10 @@ class EtfStockForm:
         self._buy_fee_choice = None  # the card tapped: "loss" or "pending"
         self._fee_now_text = ft.Text(size=13, text_align=ft.TextAlign.CENTER)
         self._fee_later_text = ft.Text(size=13, text_align=ft.TextAlign.CENTER)
-        self._fee_now_card = action_card(ft.Icons.BACKPACK, self._fee_now_text,
+        self._fee_now_card = action_card_btn(ft.Icons.BACKPACK, self._fee_now_text,
                                          lambda _: self._pick_buy_fee("loss"),
                                          padding=12, height=_FEE_CARD_HEIGHT_BUY, expand=True)
-        self._fee_later_card = action_card(ft.Icons.SCHEDULE, self._fee_later_text,
+        self._fee_later_card = action_card_btn(ft.Icons.SCHEDULE, self._fee_later_text,
                                            lambda _: self._pick_buy_fee("pending"),
                                            padding=12, height=_FEE_CARD_HEIGHT_BUY, expand=True)
         self._buy_fee_cards = ft.Row([self._fee_now_card, self._fee_later_card])

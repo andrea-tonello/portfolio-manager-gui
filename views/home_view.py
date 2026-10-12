@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 from components.background import run_in_background
+from components.buttons import squircle_add_btn
 from components.inputs import account_selector
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
@@ -181,16 +182,13 @@ class HomeView:
             self.page,
             label=t.get("home.watchlist_add"),
             expand=True,
-            height=40,
+            height=46,
             on_submit=self._on_watchlist_add,
         )
-        add_row = ft.Row([
+        add_row = ft.Container(ft.Row([
             self._watchlist_ticker_search.control,
-            ft.IconButton(
-                icon=ft.Icons.ADD_CIRCLE_OUTLINE,
-                on_click=self._on_watchlist_add,
-            ),
-        ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START)
+            squircle_add_btn(self._on_watchlist_add)
+        ], vertical_alignment=ft.CrossAxisAlignment.START))
 
         self._watchlist_items_container = ft.ReorderableListView(
             [], spacing=4, on_reorder=self._on_watchlist_reorder,

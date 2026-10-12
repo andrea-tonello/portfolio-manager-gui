@@ -6,10 +6,10 @@ account screens are also reused when adding a user from the user manager.
 
 import flet as ft
 
-from components.action_card import action_card
+from components.buttons import action_card_btn, squircle_add_btn
 from components.backup_import import import_backup
 from components.file_export import get_file_picker
-from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field, RADIUS
+from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from services import config_service
@@ -125,7 +125,7 @@ def show_backup_import(app):
                 ft.Container(height=30),
                 ft.Text(t.get("onboarding.import_title"), size=20, weight=ft.FontWeight.BOLD),
             ),
-            action_card(ft.Icons.DOWNLOAD, t.get("settings.account.import_backup"), on_import, width=200, height=150),
+            action_card_btn(ft.Icons.DOWNLOAD, t.get("settings.account.import_backup"), on_import, width=200, height=150),
         ],
         [
             ft.Text(t.get("onboarding.import_descr"), size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
@@ -260,13 +260,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
     confirm_btn = ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
                                   width=150, height=50, on_click=on_done, disabled=True)
 
-    add_button = ft.FilledButton(
-        content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),
-        height=46,
-        width=46,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS), padding=0),
-        on_click=on_add,
-    )
+    add_button = squircle_add_btn(on_click=on_add)
 
     close_btn = ft.IconButton(
         icon=ft.Icons.CLOSE,

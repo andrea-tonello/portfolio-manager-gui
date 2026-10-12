@@ -1,7 +1,9 @@
 import flet as ft
 
+from components.inputs import RADIUS
 
-def action_card(icon, label, on_click, *, padding=20, height=None, **card_kwargs) -> ft.Card:
+
+def action_card_btn(icon, label, on_click, *, padding=20, height=None, **card_kwargs) -> ft.Card:
     """Return a raised, tappable card with a large icon above a short label.
 
     Settings uses it for "Export backup" and "Import backup", Transactions for "Filters".
@@ -27,4 +29,14 @@ def action_card(icon, label, on_click, *, padding=20, height=None, **card_kwargs
         ),
         elevation=3,
         **card_kwargs,
+    )
+
+
+def squircle_add_btn(on_click):
+    return ft.FilledButton(
+        content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),
+        height=46,
+        width=46,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS), padding=0),
+        on_click=on_click,
     )

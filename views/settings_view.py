@@ -1,6 +1,6 @@
 import flet as ft
 
-from components.action_card import action_card
+from components.buttons import action_card_btn, squircle_add_btn
 from components.backup_import import import_backup
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
@@ -46,7 +46,92 @@ class SettingsView:
         alignment=ft.MainAxisAlignment.CENTER, 
         expand=True,
         )
-    
+
+    # ── Accounts ──────────────────────────────────────────────────────
+
+    def _build_accounts_section(self) -> ft.Control:
+        t = self.state.translator
+        broker_tiles = []
+        for idx in sorted(self.state.brokers.keys()):
+            broker_tiles.append(
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE),
+                    title=ft.Text(self.state.brokers[idx]),
+                    subtitle=ft.Text(f"ID: {idx}"),
+                    trailing=ft.IconButton(
+                        icon=ft.Icons.DELETE,
+                        icon_color=ft.Colors.RED,
+                        tooltip=t.get("settings.account.delete_account"),
+                        on_click=lambda e, i=idx: self._on_delete_account(i),
+                    ),
+                )
+            )
+
+        self.new_broker_field = rounded_text_field(
+            label=t.get("settings.account.add_account"),
+            input_filter=NAME_INPUT_FILTER,
+            expand=True,
+        )
+
+        return ft.Container(
+            content=ft.Column([
+                ft.Text((self.state.active_user_name or t.get("settings.user")) + t.get("settings.account.title"), size=16, weight=ft.FontWeight.BOLD),
+                *broker_tiles,
+                ft.Row([
+                    self.new_broker_field,
+                    squircle_add_btn(on_click=self._on_add_broker)
+                ]),
+            ], spacing=10),
+            padding=20,
+            width=PAGE_WIDTH,
+        )
+
+    def _on_add_broker(self, e):
+        name = self.new_broker_field.value.strip()
+        if not name:
+            return
+        s = self.state
+        try:
+            s.add_broker(name)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(s.translator, ex), error=True)
+            return
+        show_snack(self.page, s.translator.get("settings.account.accounts_added"))
+        self.app.show_settings()
+
+    def _on_delete_account(self, idx: int):
+        s = self.state
+        t = s.translator
+        if len(s.brokers) <= 1:
+            show_snack(self.page, t.get("settings.account.delete_last"), error=True)
+            return
+
+        broker_name = s.brokers[idx]
+        dlg = ft.AlertDialog(
+            title=ft.Text(t.get("settings.account.delete_account")),
+            content=ft.Text(t.get("settings.account.delete_confirm", account=broker_name) + 
+                            t.get("settings.account.suggest_backup")),
+            actions=[
+                ft.TextButton(t.get("components.cancel"), on_click=lambda e: self.page.pop_dialog()),
+                ft.TextButton(
+                    t.get("settings.account.delete_account"),
+                    style=ft.ButtonStyle(color=ft.Colors.RED),
+                    on_click=lambda e, i=idx: self._confirm_delete(i),
+                ),
+            ],
+        )
+        self.page.show_dialog(dlg)
+
+    def _confirm_delete(self, idx: int):
+        s = self.state
+        t = s.translator
+        self.page.pop_dialog()
+        try:
+            s.remove_broker(idx)
+            show_snack(self.page, t.get("settings.account.account_deleted"))
+            self.app.show_settings()
+        except Exception as ex:
+            show_snack(self.page, str(ex), error=True)
 
     # ── Theming ──────────────────────────────────────────────────────
 
@@ -160,104 +245,13 @@ class SettingsView:
         show_snack(self.page, s.translator.get("settings.language.changed"))
         self.app.show_settings()
 
-    # ── Accounts ──────────────────────────────────────────────────────
-
-    def _build_accounts_section(self) -> ft.Control:
-        t = self.state.translator
-        broker_tiles = []
-        for idx in sorted(self.state.brokers.keys()):
-            broker_tiles.append(
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.ACCOUNT_BALANCE),
-                    title=ft.Text(self.state.brokers[idx]),
-                    subtitle=ft.Text(f"ID: {idx}"),
-                    trailing=ft.IconButton(
-                        icon=ft.Icons.DELETE,
-                        icon_color=ft.Colors.RED,
-                        tooltip=t.get("settings.account.delete_account"),
-                        on_click=lambda e, i=idx: self._on_delete_account(i),
-                    ),
-                )
-            )
-
-        self.new_broker_field = rounded_text_field(
-            label=t.get("settings.account.add_account"),
-            input_filter=NAME_INPUT_FILTER,
-            expand=True,
-        )
-
-        return ft.Container(
-            content=ft.Column([
-                ft.Text((self.state.active_user_name or t.get("settings.user")) + t.get("settings.account.title"), size=16, weight=ft.FontWeight.BOLD),
-                *broker_tiles,
-                ft.Row([
-                    self.new_broker_field,
-                    ft.Button(
-                        t.get("components.confirm"),
-                        icon=ft.Icons.ADD,
-                        on_click=self._on_add_broker,
-                        elevation=2,
-                    ),
-                ]),
-            ], spacing=10),
-            padding=20,
-            width=PAGE_WIDTH,
-        )
-
-    def _on_add_broker(self, e):
-        name = self.new_broker_field.value.strip()
-        if not name:
-            return
-        s = self.state
-        try:
-            s.add_broker(name)
-        except ValidationError as ex:
-            show_snack(self.page, error_message(s.translator, ex), error=True)
-            return
-        show_snack(self.page, s.translator.get("settings.account.accounts_added"))
-        self.app.show_settings()
-
-    def _on_delete_account(self, idx: int):
-        s = self.state
-        t = s.translator
-        if len(s.brokers) <= 1:
-            show_snack(self.page, t.get("settings.account.delete_last"), error=True)
-            return
-
-        broker_name = s.brokers[idx]
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("settings.account.delete_account")),
-            content=ft.Text(t.get("settings.account.delete_confirm", account=broker_name) + 
-                            t.get("settings.account.suggest_backup")),
-            actions=[
-                ft.TextButton(t.get("components.cancel"), on_click=lambda e: self.page.pop_dialog()),
-                ft.TextButton(
-                    t.get("settings.account.delete_account"),
-                    style=ft.ButtonStyle(color=ft.Colors.RED),
-                    on_click=lambda e, i=idx: self._confirm_delete(i),
-                ),
-            ],
-        )
-        self.page.show_dialog(dlg)
-
-    def _confirm_delete(self, idx: int):
-        s = self.state
-        t = s.translator
-        self.page.pop_dialog()
-        try:
-            s.remove_broker(idx)
-            show_snack(self.page, t.get("settings.account.account_deleted"))
-            self.app.show_settings()
-        except Exception as ex:
-            show_snack(self.page, str(ex), error=True)
-
     # ── Backup ────────────────────────────────────────────────────────
 
     def _build_backup_section(self) -> ft.Control:
         t = self.state.translator
-        export_btn = action_card(ft.Icons.UPLOAD_FILE, t.get("settings.account.export_backup"),
+        export_btn = action_card_btn(ft.Icons.UPLOAD_FILE, t.get("settings.account.export_backup"),
                                  self._on_export_backup, expand=True)
-        import_btn = action_card(ft.Icons.DOWNLOAD, t.get("settings.account.import_backup"),
+        import_btn = action_card_btn(ft.Icons.DOWNLOAD, t.get("settings.account.import_backup"),
                                  self._on_import_backup, expand=True)
         return ft.Container(
             content=ft.Column([
