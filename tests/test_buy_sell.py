@@ -15,7 +15,7 @@ from datetime import date, timedelta
 import numpy as np
 import pytest
 from conftest import snack_texts
-from test_ledger_snapshots import BROKER, NAMES, _replay, deposit
+from test_ledger_snapshots import BROKER, NAMES, _replay, buy, deposit
 
 import views.operations_view
 from services import operations_service
@@ -210,6 +210,7 @@ def test_etf_form_sends_the_tax_carryforward_choice(open_trade_form, is_sell, ca
     form, submit, calls = open_trade_form("ETF")
     form.fee_mode.value = "loss"
     form.side_switch.value = is_sell
+    form.sell_ticker.value = "UUU"  # a sale reads its ticker from the list of assets held
     if card:
         getattr(form, card).content.on_click(None)
 
@@ -217,6 +218,55 @@ def test_etf_form_sends_the_tax_carryforward_choice(open_trade_form, is_sell, ca
 
     _, kwargs = calls[0]
     assert kwargs["fee_mode"] == fee_mode
+
+
+def _flip_to_sell(form):
+    """Move the form's switch to Sell, as a tap on it does."""
+    form.side_switch.value = True
+    form.side_switch.on_change(None)
+
+
+def test_a_sale_offers_only_the_assets_still_held(open_trade_form, page):
+    """On a sale the ticker is picked among the tab's assets held; with none, the form says so and stays on buy.
+
+    The test account still holds 20 BBB.MI and has sold all its AAA.MI, both
+    stocks: the Stock tab lists BBB.MI alone, and the ETF tab has nothing to sell.
+    """
+    stock, _, _ = open_trade_form("Stock")
+    etf, _, _ = open_trade_form("ETF")
+
+    _flip_to_sell(stock)
+    _flip_to_sell(etf)
+
+    assert [option.key for option in stock.sell_ticker.options] == ["BBB.MI"]
+    assert (stock.sell_ticker.visible, stock.ticker.control.visible) == (True, False)
+    assert etf.side_switch.value is False
+    assert snack_texts(page) == ["Nothing to sell: this account holds no ETFs"]
+
+
+def test_picking_the_asset_to_sell_sets_its_etf_type_and_currency(app, state, tmp_path, fake_market):
+    """Each tab lists its own kind of asset, and picking one sets the form to how it was bought.
+
+    The account holds a money-market ETF and a stock in USD. Picking the ETF
+    selects the money-market type (which shows the tax bracket field); picking
+    the stock selects USD (which asks for the exchange rate).
+    """
+    state.get_account(1).df = _replay([
+        deposit(date(2024, 1, 2), 5000),
+        buy(date(2024, 1, 3), "MMM.MI", 100, price=10.0, fee=0.0, product="ETF-M", ter="0.1%"),
+        buy(date(2024, 1, 4), "UUU", 5, price=200.0, fee=1.0, currency="USD", conv_rate=0.9),
+    ], tmp_path / "held")
+    state.ops_acc_idx = 1
+    view = OperationsView(app)
+    view.build()
+    for form, ticker in ((view.etf, "MMM.MI"), (view.stock, "UUU")):
+        _flip_to_sell(form)
+        assert [option.key for option in form.sell_ticker.options] == [ticker]
+        form.sell_ticker.value = ticker
+        form.sell_ticker.on_select(None)
+
+    assert (view.etf.etf_subtype.value, view.etf._tax_row.visible) == ("ETF-M", True)
+    assert (view.stock.currency.value, view.stock.exch_rate.visible) == ("USD", True)
 
 
 def test_a_blank_fee_is_recorded_as_zero(stock_form):

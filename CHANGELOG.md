@@ -1,4 +1,4 @@
-## [0.4.1] (2026-XX-XX)
+## [0.4.1] (2026-10-12)
 
 ### Bug Fixes
 
@@ -8,6 +8,7 @@
 - Added progressive internal build numbers to APK builds: *major\*10000 + minor\*100 + patch*. v0.4.1 ==> 401
 - New auto-update popup on startup
 - Reworked the Fee Management section, with clearer instructions
+- Sell operation: ticker search field replaced with a held-tickers dropdown
 
 
 

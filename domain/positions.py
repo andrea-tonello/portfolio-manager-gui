@@ -102,14 +102,24 @@ def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str |
     return positions
 
 
+def held_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Return the last buy, sell or split row of every asset currently held (quantity above zero).
+
+    That row says what the asset is now: its quantity (`qt_held`), average buy
+    price, product and currency. Assets are ordered by their latest such row.
+    Used to fill the list of assets that can be sold (Operations).
+    """
+    last_rows = holding_rows(df).groupby("ticker", sort=False).tail(1)
+    return last_rows[last_rows["qt_held"].astype(float) > 0]
+
+
 def held_tickers(df: pd.DataFrame) -> dict[str, str]:
     """Return {ticker: asset_name} for every asset currently held (quantity above zero).
 
     Assets are ordered by their latest buy, sell or split. Used to look for
     unrecorded splits (Home) and to fill the Split form's ticker list (Operations).
     """
-    last_rows = holding_rows(df).groupby("ticker", sort=False).tail(1)
-    held = last_rows[last_rows["qt_held"].astype(float) > 0]
+    held = held_rows(df)
     return dict(zip(held["ticker"], held["asset_name"]))
 
 

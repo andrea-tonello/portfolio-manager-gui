@@ -104,6 +104,8 @@
       "ter": "TER (%)",
       "ter_explained": "Total Expense Ratio in percentuale, e.g., 0.20%.\n\nQuesto costo annuo è già incluso nel prezzo finale dell'ETF da parte dell'Emittente. Questo campo ha il solo scopo di riportarne il valore.",
       "sell_noitems": "Nessun titolo da vendere: portafoglio vuoto",
+      "sell_no_etf": "Nulla da vendere: questo conto non detiene ETF",
+      "sell_no_stock": "Nulla da vendere: questo conto non detiene Azioni",
       "sell_noqt": "Quantità venduta ({quantity}) superiore a quella disponibile ({last_remaining_qt})",
       "tax_bracket": "Aliquota fiscale (%)",
       "tax_explained": "Aliquota fiscale dello strumento, e.g., 13.8%.\n\nLa legislazione Italiana tassa le Obbligazioni al 12.5% e le Azioni al 26%.\nStrumenti come ETF Monetari, che possono includere entrambi nel sottostante, sono tassati in proporzione.\n\nEsempio: XEON, swap-based, 90% obblig., 10% azioni:\n    \u2981 12.5*0.90 + 26*0.10 = 13.85%\n\nLe proporzioni del sottostante dovrebbero essere comunicate dall'Emittente ed aggiornate ogni sei mesi.",

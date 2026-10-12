@@ -9,8 +9,8 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dr
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
-from domain.ledger import Product, holding_rows
-from domain.positions import held_tickers
+from domain.ledger import ETF_PRODUCTS, Product, holding_rows
+from domain.positions import held_rows, held_tickers
 from domain.tax import pending_fees
 from services import operations_service
 from services.market_data import search_tickers
@@ -53,6 +53,31 @@ def _help_button(page, t, title_key, body_key):
     return ft.FilledTonalIconButton(
         icon=ft.Icons.HELP_OUTLINE,
         on_click=lambda _: show_info_dialog(page, t.get(title_key), t.get(body_key)),
+    )
+
+
+def _held_asset_option(ticker, name, quantity=None):
+    """Return the entry of an asset held, for the lists of assets to sell or to split.
+
+    In the open list it looks like a ticker search suggestion: the ticker in
+    bold (with the quantity held, when given), the asset's name below in a
+    softer colour. Once picked, the field shows it on one line.
+    Example: BBB.MI, "Beta SpA", 20 units -> "BBB.MI (×20)" above "Beta SpA".
+    """
+    title = ticker if quantity is None else f"{ticker} (×{quantity:g})"
+    return ft.dropdown.Option(
+        key=ticker,
+        text=f"{title}  ·  {name}",
+        content=ft.Column([
+            ft.Text(title, weight=ft.FontWeight.BOLD, size=13),
+            # An open list is as wide as its widest entry. Inside a Stack, a control with
+            # left/right set doesn't count for that, so a long name is cut short ("…")
+            # at the width of the field instead of making the list wider than it.
+            ft.Stack([
+                ft.Text(name, left=0, right=0, size=11, color=ft.Colors.with_opacity(0.7, ft.Colors.ON_SURFACE),
+                        max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+            ], height=16),
+        ], spacing=0, tight=True),
     )
 
 
@@ -199,13 +224,9 @@ class GeneralForm:
         self.description = rounded_text_field(label=t.get("operations.cash.charge_descr"),
                                               visible=False, col={"xs": 12, "md": 6})
 
-        split_ticker_options = [
-            ft.dropdown.Option(key=tk, text=f"{tk}  ·  {name}" if name and name != tk else tk)
-            for tk, name in holdings
-        ]
         self.split_ticker = rounded_dropdown(
             label=t.get("operations.split.ticker"),
-            options=split_ticker_options,
+            options=[_held_asset_option(ticker, name) for ticker, name in holdings],
             expand=True,
         )
         self.split_ticker_row = ft.Container(
@@ -382,11 +403,33 @@ class EtfStockForm:
             on_select=self._on_fee_inputs_change,
             expand=True,
         )
-        ticker_help = _help_button(self.page, t, "operations.stock.ticker", "operations.stock.ticker_explained")
+        # A sale picks among the assets of this tab's kind held in the account, rather than
+        # searching. Each entry is the asset's last row: its quantity, product and currency.
+        account = _selected_account(self.state)
+        kinds = ETF_PRODUCTS if is_etf else {Product.STOCK}
+        self._sellable = {} if account is None else {
+            row["ticker"]: row for row in held_rows(account.df).to_dict("records") if row["product"] in kinds
+        }
+        self.sell_ticker = rounded_dropdown(
+            label=t.get("operations.stock.ticker"),
+            options=[
+                _held_asset_option(ticker, row["asset_name"], float(row["qt_held"]))
+                for ticker, row in self._sellable.items()
+            ],
+            on_select=self._on_sell_ticker_select,
+            visible=False,
+            expand=True,
+        )
+        # Explains how a ticker must be typed, so it is only shown with the search field (buy).
+        self._ticker_help = ft.Container(
+            content=_help_button(self.page, t, "operations.stock.ticker", "operations.stock.ticker_explained"),
+            padding=ft.Padding.only(top=4),
+        )
         ticker_row = ft.Container(
             content=ft.Row([
-                self.ticker.control, 
-                ft.Container(content=ticker_help, padding=ft.Padding.only(top=4)),
+                self.ticker.control,
+                self.sell_ticker,
+                self._ticker_help,
             ], vertical_alignment=ft.CrossAxisAlignment.START), col={"xs": 12, "md": 6},
         )
 
@@ -516,7 +559,7 @@ class EtfStockForm:
 
         # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
         chain_focus([
-            self.date.field, self.ticker.field, self.exch_rate,
+            self.date.field, (self.ticker.field, self.ticker.control), self.exch_rate,
             self.quantity, self.price, self.fee, self.ter,
         ])
 
@@ -578,13 +621,43 @@ class EtfStockForm:
         return ft.Container(content=outer, padding=20, expand=True)
 
     def _on_side_change(self, e):
-        """Bold the side picked, buy or sell, and show + or - on the switch."""
+        """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).
+
+        A sale needs something to sell: when the account holds nothing of this
+        tab's kind, it says so and goes back to buy.
+        """
+        t = self.state.translator
+        if self.side_switch.value and not self._sellable:
+            is_etf = self.product_type == "ETF"
+            message = t.get("operations.stock.sell_no_etf") if is_etf else t.get("operations.stock.sell_no_stock")
+            show_snack(self.page, message, error=True)
+            self.side_switch.value = False
         is_sell = self.side_switch.value
         self._buy_label.weight = ft.FontWeight.NORMAL if is_sell else ft.FontWeight.BOLD
         self._sell_label.weight = ft.FontWeight.BOLD if is_sell else ft.FontWeight.NORMAL
         self.side_switch.thumb_icon = ft.Icons.REMOVE if is_sell else ft.Icons.ADD
+        self.ticker.control.visible = self._ticker_help.visible = not is_sell
+        self.sell_ticker.visible = is_sell
         self._refresh_fee_section()
         self.page.update()
+
+    def _on_sell_ticker_select(self, e):
+        """Set the form to the asset picked for a sale: its ETF type and its currency, as last recorded.
+
+        Both stay editable. Changing the currency also redraws the fee section,
+        which depends on the ticker.
+        """
+        held = self._sellable[self.sell_ticker.value]
+        if self.etf_subtype is not None and held["product"] in (Product.ETF_STOCK, Product.ETF_MM):
+            self.etf_subtype.value = held["product"]
+            self._on_etf_subtype_change(None)
+        if held["curr"] in CURRENCIES:
+            self.currency.value = held["curr"]
+        self._on_currency_change(None)
+
+    def _trade_ticker(self):
+        """The trade's ticker: typed in the search field for a buy, picked among the assets held for a sale."""
+        return (self.sell_ticker.value if self.side_switch.value else self.ticker.value) or ""
 
     def _on_currency_change(self, e):
         """Ask for the exchange rate and the fee's currency only for trades in USD."""
@@ -654,7 +727,7 @@ class EtfStockForm:
         """
         t = self.state.translator
         account = _selected_account(self.state)
-        ticker = self.ticker.value.strip()
+        ticker = self._trade_ticker()
         asset_rows = holding_rows(account.df, ticker) if account and ticker else None
         pending = pending_fees(asset_rows) if asset_rows is not None else 0.0
         if not pending:
@@ -705,7 +778,7 @@ class EtfStockForm:
                 product=self.etf_subtype.value if self.etf_subtype is not None else Product.STOCK,
                 is_buy=is_buy,
                 day=self.date.value,
-                ticker=self.ticker.value,
+                ticker=self._trade_ticker(),
                 quantity=self.quantity.value,
                 price=self.price.value,
                 fee=self.fee.value,
