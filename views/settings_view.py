@@ -311,10 +311,10 @@ class SettingsView:
         )
         content = ft.Container(
             ft.Column([
-                ft.Text(t.get("settings.account.reset_warning") + 
+                ft.Text(t.get("settings.account.reset_warning") +
                         t.get("settings.account.suggest_backup")),
-                self.reset_field,
-            ], scroll=ft.ScrollMode.AUTO, tight=True)
+                ft.Row([self.reset_field]),  # in a Row, the field's expand fills the width, not the height
+            ], tight=True)
         )
         dlg = ft.AlertDialog(
             title=ft.Text(t.get("settings.account.reset_title"), color=ft.Colors.RED),
@@ -323,6 +323,9 @@ class SettingsView:
                 ft.TextButton(t.get("components.cancel"), on_click=lambda e: self.page.pop_dialog()),
                 self._reset_confirm_btn,
             ],
+            # The dialog scrolls, not a Column inside it: in Flet 1.0 a scrolling
+            # Column fills all the height it can, stretching the dialog over the screen.
+            scrollable=True,
         )
         self.page.show_dialog(dlg)
 

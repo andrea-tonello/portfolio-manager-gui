@@ -2,6 +2,8 @@
 
 ### Bug Fixes
 
+- Fixed dialog height
+
 ### Features
 
 - Updated application org into `io.github.andreatonello.portfoliomanager"

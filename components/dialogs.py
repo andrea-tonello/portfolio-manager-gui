@@ -7,20 +7,24 @@ def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None,
     """Show a read-only dialog: a title, an explanation and an OK button that closes it.
 
     Used by the "?" help buttons, the privacy policy, the contacts and the update notice. With
-    markdown=True the body can contain formatting and links (opened in the browser), and it
-    scrolls when it is taller than the dialog; pass `height` to fix the dialog's height instead
-    of fitting the text. `actions` replaces the OK button, e.g. with Later and Download.
+    markdown=True the body can contain formatting and links (opened in the browser). The dialog
+    is as tall as its text, up to the screen's height, and then scrolls; pass `height` to give
+    the text a box of that height to scroll in instead (the privacy policy).
+    `actions` replaces the OK button, e.g. with Later and Download.
     """
     if markdown:
-        content = ft.Column([
-            ft.Markdown(body, auto_follow_links=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB),
-        ], scroll=ft.ScrollMode.AUTO, tight=True)
+        content = ft.Markdown(body, auto_follow_links=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB)
     else:
         content = ft.Text(body)
+    if height is not None:
+        content = ft.Column([content], scroll=ft.ScrollMode.AUTO, tight=True)
     page.show_dialog(ft.AlertDialog(
         title=ft.Text(title, size=title_size),
         content=ft.Container(content=content, width=450, height=height),
         actions=actions or [ft.TextButton("OK", on_click=lambda _: page.pop_dialog())],
+        # Without a fixed height the dialog itself scrolls, not a Column inside it: in
+        # Flet 1.0 a scrolling Column fills all the height it can, stretching the dialog.
+        scrollable=height is None,
     ))
 
 

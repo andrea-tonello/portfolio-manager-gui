@@ -121,7 +121,7 @@ def test_help_texts_are_read_from_their_files(language, app, page, state):
     show_privacy_policy(page, state)
     _show_fee_help(page, state.translator)
 
-    texts = [dialog.content.content.controls[0].value for dialog in page.dialogs]
+    texts = [text.value for dialog in page.dialogs for text in find_controls(dialog.content, ft.Markdown)]
     assert len(texts) == 2
     assert not fallbacks & set(texts)
     assert all(texts)
