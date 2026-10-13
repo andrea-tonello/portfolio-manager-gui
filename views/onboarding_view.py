@@ -6,7 +6,7 @@ account screens are also reused when adding a user from the user manager.
 
 import flet as ft
 
-from components.buttons import action_card_btn, squircle_add_btn
+from components.buttons import action_card_btn, pill_btn, squircle_add_btn
 from components.backup_import import import_backup
 from components.file_export import get_file_picker
 from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field
@@ -81,8 +81,7 @@ def show_language_picker(app):
         page.controls.clear()
         app.restart()
 
-    apply_btn = ft.FilledButton(t.get("components.apply"), icon=ft.Icons.CHECK, width=150, height=50,
-                                on_click=on_submit, disabled=True)
+    apply_btn = pill_btn(t.get("components.apply"), on_submit, icon=ft.Icons.CHECK, disabled=True)
 
     page.controls.clear()
     page.controls.append(_screen(
@@ -130,11 +129,7 @@ def show_backup_import(app):
         [
             ft.Text(t.get("onboarding.import_descr"), size=14, color=ft.Colors.GREY, text_align=ft.TextAlign.CENTER),
             ft.Container(height=20),
-            ft.FilledButton(
-                content=ft.Text(t.get("onboarding.import_skip")),
-                height=50,
-                on_click=on_skip,
-            ),
+            pill_btn(t.get("onboarding.import_skip"), on_skip),
         ],
     ))
     page.update()
@@ -172,8 +167,7 @@ def show_user_creation(app, on_complete=None, first_time=True, on_cancel=None):
             page.controls.clear()
             app.show_broker_onboarding()
 
-    confirm_btn = ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                                  width=150, height=50, on_click=on_submit, disabled=True)
+    confirm_btn = pill_btn(t.get("components.confirm"), on_submit, icon=ft.Icons.CHECK, disabled=True)
 
     close_btn = ft.IconButton(
         icon=ft.Icons.CLOSE,
@@ -257,8 +251,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
             app.restart()
 
     # Greyed out until at least one account is in the list.
-    confirm_btn = ft.FilledButton(t.get("components.confirm"), icon=ft.Icons.CHECK,
-                                  width=150, height=50, on_click=on_done, disabled=True)
+    confirm_btn = pill_btn(t.get("components.confirm"), on_done, icon=ft.Icons.CHECK, disabled=True)
 
     add_button = squircle_add_btn(on_click=on_add)
 

@@ -1,6 +1,6 @@
 import flet as ft
 
-from components.buttons import action_card_btn
+from components.buttons import action_card_btn, pill_btn, pill_style
 from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog
@@ -21,6 +21,10 @@ from utils.formatting import fmt_eur
 # Height of the fee cards on a buy and of the panel replacing them on a sale.
 _FEE_CARD_HEIGHT_BUY = 150
 _FEE_CARD_HEIGHT_SELL = 96
+
+# Colour of the General form's "Add transaction" button by kind of operation:
+# money coming in is green, money going out red; the other kinds keep the theme's colour.
+_KIND_COLORS = {"deposit": ft.Colors.GREEN_400, "withdrawal": ft.Colors.RED_400}
 
 
 def _selected_account(state):
@@ -86,17 +90,6 @@ def _show_fee_help(page, t):
     show_info_dialog(page, t.get("operations.stock.fee_mode_title"),
                      t.load_text("fee_mode_help") or "Fee mode description not available.",
                      markdown=True, title_size=21)
-
-
-def _add_button(t, on_click, disabled):
-    """Return the "Add transaction" button at the bottom of each form."""
-    return ft.FilledButton(
-        t.get("operations.add_transaction"),
-        icon=ft.Icons.ADD,
-        on_click=on_click,
-        disabled=disabled,
-        style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-    )
 
 
 class OperationsView:
@@ -256,6 +249,9 @@ class GeneralForm:
             (self.split_ratio, self.split_ratio_row),
         ])
 
+        self._add_btn = pill_btn(t.get("operations.add_transaction"), self.submit, icon=ft.Icons.ADD,
+                                 bgcolor=_KIND_COLORS.get(self.kind.value), disabled=no_account)
+
         col = ft.Column([
             self.kind,
             self.date.control,
@@ -264,7 +260,7 @@ class GeneralForm:
                 self.split_ticker_row, self.split_ratio_row,
             ],),
             ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([_add_button(t, self.submit, no_account)], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([self._add_btn], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
         ], spacing=15)
 
@@ -273,7 +269,7 @@ class GeneralForm:
         ], prefix="cash", padding=20)
 
     def _on_kind_change(self, e):
-        """Show the fields the chosen operation needs; a split needs something held to split."""
+        """Show the fields the chosen operation needs, and its colour on the button; a split needs something held to split."""
         t = self.state.translator
         kind = self.kind.value
         account = _selected_account(self.state)
@@ -293,6 +289,7 @@ class GeneralForm:
             t.get("operations.cash.dividend_amount") if kind == "dividend"
             else t.get("operations.cash.amount")
         )
+        self._add_btn.style = pill_style(bgcolor=_KIND_COLORS.get(kind))
         self.page.update()
 
     def submit(self, e):
@@ -570,7 +567,9 @@ class EtfStockForm:
             ft.ResponsiveRow([self.fee_currency, self.fee, ter_row, self._tax_row]),
             fee_mode_container,
             ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([_add_button(t, self.submit, no_account)], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([
+                pill_btn(t.get("operations.add_transaction"), self.submit, icon=ft.Icons.ADD, disabled=no_account),
+            ], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
         ], spacing=12)
 

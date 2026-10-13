@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from components.background import run_in_background
+from components.buttons import pill_btn
 from components.charts import (
     chart_allocation,
     chart_correlation_heatmap,
@@ -35,18 +36,6 @@ from services.validation import parse_positive, validate_date, validate_date_ran
 from utils.constants import DATE_FORMAT
 
 _INT_FILTER = ft.NumbersOnlyInputFilter()
-
-
-def calculate_button(t, on_click) -> ft.FilledButton:
-    """Return the "Calculate »" button that each analysis tab puts under its inputs."""
-    return ft.FilledButton(
-        ft.Row([
-            ft.Text(t.get("components.calculate")),
-            ft.Icon(ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT),
-        ]),
-        on_click=on_click,
-        style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=32, vertical=18)),
-    )
 
 
 def _csv_bytes(df, index=False):
@@ -137,7 +126,10 @@ class AnalysisTab:
         col = ft.Column([
             *inputs,
             ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([calculate_button(t, self.submit)], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([
+                pill_btn(t.get("components.calculate"), self.submit,
+                         icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True),
+            ], alignment=ft.MainAxisAlignment.CENTER),
             self.result,
             self.export_row,
             ft.Container(height=20),

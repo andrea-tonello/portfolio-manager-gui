@@ -54,6 +54,11 @@
   "operations": {
     "select_account": "Select an account...",
     "add_transaction": "Add Transaction",
+    "add_deposit": "Add Deposit",
+    "add_withdrawal": "Add Withdrawal",
+    "add_tax": "Add Tax",
+    "add_dividend": "Add Dividend",
+    "add_split": "Add Split",
     "added_transaction": "Transaction saved",
     "general": {
       "title": "GENERAL",

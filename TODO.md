@@ -1,7 +1,6 @@
 
 ## BACKLOG
 
-- "+ Add Transaction" button should be dynamic (Aggiungi Acquisto, Aggiungi Vendita, Aggiungi Deposito, ...)
 - Make the ticker suggestion overlay an actual overlay (instead of shifting down the content below it)
 
 - focus_chain does not work when going from TER to Tax Bracket

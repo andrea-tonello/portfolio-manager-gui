@@ -40,3 +40,50 @@ def squircle_add_btn(on_click):
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS), padding=0),
         on_click=on_click,
     )
+
+
+# How Material greys out a disabled filled button. A pill given its own colours
+# needs them spelled out: a colour set on a button otherwise shows in every state.
+_DISABLED_BGCOLOR = ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE)
+_DISABLED_COLOR = ft.Colors.with_opacity(0.38, ft.Colors.ON_SURFACE)
+
+
+def pill_style(bgcolor=None, color=None) -> ft.ButtonStyle:
+    """Return the style of a pill button: its padding, and `bgcolor` and `color` if given (see pill_btn).
+
+    Assign it to a pill's `style` to change its colours once it is on screen.
+    Example: add_btn.style = pill_style(bgcolor=ft.Colors.RED) turns the pill
+    red; pill_style() gives it back the theme's colours.
+    """
+    return ft.ButtonStyle(
+        padding=ft.Padding.symmetric(horizontal=32, vertical=18),
+        bgcolor=bgcolor and {ft.ControlState.DISABLED: _DISABLED_BGCOLOR, ft.ControlState.DEFAULT: bgcolor},
+        color=color and {ft.ControlState.DISABLED: _DISABLED_COLOR, ft.ControlState.DEFAULT: color},
+    )
+
+
+def pill_btn(label, on_click, *, icon=None, icon_after=False, bgcolor=None, color=None,
+             **button_kwargs) -> ft.FilledButton:
+    """Return the pill-shaped button that confirms a screen: Apply, Confirm, Add transaction, Calculate.
+
+    It is as wide as its `label`, with `icon` before it, or after it with
+    icon_after=True. `bgcolor` (the background) and `color` (the text and
+    icon) default to the theme's; a button with its own colours still greys out
+    when disabled. Any other keyword goes to the button itself, e.g.
+    disabled=True or width=150.
+
+    Example: pill_btn("Delete", on_delete, icon=ft.Icons.DELETE, bgcolor=ft.Colors.RED,
+    color=ft.Colors.WHITE, disabled=True) is a grey pill until its `disabled` is set to False.
+    """
+    if icon_after:
+        # tight: without it the row, and the pill with it, takes all the width it is given.
+        content, icon = ft.Row([ft.Text(label), ft.Icon(icon)], tight=True), None
+    else:
+        content = label
+    return ft.FilledButton(
+        content,
+        icon=icon,
+        on_click=on_click,
+        style=pill_style(bgcolor, color),
+        **button_kwargs,
+    )

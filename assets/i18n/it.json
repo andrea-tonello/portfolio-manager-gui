@@ -54,6 +54,11 @@
   "operations": {
     "select_account": "Seleziona un conto...",
     "add_transaction": "Aggiungi Transazione",
+    "add_deposit": "Aggiungi Deposito",
+    "add_withdrawal": "Aggiungi Prelievo",
+    "add_tax": "Aggiungi Tassa",
+    "add_dividend": "Aggiungi Dividendo",
+    "add_split": "Aggiungi Split",
     "added_transaction": "Transazione salvata",
     "general": {
       "title": "GENERALE",

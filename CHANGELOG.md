@@ -2,7 +2,7 @@
 
 ### Bug Fixes
 
-- Fixed tabs sliding sideways when a field was focused with ``croll_into_view_on_focus`
+- Fixed tabs sliding sideways when a field was focused with `scroll_into_view_on_focus`
 
 ### Features
 
