@@ -59,6 +59,8 @@
     "add_tax": "Aggiungi Tassa",
     "add_dividend": "Aggiungi Dividendo",
     "add_split": "Aggiungi Split",
+    "add_buy": "Aggiungi Acquisto",
+    "add_sell": "Aggiungi Vendita",
     "added_transaction": "Transazione salvata",
     "general": {
       "title": "GENERALE",

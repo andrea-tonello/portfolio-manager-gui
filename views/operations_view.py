@@ -22,9 +22,23 @@ from utils.formatting import fmt_eur
 _FEE_CARD_HEIGHT_BUY = 150
 _FEE_CARD_HEIGHT_SELL = 96
 
-# Colour of the General form's "Add transaction" button by kind of operation:
-# money coming in is green, money going out red; the other kinds keep the theme's colour.
-_KIND_COLORS = {"deposit": ft.Colors.GREEN_400, "withdrawal": ft.Colors.RED_400}
+# The General form's button by kind of operation: its label's locale key and its colour.
+# Money coming in is green and money going out red, both with white text; the other
+# kinds (None) keep the theme's colours.
+_KIND_BUTTONS = {
+    "deposit": ("operations.add_deposit", ft.Colors.GREEN_600),
+    "withdrawal": ("operations.add_withdrawal", ft.Colors.RED_500),
+    "charge": ("operations.add_tax", None),
+    "dividend": ("operations.add_dividend", None),
+    "split": ("operations.add_split", None),
+}
+
+# The ETF and Stock forms' button by side, keyed by the buy/sell switch (off = buy,
+# on = sell): a buy is green and a sale red, both with white text.
+_SIDE_BUTTONS = {
+    False: ("operations.add_buy", ft.Colors.GREEN_600),
+    True: ("operations.add_sell", ft.Colors.RED_600),
+}
 
 
 def _selected_account(state):
@@ -249,8 +263,9 @@ class GeneralForm:
             (self.split_ratio, self.split_ratio_row),
         ])
 
-        self._add_btn = pill_btn(t.get("operations.add_transaction"), self.submit, icon=ft.Icons.ADD,
-                                 bgcolor=_KIND_COLORS.get(self.kind.value), disabled=no_account)
+        label_key, bgcolor = _KIND_BUTTONS[self.kind.value]
+        self._add_btn = pill_btn(t.get(label_key), self.submit, icon=ft.Icons.ADD,
+                                 bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE, disabled=no_account)
 
         col = ft.Column([
             self.kind,
@@ -269,7 +284,7 @@ class GeneralForm:
         ], prefix="cash", padding=20)
 
     def _on_kind_change(self, e):
-        """Show the fields the chosen operation needs, and its colour on the button; a split needs something held to split."""
+        """Show the fields the chosen operation needs, and its name and colour on the button; a split needs something held to split."""
         t = self.state.translator
         kind = self.kind.value
         account = _selected_account(self.state)
@@ -289,7 +304,9 @@ class GeneralForm:
             t.get("operations.cash.dividend_amount") if kind == "dividend"
             else t.get("operations.cash.amount")
         )
-        self._add_btn.style = pill_style(bgcolor=_KIND_COLORS.get(kind))
+        label_key, bgcolor = _KIND_BUTTONS[kind]
+        self._add_btn.content = t.get(label_key)
+        self._add_btn.style = pill_style(bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE)
         self.page.update()
 
     def submit(self, e):
@@ -558,6 +575,10 @@ class EtfStockForm:
             self.quantity, self.price, self.fee, self.ter,
         ])
 
+        label_key, bgcolor = _SIDE_BUTTONS[self.side_switch.value]
+        self._add_btn = pill_btn(t.get(label_key), self.submit, icon=ft.Icons.ADD,
+                                 bgcolor=bgcolor, color=ft.Colors.WHITE, disabled=no_account)
+
         self._trade_fields = ft.Column([
             side_row,
             ft.Container(height=5),
@@ -567,9 +588,7 @@ class EtfStockForm:
             ft.ResponsiveRow([self.fee_currency, self.fee, ter_row, self._tax_row]),
             fee_mode_container,
             ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([
-                pill_btn(t.get("operations.add_transaction"), self.submit, icon=ft.Icons.ADD, disabled=no_account),
-            ], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([self._add_btn], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
         ], spacing=12)
 
@@ -616,8 +635,9 @@ class EtfStockForm:
     def _on_side_change(self, e):
         """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).
 
-        A sale needs something to sell: when the account holds nothing of this
-        tab's kind, it says so and goes back to buy.
+        The button takes the side's name and colour. A sale needs something to
+        sell: when the account holds nothing of this tab's kind, it says so and
+        goes back to buy.
         """
         t = self.state.translator
         if self.side_switch.value and not self._sellable:
@@ -631,6 +651,9 @@ class EtfStockForm:
         self.side_switch.thumb_icon = ft.Icons.REMOVE if is_sell else ft.Icons.ADD
         self.ticker.control.visible = self._ticker_help.visible = not is_sell
         self.sell_ticker.visible = is_sell
+        label_key, bgcolor = _SIDE_BUTTONS[is_sell]
+        self._add_btn.content = t.get(label_key)
+        self._add_btn.style = pill_style(bgcolor=bgcolor, color=ft.Colors.WHITE)
         self._refresh_fee_section()
         self.page.update()
 
