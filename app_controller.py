@@ -20,6 +20,7 @@ class AppController:
     the animated container holding the current tab; None means the next
     show_tab rebuilds the whole shell (drawer and navigation bar included).
     `checked_for_update` turns True once GitHub has been asked for a newer release.
+    `top_inset` is the height of the phone's status bar (0 on a computer).
     """
 
     def __init__(self, page: ft.Page, base_path: str):
@@ -29,6 +30,9 @@ class AppController:
         self.state: AppState | None = None
         self.nav_wrapper: ft.Container | None = None
         self.checked_for_update = False
+        # Read once, at launch: Flet reports the status bar's height only until a
+        # screen with an app bar is shown, and 0 from then on.
+        self.top_inset = page.media.padding.top
 
     def restart(self) -> None:
         """Start over: reload every setting from disk, then show the first setup step still missing, or Home.

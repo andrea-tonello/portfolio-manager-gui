@@ -10,14 +10,14 @@
 
 - Update README images
 - [INVESTIGATE] Can app size be brought further down?
-- [NO/ISSUE SENT] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
+- [-INVESTIGATED-] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
+    - Currently, no. An issue was sent to the Flet team.
 - [INVESTIGATE] Does Flet 1.0.3 have better support for floating buttons?
 - [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
-- [POSSIBLE FUTURE REFACTOR] New components/buttons.py with the current action_card.py + other shared button styles (e.g. generalize analysis_view.py/calculate_button)
 
-- [BUG 13] in Appendix A
+- [BUG13] in Appendix A
 
-- [BUG 14] in Appendix A
+- [BUG14] in Appendix A
 One more question, because of the gain-only rule: what happens to the pending buy fees when an ETF is sold at a loss?
 
 1. They're included in the loss. The loss grows by the pending buy fees plus the sale fee, and nothing stays pending. This is how costs usually count in a capital loss, so the zainetto ends up with the same total as a sale at a gain, just reported as one bigger loss.

@@ -146,6 +146,26 @@ def test_leaving_settings_returns_to_the_tab_it_was_opened_from(app, page):
     assert page.end_drawer is not drawer, "the drawer is rebuilt, e.g. to show a new language"
 
 
+def test_the_drawer_rebuilt_after_settings_still_leaves_room_for_the_status_bar(page, state):
+    """The drawer's column is the page minus the status bar, also when rebuilt on leaving Settings.
+
+    Flet reports the status bar's height (page.media.padding.top) only until a
+    screen with an app bar is shown; after that it reports 0. The drawer
+    rebuilt on the way back from Settings was then 45 px too tall on a phone
+    with a 45 px status bar: it scrolled, and its logo and version sat too low.
+    """
+    page.media.padding = ft.Padding.only(top=45)  # as at launch, before any app bar is shown
+    app = AppController(page, base_path=state.base_path)
+    app.state = state
+    app.show_tab(0)
+    page.media.padding = ft.Padding.zero()  # what Flet reports once the tabs' app bar is on screen
+    app.show_settings()
+
+    page.on_view_pop(None)
+
+    assert page.end_drawer.controls[0].height == page.height - 45
+
+
 def test_changing_language_in_settings_shows_settings_again_translated(app, page, state):
     """After a language change Settings is rebuilt in the new language, replacing the old Settings page."""
     app.show_tab(0)

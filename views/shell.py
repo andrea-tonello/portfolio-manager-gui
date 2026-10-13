@@ -101,7 +101,7 @@ def show_tab(app, selected_index: int = HOME_TAB):
 
         def _on_resize(e):
             """Keep the drawer's column as tall as the page, e.g. once the window reaches its size just after start."""
-            page.end_drawer.controls[0].height = page.height - page.media.padding.top
+            page.end_drawer.controls[0].height = page.height - app.top_inset
             page.update()
         page.on_resize = _on_resize
     else:
@@ -178,7 +178,7 @@ def _build_drawer(app) -> ft.NavigationDrawer:
     )
     return ft.NavigationDrawer(
         selected_index=None,
-        controls=[ft.Container(content, height=page.height - page.media.padding.top)],
+        controls=[ft.Container(content, height=page.height - app.top_inset)],
     )
 
 
