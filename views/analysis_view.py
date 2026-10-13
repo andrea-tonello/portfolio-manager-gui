@@ -123,19 +123,18 @@ class AnalysisTab:
                       on_click=lambda _: self.page.run_task(self._on_export)),
         ], visible=False)
 
+        calculate_btn = pill_btn(t.get("components.calculate"), self.submit,
+                                 icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True)
+
         col = ft.Column([
             *inputs,
-            ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([
-                pill_btn(t.get("components.calculate"), self.submit,
-                         icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True),
-            ], alignment=ft.MainAxisAlignment.CENTER),
             self.result,
             self.export_row,
             ft.Container(height=20),
         ], spacing=12)
 
-        self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10)
+        self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10,
+                                      button=calculate_btn, loading=self.loading)
         return self.content
 
     def submit(self, e):

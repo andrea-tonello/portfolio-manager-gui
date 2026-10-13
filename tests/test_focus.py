@@ -55,12 +55,26 @@ def test_a_scrolling_form_starts_at_the_tabs_left_edge():
     """
     form = ft.Column([ft.TextField()])
 
-    tab = scrolling_form(form, form.controls, prefix="cash", padding=20)
+    tab = scrolling_form(form, form.controls, prefix="cash", padding=20,
+                         button=ft.FilledButton("Add"), loading=ft.ProgressRing(width=30))
 
-    scroller = tab.content
+    scroller = tab.content.controls[0]
     assert scroller.scroll == ft.ScrollMode.AUTO
     assert (tab.padding.left, tab.padding.right) == (0, 0)
     assert (scroller.controls[0].padding.left, scroller.controls[0].content) == (20, form)
+
+
+def test_a_scrolling_forms_button_stays_below_the_scrolling_column():
+    """The button confirming a form isn't part of what scrolls, so it is in view however long the form is."""
+    form = ft.Column([ft.TextField()])
+    button = ft.FilledButton("Add")
+
+    tab = scrolling_form(form, form.controls, prefix="cash", padding=20,
+                         button=button, loading=ft.ProgressRing(width=30))
+
+    scroller, pinned = tab.content.controls
+    assert list(find_controls(scroller, ft.FilledButton)) == []
+    assert list(find_controls(pinned, ft.FilledButton)) == [button]
 
 
 @pytest.mark.parametrize("tab, minimum", [(1, 19), (2, 11)], ids=["Operations", "Analysis"])

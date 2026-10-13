@@ -274,14 +274,12 @@ class GeneralForm:
                 self.amount, self.ticker_row, self.description,
                 self.split_ticker_row, self.split_ratio_row,
             ],),
-            ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([self._add_btn], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
         ], spacing=15)
 
         return scrolling_form(col, [
             self.date.field, self.amount, self.ticker.field, self.description, self.split_ratio,
-        ], prefix="cash", padding=20)
+        ], prefix="cash", padding=20, button=self._add_btn, loading=self.loading)
 
     def _on_kind_change(self, e):
         """Show the fields the chosen operation needs, and its name and colour on the button; a split needs something held to split."""
@@ -587,15 +585,14 @@ class EtfStockForm:
             ft.ResponsiveRow([self.quantity, self.price]),
             ft.ResponsiveRow([self.fee_currency, self.fee, ter_row, self._tax_row]),
             fee_mode_container,
-            ft.Row([ft.Container(width=5), self.loading]),
-            ft.Row([self._add_btn], alignment=ft.MainAxisAlignment.CENTER),
             ft.Container(height=20),
         ], spacing=12)
 
         scrolling_fields = [self.date.field, self.exch_rate, self.ticker.field, self.quantity, self.price,
                             self.fee, self.ter]
         if not is_etf:
-            return scrolling_form(self._trade_fields, scrolling_fields, prefix=self.product_type, padding=20)
+            return scrolling_form(self._trade_fields, scrolling_fields, prefix=self.product_type, padding=20,
+                                  button=self._add_btn, loading=self.loading)
 
         # ── ETF sub-type selector ───────────────────────────────
 
@@ -630,7 +627,8 @@ class EtfStockForm:
             self._bond_placeholder,
         ], spacing=12)
 
-        return scrolling_form(outer, scrolling_fields, prefix=self.product_type, padding=20)
+        return scrolling_form(outer, scrolling_fields, prefix=self.product_type, padding=20,
+                              button=self._add_btn, loading=self.loading)
 
     def _on_side_change(self, e):
         """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).
@@ -758,9 +756,9 @@ class EtfStockForm:
         return t.get(f"operations.stock.{key}", fee=fee, pending=fmt_eur(pending))
 
     def _on_etf_subtype_change(self, e):
-        """Show the trade fields (with the tax bracket for money-market ETFs), or the note for bond ETFs."""
+        """Show the trade fields and the button (with the tax bracket for money-market ETFs), or the note for bond ETFs."""
         val = self.etf_subtype.value
-        self._trade_fields.visible = val in (Product.ETF_STOCK, Product.ETF_MM)
+        self._trade_fields.visible = self._add_btn.visible = val in (Product.ETF_STOCK, Product.ETF_MM)
         self._bond_placeholder.visible = val == Product.ETF_BOND
         self._bond_maturity_switch.disabled = val != Product.ETF_BOND
         self._tax_row.visible = val == Product.ETF_MM

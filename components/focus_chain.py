@@ -18,8 +18,16 @@ def scroll_into_view_on_focus(column, fields, prefix):
         field.on_focus = on_focus
 
 
-def scrolling_form(form, fields, prefix, padding) -> ft.Container:
-    """Return a tab's `form` inside a column that scrolls, bringing each of `fields` into view when it is focused.
+def scrolling_form(form, fields, prefix, padding, *, button, loading) -> ft.Container:
+    """Return a tab's `form` in a column that scrolls, above its `button` kept at the bottom of the tab.
+
+    Each of `fields` is brought into view when it is focused (`fields` and
+    `prefix` are as for scroll_into_view_on_focus).
+
+    `button` (the pill confirming the form) stays in view below the scrolling
+    column, as on the onboarding screens. `loading`, the spinner shown while
+    it works, has a slot at its left, matched by an empty one at its right:
+    the button stays centred and nothing moves when the spinner appears.
 
     `padding` is the space around the form. Above and below it goes outside
     the scrolling column; left and right it goes inside, so the column itself
@@ -27,15 +35,24 @@ def scrolling_form(form, fields, prefix, padding) -> ft.Container:
     area around the field, the swipeable tabs included, until what it scrolls
     is at their start: a column set in from the edge made the whole tab slide
     left by that much, then spring back, whenever a field was focused.
-    `fields` and `prefix` are as for scroll_into_view_on_focus.
     """
     scroller = ft.Column(
         [ft.Container(form, padding=ft.Padding.symmetric(horizontal=padding))],
         scroll=ft.ScrollMode.AUTO,
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+        expand=True,
     )
     scroll_into_view_on_focus(scroller, fields, prefix)
-    return ft.Container(scroller, padding=ft.Padding.symmetric(vertical=padding), expand=True)
+    pinned = ft.Row([
+        ft.Container(loading, width=loading.width),
+        button,
+        ft.Container(width=loading.width),
+    ], alignment=ft.MainAxisAlignment.CENTER)
+    return ft.Container(
+        ft.Column([scroller, pinned], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
+        padding=ft.Padding.symmetric(vertical=padding),
+        expand=True,
+    )
 
 
 def chain_focus(fields):
