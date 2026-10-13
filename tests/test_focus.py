@@ -14,6 +14,7 @@ import pytest
 from conftest import find_controls
 
 from components.focus_chain import scroll_into_view_on_focus, scrolling_form
+from views.operations_view import OperationsView
 
 
 class FakeColumn:
@@ -75,6 +76,32 @@ def test_a_scrolling_forms_button_stays_below_the_scrolling_column():
     scroller, pinned = tab.content.controls
     assert list(find_controls(scroller, ft.FilledButton)) == []
     assert list(find_controls(pinned, ft.FilledButton)) == [button]
+
+
+def test_done_on_the_keyboard_moves_only_to_fields_that_are_shown(app, state):
+    """Pressing Done moves to the next field on screen: the tax bracket after the TER, for a money-market ETF.
+
+    The TER and the tax bracket are hidden on the Stock tab, where nothing
+    follows the fee: asking Flet to focus a field that isn't on screen leaves
+    the request hanging.
+    """
+    state.ops_acc_idx = 1
+    view = OperationsView(app)
+    view.build()
+    focused = []
+    for form in (view.etf, view.stock):
+        for name in ("ter", "tax_bracket"):
+            async def focus(form=form, name=name):
+                """Stand-in for the field's focus(): record which field was asked for."""
+                focused.append((form.product_type, name))
+            getattr(form, name).focus = focus
+    view.etf.etf_subtype.value = "ETF-M"
+    view.etf._on_etf_subtype_change(None)
+
+    asyncio.run(view.etf.ter.on_submit(None))
+    asyncio.run(view.stock.fee.on_submit(None))
+
+    assert focused == [("ETF", "tax_bracket")]
 
 
 @pytest.mark.parametrize("tab, minimum", [(1, 19), (2, 11)], ids=["Operations", "Analysis"])

@@ -567,10 +567,11 @@ class EtfStockForm:
 
         self.loading = ft.ProgressRing(visible=False, width=30, height=30)
 
-        # Chain on_submit for keyboard "next field" navigation (skips hidden fields)
+        # Chain on_submit for keyboard "next field" navigation (skips hidden fields).
+        # The TER and the tax bracket are hidden through their rows, not themselves.
         chain_focus([
             self.date.field, (self.ticker.field, self.ticker.control), self.exch_rate,
-            self.quantity, self.price, self.fee, self.ter,
+            self.quantity, self.price, self.fee, (self.ter, ter_row), (self.tax_bracket, self._tax_row),
         ])
 
         label_key, bgcolor = _SIDE_BUTTONS[self.side_switch.value]
@@ -589,7 +590,7 @@ class EtfStockForm:
         ], spacing=12)
 
         scrolling_fields = [self.date.field, self.exch_rate, self.ticker.field, self.quantity, self.price,
-                            self.fee, self.ter]
+                            self.fee, self.ter, self.tax_bracket]
         if not is_etf:
             return scrolling_form(self._trade_fields, scrolling_fields, prefix=self.product_type, padding=20,
                                   button=self._add_btn, loading=self.loading)

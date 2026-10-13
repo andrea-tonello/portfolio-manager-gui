@@ -3,6 +3,7 @@
 ### Bug Fixes
 
 - Fixed tabs sliding sideways when a field was focused with `scroll_into_view_on_focus`
+- Fixed `focus_chain` skipping the *Tax Bracket* field (*TER → Tax Bracket*) 
 
 ### Features
 
