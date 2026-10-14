@@ -1,4 +1,4 @@
-## [0.4.2] (2026-XX-XX)
+## [0.4.2] (2026-10-14)
 
 ### Bug Fixes
 
@@ -9,18 +9,7 @@
 
 - *Onboarding → Brokers*, *Settings → Account*, and *Home → Watchlist* now share the new `squircle_add_btn` component 
 - Operations, Analysis views: confirmation buttons are now dynamic in both color and label; they also float above the keyboard, like in the Onboarding view
-
-
-
-
-
-
-
-
-
-
-
-
+- Ticker search fields in *Home → Watchlist*, *Operations → Dividends* and *Operations → ETF/Stock* are now full screen and clearer
 
 
 

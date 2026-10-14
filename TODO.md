@@ -1,16 +1,11 @@
 
 ## BACKLOG
 
-- Make the ticker suggestion overlay an actual overlay (instead of shifting down the content below it)
-
 - XEON ticker appears when Stocks ETFs is selected
-- [TABLET] Reduce account dropdown width in each of the 4 main views
 
 - Update README images
 - [INVESTIGATE] Can app size be brought further down?
 - [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
-- [ANSWERED] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
-    * Currently, no. An issue was sent to the Flet team.
 
 - [BUG13] in Appendix A
 
@@ -20,6 +15,8 @@ One more question, because of the gain-only rule: what happens to the pending bu
   2. They stay pending until a later sale at a gain. If you sell the whole position at a loss, they're lost for good.
 I'd guess 1, but your Fineco statements would show which. 
 
+- [ANSWERED] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
+    * Currently, no. An issue was sent to the Flet team.
 
 
 ## AFTER REFACTOR IS COMPLETE:

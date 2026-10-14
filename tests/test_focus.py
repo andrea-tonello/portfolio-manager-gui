@@ -109,12 +109,13 @@ def test_screen_inputs_have_unique_scroll_keys(app, page, state, tab, minimum):
     """Every input that scrolls into view has an ft.ScrollKey, and no two on the same screen share one.
 
     Flet keeps one registry of scroll keys for the whole app, so a repeated key
-    would make one of the two inputs unreachable.
+    would make one of the two inputs unreachable. The ticker fields are SearchBars.
     """
     state.ops_acc_idx = 1
     app.show_tab(tab)
 
-    keys = [field.key for field in find_controls(page.controls[0], ft.TextField) if field.key is not None]
+    keys = [field.key for kind in (ft.TextField, ft.SearchBar)
+            for field in find_controls(page.controls[0], kind) if field.key is not None]
 
     assert len(keys) >= minimum
     assert all(isinstance(key, ft.ScrollKey) for key in keys), "plain text keys can't be scrolled to"

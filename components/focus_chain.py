@@ -7,7 +7,7 @@ def scroll_into_view_on_focus(column, fields, prefix):
     Each field gets the scroll key "<prefix>-<position>", e.g. "cash-0".
     Flet only scrolls to controls whose key is an ft.ScrollKey (a plain text key is silently ignored), 
     and keeps one registry of these keys for the whole app, so the prefix must differ between the forms of a screen.
-    TickerSearchFields can be passed like TextFields.
+    A TickerSearchField's `field` (a SearchBar) can be passed like a TextField.
     """
     async def on_focus(e):
         """Scroll the column to the field that just got the focus."""
@@ -58,8 +58,9 @@ def scrolling_form(form, fields, prefix, padding, *, button, loading) -> ft.Cont
 def chain_focus(fields):
     """Wire on_submit on each field to focus the next visible field in the list.
 
-    Each entry is either a TextField or a tuple (TextField, visibility_control) where visibility_control 
+    Each entry is either a TextField or a tuple (TextField, visibility_control) where visibility_control
     is the control whose .visible determines if the field is reachable (e.g. a parent Row that hides/shows the field).
+    A field's own on_submit, which must be async, runs first: e.g. a TickerSearchField closing its suggestions.
     """
     def _unpack(entry):
         if isinstance(entry, tuple):
@@ -71,7 +72,9 @@ def chain_focus(fields):
     for i, (field, _) in enumerate(items):
         remaining = items[i + 1:]
 
-        async def handler(_, targets=remaining):
+        async def handler(e, targets=remaining, own=field.on_submit):
+            if own:
+                await own(e)
             for target_field, vis_control in targets:
                 if vis_control.visible:
                     try:

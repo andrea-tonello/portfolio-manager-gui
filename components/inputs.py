@@ -15,7 +15,8 @@ DECIMAL_INPUT_FILTER = ft.InputFilter(r"^[0-9\.]*$")
 NAME_INPUT_FILTER = ft.InputFilter(r'^[^<>:"/\\|?*]*$')
 
 RADIUS = 15
-_GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)
+# The outline of the fields (also the ticker search's, which isn't a TextField).
+BORDER_GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)
 
 
 def outlined_border(color, width=1.0, focused_width=2.0) -> dict:
@@ -38,11 +39,11 @@ def _rounded_menu() -> ft.MenuStyle:
 
 
 def rounded_text_field(**kwargs) -> ft.TextField:
-    return ft.TextField(border=outlined_border(_GREY), **kwargs)
+    return ft.TextField(border=outlined_border(BORDER_GREY), **kwargs)
 
 
 def rounded_dropdown(**kwargs) -> ft.Dropdown:
-    return ft.Dropdown(border=outlined_border(_GREY), menu_style=_rounded_menu(), **kwargs)
+    return ft.Dropdown(border=outlined_border(BORDER_GREY), menu_style=_rounded_menu(), **kwargs)
 
 
 def account_selector(state, value, on_select, all_option=None, hint_text=None) -> ft.Dropdown:
