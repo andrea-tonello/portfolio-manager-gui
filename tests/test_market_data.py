@@ -1,5 +1,6 @@
 """Tests for services/market_data.py, run against canned Yahoo responses (no network)."""
 
+import email.message
 import io
 import json
 import urllib.error
@@ -10,7 +11,9 @@ import pytest
 
 from domain.errors import TickerNotFound
 from services import market_data
-from services.market_data import download_close, download_prices_eur, fetch_splits, search_tickers
+from services.market_data import (
+    download_close, download_prices_eur, fetch_sector_weights, fetch_splits, search_tickers,
+)
 
 # Shaped like Yahoo's search response, trimmed to the fields search_tickers reads.
 # The quoteType / typeDisp values are what Yahoo returned for these two tickers:
@@ -247,3 +250,74 @@ def test_a_programming_error_is_not_hidden_as_no_data(monkeypatch, call):
 
     with pytest.raises(TypeError):
         call()
+
+
+# ── fetch_sector_weights ─────────────────────────────────────────────
+
+# Shaped like Yahoo's profiles (quoteSummary) of a stock, an equity ETF and a
+# bond ETF, trimmed to the parts fetch_sector_weights reads. Like Yahoo's, the
+# ETF's fractions don't add up to exactly 1 (here 0.99).
+YAHOO_SUMMARIES = {
+    "ISP.MI": {"assetProfile": {"country": "Italy", "sector": "Financial Services"}},
+    "SWDA.MI": {"assetProfile": {}, "topHoldings": {"sectorWeightings": [
+        {"technology": {"raw": 0.30, "fmt": "30.00%"}},
+        {"financial_services": {"raw": 0.50, "fmt": "50.00%"}},
+        {"realestate": {"raw": 0.19, "fmt": "19.00%"}},
+    ]}},
+    "AGGH.MI": {"assetProfile": {}, "topHoldings": {"sectorWeightings": []}},
+}
+
+
+@pytest.fixture
+def yahoo_summaries(monkeypatch):
+    """Make Yahoo's profiles come from YAHOO_SUMMARIES; any other ticker is unknown to Yahoo."""
+    def fake_fetch_summary(ticker, modules):
+        """Return the canned profile of `ticker`, or fail as Yahoo does for a ticker it doesn't know (404)."""
+        if ticker not in YAHOO_SUMMARIES:
+            raise urllib.error.HTTPError("url", 404, "Not Found", None, None)
+        return YAHOO_SUMMARIES[ticker]
+
+    monkeypatch.setattr(market_data, "_fetch_summary", fake_fetch_summary)
+
+
+def test_stocks_and_etfs_spellings_of_a_sector_are_the_same_sector(yahoo_summaries):
+    """A stock's "Financial Services" and an ETF's "financial_services" are one sector; "realestate" is real_estate.
+
+    The ETF's fractions, 0.99 in all, are scaled to add up to 1, so all its value is split.
+    """
+    weights = fetch_sector_weights(["ISP.MI", "SWDA.MI"])
+
+    assert weights["ISP.MI"] == {"financial_services": 1.0}
+    assert weights["SWDA.MI"] == pytest.approx(
+        {"technology": 0.30 / 0.99, "financial_services": 0.50 / 0.99, "real_estate": 0.19 / 0.99})
+
+
+def test_tickers_without_sectors_are_left_out(yahoo_summaries):
+    """A ticker Yahoo has no sectors for (a bond ETF) or doesn't know gets no entry, instead of an error."""
+    assert fetch_sector_weights(["AGGH.MI", "NOPE.MI"]) == {}
+
+
+def test_a_refused_crumb_is_renewed_and_the_request_sent_again(monkeypatch):
+    """When Yahoo stops accepting the cookie and crumb kept from earlier (401), a new pair is fetched and used.
+
+    The new cookie comes from fc.yahoo.com's Set-Cookie header, although that page answers 404.
+    """
+    monkeypatch.setattr(market_data, "_auth", ("A3=old", "old-crumb"))
+
+    def urlopen(request, *args, **kwargs):
+        """Answer as Yahoo does: 404 with a cookie, a crumb for that cookie, and the profile only with both."""
+        url, cookie = request.full_url, request.get_header("Cookie")
+        if url == market_data._COOKIE_URL:
+            headers = email.message.Message()
+            headers["Set-Cookie"] = "A3=new; Expires=Fri, 15 Oct 2027 10:00:00 GMT; Domain=.yahoo.com; HttpOnly"
+            raise urllib.error.HTTPError(url, 404, "Not Found", headers, None)
+        if url == market_data._CRUMB_URL and cookie == "A3=new":
+            return io.BytesIO(b"new-crumb")
+        if "crumb=new-crumb" in url and cookie == "A3=new":
+            return io.BytesIO(json.dumps({"quoteSummary": {"result": [{"assetProfile": {"sector": "Energy"}}]}})
+                              .encode("utf-8"))
+        raise urllib.error.HTTPError(url, 401, "Unauthorized", None, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+
+    assert fetch_sector_weights(["ENI.MI"]) == {"ENI.MI": {"energy": 1.0}}

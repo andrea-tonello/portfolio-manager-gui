@@ -56,7 +56,7 @@
     "add_transaction": "Add Transaction",
     "add_deposit": "Add Deposit",
     "add_withdrawal": "Add Withdrawal",
-    "add_tax": "Add Tax",
+    "add_tax": "Add Charge",
     "add_dividend": "Add Dividend",
     "add_split": "Add Split",
     "add_buy": "Add Buy",
@@ -160,6 +160,27 @@
     "op_drawdown": "DRAWDOWN",
     "op_var": "VaR",
     "op_allocation": "ALLOCATION",
+    "alloc": {
+      "group_by": "Group by",
+      "by_class": "Asset Class",
+      "by_sector": "Sector",
+      "equity_share": "Stocks and equity ETFs: {equity} of {total} ({pct:.1f}%)",
+      "no_equity": "No stocks or equity ETFs held",
+      "sectors": {
+        "basic_materials": "Basic Materials",
+        "communication_services": "Communication Services",
+        "consumer_cyclical": "Consumer Cyclical",
+        "consumer_defensive": "Consumer Discretionary",
+        "energy": "Energy",
+        "financial_services": "Financial Services",
+        "healthcare": "Healthcare",
+        "industrials": "Industrials",
+        "real_estate": "Real Estate",
+        "technology": "Technology",
+        "utilities": "Utilities",
+        "unclassified": "Unclassified"
+      }
+    },
     "summary": {
       "account_literal": "Account",
       "portfolio_literal": "Portfolio total ",
@@ -427,7 +448,7 @@
       "region_title": "By Region",
       "region_descr": "Coming soon",
       "sector_title": "By Sector",
-      "sector_descr": "Coming soon"
+      "sector_descr": "How the stocks and equity ETFs you hold today split between business sectors (Technology, Financial Services...). An ETF counts in the sectors of the companies it holds. Bond and money-market ETFs and cash have no sector, so they are left out. Sector data comes from Yahoo Finance."
     },
     "page_3": {
       "title": "Portfolio Statistics",

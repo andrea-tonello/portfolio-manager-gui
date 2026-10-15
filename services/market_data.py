@@ -1,6 +1,8 @@
 import http.client
 import json
 import logging
+import threading
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date, timedelta
@@ -30,6 +32,24 @@ _HEADERS = {
 }
 # Yahoo's ticker for the USD->EUR exchange rate (how many EUR one USD buys).
 USDEUR_TICKER = "USDEUR=X"
+
+# Yahoo's company profiles (quoteSummary) only answer requests carrying a cookie
+# and a matching token Yahoo calls the "crumb": fc.yahoo.com sets the cookie,
+# getcrumb returns the crumb for it.
+_SUMMARY_URL = "https://query2.finance.yahoo.com/v10/finance/quoteSummary"
+_COOKIE_URL = "https://fc.yahoo.com"
+_CRUMB_URL = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+_auth = None  # (cookie, crumb) once fetched, shared by every quoteSummary request
+_auth_lock = threading.Lock()
+
+# Yahoo's 11 sectors, by the key the app uses for each. Stocks name theirs
+# "Financial Services", ETFs "financial_services" and "realestate" (no
+# underscore): _sector_key reads every spelling as the same key.
+SECTORS = (
+    "basic_materials", "communication_services", "consumer_cyclical", "consumer_defensive", "energy",
+    "financial_services", "healthcare", "industrials", "real_estate", "technology", "utilities",
+)
+_SECTOR_BY_LETTERS = {key.replace("_", ""): key for key in SECTORS}
 
 
 def _to_unix(dt) -> int:
@@ -264,3 +284,106 @@ def search_tickers(query: str, quotes_count: int = 5) -> list[dict]:
             "quote_type": q.get("quoteType", "").lower(),
         })
     return results
+
+
+def _yahoo_auth(stale=None) -> tuple[str, str]:
+    """Return the (cookie, crumb) pair Yahoo's quoteSummary requires, fetching it the first time.
+
+    The pair is kept for later requests. Pass the pair Yahoo just refused as
+    `stale` to fetch a new one; when another request already replaced it,
+    that newer pair is returned instead of fetching yet another.
+    """
+    global _auth
+    with _auth_lock:
+        if _auth is None or _auth == stale:
+            try:
+                with urllib.request.urlopen(urllib.request.Request(_COOKIE_URL, headers=_HEADERS), timeout=10) as resp:
+                    headers = resp.headers
+            except urllib.error.HTTPError as e:
+                headers = e.headers  # fc.yahoo.com answers 404, but still sets the cookie
+            # Each Set-Cookie header is "A3=value; Expires=...; Domain=...": keep "A3=value".
+            cookie = "; ".join(c.split(";", 1)[0] for c in headers.get_all("Set-Cookie") or [])
+            request = urllib.request.Request(_CRUMB_URL, headers={**_HEADERS, "Cookie": cookie})
+            with urllib.request.urlopen(request, timeout=10) as resp:
+                _auth = (cookie, resp.read().decode("utf-8"))
+        return _auth
+
+
+def _fetch_summary(ticker: str, modules: str) -> dict:
+    """Fetch the parts `modules` (comma-separated, e.g. "assetProfile,topHoldings") of Yahoo's profile of `ticker`.
+
+    Returns a dict with one entry per part Yahoo has for the ticker. Raises
+    one of _NO_DATA_ERRORS when Yahoo gives no usable answer, e.g.
+    urllib.error.HTTPError 404 for an unknown ticker.
+    """
+    def request(auth):
+        """Send the request with the (cookie, crumb) pair `auth` and return Yahoo's JSON answer."""
+        cookie, crumb = auth
+        url = f"{_SUMMARY_URL}/{urllib.request.quote(ticker)}?modules={modules}&crumb={urllib.request.quote(crumb)}"
+        with urllib.request.urlopen(urllib.request.Request(url, headers={**_HEADERS, "Cookie": cookie}),
+                                    timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    auth = _yahoo_auth()
+    try:
+        data = request(auth)
+    except urllib.error.HTTPError as e:
+        if e.code != 401:
+            raise
+        data = request(_yahoo_auth(stale=auth))  # Yahoo no longer accepts the pair: try once with a new one
+    result = data["quoteSummary"]["result"]
+    if not result:
+        raise RuntimeError("There is no profile for this ticker")
+    return result[0]
+
+
+def _sector_key(name: str) -> str | None:
+    """Return the app's key (one of SECTORS) for a Yahoo sector name in any spelling, or None for one it doesn't know.
+
+    Example: "Financial Services" and "financial_services" -> "financial_services",
+    "realestate" -> "real_estate".
+    """
+    return _SECTOR_BY_LETTERS.get("".join(ch for ch in name.lower() if ch.isalpha()))
+
+
+def fetch_sector_weights(tickers: list[str]) -> dict[str, dict[str, float]]:
+    """Return how the value of each of `tickers` splits between sectors, as fractions adding up to 1.
+
+    A stock is wholly in its one sector. An equity ETF is split like the
+    companies it holds: Yahoo's own fractions may add up to a little more or
+    less than 1 (rounding), so they are scaled to add up to exactly 1.
+    Tickers Yahoo has no sectors for (bond and money-market ETFs, unknown
+    tickers, no network) are left out. The fractions are today's.
+
+    Example: ["ISP.MI", "SWDA.MI"] -> {"ISP.MI": {"financial_services": 1.0},
+    "SWDA.MI": {"technology": 0.325, "financial_services": 0.156, ...}}.
+    """
+    def _fetch_one(ticker):
+        """Return (ticker, its sector fractions), or None when Yahoo has none."""
+        try:
+            summary = _fetch_summary(ticker, "assetProfile,topHoldings")
+            sector = summary.get("assetProfile", {}).get("sector")
+            if sector:
+                raw = {sector: 1.0}
+            else:
+                # [{"technology": {"raw": 0.3248, "fmt": "32.48%"}}, {"realestate": {...}}, ...]
+                raw = {name: value["raw"]
+                       for item in summary.get("topHoldings", {}).get("sectorWeightings", [])
+                       for name, value in item.items()}
+        except _NO_DATA_ERRORS as e:
+            logger.warning("No sectors for %s: %s", ticker, e)
+            return None
+        weights = {}
+        for name, weight in raw.items():
+            key = _sector_key(name)
+            if key is not None and weight > 0:
+                weights[key] = weights.get(key, 0) + weight
+        total = sum(weights.values())
+        if total <= 0:
+            return None
+        return ticker, {key: weight / total for key, weight in weights.items()}
+
+    if not tickers:
+        return {}
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as pool:
+        return dict(result for result in pool.map(_fetch_one, tickers) if result is not None)

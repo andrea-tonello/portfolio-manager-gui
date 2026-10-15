@@ -9,7 +9,7 @@ from domain.history import portfolio_history
 from domain.ledger import Op, Product, get_pf_date, holding_rows
 from domain.positions import aggregate_positions, get_tickers, priced_positions
 from domain.returns import xirr
-from services.market_data import download_close, download_prices_eur, fetch_ticker_name
+from services.market_data import download_close, download_prices_eur, fetch_sector_weights, fetch_ticker_name
 from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
@@ -21,6 +21,11 @@ RISK_FREE_RATE = 0.02
 # price history used to estimate the assets' returns and how they move together.
 VAR_SIMULATIONS = 50_000
 VAR_HISTORY_START = "2010-01-01"
+# What the sector allocation splits: shares of companies, held directly or
+# through an ETF. Bond and money-market ETFs and cash have no sector.
+EQUITY_PRODUCTS = {Product.STOCK, Product.ETF_STOCK}
+# The sector of the shares Yahoo has no sectors for.
+UNCLASSIFIED = "unclassified"
 
 
 def compute_summary(accounts: list[Account], ref_date: date, dt_str: str) -> dict:
@@ -343,6 +348,26 @@ def compute_var_mc(accounts: list[Account], confidence_interval: float, projecte
     }
 
 
+def _holdings_on(accounts: list[Account], ref_date: DateLike) -> tuple[float, list[tuple[str, str, float]]]:
+    """Return what `accounts` hold on `ref_date`: (cash, positions), in EUR at that day's prices.
+
+    `positions` has one (ticker, product, value) per asset held in each
+    account, e.g. [("ISP.MI", "Stock", 1500.0), ("SWDA.MI", "ETF-S", 3200.0)].
+    """
+    ref_date = pd.Timestamp(ref_date)
+    cash = 0.0
+    positions = []
+    for account in accounts:
+        # Cash held on ref_date: the last row on or before it (the opening row, at zero, before any operation)
+        rows, _ = get_pf_date(account, ref_date, ref_date)
+        cash += round_half_up(float(rows.iloc[-1]["cash_held"]))
+
+        product_by_ticker = holding_rows(account.df).groupby("ticker")["product"].last().to_dict()
+        for pos in priced_positions(account.df, ref_date):
+            positions.append((pos["ticker"], product_by_ticker.get(pos["ticker"], Product.STOCK), pos["value"]))
+    return cash, positions
+
+
 def compute_allocation(accounts: list[Account], ref_date: DateLike) -> dict[str, float]:
     """Compute asset allocation by product type across `accounts` (a list of Account), on `ref_date`.
 
@@ -350,21 +375,32 @@ def compute_allocation(accounts: list[Account], ref_date: DateLike) -> dict[str,
     `ref_date`: the cash held that day and the positions at that day's prices.
     Categories: Stock, Stock ETF, MM ETF, Bond ETF, Cash.
     """
-    ref_date = pd.Timestamp(ref_date)
-    allocation: dict[str, float] = {}
-
-    for account in accounts:
-        # Cash held on ref_date: the last row on or before it (the opening row, at zero, before any operation)
-        rows, _ = get_pf_date(account, ref_date, ref_date)
-        cash = round_half_up(float(rows.iloc[-1]["cash_held"]))
-        allocation[Product.CASH] = allocation.get(Product.CASH, 0) + cash
-
-        # Active positions with product type
-        positions = priced_positions(account.df, ref_date)
-        product_by_ticker = holding_rows(account.df).groupby("ticker")["product"].last().to_dict()
-
-        for pos in positions:
-            product = product_by_ticker.get(pos["ticker"], Product.STOCK)
-            allocation[product] = allocation.get(product, 0) + pos["value"]
-
+    cash, positions = _holdings_on(accounts, ref_date)
+    allocation: dict[str, float] = {Product.CASH: cash}
+    for _, product, value in positions:
+        allocation[product] = allocation.get(product, 0) + value
     return allocation
+
+
+def compute_sector_allocation(accounts: list[Account], ref_date: DateLike) -> tuple[dict[str, float], float]:
+    """Split the stocks and equity ETFs that `accounts` hold on `ref_date` between sectors.
+
+    Returns (allocation, portfolio_value). `allocation` maps a sector (one of
+    market_data.SECTORS, or UNCLASSIFIED for shares Yahoo has no sectors for)
+    to its value in EUR. `portfolio_value` is everything held, cash and the
+    other ETFs included, to say how much of the portfolio the split covers.
+    The sectors are today's, whatever `ref_date`.
+
+    Example: 1000€ of ISP.MI (a bank) and 2000€ of an ETF 30% in technology and
+    70% in financial services, plus 500€ of cash ->
+    ({"financial_services": 2400.0, "technology": 600.0}, 3500.0).
+    """
+    cash, positions = _holdings_on(accounts, ref_date)
+    equity = [(ticker, value) for ticker, product, value in positions if product in EQUITY_PRODUCTS]
+    weights = fetch_sector_weights(sorted({ticker for ticker, _ in equity}))
+
+    allocation: dict[str, float] = {}
+    for ticker, value in equity:
+        for sector, weight in weights.get(ticker, {UNCLASSIFIED: 1.0}).items():
+            allocation[sector] = allocation.get(sector, 0) + value * weight
+    return allocation, cash + sum(value for _, _, value in positions)

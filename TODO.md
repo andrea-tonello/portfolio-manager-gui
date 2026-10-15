@@ -4,7 +4,6 @@
 - XEON ticker appears when Stocks ETFs is selected
 
 - Update README images
-- [INVESTIGATE] Can app size be brought further down?
 - [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
 
 - [BUG13] in Appendix A
@@ -15,6 +14,8 @@ One more question, because of the gain-only rule: what happens to the pending bu
   2. They stay pending until a later sale at a gain. If you sell the whole position at a loss, they're lost for good.
 I'd guess 1, but your Fineco statements would show which. 
 
+- [ANSWERED] Can app size be brought further down?
+    * No/Not worth it
 - [ANSWERED] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
     * Currently, no. An issue was sent to the Flet team.
 
@@ -28,7 +29,6 @@ I'd guess 1, but your Fineco statements would show which.
 ## BACKLOG-BIG
 
 - Region allocation
-- Sector allocation
 - Non-chronological insertions
 - Bonds
 - Bonds ETFs

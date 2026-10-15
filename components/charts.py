@@ -10,6 +10,7 @@ import flet as ft
 import flet_charts as fch
 import numpy as np
 
+from services.analysis_service import UNCLASSIFIED
 from utils.columns import PRODUCT_LOCALE_KEYS
 from utils.formatting import fmt_eur
 
@@ -603,5 +604,48 @@ def chart_allocation(translator, allocation):
             ft.Container(height=10),
             legend,
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
+        padding=15,
+    )
+
+
+def _share_bar(fraction, color):
+    """A horizontal bar in `color` filling `fraction` (0 to 1) of the width it is given."""
+    filled = round(fraction * 1000)
+    return ft.Row([
+        ft.Container(height=10, bgcolor=color, border_radius=4, expand=filled),
+        ft.Container(expand=1000 - filled),
+    ], spacing=0, expand=True)
+
+
+def chart_sector_allocation(translator, allocation, portfolio_value):
+    """Show how the stocks and equity ETFs held split between sectors, from compute_sector_allocation.
+
+    One row per sector, biggest first: its name, a bar and its share of the
+    stocks and equity ETFs. Bars are drawn against the biggest sector's,
+    which fills the row. "Unclassified" comes last, in grey. A line above
+    says how much of the portfolio they are, e.g. "Stocks and equity ETFs:
+    6,000.00€ of 10,000.00€ (60.0%)". A pie would not do: with 11 sectors,
+    most slices are too thin to read.
+    """
+    equity = sum(allocation.values())
+    if equity <= 0:
+        return ft.Text(translator.get("analysis.alloc.no_equity"))
+
+    caption = translator.get("analysis.alloc.equity_share", equity=fmt_eur(equity), total=fmt_eur(portfolio_value),
+                             pct=equity / portfolio_value * 100)
+    # Biggest first, the shares without a sector at the end whatever their size
+    sectors = sorted(allocation.items(), key=lambda item: (item[0] == UNCLASSIFIED, -item[1]))
+    largest = max(allocation.values())
+    rows = []
+    for sector, value in sectors:
+        color = ft.Colors.GREY if sector == UNCLASSIFIED else ft.Colors.PRIMARY
+        rows.append(ft.Row([
+            ft.Text(translator.get(f"analysis.alloc.sectors.{sector}"), size=12, width=150),
+            _share_bar(value / largest, color),
+            ft.Text(f"{value / equity * 100:.1f}%", size=12, width=48, text_align=ft.TextAlign.RIGHT),
+        ], spacing=8))
+
+    return ft.Container(
+        ft.Column([ft.Text(caption, size=12), ft.Container(height=6), *rows], spacing=8),
         padding=15,
     )

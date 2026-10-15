@@ -1,3 +1,20 @@
+## [0.4.3] (2026-XX-XX)
+
+### Bug Fixes
+
+- Radio options in *Operations → General* now use `ResponsiveRow`, freeing up vertical space
+
+### Features
+
+- Added **Sector allocation** in *Analysis → Allocation*; now data is auto-fetched on option change (by class/by sector)
+
+
+
+
+
+
+
+
 ## [0.4.2] (2026-10-14)
 
 ### Bug Fixes

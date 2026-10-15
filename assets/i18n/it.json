@@ -56,7 +56,7 @@
     "add_transaction": "Aggiungi Transazione",
     "add_deposit": "Aggiungi Deposito",
     "add_withdrawal": "Aggiungi Prelievo",
-    "add_tax": "Aggiungi Tassa",
+    "add_tax": "Aggiungi Addebito",
     "add_dividend": "Aggiungi Dividendo",
     "add_split": "Aggiungi Split",
     "add_buy": "Aggiungi Acquisto",
@@ -160,6 +160,27 @@
     "op_drawdown": "DRAWDOWN",
     "op_var": "VaR",
     "op_allocation": "ALLOCAZIONE",
+    "alloc": {
+      "group_by": "Raggruppa per",
+      "by_class": "Classe di Asset",
+      "by_sector": "Settore",
+      "equity_share": "Azioni ed ETF azionari: {equity} su {total} ({pct:.1f}%)",
+      "no_equity": "Nessuna azione o ETF azionario in portafoglio",
+      "sectors": {
+        "basic_materials": "Materie Prime",
+        "communication_services": "Comunicazione",
+        "consumer_cyclical": "Consumo/ciclico",
+        "consumer_defensive": "Consumo/discrezionale",
+        "energy": "Energia",
+        "financial_services": "Servizi Finanziari",
+        "healthcare": "Sanità",
+        "industrials": "Industria",
+        "real_estate": "Immobiliare",
+        "technology": "Tecnologia",
+        "utilities": "Servizi Pubblici",
+        "unclassified": "Non classificato"
+      }
+    },
     "summary": {
       "account_literal": "Conto",
       "portfolio_literal": "Totale Portafoglio ",
@@ -427,7 +448,7 @@
       "region_title": "Per Area Geografica",
       "region_descr": "Coming soon",
       "sector_title": "Per Settore",
-      "sector_descr": "Coming soon"
+      "sector_descr": "Come si dividono tra i settori economici (Tecnologia, Servizi Finanziari...) le azioni e gli ETF azionari che possiedi oggi. Un ETF conta nei settori delle aziende che contiene. ETF obbligazionari, ETF monetari e liquidità non hanno un settore, quindi sono esclusi. I dati sui settori provengono da Yahoo Finance."
     },
     "page_3": {
       "title": "Informazioni sugli strumenti statistici",

@@ -18,7 +18,7 @@ def scroll_into_view_on_focus(column, fields, prefix):
         field.on_focus = on_focus
 
 
-def scrolling_form(form, fields, prefix, padding, *, button, loading) -> ft.Container:
+def scrolling_form(form, fields, prefix, padding, *, button=None, loading=None) -> ft.Container:
     """Return a tab's `form` in a column that scrolls, above its `button` kept at the bottom of the tab.
 
     Each of `fields` is brought into view when it is focused (`fields` and
@@ -28,6 +28,8 @@ def scrolling_form(form, fields, prefix, padding, *, button, loading) -> ft.Cont
     column, as on the onboarding screens. `loading`, the spinner shown while
     it works, has a slot at its left, matched by an empty one at its right:
     the button stays centred and nothing moves when the spinner appears.
+    Without a button, the column fills the tab and `loading` is not used:
+    the form shows its spinner itself.
 
     `padding` is the space around the form. Above and below it goes outside
     the scrolling column; left and right it goes inside, so the column itself
@@ -43,13 +45,13 @@ def scrolling_form(form, fields, prefix, padding, *, button, loading) -> ft.Cont
         expand=True,
     )
     scroll_into_view_on_focus(scroller, fields, prefix)
-    pinned = ft.Row([
+    pinned = [] if button is None else [ft.Row([
         ft.Container(loading, width=loading.width),
         button,
         ft.Container(width=loading.width),
-    ], alignment=ft.MainAxisAlignment.CENTER)
+    ], alignment=ft.MainAxisAlignment.CENTER)]
     return ft.Container(
-        ft.Column([scroller, pinned], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
+        ft.Column([scroller, *pinned], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
         padding=ft.Padding.symmetric(vertical=padding),
         expand=True,
     )

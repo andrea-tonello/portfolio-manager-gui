@@ -20,13 +20,14 @@ from components.charts import (
     chart_correlation_heatmap,
     chart_drawdown,
     chart_rolling_correlation,
+    chart_sector_allocation,
     chart_summary,
     chart_var_mc,
 )
 from components.date_field import DateField, date_range_fields
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
-from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_text_field
+from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
@@ -56,12 +57,15 @@ class AnalysisTool:
 
     AnalysisTab uses a tool in this order: build_inputs() once; then, each time
     Calculate is pressed, read_inputs(), compute() in a background thread,
-    and render() and export() on what compute() returned.
+    and render() and export() on what compute() returned. A tool with
+    `auto_calculate` has no Calculate button: it calculates when shown and
+    whenever one of its inputs changes.
     """
 
     title_key = ""      # translation key of the tool's tab label
     glossary_page = 0   # glossary page the info button opens while the tool is shown
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
+    auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
 
     def __init__(self, page, translator, first_day=None):
         """Keep the page (date pickers and ticker search need it), the translator, and the default start of a period.
@@ -72,11 +76,12 @@ class AnalysisTool:
         self.t = translator
         self.first_day = first_day
 
-    def build_inputs(self, clear_result) -> list[ft.Control]:
+    def build_inputs(self, on_input_change) -> list[ft.Control]:
         """Create the input controls and return them in screen order.
 
-        `clear_result` empties the result area: call it when an input change
-        makes the result shown meaningless.
+        Call `on_input_change` when an input change makes the result shown
+        meaningless: it empties the result area or, with `auto_calculate`,
+        calculates the new result.
         """
         raise NotImplementedError
 
@@ -102,7 +107,8 @@ class AnalysisTool:
 
 
 class AnalysisTab:
-    """The frame shared by every Analysis tool: inputs, Calculate button, spinner, result and CSV export."""
+    """The frame shared by every Analysis tool: inputs, Calculate button (unless the tool calculates by itself),
+    spinner, result and CSV export."""
 
     def __init__(self, page, state, tool, save_csv):
         """Frame `tool`; `save_csv(file_name, csv_bytes)` is how its export is saved (AnalysisView._save_csv)."""
@@ -115,7 +121,7 @@ class AnalysisTab:
     def build(self) -> ft.Control:
         """Create the tab's controls around the tool's inputs and return its layout."""
         t = self.state.translator
-        inputs = self.tool.build_inputs(self.clear)
+        self.inputs = self.tool.build_inputs(self._on_input_change)
         self.loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.result = ft.Column([], spacing=12)
         self.export_row = ft.Row([
@@ -123,18 +129,22 @@ class AnalysisTab:
                       on_click=lambda _: self.page.run_task(self._on_export)),
         ], visible=False)
 
-        calculate_btn = pill_btn(t.get("components.calculate"), self.submit,
-                                 icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True)
-
         col = ft.Column([
-            *inputs,
+            *self.inputs,
             self.result,
             self.export_row,
             ft.Container(height=20),
         ], spacing=12)
 
-        self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10,
-                                      button=calculate_btn, loading=self.loading)
+        if self.tool.auto_calculate:
+            # No Calculate button: the spinner turns where the result will appear
+            col.controls.insert(len(self.inputs), ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER))
+            self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10)
+        else:
+            calculate_btn = pill_btn(t.get("components.calculate"), self.submit,
+                                     icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True)
+            self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10,
+                                          button=calculate_btn, loading=self.loading)
         return self.content
 
     def submit(self, e):
@@ -158,9 +168,34 @@ class AnalysisTab:
             except Exception:
                 self.clear()
                 raise
+            finally:
+                self._lock_inputs(False)
             self._show(self.tool.render(result, inputs), self.tool.export(result, inputs))
 
+        self._lock_inputs(True)
         run_in_background(self.page, t, calculate, loading=self.loading)
+
+    def open(self):
+        """Run when the tab is shown: a tool that calculates by itself starts, unless its result is shown or coming."""
+        if (self.tool.auto_calculate and not self.result.controls and not self.loading.visible
+                and _accounts_to_analyse(self.state)):
+            self.submit(None)
+
+    def _on_input_change(self):
+        """An input changed, so the result shown no longer matches: calculate the new one, or just remove it."""
+        self.clear()
+        if self.tool.auto_calculate:
+            self.submit(None)
+
+    def _lock_inputs(self, locked):
+        """Grey out the inputs of a tool that calculates by itself while it does.
+
+        Each change starts a calculation: a second one started while the first
+        runs could finish first, and the older result would then replace it.
+        """
+        if self.tool.auto_calculate:
+            for control in self.inputs:
+                control.disabled = locked
 
     def clear(self):
         """Empty the result area and hide the export button."""
@@ -181,33 +216,44 @@ class AnalysisTab:
 # ── Allocation ───────────────────────────────────────────────────────
 
 class AllocationTool(AnalysisTool):
-    """How the portfolio is split between cash, stocks and the kinds of ETF on a date, as a pie chart."""
+    """How the portfolio is split today: between cash, stocks and the kinds of ETF (a pie chart), or between sectors."""
 
     title_key = "analysis.op_allocation"
     glossary_page = 2
     scroll_prefix = "alloc"
+    auto_calculate = True  # greet the user with the pie, and switch charts as soon as another split is picked
 
-    def build_inputs(self, clear_result):
-        """A date, today to start with."""
-        self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"))
-        self.date.value = date.today()
-        return [ft.Container(height=5), self.date.control]
+    def build_inputs(self, on_input_change):
+        """A dropdown choosing the split: "class" (by asset class, to start with) or "sector"."""
+        t = self.t
 
-    def text_fields(self):
-        """The date box."""
-        return [self.date.field]
+        self.group = rounded_dropdown(
+            label=t.get("analysis.alloc.group_by"),
+            value="class",
+            options=[
+                ft.dropdown.Option(key="class", text=t.get("analysis.alloc.by_class")),
+                ft.dropdown.Option(key="sector", text=t.get("analysis.alloc.by_sector")),
+            ],
+            on_select=lambda _: on_input_change(),
+            expand=True,
+        )
+        return [ft.Container(height=5), self.group]
 
     def read_inputs(self):
-        """The date, if it is given and not in the future."""
-        return validate_date(self.date.value)
+        """The split chosen: "class" or "sector"."""
+        return self.group.value
 
-    def compute(self, accounts, day):
-        """The allocation of `accounts` on `day`."""
-        return analysis_service.compute_allocation(accounts, day)
+    def compute(self, accounts, group):
+        """Today's allocation of `accounts`, split as `group` says."""
+        if group == "sector":
+            return analysis_service.compute_sector_allocation(accounts, date.today())
+        return analysis_service.compute_allocation(accounts, date.today())
 
-    def render(self, allocation, day):
-        """The pie chart and its legend."""
-        return [chart_allocation(self.t, allocation)]
+    def render(self, result, group):
+        """The pie chart and its legend, or the sectors' bars."""
+        if group == "sector":
+            return [chart_sector_allocation(self.t, *result)]
+        return [chart_allocation(self.t, result)]
 
 
 # ── Statistics ───────────────────────────────────────────────────────
@@ -238,7 +284,7 @@ class SummaryTool(AnalysisTool):
     glossary_page = 3
     scroll_prefix = "sum"
 
-    def build_inputs(self, clear_result):
+    def build_inputs(self, on_input_change):
         """A date, today to start with."""
         self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"))
         self.date.value = date.today()
@@ -311,7 +357,7 @@ class CorrelationTool(AnalysisTool):
     glossary_page = 4
     scroll_prefix = "corr"
 
-    def build_inputs(self, clear_result):
+    def build_inputs(self, on_input_change):
         """The kind of correlation, a start and end date, and for the rolling one two tickers and a window.
 
         The period starts as the whole history: from the first operation to today. The
@@ -324,7 +370,7 @@ class CorrelationTool(AnalysisTool):
             rolling = (self.kind.value == "rolling")
             self.rolling_fields.visible = rolling
             self.start.value = None if rolling else self.first_day
-            clear_result()
+            on_input_change()
             self.page.update()
 
         self.kind = ft.RadioGroup(
@@ -428,7 +474,7 @@ class DrawdownTool(AnalysisTool):
     glossary_page = 5
     scroll_prefix = "dd"
 
-    def build_inputs(self, clear_result):
+    def build_inputs(self, on_input_change):
         """A start and end date, the whole history to start with: from the first operation to today."""
         t = self.t
         self.start, self.end = date_range_fields(
@@ -485,7 +531,7 @@ class VarTool(AnalysisTool):
     glossary_page = 6
     scroll_prefix = "var"
 
-    def build_inputs(self, clear_result):
+    def build_inputs(self, on_input_change):
         """The confidence level (e.g. 0.99) and the number of days ahead."""
         t = self.t
         self.ci = rounded_text_field(
@@ -579,6 +625,7 @@ class AnalysisView:
             ),
             disabled=not has_account, expand=True, width=800,
         )
+        self.tabs[self.state.analysis_tab_index].open()
 
         return ft.Row(
             controls=[
@@ -600,7 +647,9 @@ class AnalysisView:
                                 all_option=("all", t.get("analysis.all_accounts")))
 
     def _on_tab_change(self, e):
+        """Remember the tab shown, and let it start calculating if its tool does so on opening."""
         self.state.analysis_tab_index = e.control.selected_index
+        self.tabs[e.control.selected_index].open()
 
     def _on_account_selected(self, e):
         val = e.control.value

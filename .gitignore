@@ -10,3 +10,4 @@ config/
 storage/
 secret.py
 just_colors.py
+REFACTORING.md
