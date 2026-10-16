@@ -39,6 +39,12 @@
     "nav": 30279.87,
     "pl": 425.87,
     "pl_unrealized": 588.12,
+    "positions": [
+      [
+        "BBB.MI",
+        1365.0
+      ]
+    ],
     "sharpe_ratio": 0.1512863287,
     "twrr_ann": 0.0303277634,
     "twrr_full": 0.03130546731,

@@ -10,7 +10,6 @@ and listing it in TOOLS.
 from datetime import date
 
 import flet as ft
-import numpy as np
 import pandas as pd
 
 from components.background import run_in_background
@@ -71,14 +70,17 @@ class AnalysisTool:
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
 
-    def __init__(self, page, translator, first_day=None):
-        """Keep the page (date pickers and ticker search need it), the translator, and the default start of a period.
+    def __init__(self, page, translator, first_day=None, account_name=None):
+        """Keep the page (date pickers and ticker search need it), the translator, and what is analysed.
 
-        `first_day` is the day of the first operation in the accounts analysed (None before any).
+        `first_day` is the day of the first operation in the accounts analysed
+        (None before any), the default start of a period. `account_name` is
+        the name of the one account analysed, None when all of them are.
         """
         self.page = page
         self.t = translator
         self.first_day = first_day
+        self.account_name = account_name
 
     def build_inputs(self, on_input_change) -> list[ft.Control]:
         """Create the input controls and return them in screen order.
@@ -300,7 +302,7 @@ def _format_common_stats(stats, t, dt_str):
 
 
 class SummaryTool(AnalysisTool):
-    """On a date, the chart of the portfolio's value over time, or each account's and the portfolio's figures.
+    """On a date, the chart of the value over time of the account picked (or all), or its figures.
 
     One card shows the chart, the other the figures (value, P&L, returns).
     Both need the portfolio's whole price history, the slow part, so the
@@ -318,9 +320,9 @@ class SummaryTool(AnalysisTool):
         ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
     )
 
-    def __init__(self, page, translator, first_day=None):
+    def __init__(self, page, translator, first_day=None, account_name=None):
         """As for every tool, plus the results kept so far, by day."""
-        super().__init__(page, translator, first_day)
+        super().__init__(page, translator, first_day, account_name)
         self._histories = {}  # day -> the chart's history (analysis_service.summary_history)
         self._figures = {}    # day -> the figures (analysis_service.compute_summary)
 
@@ -353,45 +355,42 @@ class SummaryTool(AnalysisTool):
         return self._histories[day]
 
     def render(self, result, inputs):
-        """The chart of the portfolio's value over time, or one text per account and one in bold for the portfolio."""
+        """"Account: <name>" ("all accounts" when all are picked), above the chart or the figures."""
         t = self.t
         action, day = inputs
+        name = self.account_name or t.get("analysis.all_accounts_lowercase")
+        header = ft.Text(f"{t.get('analysis.summary.account_literal')}: {name}", size=14, weight=ft.FontWeight.BOLD)
         if action == "chart":
             if result is None or result.empty:
-                return [ft.Text(t.get("analysis.charts.no_data"))]
-            return [chart_summary(t, result)]
+                return [header, ft.Text(t.get("analysis.charts.no_data"))]
+            return [header, chart_summary(t, result)]
+        return [header, ft.Text(self._figures_text(result, day), size=12, selectable=True)]
 
+    def _figures_text(self, result, day):
+        """The figures of the accounts analysed taken together, from compute_summary's `result`, then what they hold.
+
+        With all accounts picked, that is only their total, not each account's
+        figures, and a ticker held in several accounts is listed once.
+        """
+        t = self.t
         dt_str = day.strftime(DATE_FORMAT)
-        texts = []
-
-        for acc in result["accounts"]:
-            acc_text = f"\n{t.get('analysis.summary.account_literal')}: {acc['broker_name']}"
-            acc_text += _format_common_stats(acc, t, dt_str)
-            if not np.isnan(acc["xirr_full"]):
-                acc_text += "\n" + t.get("analysis.summary.return_account",
-                                         xirr_full=acc["xirr_full"], xirr_ann=acc["xirr_ann"])
-
-            if acc["positions"]:
-                acc_text += "\n" + t.get("analysis.summary.assets_recap.held_assets", dt=dt_str)
-                for pos in acc["positions"]:
-                    acc_text += f"        {pos['ticker']}\n"
-                    acc_text += f"        {t.get('analysis.summary.assets_recap.avg_price')}{pos['pmc']:.4f}\n"
-                    acc_text += f"        {t.get('analysis.summary.assets_recap.current_price')}{pos['price']:.4f}\n"
-                    acc_text += f"        {t.get('analysis.summary.assets_recap.value')}{pos['value']:.2f}\n"
-
-            texts.append(ft.Text(acc_text, size=12, selectable=True))
-
         pf = result["portfolio"]
-        pf_text = f"\n{t.get('analysis.summary.portfolio_literal')}"
-        pf_text += _format_common_stats(pf, t, dt_str)
-        if pf.get("has_positions"):
-            pf_text += "\n" + t.get("analysis.summary.return_portfolio",
-                                     xirr_full=pf["xirr_full"], xirr_ann=pf["xirr_ann"],
-                                     twrr_full=pf["twrr_full"], twrr_ann=pf["twrr_ann"])
-            pf_text += t.get("analysis.summary.volatility", volatility=pf["volatility"])
-            pf_text += "\n" + t.get("analysis.summary.sharpe_ratio", sharpe_ratio=pf["sharpe_ratio"])
-        texts.append(ft.Text(pf_text, size=12, weight=ft.FontWeight.BOLD, selectable=True))
-        return [ft.Column(texts, spacing=5)]
+        text = _format_common_stats(pf, t, dt_str)
+        if pf["has_positions"]:
+            text += "\n" + t.get("analysis.summary.return_portfolio",
+                                 xirr_full=pf["xirr_full"], xirr_ann=pf["xirr_ann"],
+                                 twrr_full=pf["twrr_full"], twrr_ann=pf["twrr_ann"])
+            text += t.get("analysis.summary.volatility", volatility=pf["volatility"])
+            text += "\n" + t.get("analysis.summary.sharpe_ratio", sharpe_ratio=pf["sharpe_ratio"])
+
+        if pf["positions"]:
+            text += "\n" + t.get("analysis.summary.assets_recap.held_assets", dt=dt_str)
+            for pos in pf["positions"]:
+                text += f"        {pos['ticker']}\n"
+                text += f"        {t.get('analysis.summary.assets_recap.avg_price')}{pos['pmc']:.4f}\n"
+                text += f"        {t.get('analysis.summary.assets_recap.current_price')}{pos['price']:.4f}\n"
+                text += f"        {t.get('analysis.summary.assets_recap.value')}{pos['value']:.2f}\n"
+        return text.strip("\n")
 
     def export(self, result, inputs):
         """The portfolio's value over time, behind the chart (the figures have nothing to export)."""
@@ -656,7 +655,9 @@ class AnalysisView:
         first_day = min(first_days, default=None)
         if first_day is not None and (today - first_day).days < 20:
             first_day = None
-        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t, first_day), self._save_csv)
+        idx = self.state.analysis_acc_idx
+        account_name = None if idx is None else self.state.brokers.get(idx)
+        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t, first_day, account_name), self._save_csv)
                      for tool in TOOLS]
 
         has_account = self.state.analysis_acc_idx is not None or len(self.state.accounts) > 0

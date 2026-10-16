@@ -185,11 +185,11 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
     tab, chart_card, figures_card = statistics_tab()
     chart = press(tab, chart_card)
     assert chart["chart"] and chart["export"] and len(downloads) == 1
-    assert not any("Portfolio total" in text for text in chart["texts"])
+    assert not any("NAV (on" in text for text in chart["texts"])
 
     figures = press(tab, figures_card)
     assert not figures["chart"] and not figures["export"]
-    assert any("Portfolio total" in text for text in figures["texts"])
+    assert any("NAV (on" in text for text in figures["texts"])
     assert len(downloads) == 1  # the chart's history was reused
 
     assert press(tab, chart_card) == chart
@@ -202,3 +202,42 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
     tab, _, figures_card = statistics_tab()
     assert press(tab, figures_card)["texts"] == figures["texts"]  # calculated from scratch, same figures
     assert len(downloads) == 3
+
+
+def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, state, tmp_path, monkeypatch):
+    """The figures say which accounts they are for, and show only theirs.
+
+    With all accounts picked, only their total is shown, not each account's
+    figures before it. Both list what is held (BBB.MI, in the test account).
+    A second account holding just 1000€ of cash makes the total 1000€ more.
+    """
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
+    idx = state.add_broker("Second Broker")
+    state.commit(idx, _replay([deposit(date(2024, 1, 2), 1000)], tmp_path / "second"))
+
+    def figures(selection):
+        """Show the figures on 31-12-2024 with `selection` picked (None: all accounts); return (header, figures)."""
+        state.analysis_acc_idx = selection
+        view = AnalysisView(app)
+        view.build()
+        [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
+        tab.tool.date.value = date(2024, 12, 31)
+        _, figures_card = find_controls(tab.content, ft.Card)
+        figures_card.content.on_click(None)
+        return [text.value for text in find_controls(tab.result, ft.Text)]
+
+    def nav(figures):
+        """The NAV written in `figures`, e.g. 10088.12 from "NAV (on 31-12-2024): 10088.12€"."""
+        return float(figures.split("NAV (on 31-12-2024): ")[1].split("€")[0])
+
+    header, all_figures = figures(None)
+    assert header == "Account: all accounts"
+    assert all_figures.count("NAV") == 1 and "Assets held on 31-12-2024" in all_figures
+    assert all_figures.count("BBB.MI") == 1
+
+    header, one_figures = figures(1)
+    assert header == "Account: Test Broker"
+    assert one_figures.count("NAV") == 1 and "Assets held on 31-12-2024" in one_figures
+    assert one_figures.count("BBB.MI") == 1
+
+    assert nav(all_figures) - nav(one_figures) == pytest.approx(1000)

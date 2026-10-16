@@ -174,16 +174,25 @@ def get_tickers(accounts: list[Account]) -> tuple[list[tuple[str, str]], list[tu
 
 
 def aggregate_positions(total_positions: list[dict]) -> list[dict]:
-    """Merge positions of the same ticker held in several accounts into one {ticker, value} each."""
-    aggr_positions_dict = {}
+    """Merge the positions of one ticker held in several accounts into one, at their average buy price.
+
+    Takes and returns priced_positions' dicts, in the order their tickers are
+    first met. Quantities and values are added up, and `pmc` becomes the
+    average buy price of all the shares; the other keys (price, name...) are
+    the first account's. The dicts passed in are left unchanged.
+
+    Example: 20 shares bought at 50.05 and 10 at 55.10, both priced at 60.0
+    -> 30 shares with a pmc of 51.7333, worth 1800.0.
+    """
+    merged = {}
     for pos in total_positions:
         ticker = pos["ticker"]
-        value = pos["value"]
-        aggr_positions_dict[ticker] = aggr_positions_dict.get(ticker, 0) + value
-
-    aggr_positions = []
-    for ticker, value_sum in aggr_positions_dict.items():
-        new_pos = {"ticker": ticker, "value": value_sum}
-        aggr_positions.append(new_pos)
-
-    return aggr_positions
+        if ticker not in merged:
+            merged[ticker] = dict(pos)
+            continue
+        total = merged[ticker]
+        cost = total["pmc"] * total["quantity"] + pos["pmc"] * pos["quantity"]
+        total["quantity"] += pos["quantity"]
+        total["pmc"] = cost / total["quantity"]
+        total["value"] += pos["value"]
+    return list(merged.values())

@@ -39,7 +39,8 @@ def summary_as_json(result) -> str:
     """Turn compute_summary's result into stable, readable JSON for the snapshot.
 
     Keeps every number per account and for the whole portfolio, plus each
-    held position's ticker and value; leaves out the price-history table,
+    held position's ticker and value (the portfolio's merged across accounts);
+    leaves out the price-history table,
     which is too large to be useful in a snapshot. Numbers are rounded to 10
     significant digits (see round_floats).
     """
@@ -48,7 +49,9 @@ def summary_as_json(result) -> str:
          "positions": [[pos["ticker"], pos["value"]] for pos in acc["positions"]]}
         for acc in result["accounts"]
     ]
-    summary = {"accounts": accounts, "portfolio": result["portfolio"], "min_date": str(result["min_date"])}
+    portfolio = {**result["portfolio"],
+                 "positions": [[pos["ticker"], pos["value"]] for pos in result["portfolio"]["positions"]]}
+    summary = {"accounts": accounts, "portfolio": portfolio, "min_date": str(result["min_date"])}
     return json.dumps(round_floats(summary), indent=2, sort_keys=True)
 
 

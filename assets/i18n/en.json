@@ -30,7 +30,7 @@
 
   "home": {
     "no_account": "No accounts configured. Go to Settings to add one",
-    "overview": "All Accounts",
+    "overview": "All accounts",
     "hidden": "Hidden",
     "subt_assets": "Assets",
     "subt_cash": "Cash",
@@ -153,7 +153,8 @@
 
 
   "analysis": {
-    "all_accounts": "All Accounts",
+    "all_accounts": "All accounts",
+    "all_accounts_lowercase": "all accounts",
     "export_plot_csv": "Export CSV data",
     "op_statistics": "STATISTICS",
     "op_correlation": "CORRELATION",
@@ -185,14 +186,12 @@
       "show_chart": "Performance chart",
       "show_figures": "Portfolio statistics",
       "account_literal": "Account",
-      "portfolio_literal": "Portfolio total ",
       "nav": "\n    NAV (on {dt}): {nav:.2f}€",
       "cash": "        \u2981 Cash: {current_liq:.2f}€",
       "assets_value": "        \u2981 Asset Value: {asset_value:.2f}€",
       "historic_cash": "    Committed Cash: {historic_liq:.2f}€",
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L including unrealized: {pl_unrealized:.2f}€",
-      "return_account": "    Total return (XIRR): {xirr_full:.2%}\n    Annualized return (XIRR): {xirr_ann:.2%}\n",
       "return_portfolio": "    Return\n        \u2981 Total XIRR: {xirr_full:.2%}\n        \u2981 Annualized XIRR: {xirr_ann:.2%}\n        \u2981 Total TWRR: {twrr_full:.2%}\n        \u2981 Annualized TWRR: {twrr_ann:.2%}\n",
       "volatility": "    Annualized volatility: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",

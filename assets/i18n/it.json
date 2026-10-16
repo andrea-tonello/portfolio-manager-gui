@@ -30,7 +30,7 @@
 
   "home": {
     "no_account": "Nessun conto configurato. Vai alle Impostazioni per aggiungerne uno",
-    "overview": "Tutti i Conti",
+    "overview": "Tutti i conti",
     "hidden": "Nascosto",
     "subt_assets": "Strumenti",
     "subt_cash": "Liquidità",
@@ -153,7 +153,8 @@
 
 
   "analysis": {
-    "all_accounts": "Tutti i Conti",
+    "all_accounts": "Tutti i conti",
+    "all_accounts_lowercase": "tutti i conti",
     "export_plot_csv": "Esporta dati in CSV",
     "op_statistics": "STATISTICHE",
     "op_correlation": "CORRELAZIONE",
@@ -185,14 +186,12 @@
       "show_chart": "Grafico di performance",
       "show_figures": "Statistiche del portafoglio",
       "account_literal": "Conto",
-      "portfolio_literal": "Totale Portafoglio ",
       "nav": "\n    NAV (al {dt}): {nav:.2f}€",
       "cash": "        \u2981 Liquidità: {current_liq:.2f}€",
       "assets_value": "        \u2981 Valore Titoli: {asset_value:.2f}€",
       "historic_cash": "    Liquidità Impegnata: {historic_liq:.2f}€",
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L comprendente il non realizzato: {pl_unrealized:.2f}€",
-      "return_account": "    Rendimento totale (XIRR): {xirr_full:.2%}\n    Rendimento annualizzato (XIRR): {xirr_ann:.2%}\n",
       "return_portfolio": "    Rendimento\n        \u2981 XIRR totale: {xirr_full:.2%}\n        \u2981 XIRR annualizzato: {xirr_ann:.2%}\n        \u2981 TWRR totale: {twrr_full:.2%}\n        \u2981 TWRR annualizzato: {twrr_ann:.2%}\n",
       "volatility": "    Volatilità annualizzata: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",

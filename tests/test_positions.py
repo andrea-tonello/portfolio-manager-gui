@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from domain.positions import held_tickers, holdings, priced_positions
+from domain.positions import aggregate_positions, held_tickers, holdings, priced_positions
 from services import market_data
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -88,6 +88,23 @@ def test_priced_positions_of_an_account_holding_nothing():
 def test_held_tickers_names_the_assets_currently_held():
     """Assets sold out (BBB.MI) are left out; each held one comes with its name."""
     assert held_tickers(LEDGER) == {"AAA.MI": "Alpha SpA", "EEE.MI": "Equity World ETF"}
+
+
+def test_a_ticker_held_in_two_accounts_is_merged_at_its_average_buy_price():
+    """20 BBB.MI bought at 50.05 in one account and 10 at 55.10 in another make 30 at 51.7333, worth 1800.
+
+    Other tickers keep their place in the list, and the accounts' own positions are left unchanged.
+    """
+    first = [{"ticker": "BBB.MI", "quantity": 20.0, "pmc": 50.05, "price": 60.0, "value": 1200.0},
+             {"ticker": "AAA.MI", "quantity": 5.0, "pmc": 100.0, "price": 102.0, "value": 510.0}]
+    second = [{"ticker": "BBB.MI", "quantity": 10.0, "pmc": 55.10, "price": 60.0, "value": 600.0}]
+
+    merged = aggregate_positions(first + second)
+
+    assert [pos["ticker"] for pos in merged] == ["BBB.MI", "AAA.MI"]
+    assert merged[0] == pytest.approx({"ticker": "BBB.MI", "quantity": 30.0, "pmc": 51.7333, "price": 60.0,
+                                       "value": 1800.0}, abs=1e-4)
+    assert first[0]["quantity"] == 20.0 and first[0]["pmc"] == 50.05
 
 
 def test_domain_code_does_not_import_the_ui():

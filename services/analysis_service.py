@@ -54,10 +54,13 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
         "accounts": [{ acc_idx, broker_name, nav, current_liq, asset_value,
                        historic_liq, pl, pl_unrealized, xirr_full, xirr_ann, positions }],
         "portfolio": { nav, current_liq, asset_value, historic_liq, pl, pl_unrealized,
-                       xirr_full, xirr_ann, twrr_full, twrr_ann, volatility, sharpe_ratio },
+                       xirr_full, xirr_ann, twrr_full, twrr_ann, volatility, sharpe_ratio,
+                       has_positions, positions },
         "pf_history": DataFrame or None,
         "min_date": datetime or None,
     }
+    The portfolio's `positions` are the accounts' merged by ticker
+    (positions.aggregate_positions): a ticker held in two accounts is listed once.
     """
     ref_date = pd.Timestamp(ref_date)
     total_current_liq = []
@@ -185,6 +188,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
             "volatility": volatility,
             "sharpe_ratio": sharpe_ratio,
             "has_positions": accounts_with_positions > 0,
+            "positions": aggregate_positions([pos for acc in account_results for pos in acc["positions"]]),
         },
         "pf_history": pf_history_df,
         "min_date": min_date,
