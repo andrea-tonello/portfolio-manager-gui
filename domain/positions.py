@@ -75,28 +75,24 @@ def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str |
     end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
 
     data, names = market_data.download_close(tickers, start=start_date, end=end_date)
-    data_valid = (
-        data.loc[data.index <= pd.to_datetime(ref_date)]
-            .dropna(how="any")
-    )
-    data_ref = data_valid.iloc[-1]
-
     # Adjusted close for prev_close only: keeps daily P&L continuous across a split day.
     # Do NOT use for current price — adjusted close also bakes in dividends, which are
     # recorded explicitly as Dividend rows and would double-count otherwise.
     data_adj, _ = market_data.download_close(tickers, start=start_date, end=end_date, adjusted=True)
-    data_adj_valid = (
-        data_adj.loc[data_adj.index <= pd.to_datetime(ref_date)]
-            .dropna(how="any")
-    ) if not data_adj.empty else data_valid
-    data_prev = data_adj_valid.iloc[-2] if len(data_adj_valid) >= 2 else data_ref
+    if data_adj.empty:
+        data_adj = data
 
     for item in positions:
         ticker = item["ticker"]
-        price = data_ref[ticker] * item["exchange_rate"]
+        # Each ticker's own closes: Yahoo sometimes has no close for one ticker on a day,
+        # and leaving that day out for all of them would price the others on an older day.
+        closes = data.loc[data.index <= ref_date, ticker].dropna()
+        adj_closes = data_adj.loc[data_adj.index <= ref_date, ticker].dropna()
+        price = closes.iloc[-1] * item["exchange_rate"]
         item["price"] = price
         item["value"] = item["quantity"] * price
-        item["prev_close"] = data_prev[ticker] * item["exchange_rate"]
+        prev = adj_closes.iloc[-2] if len(adj_closes) >= 2 else closes.iloc[-1]
+        item["prev_close"] = prev * item["exchange_rate"]
         item["name"] = names.get(ticker, ticker)
 
     return positions

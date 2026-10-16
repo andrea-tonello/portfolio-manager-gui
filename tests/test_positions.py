@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from domain.positions import held_tickers, holdings, priced_positions
+from services import market_data
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -56,6 +57,27 @@ def test_priced_positions_values_each_held_asset(fake_market):
         "AAA.MI": (5.0, pytest.approx(100.3), pytest.approx(501.5)),
         "BBB.MI": (10.0, pytest.approx(50.15), pytest.approx(501.5)),
     }
+
+
+@pytest.mark.parametrize("eee_closes, eee_price, eee_prev", [
+    ([80.0, np.nan, 82.0], 82.0, 80.0),   # EEE.MI has no close on 9 January
+    ([80.0, 81.0, np.nan], 81.0, 80.0),   # EEE.MI has no close yet on 10 January
+], ids=["gap-yesterday", "gap-today"])
+def test_a_missing_close_of_one_ticker_does_not_move_the_others(monkeypatch, eee_closes, eee_price, eee_prev):
+    """Each asset takes its own latest close and the one before, whatever gaps another asset has.
+
+    Yahoo sometimes has no daily close for a ticker (e.g. some ETFs on Borsa
+    Italiana). A day missing for one ticker used to be dropped for all: AAA.MI
+    was then priced, or compared with, a day older than it should.
+    """
+    days = pd.to_datetime(["2024-01-08", "2024-01-09", "2024-01-10"])
+    closes = pd.DataFrame({"AAA.MI": [100.0, 101.0, 102.0], "EEE.MI": eee_closes}, index=days)
+    monkeypatch.setattr(market_data, "download_close", lambda *args, **kwargs: (closes, {}))
+
+    positions = priced_positions(LEDGER, date(2024, 1, 10))
+
+    prices = {p["ticker"]: (p["price"], p["prev_close"]) for p in positions}
+    assert prices == {"AAA.MI": (102.0, 101.0), "EEE.MI": (eee_price, eee_prev)}
 
 
 def test_priced_positions_of_an_account_holding_nothing():

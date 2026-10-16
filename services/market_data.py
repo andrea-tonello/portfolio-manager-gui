@@ -150,6 +150,36 @@ def download_close(tickers: str | list[str], start: DateLike | None = None, end:
     return df, names
 
 
+def fetch_quotes(tickers: list[str]) -> dict[str, tuple[float, float | None, str]]:
+    """Return {ticker: (price, previous_close, name)}: each ticker's latest price and the previous session's close.
+
+    Both come from Yahoo's quote data, not from the daily closes: Yahoo
+    sometimes has no daily close for a ticker on a day (e.g. some ETFs on
+    Borsa Italiana), while the previous close it reports is still there.
+    previous_close is None when Yahoo gives none. Unknown tickers are left out.
+
+    Example: fetch_quotes(["VWCE.MI"]) -> {"VWCE.MI": (170.98, 170.88, "Vanguard FTSE All-World ...")}
+    even on a day after one whose daily close is missing.
+    """
+    def _fetch_one(ticker):
+        """Fetch one ticker's quote, or None when Yahoo gives no usable answer."""
+        try:
+            meta = _fetch_chart(ticker, period="1d").get("meta", {})
+        except _NO_DATA_ERRORS as e:
+            logger.warning("No quote for %s: %s", ticker, e)
+            return None
+        price, previous = meta.get("regularMarketPrice"), meta.get("chartPreviousClose")
+        if price is None:
+            return None
+        name = meta.get("longName") or meta.get("shortName") or ticker
+        return ticker, (float(price), None if previous is None else float(previous), name)
+
+    if not tickers:
+        return {}
+    with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as pool:
+        return dict(result for result in pool.map(_fetch_one, tickers) if result is not None)
+
+
 def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: DateLike, end: DateLike) -> pd.DataFrame:
     """Download daily closing prices in EUR: one column per ticker, all on the same days.
 

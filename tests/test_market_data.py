@@ -12,7 +12,7 @@ import pytest
 from domain.errors import TickerNotFound
 from services import market_data
 from services.market_data import (
-    download_close, download_prices_eur, fetch_sector_weights, fetch_splits, search_tickers,
+    download_close, download_prices_eur, fetch_quotes, fetch_sector_weights, fetch_splits, search_tickers,
 )
 
 # Shaped like Yahoo's search response, trimmed to the fields search_tickers reads.
@@ -321,3 +321,22 @@ def test_a_refused_crumb_is_renewed_and_the_request_sent_again(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", urlopen)
 
     assert fetch_sector_weights(["ENI.MI"]) == {"ENI.MI": {"energy": 1.0}}
+
+
+def test_quotes_give_the_previous_close_even_when_its_daily_bar_is_missing(monkeypatch):
+    """The watchlist's daily change compares the price with Yahoo's previous close, not with the daily bars.
+
+    Shaped like Yahoo's answer for VWCE.MI on 16-10-2026: the one-day chart
+    holds only today's bar, as the daily close of 15-10 was missing, but the
+    quote still reports the previous close (170.88).
+    """
+    fake_yahoo(monkeypatch, {"chart": {"result": [{
+        "meta": {"regularMarketPrice": 170.98, "chartPreviousClose": 170.88,
+                 "longName": "Vanguard FTSE All-World UCITS ETF"},
+        "timestamp": [1792158305],
+        "indicators": {"quote": [{"close": [170.98]}]},
+    }]}})
+
+    quotes = fetch_quotes(["VWCE.MI"])
+
+    assert quotes == {"VWCE.MI": (170.98, 170.88, "Vanguard FTSE All-World UCITS ETF")}

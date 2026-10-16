@@ -11,7 +11,7 @@ from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from domain.positions import held_tickers, split_ratio_label
 from services import config_service, operations_service
-from services.market_data import download_close
+from services.market_data import fetch_quotes
 from services.portfolio_service import compute_snapshot
 from utils.constants import DATE_FORMAT
 from utils.formatting import HIDDEN_MASK, LOADING, fmt_eur, fmt_pct
@@ -246,21 +246,14 @@ class HomeView:
 
         def worker():
             try:
-                data, names = download_close(tickers, period="2d")
-                data = data.dropna(how="all")
-
-                rows = []
-                for tk in tickers:
-                    name = names.get(tk, tk)
-                    if tk not in data.columns or data[tk].dropna().empty:
-                        rows.append(self._build_watchlist_item(tk, None, None, name))
-                        continue
-                    series = data[tk].dropna()
-                    price = float(series.iloc[-1])
-                    prev_close = float(series.iloc[-2]) if len(series) >= 2 else None
-                    rows.append(self._build_watchlist_item(tk, price, prev_close, name))
-
-                self._watchlist_items_container.controls = rows
+                # Yahoo's quote, not the last two daily closes: the close before today
+                # is sometimes missing, which left the daily change blank.
+                quotes = fetch_quotes(tickers)
+                self._watchlist_items_container.controls = [
+                    self._build_watchlist_item(tk, *quotes[tk]) if tk in quotes
+                    else self._build_watchlist_item(tk, None, None)
+                    for tk in tickers
+                ]
             except Exception:
                 # Show the tickers without prices (e.g. offline), and log why.
                 logger.exception("Could not fetch watchlist prices")

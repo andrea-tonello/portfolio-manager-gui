@@ -1,3 +1,20 @@
+## [0.4.4] (2026-XX-XX)
+
+### Bug Fixes
+
+- Fixed watchlist daily change and Home prices when Yahoo is missing a daily close
+
+### Features
+
+
+
+
+
+
+
+
+
+
 ## [0.4.3] (2026-10-16)
 
 ### Bug Fixes
@@ -9,11 +26,6 @@
 
 - Added **Sector allocation** in *Analysis → Allocation*; now data is auto-fetched on option change (by class/by sector)
 - Backup export message no longer shows a file name the user may have changed
-
-
-
-
-
 
 
 

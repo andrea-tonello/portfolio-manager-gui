@@ -118,7 +118,7 @@ def test_failed_live_refresh_is_logged(home, state, monkeypatch, caplog):
 def test_failed_watchlist_fetch_is_logged(home, state, monkeypatch, caplog):
     """If watchlist prices can't be fetched, the tickers are listed without prices and the reason is logged."""
     state.watchlist = ["AAA.MI"]
-    monkeypatch.setattr(views.home_view, "download_close", _offline)
+    monkeypatch.setattr(views.home_view, "fetch_quotes", _offline)
 
     with caplog.at_level(logging.ERROR):
         home._fetch_watchlist_prices()
