@@ -1,5 +1,16 @@
-# ITA 🇮🇹 (ENG below)
 # Portfolio Manager
+
+![License](https://img.shields.io/github/license/andrea-tonello/portfolio-manager-gui)
+![Release](https://img.shields.io/github/v/release/andrea-tonello/portfolio-manager-gui)
+![Downloads](https://img.shields.io/github/downloads/andrea-tonello/portfolio-manager-gui/total)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Build](https://github.com/andrea-tonello/portfolio-manager-gui/actions/workflows/build-release.yml/badge.svg)
+
+<p align="center">
+  <img src="./assets/icon.png" alt="image" width="200"/>
+</p>
+
+# ITA 🇮🇹 (ENG below)
 
 Portfolio Manager è un'applicazione per la gestione ed analisi di portafogli finanziari, **nata per risolvere un problema personale: aggregare, in un unico spazio, tutti i propri conti titoli**. Volevo qualcosa che:
 
@@ -135,8 +146,11 @@ pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "p
 
 ---
 
+<p align="center">
+  <img src="./assets/icon.png" alt="image" width="200"/>
+</p>
+
 # ENG 🇬🇧 🇺🇸
-# Portfolio Manager
 
 Portfolio Manager is an application for managing and analyzing financial portfolios, **born to solve a personal issue: bringing all my brokerage accounts together in one place**. I wanted something that:
 
