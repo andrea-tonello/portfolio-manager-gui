@@ -77,7 +77,7 @@ Quattro schermate principali:
     - *Liquidità* (depositi, prelievi, dividendi, imposte)
     - *ETF Azionari, ETF Monetari* (acquisto/vendita) 
     - *Azioni* (acquisto/vendita)
-    - In programma: *ETF Obbligazionari, Obbligazioni*
+    - **In programma:** *ETF Obbligazionari, Obbligazioni*
 - **ANALISI**: strumenti per l'analisi del portafoglio. È presente un tasto Info per ogni strumento, con informazioni a riguardo.
     - *Allocazione* per asset class e settore
     - *Statistiche generali*: principali statistiche del portafoglio con grafico
@@ -110,11 +110,11 @@ Essendo l'app **local-only**, questo è l'unico modo per salvare e trasferire le
 
 ### Installazione manuale
 1. Clona la repository
-2. Installa i pacchetti (richiesto Python >= 3.11, testato con 3.13):
+2. Installa i pacchetti (richiesto Python >= 3.11, testato con 3.13). Le versioni sono fissate come in `pyproject.toml`:
     - `uv`: esegui `uv sync`
     - `pip`:
 ```sh
-pip install flet flet-charts pandas numpy yfinance python-dateutil
+pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil>=2.8.2"
 ```
 3. (Opzionale) Per testare l'applicazione: 
   - `uv`: `uv run flet run main.py`
@@ -138,26 +138,31 @@ pip install flet flet-charts pandas numpy yfinance python-dateutil
 # ENG 🇬🇧 🇺🇸
 # Portfolio Manager
 
-Portfolio Manager is a cross-platform GUI application for managing and analyzing financial portfolios (stocks and ETFs). It is designed for private investors who wish to track their operations, liquidity, capital gains/losses, and manage tax loss carryforwards (*zainetto fiscale*) according to Italian regulations.
+Portfolio Manager is an application for managing and analyzing financial portfolios, **born to solve a personal issue: bringing all my brokerage accounts together in one place**. I wanted something that:
 
-It also includes several analysis tools: VaR (Monte Carlo), volatility/Sharpe ratio, correlation, drawdown, XIRR and TWRR.
+- Saved me from checking each bank's app one by one
+- Could replace the classic Excel spreadsheet, impractical on a phone and less intuitive for beginners
+- Offered a complete suite of portfolio analysis tools, combining the data of all my accounts
+- **Took Italian taxation and laws into account**
 
-Built with [Flet](https://flet.dev/), it is mobile-focused (Android, iOS) but it also supporsts Linux, macOS, Windows
+> *Doesn't this exist already?*
+
+- There is the excellent [Portfolio Performance](https://github.com/portfolio-performance/portfolio), which I first tried to use, but which unfortunately doesn't solve a huge problem: **Italian taxation, and how the tax loss carryforward (*zainetto fiscale*) works.**
+
+This app is therefore designed for private investors who want to track in detail their operations, liquidity, capital gains/losses and tax loss carryforward according to Italian regulations, along with various tools for in-depth analysis (details below).
+
+Built with [Flet](https://flet.dev/), it is mainly designed for mobile use (Android, iOS in the future), but it also supports Linux, macOS, Windows.
+
 
 ## Main Features
 
-- **Multi-account management**: support for multiple brokers with custom aliases
-- **Cash operations**: deposits, withdrawals, dividends, taxes and charges
-- **Securities operations**: buy and sell stocks and ETFs, with currency handling (EUR/USD), fees and TER
-- **Automatic calculation of**:
-  - Average Buy Price (ABP)
-  - Realized and unrealized capital gains/losses
-  - Tax loss Carryforward with expiry tracking
-  - NAV, current and historical liquidity
+- **Multi-account management**: support for multiple accounts with custom aliases
+- **Cash operations**: deposits, withdrawals, dividends, taxes/charges
+- **Securities operations**: buying and selling stocks and ETFs, with currency handling (EUR/USD), fees and TER (bond support coming soon)
 - **Portfolio overview** with open positions, P&L and live prices (Yahoo Finance)
 - **Customizable watchlist**
-- **CSV export** of transactions with localized column headers
-- **Risk analysis tools** (details below)
+- **Transactions list with CSV export**, with detailed fields
+- **Portfolio and risk analysis tools** (details below)
 - **Multilingual**: English and Italian
 
 
@@ -165,26 +170,36 @@ Built with [Flet](https://flet.dev/), it is mobile-focused (Android, iOS) but it
 
 Four main tabs:
 
-- **HOME**: Account(s) overview, open positions, watchlist
-- **OPERATIONS**: Guided entry of new transactions, EUR/USD support
-    - *Cash operations* (deposits, withdrawals, dividends, taxes) 
-    - *ETFs (equity)* (buy/sell)
+- **HOME**: account overview, open positions, watchlist
+- **OPERATIONS**: entry of new transactions, EUR/USD support. Transactions are saved automatically as they are entered.
+    - *Cash* (deposits, withdrawals, dividends, taxes/charges)
+    - *Equity ETFs, Money Market ETFs* (buy/sell)
     - *Stocks* (buy/sell)
-    - Next priority: support for *Money Market ETFs, Bond ETFs, Bonds*
-- **ANALYSIS**: tools for portfolio analysis. There is an Info button for each tool, describing its usage.
-    - *Statistics*: general portfolio statistics with graph
-    - *Correlation*: simple correlation between held assets, rolling correlation between two specified assets
-    - *Drawdown*: graph showcasing the portfolio's drawdown
-    - *Value at Risk*: Monte Carlo simulations on historical data, with customizable confidence interval and horizon
-- **TRANSACTIONS**: filterable transaction history + CSV export option. There is an Info button describing in detail each column of the CSV report.
+    - **Planned:** *Bond ETFs, Bonds*
+- **ANALYSIS**: portfolio analysis tools. There is an Info button for each tool, describing it.
+    - *Allocation* by asset class and sector
+    - *General statistics*: main portfolio statistics with a chart
+    - *Correlation*: simple correlation between held assets, and rolling correlation between two selected assets
+    - *Drawdown*: calculation and chart of the portfolio's drawdown
+    - *Value at Risk*: Monte Carlo simulation on historical data, with customizable confidence interval and time horizon
+- **TRANSACTIONS**: filterable transaction history + CSV export. There is an Info button describing the columns of the CSV report.
+
+
+## Backups
+
+You can **export and import complete backups** of the application, which include everything: every user, every broker, every main setting.
+
+Since the app is **local-only**, this is the only way to save and transfer your data.
 
 
 ## First Launch
 
-1. **Language selection**: English, Italian
-2. **Account setup**: enter aliases for your brokers (e.g., *Fineco Main, Fineco 2, Directa*). Accounts can be added or removed later from Settings. Existing accounts cannot be renamed.
+**1\. Language selection**: English, Italian
 
-Transactions are saved automatically as they are entered.
+**2a\. Import data from an existing backup**
+
+**2b\.** Or, **account setup**: a new user and the aliases of your brokers (e.g. *Fineco Main, Fineco 2, Directa*). Accounts can be added or removed later from Settings. Existing accounts cannot be renamed.
+
 
 
 ## Installation
@@ -193,11 +208,11 @@ Transactions are saved automatically as they are entered.
 
 ### Manual Installation
 1. Clone the repository
-2. Install packages (requires Python >= 3.11, tested with 3.13):
+2. Install packages (requires Python >= 3.11, tested with 3.13). The versions are pinned as in `pyproject.toml`:
   - `uv`: run `uv sync`
   - `pip`:
 ```sh
-pip install flet flet-charts pandas numpy yfinance python-dateutil
+pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil>=2.8.2"
 ```
 3. (Optional) To test the application:
   - `uv`: `uv run flet run main.py`
