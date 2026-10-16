@@ -28,8 +28,26 @@ EQUITY_PRODUCTS = {Product.STOCK, Product.ETF_STOCK}
 UNCLASSIFIED = "unclassified"
 
 
-def compute_summary(accounts: list[Account], ref_date: date, dt_str: str) -> dict:
+def summary_history(accounts: list[Account], ref_date: date, dt_str: str) -> pd.DataFrame | None:
+    """The portfolio's value day by day, from the first operation of `accounts` to `ref_date`.
+
+    This is the chart of the Statistics tab, and what its TWRR, volatility and
+    Sharpe ratio are computed from (compute_summary). Returns None when no
+    account has an operation on or before `ref_date`. `dt_str` is `ref_date`
+    as the user wrote it, for the error raised when an account has no row up to it.
+    """
+    ref_date = pd.Timestamp(ref_date)
+    first_dates = [first for account in accounts if (first := get_pf_date(account, dt_str, ref_date)[1]) is not None]
+    return portfolio_history(min(first_dates), ref_date, accounts) if first_dates else None
+
+
+def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
+                    pf_history: pd.DataFrame | None = None) -> dict:
     """Statistics of each Account in `accounts` and of all of them together, on `ref_date`.
+
+    `pf_history` is what summary_history returned for the same accounts and
+    day, when it is already known (the chart was drawn first): passing it
+    saves downloading the whole price history again.
 
     Returns dict:
     {
@@ -121,7 +139,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str) -> dic
 
     if first_dates:
         min_date = min(first_dates)
-        pf_history_df = portfolio_history(min_date, ref_date, accounts)
+        pf_history_df = pf_history if pf_history is not None else portfolio_history(min_date, ref_date, accounts)
 
     if accounts_with_positions > 0:
         # XIRR

@@ -182,6 +182,8 @@
       }
     },
     "summary": {
+      "show_chart": "Performance chart",
+      "show_figures": "Portfolio statistics",
       "account_literal": "Account",
       "portfolio_literal": "Portfolio total ",
       "nav": "\n    NAV (on {dt}): {nav:.2f}€",

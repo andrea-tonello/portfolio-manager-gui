@@ -182,6 +182,8 @@
       }
     },
     "summary": {
+      "show_chart": "Grafico di performance",
+      "show_figures": "Statistiche del portafoglio",
       "account_literal": "Conto",
       "portfolio_literal": "Totale Portafoglio ",
       "nav": "\n    NAV (al {dt}): {nav:.2f}€",

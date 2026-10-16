@@ -1,5 +1,6 @@
 """Tests for the inputs of the Analysis tools: their default dates, the checks on dates, tickers,
-windows and the VaR settings, and the Allocation tool calculating by itself (it has no Calculate button).
+windows and the VaR settings, the Allocation tool calculating by itself (it has no Calculate button),
+and the Statistics tool's two cards (chart and figures) sharing what they calculate.
 
 A refused input shows its message, and the calculation doesn't start.
 """
@@ -8,6 +9,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import flet as ft
+import flet_charts as fch
 import pytest
 from conftest import find_controls, snack_texts
 from test_ledger_snapshots import _replay, deposit
@@ -142,3 +144,59 @@ def test_allocation_recalculates_when_another_split_is_picked(app, page, state, 
     texts = [text.value for text in find_controls(tab.result, ft.Text)]
     assert "Stocks and equity ETFs: 60.00€ of 100.00€ (60.0%)" in texts
     assert not dropdown.disabled
+
+
+def test_statistics_chart_and_figures_download_the_price_history_once(app, page, state, monkeypatch):
+    """Each Statistics card shows only its own result, and the slow price history is downloaded once for both.
+
+    The figures shown after the chart reuse its history, and match those
+    calculated from scratch. Going back to the chart downloads nothing; another
+    day does. The cards are greyed out while a result is coming, so a second
+    one can't be started and then be replaced by the first, arriving late.
+    """
+    started = []
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
+    downloads = []
+    real_history = analysis_service.portfolio_history
+    monkeypatch.setattr(analysis_service, "portfolio_history",
+                        lambda *args: downloads.append(args) or real_history(*args))
+
+    def statistics_tab():
+        """A freshly built Analysis screen's Statistics tab, set on 31-12-2024, and its two cards."""
+        view = AnalysisView(app)
+        view.build()
+        [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
+        tab.tool.date.value = date(2024, 12, 31)
+        return tab, *find_controls(tab.content, ft.Card)
+
+    def press(tab, card):
+        """Tap `card`, check the cards are greyed out until its result arrives, and return what is then shown."""
+        [cards] = [row for row in find_controls(tab.content, ft.Row) if card in row.controls]
+        card.content.on_click(None)
+        assert cards.disabled
+        started.pop()()
+        assert not cards.disabled
+        return {"chart": any(find_controls(tab.result, fch.LineChart)),
+                "texts": [text.value for text in find_controls(tab.result, ft.Text)],
+                "export": tab.export_row.visible}
+
+    tab, chart_card, figures_card = statistics_tab()
+    chart = press(tab, chart_card)
+    assert chart["chart"] and chart["export"] and len(downloads) == 1
+    assert not any("Portfolio total" in text for text in chart["texts"])
+
+    figures = press(tab, figures_card)
+    assert not figures["chart"] and not figures["export"]
+    assert any("Portfolio total" in text for text in figures["texts"])
+    assert len(downloads) == 1  # the chart's history was reused
+
+    assert press(tab, chart_card) == chart
+    assert len(downloads) == 1
+
+    tab.tool.date.value = date(2024, 11, 29)
+    press(tab, chart_card)
+    assert len(downloads) == 2
+
+    tab, _, figures_card = statistics_tab()
+    assert press(tab, figures_card)["texts"] == figures["texts"]  # calculated from scratch, same figures
+    assert len(downloads) == 3

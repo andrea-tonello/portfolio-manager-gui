@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from components.background import run_in_background
-from components.buttons import pill_btn
+from components.buttons import action_card_btn, pill_btn
 from components.charts import (
     chart_allocation,
     chart_correlation_heatmap,
@@ -59,13 +59,17 @@ class AnalysisTool:
     Calculate is pressed, read_inputs(), compute() in a background thread,
     and render() and export() on what compute() returned. A tool with
     `auto_calculate` has no Calculate button: it calculates when shown and
-    whenever one of its inputs changes.
+    whenever one of its inputs changes. A tool with `actions` has, instead
+    of the button, one card per action below its inputs. Pressing a card
+    calculates as Calculate does, but compute(), render() and export() get
+    (action, inputs), `action` saying which card it was.
     """
 
     title_key = ""      # translation key of the tool's tab label
     glossary_page = 0   # glossary page the info button opens while the tool is shown
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
+    actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
 
     def __init__(self, page, translator, first_day=None):
         """Keep the page (date pickers and ticker search need it), the translator, and the default start of a period.
@@ -107,8 +111,8 @@ class AnalysisTool:
 
 
 class AnalysisTab:
-    """The frame shared by every Analysis tool: inputs, Calculate button (unless the tool calculates by itself),
-    spinner, result and CSV export."""
+    """The frame shared by every Analysis tool: inputs, Calculate button (or the tool's action cards, or nothing
+    if it calculates by itself), spinner, result and CSV export."""
 
     def __init__(self, page, state, tool, save_csv):
         """Frame `tool`; `save_csv(file_name, csv_bytes)` is how its export is saved (AnalysisView._save_csv)."""
@@ -136,25 +140,43 @@ class AnalysisTab:
             ft.Container(height=20),
         ], spacing=12)
 
-        if self.tool.auto_calculate:
-            # No Calculate button: the spinner turns where the result will appear
-            col.controls.insert(len(self.inputs), ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER))
+        if self.tool.auto_calculate or self.tool.actions:
+            # No Calculate button: the spinner turns where the result will appear, below the cards if any
+            cards = [self._action_cards()] if self.tool.actions else []
+            self._locked_while_calculating = [*self.inputs, *cards]
+            col.controls[len(self.inputs):len(self.inputs)] = [
+                *cards, ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER)]
             self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10)
         else:
+            self._locked_while_calculating = []
             calculate_btn = pill_btn(t.get("components.calculate"), self.submit,
                                      icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, icon_after=True)
             self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10,
                                           button=calculate_btn, loading=self.loading)
         return self.content
 
-    def submit(self, e):
-        """Check the inputs, then calculate and show the result in the background."""
+    def _action_cards(self) -> ft.Row:
+        """The row of the tool's action cards, side by side and equally wide; each calculates its own action."""
+        t = self.state.translator
+        return ft.Row([
+            action_card_btn(icon, t.get(label_key), lambda _, action=action: self.submit(action=action),
+                            padding=15, height=110, expand=True)
+            for action, icon, label_key in self.tool.actions
+        ], spacing=12)
+
+    def submit(self, e=None, action=None):
+        """Check the inputs, then calculate and show the result in the background.
+
+        `action` is the action card pressed, for a tool with cards (see AnalysisTool).
+        """
         t = self.state.translator
         try:
             inputs = self.tool.read_inputs()
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
+        if action is not None:
+            inputs = (action, inputs)
 
         accounts = _accounts_to_analyse(self.state)
         if not accounts:
@@ -188,14 +210,13 @@ class AnalysisTab:
             self.submit(None)
 
     def _lock_inputs(self, locked):
-        """Grey out the inputs of a tool that calculates by itself while it does.
+        """Grey out the inputs (and action cards) of a tool without a Calculate button while it calculates.
 
-        Each change starts a calculation: a second one started while the first
-        runs could finish first, and the older result would then replace it.
+        Each change, or card pressed, starts a calculation: a second one started
+        while the first runs could finish first, and the older result would then replace it.
         """
-        if self.tool.auto_calculate:
-            for control in self.inputs:
-                control.disabled = locked
+        for control in self._locked_while_calculating:
+            control.disabled = locked
 
     def clear(self):
         """Empty the result area and hide the export button."""
@@ -269,20 +290,30 @@ def _format_common_stats(stats, t, dt_str):
     return text
 
 
-def _history(result):
-    """The portfolio's value over time from a statistics result, or None when there is none to draw."""
-    pf_history = result.get("pf_history")
-    if pf_history is not None and not pf_history.empty and result.get("min_date") is not None:
-        return pf_history
-    return None
-
-
 class SummaryTool(AnalysisTool):
-    """Statistics on a date: each account's and the whole portfolio's value, P&L and returns, plus a chart."""
+    """On a date, the chart of the portfolio's value over time, or each account's and the portfolio's figures.
+
+    One card shows the chart, the other the figures (value, P&L, returns).
+    Both need the portfolio's whole price history, the slow part, so the
+    results are kept by day: going back to one already shown, or pressing it
+    again, downloads nothing, and the figures reuse the history of a chart
+    drawn first. They are forgotten with the tool, when the screen is left or
+    another account is picked, so coming back shows fresh prices and operations.
+    """
 
     title_key = "analysis.op_statistics"
     glossary_page = 3
     scroll_prefix = "sum"
+    actions = (
+        ("chart", ft.Icons.AREA_CHART, "analysis.summary.show_chart"),
+        ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
+    )
+
+    def __init__(self, page, translator, first_day=None):
+        """As for every tool, plus the results kept so far, by day."""
+        super().__init__(page, translator, first_day)
+        self._histories = {}  # day -> the chart's history (analysis_service.summary_history)
+        self._figures = {}    # day -> the figures (analysis_service.compute_summary)
 
     def build_inputs(self, on_input_change):
         """A date, today to start with."""
@@ -298,13 +329,29 @@ class SummaryTool(AnalysisTool):
         """The date, if it is given and not in the future."""
         return validate_date(self.date.value)
 
-    def compute(self, accounts, day):
-        """The statistics of `accounts` on `day`."""
-        return analysis_service.compute_summary(accounts, day, day.strftime(DATE_FORMAT))
+    def compute(self, accounts, inputs):
+        """The chart's history ("chart") or the figures ("figures") of `accounts` on the day, kept for next time."""
+        action, day = inputs
+        dt_str = day.strftime(DATE_FORMAT)
+        if action == "figures":
+            if day not in self._figures:
+                figures = analysis_service.compute_summary(accounts, day, dt_str, self._histories.get(day))
+                self._figures[day] = figures
+                self._histories[day] = figures["pf_history"]
+            return self._figures[day]
+        if day not in self._histories:
+            self._histories[day] = analysis_service.summary_history(accounts, day, dt_str)
+        return self._histories[day]
 
-    def render(self, result, day):
-        """One text per account, one in bold for the portfolio, and the chart of its value over time."""
+    def render(self, result, inputs):
+        """The chart of the portfolio's value over time, or one text per account and one in bold for the portfolio."""
         t = self.t
+        action, day = inputs
+        if action == "chart":
+            if result is None or result.empty:
+                return [ft.Text(t.get("analysis.charts.no_data"))]
+            return [chart_summary(t, result)]
+
         dt_str = day.strftime(DATE_FORMAT)
         texts = []
 
@@ -335,17 +382,13 @@ class SummaryTool(AnalysisTool):
             pf_text += t.get("analysis.summary.volatility", volatility=pf["volatility"])
             pf_text += "\n" + t.get("analysis.summary.sharpe_ratio", sharpe_ratio=pf["sharpe_ratio"])
         texts.append(ft.Text(pf_text, size=12, weight=ft.FontWeight.BOLD, selectable=True))
+        return [ft.Column(texts, spacing=5)]
 
-        controls = [ft.Column(texts, spacing=5)]
-        pf_history = _history(result)
-        if pf_history is not None:
-            controls.append(chart_summary(t, pf_history))
-        return controls
-
-    def export(self, result, day):
-        """The portfolio's value over time."""
-        pf_history = _history(result)
-        return None if pf_history is None else ("Portfolio History.csv", _csv_bytes(pf_history))
+    def export(self, result, inputs):
+        """The portfolio's value over time, behind the chart (the figures have nothing to export)."""
+        if inputs[0] != "chart" or result is None or result.empty:
+            return None
+        return "Portfolio History.csv", _csv_bytes(result)
 
 
 # ── Correlation ──────────────────────────────────────────────────────
