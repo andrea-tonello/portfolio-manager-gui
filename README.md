@@ -32,7 +32,7 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
   <tr>
     <td align="center"><br><b>Home, Watchlist</b></td>
     <td align="center"><br><b>Home, Posizioni Aperte</b></td>
-    <td align="center"><br><b>Home (Dark, Hidden data, ENG)</b></td>
+    <td align="center"><br><b>Home Dark, Hidden, ENG</b></td>
     <td align="center"><br><b>Gestione multi-utente</b></td>
   </tr>
   <tr>
