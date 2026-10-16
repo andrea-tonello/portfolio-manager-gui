@@ -1,6 +1,6 @@
 import flet as ft
 
-from components.buttons import action_card_btn, pill_btn, pill_style
+from components.buttons import action_card_btn, mark_card_selected, pill_btn, pill_style
 from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog
@@ -714,12 +714,9 @@ class EtfStockForm:
         now, later = self._buy_fee_choice == "loss", self._buy_fee_choice == "pending"
 
         self._fee_now_text.value = t.get("operations.stock.fee_added", fee=fee) if now else t.get("operations.stock.fee_now")
-        self._fee_now_text.weight = ft.FontWeight.BOLD if now else None
         self._fee_later_text.value = t.get("operations.stock.fee_not_added") if later else t.get("operations.stock.fee_later")
-        self._fee_later_text.weight = ft.FontWeight.BOLD if later else None
-        
-        for card, picked in ((self._fee_now_card, now), (self._fee_later_card, later)):
-            card.content.border = ft.Border.all(4, ft.Colors.PRIMARY) if picked else None
+        mark_card_selected(self._fee_now_card, self._fee_now_text, now)
+        mark_card_selected(self._fee_later_card, self._fee_later_text, later)
         self._sale_fee_text.value = self._sale_fee_message(fee)
 
     def _typed_rate(self):

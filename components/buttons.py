@@ -32,6 +32,16 @@ def action_card_btn(icon, label, on_click, *, padding=20, height=None, **card_kw
     )
 
 
+def mark_card_selected(card, label, selected):
+    """Outline a card from action_card_btn and make its `label` (the ft.Text passed to it) bold, or undo both.
+
+    For cards the user picks one of, e.g. Operations' fee choices: the one
+    picked is outlined, the others are left plain.
+    """
+    card.content.border = ft.Border.all(4, ft.Colors.PRIMARY) if selected else None
+    label.weight = ft.FontWeight.BOLD if selected else None
+
+
 def squircle_add_btn(on_click):
     return ft.FilledButton(
         content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),

@@ -151,8 +151,9 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
 
     The figures shown after the chart reuse its history, and match those
     calculated from scratch. Going back to the chart downloads nothing; another
-    day does. The cards are greyed out while a result is coming, so a second
-    one can't be started and then be replaced by the first, arriving late.
+    day does. Only the card whose result is shown is outlined. The cards are
+    greyed out while a result is coming, so a second one can't be started and
+    then be replaced by the first, arriving late.
     """
     started = []
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
@@ -176,6 +177,7 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
         assert cards.disabled
         started.pop()()
         assert not cards.disabled
+        assert [other.content.border is not None for other in cards.controls] == [other is card for other in cards.controls]
         return {"chart": any(find_controls(tab.result, fch.LineChart)),
                 "texts": [text.value for text in find_controls(tab.result, ft.Text)],
                 "export": tab.export_row.visible}

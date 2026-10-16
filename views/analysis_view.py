@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from components.background import run_in_background
-from components.buttons import action_card_btn, pill_btn
+from components.buttons import action_card_btn, mark_card_selected, pill_btn
 from components.charts import (
     chart_allocation,
     chart_correlation_heatmap,
@@ -121,6 +121,7 @@ class AnalysisTab:
         self.tool = tool
         self._save_csv = save_csv
         self._export = None  # (file name, CSV bytes) of the result shown, when it can be exported
+        self._cards = {}  # action -> (its card, the card's label), for a tool with action cards
 
     def build(self) -> ft.Control:
         """Create the tab's controls around the tool's inputs and return its layout."""
@@ -158,11 +159,17 @@ class AnalysisTab:
     def _action_cards(self) -> ft.Row:
         """The row of the tool's action cards, side by side and equally wide; each calculates its own action."""
         t = self.state.translator
-        return ft.Row([
-            action_card_btn(icon, t.get(label_key), lambda _, action=action: self.submit(action=action),
-                            padding=15, height=110, expand=True)
-            for action, icon, label_key in self.tool.actions
-        ], spacing=12)
+        for action, icon, label_key in self.tool.actions:
+            label = ft.Text(t.get(label_key), text_align=ft.TextAlign.CENTER)
+            card = action_card_btn(icon, label, lambda _, action=action: self.submit(action=action),
+                                   padding=15, height=110, expand=True)
+            self._cards[action] = (card, label)
+        return ft.Row([card for card, _ in self._cards.values()], spacing=12)
+
+    def _select_card(self, chosen):
+        """Outline the card of the `chosen` action, whose result is shown or coming; None leaves every card plain."""
+        for action, (card, label) in self._cards.items():
+            mark_card_selected(card, label, action == chosen)
 
     def submit(self, e=None, action=None):
         """Check the inputs, then calculate and show the result in the background.
@@ -194,6 +201,7 @@ class AnalysisTab:
                 self._lock_inputs(False)
             self._show(self.tool.render(result, inputs), self.tool.export(result, inputs))
 
+        self._select_card(action)
         self._lock_inputs(True)
         run_in_background(self.page, t, calculate, loading=self.loading)
 
@@ -219,8 +227,9 @@ class AnalysisTab:
             control.disabled = locked
 
     def clear(self):
-        """Empty the result area and hide the export button."""
+        """Empty the result area, hide the export button and leave the action cards plain."""
         self._show([], None)
+        self._select_card(None)
 
     def _show(self, controls, export):
         """Put the result's controls in the result area, and offer `export` (file name, CSV bytes) if given."""
