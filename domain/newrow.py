@@ -132,7 +132,11 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
 
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
     total invested value (qt × abp) is preserved. No fees, no P&L, no tax; the
-    pending purchase fees carry over unchanged.
+    pending purchase fees carry over unchanged. Like every other row, it values
+    each asset held at that day's closing price, the split one with its new quantity.
+
+    Example: 5 units at an abp of 105.20, split 2:1 on a day closing at 59.10,
+    become 10 units at 52.60, counting 591 EUR in assets_value.
     """
     asset_rows = holding_rows(df, ticker)
 
@@ -158,8 +162,6 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
     curr = last_row.get("curr", "EUR")
 
     current_liq = float(df["cash_held"].iloc[-1])
-    positions = priced_positions(df, ref_date, exclude_ticker=ticker)
-    asset_value = sum(pos["value"] for pos in positions) + (new_qt * new_abp)
 
     row = base_row()
     row.update({
@@ -177,9 +179,14 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
         "carryforward": round_half_up(float(df["carryforward"].iloc[-1])),
         "pending_fees": pending_fees(asset_rows),
         "cash_held": round_half_up(current_liq),
-        "assets_value": round_half_up(asset_value),
-        "nav": round_half_up(asset_value + current_liq),
         "committed_cash": round_half_up(float(df["committed_cash"].iloc[-1])),
     })
+    new_df = _append_row(df, row)
 
-    return _append_row(df, row)
+    # Priced from the ledger with the row just added, so the split asset counts with its
+    # new quantity. Yahoo's closes are already adjusted for splits, so they match it.
+    asset_value = sum(pos["value"] for pos in priced_positions(new_df, ref_date))
+    new_df.loc[new_df.index[-1], ["assets_value", "nav"]] = [
+        round_half_up(asset_value), round_half_up(asset_value + current_liq),
+    ]
+    return new_df

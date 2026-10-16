@@ -197,3 +197,17 @@ def test_ledger_numbers_survive_reload_between_operations(name, steps, tmp_path,
     # columns differently (qt_exch "+10" -> "10.0", conv_rate "1.000000" -> "1.0").
     in_memory = pd.read_csv(io.StringIO(in_memory.to_csv(index=False)))
     pd.testing.assert_frame_equal(reloaded, in_memory, check_dtype=False)
+
+
+def test_a_split_row_values_the_split_asset_at_that_days_price(tmp_path, fake_market):
+    """A split row's asset value prices every asset at that day's close, the split one included.
+
+    The 2:1 split of AAA.MI on 01-07-2024 leaves 10 units with an average buy
+    price of 52.60, closing at 59.10 that day: 591 EUR, next to 1,182 of
+    BBB.MI. Valued at the average buy price, as it used to be, AAA.MI counted
+    526 and the row stored 1,708 instead of 1,773.
+    """
+    split_row = _replay(STOCKS_EUR[:10], tmp_path).iloc[-1]
+
+    assert (split_row["operation"], split_row["ticker"]) == ("Split", "AAA.MI")
+    assert (split_row["assets_value"], split_row["nav"]) == (1773.0, 10341.28)

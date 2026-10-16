@@ -4,9 +4,6 @@
 - XEON ticker appears when Stocks ETFs is selected
 
 - Update README images
-- [INVESTIGATE] When the user changes an exported file's name, the snackbar still shows the default filename
-
-- [BUG13] in Appendix A
 
 - [BUG14] in Appendix A
 One more question, because of the gain-only rule: what happens to the pending buy fees when an ETF is sold at a loss?

@@ -1,8 +1,9 @@
-## [0.4.3] (2026-XX-XX)
+## [0.4.3] (2026-10-16)
 
 ### Bug Fixes
 
 - Radio options in *Operations → General* now use `ResponsiveRow`, freeing up vertical space
+- Fixed split rows valuing the split asset at cost instead of that day's price
 
 ### Features
 
