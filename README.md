@@ -1,36 +1,71 @@
 # ITA 🇮🇹 (ENG below)
 # Portfolio Manager
 
-Portfolio Manager è un'applicazione GUI multipiattaforma per la gestione ed analisi di portafogli finanziari (azioni ed ETF), pensata per investitori privati che desiderano tracciare in modo dettagliato le proprie operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana.
+Portfolio Manager è un'applicazione per la gestione ed analisi di portafogli finanziari, **nata per risolvere un problema personale: aggregare, in un unico spazio, tutti i propri conti titoli**. Volevo qualcosa che:
 
-Sono inoltre disponibili strumenti di analisi: VaR (Monte Carlo), volatilità/Sharpe ratio, correlazione, drawdown, XIRR e TWRR.
+- Mi evitasse il dover controllare le varie app delle banche una per una
+- Potesse sostituire il classico foglio Excel, poco pratico da telefono e meno intuitivo per gli inesperti
+- Offrisse una suite di analisi di portafoglio completa, aggregando i dati di tutti i miei conti
+- **Considerasse la tassazione e le leggi italiane**
 
-Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobile (Android, iOS), ma supporta anche Linux, macOS, Windows.
+> *E non esiste già?*
+
+- Esiste l'ottimo [Portfolio Performance](https://github.com/portfolio-performance/portfolio), che inizialmente ho provato ad usare, ma che purtroppo non risolve un problema enorme: **la gestione della tassazione italiana, e le logiche di funzionamento dello zainetto fiscale.**
+
+Questa app è dunque pensata per investitori privati che desiderano tracciare in modo dettagliato le proprie operazioni, la liquidità, il calcolo delle plusvalenze/minusvalenze e la gestione dello zainetto fiscale secondo la normativa italiana, oltre a vari tools per analisi dettagliate (dettagli sotto).
+
+Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobile (Android, in futuro iOS), ma supporta anche Linux, macOS, Windows.
 
 
 ## Funzionalità principali
 
 - **Gestione multi-conto**: supporto a più account con alias personalizzabili
-- **Operazioni su liquidità**: depositi, prelievi, dividendi, imposte e commissioni
-- **Operazioni su titoli**: acquisto e vendita di azioni ed ETF, con gestione valuta (EUR/USD), commissioni e TER
-- **Calcolo automatico di**:
-  - Prezzo Medio di Carico (PMC)
-  - Plusvalenze e minusvalenze realizzate e non
-  - Zainetto fiscale con scadenza delle minusvalenze
-  - NAV, liquidità corrente e storica
+- **Operazioni su liquidità**: depositi, prelievi, dividendi, imposte
+- **Operazioni su titoli**: acquisto e vendita di azioni ed ETF, con gestione valuta (EUR/USD), commissioni e TER (supporto alle obbligazioni in arrivo)
 - **Panoramica del portafoglio** con posizioni aperte, P&L e prezzi in tempo reale (Yahoo Finance)
 - **Watchlist** di titoli personalizzabile
-- **Esportazione CSV** delle transazioni con intestazioni localizzate
-- **Strumenti di analisi del rischio** (dettagli sotto)
+- **Lista dei movimenti con esportazione CSV** delle transazioni con campi dettagliati
+- **Strumenti di analisi di portafoglio e di rischio** (dettagli sotto)
 - **Multilingua**: italiano e inglese
 
-| <br>Home                                                                                      | <br>Home (Dark theme, Hidden data, English)                                                  | <br>Settings                                                                                  | <br> |
-| :-:                                                                                           | :-:                                                                                          | :-:                                                                                           | :-: |
-| <p align="center"><img src="./assets/readme/home-light.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/home-dark.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/settings.png" alt="image" width="280"/></p>   |  |
-| <br>**Operations**                                                                            | <br>**Transactions**                                                                         | <br>**Statistics**                                                                            | <br> |
-| <p align="center"><img src="./assets/readme/operations.png" alt="image" width="280"/></p> | <p align="center"><img src="./assets/readme/trans.png" alt="image" width="280"/></p>     | <p align="center"><img src="./assets/readme/statistics.png" alt="image" width="280"/></p> |  |
-| <br>**Correlation**                                                                           | <br>**Drawdown**                                                                             | <br>**Value at Risk**                                                                         | <br> |
-| <p align="center"><img src="./assets/readme/corr.png" alt="image" width="280"/></p>       | <p align="center"><img src="./assets/readme/drawdown.png" alt="image" width="280"/></p>  | <p align="center"><img src="./assets/readme/var.png" alt="image" width="280"/></p>        |  |
+<table>
+  <tr>
+    <td align="center"><br><b>Home, Watchlist</b></td>
+    <td align="center"><br><b>Home, Posizioni Aperte</b></td>
+    <td align="center"><br><b>Home (Dark, Hidden data, ENG)</b></td>
+    <td align="center"><br><b>Gestione multi-utente</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/readme/home-light.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/home-brokerlist.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/home-dark.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/drawer.png" alt="image" width="200"/></td>
+  </tr>
+  <tr>
+    <td align="center"><br><b>Operazioni</b></td>
+    <td align="center"><br><b>Operazioni</b></td>
+    <td align="center"><br><b>Allocazione</b></td>
+    <td align="center"><br><b>Allocazione</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/readme/operations-general.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/operations-stocks.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/alloc-class.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/alloc-sectors.png" alt="image" width="200"/></td>
+  </tr>
+  <tr>
+    <td align="center"><br><b>Lista movimenti</b></td>
+    <td align="center"><br><b>Andamento Portafoglio</b></td>
+    <td align="center"><br><b>Value at Risk</b></td>
+    <td align="center"><br><b>Impostazioni</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="./assets/readme/transac.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/statistics.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/var.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/settings.png" alt="image" width="200"/></td>
+  </tr>
+</table>
 
 
 ## Applicazione
@@ -38,12 +73,13 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
 Quattro schermate principali:
 
 - **HOME**: Panoramica conto, posizioni aperte, watchlist
-- **OPERAZIONI**: Inserimento di nuove transazioni, supporto EUR/USD
+- **OPERAZIONI**: Inserimento di nuove transazioni, supporto EUR/USD. Le transazioni vengono salvate automaticamente ad ogni inserimento.
     - *Liquidità* (depositi, prelievi, dividendi, imposte)
-    - *ETF Azionari* (acquisto/vendita) 
+    - *ETF Azionari, ETF Monetari* (acquisto/vendita) 
     - *Azioni* (acquisto/vendita)
-    - In programma: *ETF Monetari / Obbligazionari, Obbligazioni*
+    - In programma: *ETF Obbligazionari, Obbligazioni*
 - **ANALISI**: strumenti per l'analisi del portafoglio. È presente un tasto Info per ogni strumento, con informazioni a riguardo.
+    - *Allocazione* per asset class e settore
     - *Statistiche generali*: principali statistiche del portafoglio con grafico
     - *Correlazione*: correlazione semplice tra asset in portafoglio e correlazione rolling tra due asset selezionati
     - *Drawdown*: calcolo e grafico del drawdown del portafoglio
@@ -51,12 +87,21 @@ Quattro schermate principali:
 - **TRANSAZIONI**: storico delle transazioni filtrabile + esportazione in tabella CSV. È presente un tasto Info con informazioni riguardo le colonne del report CSV.
 
 
+## Backups
+
+È possibile **esportare ed importare backup** completi dell'applicazione, comprendenti tutto: ogni utente, ogni broker, ogni impostazione principale.
+
+Essendo l'app **local-only**, questo è l'unico modo per salvare e trasferire le proprie informazioni.
+
+
 ## Primo avvio
 
-1. **Scelta della lingua**: Italiano, Inglese
-2. **Setup dei conti**: inserimento degli alias dei propri intermediari (es. *Fineco Principale, Fineco 2, Directa*). I conti possono essere aggiunti o rimossi successivamente dalle impostazioni. Non è possibile rinominare un conto esistente.
+**1\. Scelta della lingua**: Italiano, Inglese
 
-Le transazioni vengono salvate automaticamente ad ogni inserimento.
+**2a\. Importare dati da backup esistente**
+
+**2b\.** Oppure, **Setup dei conti**: nuovo utente ed inserimento degli alias dei propri intermediari (es. *Fineco Principale, Fineco 2, Directa*). I conti possono essere aggiunti o rimossi successivamente dalle impostazioni. Non è possibile rinominare un conto esistente.
+
 
 
 ## Installazione

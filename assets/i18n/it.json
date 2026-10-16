@@ -162,7 +162,7 @@
     "op_allocation": "ALLOCAZIONE",
     "alloc": {
       "group_by": "Raggruppa per",
-      "by_class": "Classe di Asset",
+      "by_class": "Asset Class",
       "by_sector": "Settore",
       "equity_share": "Azioni ed ETF azionari: {equity} su {total} ({pct:.1f}%)",
       "no_equity": "Nessuna azione o ETF azionario in portafoglio",
