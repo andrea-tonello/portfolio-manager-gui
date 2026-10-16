@@ -1,7 +1,7 @@
 # Portfolio Manager
 
-![License](https://img.shields.io/github/license/andrea-tonello/portfolio-manager-gui)
 ![Release](https://img.shields.io/github/v/release/andrea-tonello/portfolio-manager-gui)
+![License](https://img.shields.io/github/license/andrea-tonello/portfolio-manager-gui)
 ![Downloads](https://img.shields.io/github/downloads/andrea-tonello/portfolio-manager-gui/total)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Build](https://github.com/andrea-tonello/portfolio-manager-gui/actions/workflows/build-release.yml/badge.svg)

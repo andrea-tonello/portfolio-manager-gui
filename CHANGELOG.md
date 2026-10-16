@@ -6,6 +6,8 @@
 
 ### Features
 
+- Updated Buy/Sell switch colors to reflect the confirmation button's
+
 
 
 

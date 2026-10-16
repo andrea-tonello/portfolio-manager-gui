@@ -389,10 +389,10 @@ class EtfStockForm:
         self.side_switch = ft.Switch(  # off = buy, on = sell
             value=False, disabled=no_account, on_change=self._on_side_change,
             thumb_color={
-                ft.ControlState.DEFAULT: ft.Colors.PRIMARY,
-                ft.ControlState.SELECTED: ft.Colors.SURFACE,
+                ft.ControlState.DEFAULT: ft.Colors.GREEN_600,
+                ft.ControlState.SELECTED: ft.Colors.RED_500,
             },
-            track_color=ft.Colors.PRIMARY_CONTAINER,
+            track_color=ft.Colors.SECONDARY_CONTAINER,
             track_outline_color=ft.Colors.TRANSPARENT,
             thumb_icon=ft.Icons.ADD,
         )
