@@ -300,7 +300,7 @@
       "backup_title": "Backups",
       "backup_descr": "Export your data to create a backup, or Import from a previous backup. The data includes Application settings and all Account related data.",
       "export_backup": "Export Data",
-      "export_success": "Backup exported as {filename}",
+      "export_success": "Backup exported successfully",
       "import_backup": "Import Data",
       "import_warning": "Backup compatible. By proceeding, you will overwrite existing data.",
       "import_error": "Invalid ZIP file",

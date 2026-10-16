@@ -300,7 +300,7 @@
       "backup_title": "Backup",
       "backup_descr": "Esporta i dati per creare un backup, o Importa da un backup esistente. I dati includono le impostazioni dell'Applicazione e tutti i dati dei Conti.",
       "export_backup": "Esporta Dati",
-      "export_success": "Backup esportato come {filename}",
+      "export_success": "Backup esportato con successo",
       "import_backup": "Importa Dati",
       "import_warning": "Backup compatibile. Procedendo, sovrascriverai i dati esistenti.",
       "import_error": "File ZIP non valido",     

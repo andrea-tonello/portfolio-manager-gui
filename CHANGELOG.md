@@ -7,6 +7,7 @@
 ### Features
 
 - Added **Sector allocation** in *Analysis → Allocation*; now data is auto-fetched on option change (by class/by sector)
+- Backup export message no longer shows a file name the user may have changed
 
 
 

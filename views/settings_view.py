@@ -266,9 +266,10 @@ class SettingsView:
     async def _on_export_backup(self, e):
         t = self.state.translator
         zip_bytes = config_service.export_backup(self.state.config_folder)
-        filename = "portfolio_backup.zip"
-        await save_bytes(self.page, self.file_picker, filename, zip_bytes, "zip",
-                         t.get("settings.account.export_success", filename=filename))
+        # The message names no file: the user may rename it in the save dialog, and on
+        # Android the dialog doesn't say what it was called.
+        await save_bytes(self.page, self.file_picker, "portfolio_backup.zip", zip_bytes, "zip",
+                         t.get("settings.account.export_success"))
 
     async def _on_import_backup(self, e):
         """Restore a backup chosen by the user (see components.backup_import)."""
