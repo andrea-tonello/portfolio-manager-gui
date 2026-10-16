@@ -7,6 +7,7 @@
 ### Features
 
 - Updated Buy/Sell switch colors to reflect the confirmation button's
+- *Analysis → Statistics*: split the visualization of performance graph and text summary into two UI paths instead of having them together
 
 
 
