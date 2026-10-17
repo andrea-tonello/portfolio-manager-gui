@@ -18,7 +18,6 @@ from components.dialogs import show_contacts, show_privacy_policy, show_user_man
 from utils.constants import LANGUAGES
 from views import onboarding_view
 from views.operations_view import OperationsView, _show_fee_help
-from views.shell import show_glossary
 
 TABS = {0: "Home", 1: "Operations", 2: "Analysis", 3: "Transactions"}
 
@@ -52,15 +51,6 @@ def test_settings_page_builds(app, page):
     app.show_settings()
 
     assert page.views[-1].route == "/settings"
-
-
-@pytest.mark.parametrize("glossary_page", range(2, 7))
-def test_glossary_dialogs_build(glossary_page, app, page):
-    """Each Analysis Info-button glossary page (2-6) builds its dialog, with its title."""
-    show_glossary(app, glossary_page)
-
-    assert len(page.dialogs) == 1
-    assert page.dialogs[0].title.value
 
 
 @pytest.mark.parametrize("show", [

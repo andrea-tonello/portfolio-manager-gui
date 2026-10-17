@@ -65,7 +65,7 @@ class AnalysisTool:
     """
 
     title_key = ""      # translation key of the tool's tab label
-    glossary_page = 0   # glossary page the info button opens while the tool is shown
+    glossary = ""       # the info button explains it, while it is shown, with glossary_<glossary>_<language>.txt
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
@@ -251,7 +251,7 @@ class AllocationTool(AnalysisTool):
     """How the portfolio is split today: between cash, stocks and the kinds of ETF (a pie chart), or between sectors."""
 
     title_key = "analysis.op_allocation"
-    glossary_page = 2
+    glossary = "allocation"
     scroll_prefix = "alloc"
     auto_calculate = True  # greet the user with the pie, and switch charts as soon as another split is picked
 
@@ -313,7 +313,7 @@ class SummaryTool(AnalysisTool):
     """
 
     title_key = "analysis.op_statistics"
-    glossary_page = 3
+    glossary = "statistics"
     scroll_prefix = "sum"
     actions = (
         ("chart", ft.Icons.AREA_CHART, "analysis.summary.show_chart"),
@@ -405,7 +405,7 @@ class CorrelationTool(AnalysisTool):
     """How the held assets moved together over a period: all of them at once, or two tickers over a rolling window."""
 
     title_key = "analysis.op_correlation"
-    glossary_page = 4
+    glossary = "correlation"
     scroll_prefix = "corr"
 
     def build_inputs(self, on_input_change):
@@ -522,7 +522,7 @@ class DrawdownTool(AnalysisTool):
     """The portfolio's largest fall from a peak (maximum drawdown) over a period, with its chart."""
 
     title_key = "analysis.op_drawdown"
-    glossary_page = 5
+    glossary = "drawdown"
     scroll_prefix = "dd"
 
     def build_inputs(self, on_input_change):
@@ -579,7 +579,7 @@ class VarTool(AnalysisTool):
     """Value at Risk: the loss not exceeded with the given confidence over the next days, by Monte Carlo simulation."""
 
     title_key = "analysis.op_var"
-    glossary_page = 6
+    glossary = "var"
     scroll_prefix = "var"
 
     def build_inputs(self, on_input_change):
@@ -630,7 +630,7 @@ class VarTool(AnalysisTool):
         return "VaR Monte Carlo.csv", _csv_bytes(pd.DataFrame({"Scenario Return": result["scenario_return"]}))
 
 
-# The tools, in tab order. The info button opens the glossary page of the one shown.
+# The tools, in tab order. The info button opens the glossary of the one shown.
 TOOLS = (AllocationTool, SummaryTool, CorrelationTool, DrawdownTool, VarTool)
 
 

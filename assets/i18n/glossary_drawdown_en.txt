@@ -1,0 +1,4 @@
+### Drawdown
+Measures the percentage decline in the value of the portfolio (or an asset) from its historic peak to the subsequent minimum.
+
+Maximum Drawdown, specifically, reports the largest difference.

@@ -411,42 +411,10 @@
 
   "glossary": {
     "columns_title": "Descrizione delle colonne dei report",
-    "page_2": {
-      "title": "Allocazione Asset",
-      "class_title": "Per Classe",
-      "class_descr": "Allocazione degli asset in base alla loro classe di appartenenza (Azioni, Liquidità, ETF...)",
-      "region_title": "Per Area Geografica",
-      "region_descr": "Coming soon",
-      "sector_title": "Per Settore",
-      "sector_descr": "Come si dividono tra i settori economici (Tecnologia, Servizi Finanziari...) le azioni e gli ETF azionari che possiedi oggi. Un ETF conta nei settori delle aziende che contiene. ETF obbligazionari, ETF monetari e liquidità non hanno un settore, quindi sono esclusi. I dati sui settori provengono da Yahoo Finance."
-    },
-    "page_3": {
-      "title": "Informazioni sugli strumenti statistici",
-      "xirr_title": "XIRR (Extended Internal Rate of Return)",
-      "xirr_descr": "L'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante utilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.\nUtile a misurare il proprio rendimento personale, tenendo conto delle scelte di investimento e disinvestimento.\n",
-      "twrr_title": "TWRR (Time-Weighted Rate of Return)",
-      "twrr_descr": "Si concentra sul rendimento degli asset e non sul rendimento effettivo dell'investitore (in pratica, escludendo i flussi di cassa).\nIl calcolo si basa sulla media geometrica dei rendimenti di tutti i sottoperiodi in cui è suddiviso l'investimento (es. giornaliero, mensile).\nUtile nel confronto di performance con benchmark/indici o nella misurazione di statistiche, quali lo Sharpe Ratio.\n",
-      "volatility_title": "Volatilità",
-      "volatility_descr": "Deviazione standard dei rendimenti su un determinato periodo di tempo.\n",
-      "sharpe_ratio_title": "Sharpe Ratio",
-      "sharpe_ratio_descr": "Misura la performance di un investimento confrontato con un asset \"risk-free\" (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).\nSi calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata excess returns, diviso la deviazione standard degli excess returns."
-    },
-    "page_4": {
-      "title": "Analisi della Correlazione",
-      "corr_simple_title": "Correlazione Semplice",
-      "corr_simple_descr": "Misura, tramite un coefficiente compreso tra -1 ed 1, quanto due asset siano correlati tra loro in un dato momento.\n+1: i due asset sono positivamente correlati: all'aumentare di uno, aumenta l'altro.\n0: i due asset sono perfettamente decorrelati, non si influenzano a vicenda.\n-1: i due asset sono negativamente correlati: all'aumento di uno, diminuisce l'altro.\n",
-      "corr_roll_title": "Correlazione Scorrevole (Rolling)",
-      "corr_roll_descr": "È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni).\nInoltre, viene applicata una media mobile con intervallo specificato (in giorni); si consiglia 100-150 giorni per storici superiori a 2 anni, 20-60 altrimenti.\nOffre una misura di cambiamento della correlazione tra due asset nel tempo."  
-    },
-    "page_5": {
-      "title": "Analisi del Drawdown",
-      "drawdown_title": "Drawdown",
-      "drawdown_descr": "Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.\nIl Maximum Drawdown, in particolare, riporta la differenza maggiore."
-    },
-    "page_6": {
-      "title": "Value at Risk",
-      "var_title": "Value at Risk del Portafoglio (VaR)",
-      "var_descr": "Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza. Più l'orizzonte è lungo, meno attendibili saranno i risultati.\nL'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni."
-    }
+    "allocation_title": "Allocazione Asset",
+    "statistics_title": "Informazioni sugli strumenti statistici",
+    "correlation_title": "Analisi della Correlazione",
+    "drawdown_title": "Analisi del Drawdown",
+    "var_title": "Value at Risk"
   }
 }

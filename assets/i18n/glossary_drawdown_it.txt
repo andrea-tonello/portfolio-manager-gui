@@ -1,0 +1,4 @@
+### Drawdown
+Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.
+
+Il Maximum Drawdown, in particolare, riporta la differenza maggiore.

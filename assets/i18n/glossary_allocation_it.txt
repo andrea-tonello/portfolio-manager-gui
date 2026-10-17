@@ -1,0 +1,7 @@
+### Per Classe
+Allocazione degli asset in base alla loro classe di appartenenza (Azioni, Liquidità, ETF...)
+
+### Per Settore
+Per settori economici GICS. Solo Azioni ed ETF azionari, che possiedi oggi. 
+
+I dati sui settori provengono da Yahoo Finance.

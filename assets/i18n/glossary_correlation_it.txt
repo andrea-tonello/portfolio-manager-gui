@@ -1,0 +1,13 @@
+### Correlazione Semplice
+Misura, tramite un coefficiente compreso tra -1 ed 1, quanto due asset siano correlati tra loro in un dato momento.
+
+- **+1:** i due asset sono positivamente correlati: all'aumentare di uno, aumenta l'altro.
+- **0:** i due asset sono perfettamente decorrelati, non si influenzano a vicenda.
+- **-1:** i due asset sono negativamente correlati: all'aumento di uno, diminuisce l'altro.
+
+### Correlazione Scorrevole (Rolling)
+È calcolata in maniera analoga alla precedente, ma lungo un intervallo di tempo prestabilito (es. 5 anni).
+
+Inoltre, viene applicata una media mobile con intervallo specificato (in giorni); si consiglia 100-150 giorni per storici superiori a 2 anni, 20-60 altrimenti.
+
+Offre una misura di cambiamento della correlazione tra due asset nel tempo.

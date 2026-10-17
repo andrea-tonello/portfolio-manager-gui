@@ -179,14 +179,6 @@ def test_changing_language_in_settings_shows_settings_again_translated(app, page
     assert page.views[-1].appbar.title.value == "Impostazioni"
 
 
-def test_translator_section_returns_a_group_of_messages():
-    """Translator.section gives the messages under a key as a dict, or {} for a key that doesn't exist."""
-    t = Translator("en")
-
-    assert t.section("glossary.page_2")["title"]
-    assert t.section("glossary.no_such_page") == {}
-
-
 def test_translator_longer_text_falls_back_to_english(tmp_path):
     """A longer text (<name>_<language>.txt) missing in the user's language is read in English; missing in both, None."""
     (tmp_path / "both_it.txt").write_text("In italiano", encoding="utf-8")

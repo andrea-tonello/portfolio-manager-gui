@@ -1,0 +1,7 @@
+### By Class
+Allocation describing the classes of your assets (Stocks, Cash, ETFs...)
+
+### By Sector
+By GICS sectors. This only applies to Stocks and equity ETFs you hold today.
+
+Sector data comes from Yahoo Finance.

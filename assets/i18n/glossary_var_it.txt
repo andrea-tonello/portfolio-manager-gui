@@ -1,0 +1,4 @@
+### Value at Risk del Portafoglio (VaR)
+Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza. Più l'orizzonte è lungo, meno attendibili saranno i risultati.
+
+L'implementazione qui utilizzata si basa su metodo Monte Carlo, utilizzando dati storici per le stime dei ritorni.

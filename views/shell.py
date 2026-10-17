@@ -46,10 +46,9 @@ TABS = (
     TabSpec("nav.home", ft.Icons.HOME_OUTLINED, ft.Icons.HOME, HomeView),
     TabSpec("nav.operations", ft.Icons.SWAP_HORIZ, None, OperationsView),
     TabSpec("nav.analysis", ft.Icons.ANALYTICS_OUTLINED, ft.Icons.ANALYTICS, AnalysisView,
-            show_info=lambda app: show_glossary(app, ANALYSIS_TOOLS[app.state.analysis_tab_index].glossary_page)),
+            show_info=lambda app: show_glossary(app, ANALYSIS_TOOLS[app.state.analysis_tab_index].glossary)),
     TabSpec("nav.transactions", ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, TransactionsView,
-            show_info=lambda app: show_text_dialog(app.page, app.state.translator, "glossary.columns_title",
-                                                   "glossary_columns", md_style_sheet=GLOSSARY_STYLE)),
+            show_info=lambda app: show_glossary(app, "columns")),  # what each column of the table means
 )
 
 # Where Home is in TABS: the app opens on it, and its app bar shows the user's name.
@@ -294,34 +293,14 @@ def show_settings(app):
     page.update()
 
 
-def show_glossary(app, page_num):
-    """Show glossary page `page_num` (2-6) of the locale file, explaining the terms of an Analysis tool."""
-    page = app.page
-    page_data = app.state.translator.section(f"glossary.page_{page_num}")
+def show_glossary(app, name):
+    """Show the glossary `name`, explaining the terms used on a screen: its title and glossary_<name>_<language>.txt.
 
-    controls = []
-    has_title = False
-    for key, value in page_data.items():
-        if key == "title":
-            continue
-        if key.endswith("_title"):
-            padding = ft.Padding.only(top=10) if has_title else None
-            controls.append(ft.Container(
-                ft.Text(value, size=13, weight=ft.FontWeight.BOLD),
-                padding=padding,
-            ))
-            has_title = True
-        else:
-            controls.append(ft.Text(value, size=12, selectable=True))
-    dlg = ft.AlertDialog(
-        title=ft.Text(page_data.get("title", "")),
-        content=ft.Container(
-            content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
-        height=320 if page_num in [3, 4] else 150,
-        width=550),
-        actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
-    )
-    page.show_dialog(dlg)
+    The title is "glossary.<name>_title" in the locale file.
+    Example: show_glossary(app, "var") explains the Value at Risk tool.
+    """
+    show_text_dialog(app.page, app.state.translator, f"glossary.{name}_title", f"glossary_{name}",
+                     md_style_sheet=GLOSSARY_STYLE)
 
 
 def _on_nav_change(app, e):

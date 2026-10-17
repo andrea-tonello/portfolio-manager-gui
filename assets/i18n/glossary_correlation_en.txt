@@ -1,0 +1,13 @@
+### Simple Correlation
+Measures, via a coefficient between -1 and 1, how correlated two assets are at a given moment.
+
+- **+1:** the two assets are positively correlated: as one increases, the other increases too.
+- **0:** the two assets are perfectly uncorrelated, they do not affect each other.
+- **-1:** the two assets are negatively correlated: as one increases, the other decreases.
+
+### Rolling Correlation
+Calculated similarly to the previous one, but over a pre-established time interval (e.g., 5 years); furthermore, a rolling average with a specified interval (in days) is applied.
+
+This interval is recommended to be 100-150 for a history greater than 2 years, 20-60 otherwise.
+
+Offers a measure of how the correlation between two assets changes over time.

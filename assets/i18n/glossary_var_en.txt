@@ -1,0 +1,4 @@
+### Portfolio Value at Risk (VaR)
+Maximum expected loss over a specified time horizon in days, given a confidence interval. The higher the number of projected days, the less reliable the results.
+
+The implementation used here is based on the Monte Carlo method, using historical data for return estimates.

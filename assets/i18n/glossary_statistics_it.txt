@@ -1,0 +1,19 @@
+### XIRR (Extended Internal Rate of Return)
+L'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante utilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.
+
+Utile a misurare il proprio rendimento personale, tenendo conto delle scelte di investimento e disinvestimento.
+
+### TWRR (Time-Weighted Rate of Return)
+Si concentra sul rendimento degli asset e non sul rendimento effettivo dell'investitore (in pratica, escludendo i flussi di cassa).
+
+Il calcolo si basa sulla media geometrica dei rendimenti di tutti i sottoperiodi in cui è suddiviso l'investimento (es. giornaliero, mensile).
+
+Utile nel confronto di performance con benchmark/indici o nella misurazione di statistiche, quali lo Sharpe Ratio.
+
+### Volatilità
+Deviazione standard dei rendimenti su un determinato periodo di tempo.
+
+### Sharpe Ratio
+Misura la performance di un investimento confrontato con un asset "risk-free" (ad esempio un tasso d'interesse di prestiti statali AAA a breve scadenza).
+
+Si calcola come la differenza tra i ritorni dell'investimento ed i ritorni risk-free, chiamata *excess returns*, diviso la deviazione standard degli excess returns.

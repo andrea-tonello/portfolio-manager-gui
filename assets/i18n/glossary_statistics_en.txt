@@ -1,0 +1,19 @@
+### XIRR (Extended Internal Rate of Return)
+A type of Return. The IRR is a numerical method to calculate the Internal Rate of Return of a series of cash flows (inflows and outflows); XIRR is a variant used when flows occur at irregular time intervals. It is calculated as the rate that zeros the Net Present Value (NPV) of all flows.
+
+Useful for measuring personal performance, taking into account investment and divestment choices.
+
+### TWRR (Time-Weighted Rate of Return)
+A type of Return. Focuses on the return of the assets and not the effective return of the investor (essentially excluding cash flows).
+
+The calculation is based on the geometric mean of returns of all sub-periods into which the investment is divided (e.g., daily, monthly).
+
+Useful for comparing performance with benchmarks/indices or measuring statistics such as the Sharpe Ratio.
+
+### Volatility
+Standard deviation of returns over a specific time period.
+
+### Sharpe Ratio
+Measures the performance of an investment compared to a "risk-free" asset (e.g., AAA short-term government bonds' interest rate).
+
+It is calculated as the difference between investment returns and risk-free returns, called *excess returns*, divided by the standard deviation of excess returns.

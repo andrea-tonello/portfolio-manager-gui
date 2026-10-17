@@ -411,42 +411,10 @@
 
   "glossary": {
     "columns_title": "Description of the report entries",
-    "page_2": {
-      "title": "Asset Allocation",
-      "class_title": "By Class",
-      "class_descr": "Allocation describing the classes of your assets (Stocks, Cash, ETFs...)",
-      "region_title": "By Region",
-      "region_descr": "Coming soon",
-      "sector_title": "By Sector",
-      "sector_descr": "How the stocks and equity ETFs you hold today split between business sectors (Technology, Financial Services...). An ETF counts in the sectors of the companies it holds. Bond and money-market ETFs and cash have no sector, so they are left out. Sector data comes from Yahoo Finance."
-    },
-    "page_3": {
-      "title": "Portfolio Statistics",
-      "xirr_title": "XIRR (Extended Internal Rate of Return)",
-      "xirr_descr": "A type of Return. The IRR is a numerical method to calculate the Internal Rate of Return of a series of cash flows (inflows and outflows); XIRR is a variant used when flows occur at irregular time intervals. It is calculated as the rate that zeros the Net Present Value (NPV) of all flows.\nUseful for measuring personal performance, taking into account investment and divestment choices.\n",
-      "twrr_title": "TWRR (Time-Weighted Rate of Return)",
-      "twrr_descr": "A type of Return. Focuses on the return of the assets and not the effective return of the investor (essentially excluding cash flows).\nThe calculation is based on the geometric mean of returns of all sub-periods into which the investment is divided (e.g., daily, monthly).\nUseful for comparing performance with benchmarks/indices or measuring statistics such as the Sharpe Ratio.\n",
-      "volatility_title": "Volatility",
-      "volatility_descr": "Standard deviation of returns over a specific time period.\n",
-      "sharpe_ratio_title": "Sharpe Ratio",
-      "sharpe_ratio_descr": "Measures the performance of an investment compared to a \"risk-free\" asset (e.g., AAA short-term government bonds' interest rate).\nIt is calculated as the difference between investment returns and risk-free returns, called excess returns, divided by the standard deviation of excess returns."
-    },
-    "page_4": {
-      "title": "Correlation Analysis",
-      "corr_simple_title": "Simple Correlation",
-      "corr_simple_descr": "Measures, via a coefficient between -1 and 1, how correlated two assets are at a given moment.\n+1: the two assets are positively correlated: as one increases, the other increases too.\n0: the two assets are perfectly uncorrelated, they do not affect each other.\n-1: the two assets are negatively correlated: as one increases, the other decreases.\n",
-      "corr_roll_title": "Rolling Correlation",
-      "corr_roll_descr": "Calculated similarly to the previous one, but over a pre-established time interval (e.g., 5 years); furthermore, a rolling average with a specified interval (in days) is applied.\nThis interval is recommended to be 100-150 for a history greater than 2 years, 20-60 otherwise.\nOffers a measure of how the correlation between two assets changes over time."
-    },
-    "page_5": {
-      "title": "Drawdown Analysis",
-      "drawdown_title": "Drawdown",
-      "drawdown_descr": "Measures the percentage decline in the value of the portfolio (or an asset) from its historic peak to the subsequent minimum.\nMaximum Drawdown, specifically, reports the largest difference."
-    },
-    "page_6": {
-      "title": "Value at Risk",
-      "var_title": "Portfolio Value at Risk (VaR)",
-      "var_descr": "Maximum expected loss over a specified time horizon in days, given a confidence interval. The higher the number of projected days, the less reliable the results.\nThe implementation used here is based on the Monte Carlo method, using historical data for return estimates."
-    }
+    "allocation_title": "Asset Allocation",
+    "statistics_title": "Portfolio Statistics",
+    "correlation_title": "Correlation Analysis",
+    "drawdown_title": "Drawdown Analysis",
+    "var_title": "Value at Risk"
   }
 }

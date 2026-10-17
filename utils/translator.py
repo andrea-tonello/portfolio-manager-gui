@@ -45,13 +45,3 @@ class Translator:
             except FileNotFoundError:
                 pass
         return None
-
-    def section(self, key):
-        """Return the group of messages under `key` as a dict, in file order; {} if there is no such group.
-
-        Example: section("glossary.page_2") -> {"title": "Asset Allocation", "class_title": "By Class", ...}
-        """
-        value = self.strings
-        for part in key.split("."):
-            value = value.get(part) if isinstance(value, dict) else None
-        return value if isinstance(value, dict) else {}
