@@ -10,8 +10,8 @@ dependencies = [
     # so pinning keeps the phone app on the same versions the tests run.
     # flet-charts must match the flet version exactly. See REFACTORING.md Q4.
     # numpy/pandas: the newest builds Flet's mobile package index offers for Android.
-    "flet==1.0.3",
-    "flet-charts==1.0.3",
+    "flet==1.0.4",
+    "flet-charts==1.0.4",
     "numpy==2.4.6",
     "pandas==3.0.3",
     "python-dateutil>=2.8.2",
@@ -75,10 +75,6 @@ package_files = [
 
 [tool.flet.flutter.pubspec.dependency_overrides]
 connectivity_plus = "7.0.0"
-# Flet 1.0.3's build template pins jni 1.0.0, but jni_flutter 1.0.4 (released
-# 2026-10-01) only works with jni >= 1.1, which breaks Android builds. 1.0.3 is the
-# version Flet 1.0.3 shipped with. Remove when moving to a Flet version that fixes it.
-jni_flutter = "1.0.3"
 
 [tool.flet.android]
 target_arch = ["arm64-v8a"]
