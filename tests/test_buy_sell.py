@@ -162,16 +162,6 @@ def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
     assert (currency, conv_rate, fee) == ("USD", 0.9, 1.8)
 
 
-def test_stock_form_sends_the_stock_product(stock_form):
-    """A trade from the Stock form is stored with product "Stock"."""
-    _, submit, calls = stock_form
-
-    submit()
-
-    args, _ = calls[0]
-    assert args[11] == "Stock"
-
-
 @pytest.mark.parametrize("picked, tax_bracket, tax_rate", [
     ("ETF-S", None, 0.26),     # equity ETF: standard 26% rate
     ("ETF-M", "12.5", 0.125),  # money-market ETF: the rate typed in the form

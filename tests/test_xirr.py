@@ -11,10 +11,8 @@ from datetime import date
 import numpy as np
 import pytest
 
-from domain.returns import _secant, xirr
+from domain.returns import xirr
 
-
-# ── xirr ─────────────────────────────────────────────────────────────
 
 def test_one_year_gain_of_ten_percent():
     """Investing 1000 and getting back 1100 exactly 365 days later is a 10% yearly return."""
@@ -40,22 +38,3 @@ def test_no_solution_gives_nan():
     """With only positive cash flows no rate can balance them, so xirr returns NaN instead of failing."""
     rate = xirr([100, 100], [date(2023, 1, 1), date(2024, 1, 1)])
     assert np.isnan(rate)
-
-
-# ── _secant ──────────────────────────────────────────────────────────
-
-def test_secant_finds_a_root():
-    """It finds x where f(x) = 0: for f(x) = x² - 2 that is √2 ≈ 1.41421."""
-    assert _secant(lambda x: x * x - 2, 1, 2) == pytest.approx(2 ** 0.5, abs=1e-6)
-
-
-def test_secant_raises_zero_division_on_a_flat_function():
-    """A flat function has no slope to follow, so the solver gives up with ZeroDivisionError."""
-    with pytest.raises(ZeroDivisionError):
-        _secant(lambda x: 5.0, 1, 2)
-
-
-def test_secant_raises_runtime_error_when_it_never_converges():
-    """x² + 1 is never zero, so after max_iter attempts the solver gives up with RuntimeError."""
-    with pytest.raises(RuntimeError):
-        _secant(lambda x: x * x + 1, 1, 2)

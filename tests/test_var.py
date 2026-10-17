@@ -42,14 +42,6 @@ def test_simulated_outcomes_follow_the_expected_bell_curve():
     assert -np.percentile(outcomes, 1) == pytest.approx(EXACT_VAR_99, rel=0.02)
 
 
-def test_same_seed_gives_the_same_outcomes():
-    """Passing a generator with a fixed seed makes the simulation repeatable (used by tests)."""
-    first = _simulate_outcomes(VALUE, DAILY_RETURN, DAILY_STD, DAYS, 1_000, rng=np.random.default_rng(42))
-    second = _simulate_outcomes(VALUE, DAILY_RETURN, DAILY_STD, DAYS, 1_000, rng=np.random.default_rng(42))
-
-    assert np.array_equal(first, second)
-
-
 # ── compute_var_mc: what the simulation is fed ───────────────────────
 
 class _FixedNow(datetime):

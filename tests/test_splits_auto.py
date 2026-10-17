@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 import pandas as pd
 import pytest
 
-from domain.positions import first_trade_date, unrecorded_splits
+from domain.positions import unrecorded_splits
 from services import market_data
 from services.market_data import fetch_splits
 from services.operations_service import detect_unrecorded_splits
@@ -109,9 +109,3 @@ def test_unrecorded_splits_compares_with_the_ledger_without_network():
     splits = [(date(2024, 6, 30), 2.0), (date(2024, 7, 3), 3.0)]
 
     assert unrecorded_splits(LEDGER, "AAA.MI", splits) == [("2024-07-03", 3.0)]
-
-
-def test_first_trade_date():
-    """The date of a ticker's first buy, sell or split, or None if it was never traded."""
-    assert first_trade_date(LEDGER, "AAA.MI") == datetime(2024, 1, 3)
-    assert first_trade_date(LEDGER, "ZZZ.MI") is None

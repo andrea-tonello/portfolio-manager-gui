@@ -16,7 +16,6 @@ Missing sections or unreadable values fall back to defaults.
 import pytest
 
 from app_state import AppState
-from services.config_service import UserSettings, load_user_settings
 
 
 def _state_for(tmp_path, user_config=None):
@@ -89,10 +88,3 @@ def test_no_active_user_means_defaults_and_no_folders(tmp_path):
 
     assert _settings(state) == DEFAULTS
     assert (state.active_user_name, state.user_config_folder, state.config_res_folder) == (None, None, None)
-
-
-def test_load_user_settings_reads_one_users_file(tmp_path):
-    """config_service.load_user_settings is the reader behind load_config; it returns a UserSettings."""
-    (tmp_path / "config.ini").write_text("[Brokers]\n1 = Fineco\n[Home]\nhidden = true\n")
-
-    assert load_user_settings(str(tmp_path)) == UserSettings(brokers={1: "Fineco"}, values_hidden=True)

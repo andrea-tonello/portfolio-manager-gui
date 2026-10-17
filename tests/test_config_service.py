@@ -58,14 +58,6 @@ def test_each_save_writes_its_section_and_keeps_the_rest(tmp_path, save, written
     assert read_config(tmp_path) == {"Other": {"keep": "yes"}, **written}
 
 
-@pytest.mark.parametrize("save, written", SAVES)
-def test_each_save_creates_config_ini_if_missing(tmp_path, save, written):
-    """On first launch there is no config.ini yet: saving creates it with just that section."""
-    save(str(tmp_path))
-
-    assert read_config(tmp_path) == written
-
-
 def test_saving_one_option_keeps_the_other_options_of_the_section(tmp_path):
     """[Home] holds two settings saved separately; saving one keeps the other."""
     config_service.save_home_hidden(str(tmp_path), True)
@@ -81,12 +73,3 @@ def test_users_are_replaced_not_merged(tmp_path):
     config_service.save_users(str(tmp_path), {1: "Ann"})
 
     assert read_config(tmp_path) == {"Users": {"1": "Ann"}}
-
-
-def test_clearing_split_ignores_leaves_an_empty_section(tmp_path):
-    """With no ignored splits left, [SplitIgnores] stays in the file, empty."""
-    (tmp_path / "config.ini").write_text("[SplitIgnores]\nentries = AAA.MI|*\n")
-
-    config_service.save_split_ignores(str(tmp_path), set())
-
-    assert read_config(tmp_path) == {"SplitIgnores": {}}

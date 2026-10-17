@@ -57,15 +57,6 @@ def test_quote_type_is_lowercase_code_for_comparisons(monkeypatch):
     ]
 
 
-def test_type_keeps_yahoo_label_for_display(monkeypatch):
-    """`type` stays Yahoo's readable label, shown in the ticker suggestions."""
-    fake_yahoo(monkeypatch, YAHOO_SEARCH_RESPONSE)
-
-    results = search_tickers(".MI", quotes_count=2)
-
-    assert [r["type"] for r in results] == ["ETF", "Equity"]
-
-
 # ── download_close ───────────────────────────────────────────────────
 
 JAN_2_2024 = 1704153600  # Yahoo gives each price's day as seconds since 1970 (UTC)

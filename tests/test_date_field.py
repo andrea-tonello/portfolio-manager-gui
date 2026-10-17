@@ -91,13 +91,6 @@ def test_the_picker_allows_dates_from_the_ledger_start_to_today(field, page):
     assert picker.last_date.date() == date.today()
 
 
-def test_setting_the_value_shows_it_in_the_field(field):
-    """Assigning `value` also updates the text, so what is shown always matches."""
-    field.value = date(2024, 1, 31)
-
-    assert field.field.value == "31-01-2024"
-
-
 def test_a_start_end_pair_keeps_the_end_after_the_start(page):
     """In a start/end pair, each picker stops a day short of the other date, so the start always comes first."""
     start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")

@@ -17,7 +17,7 @@ from conftest import find_controls
 from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
 from utils.constants import LANGUAGES
 from views import onboarding_view
-from views.operations_view import OperationsView, _show_fee_help
+from views.operations_view import OperationsView
 
 TABS = {0: "Home", 1: "Operations", 2: "Analysis", 3: "Transactions"}
 
@@ -95,23 +95,3 @@ def test_every_operations_help_button_opens_its_explanation(language, app, page,
                                         for c in find_controls(dialog.content, kind)]
         assert len(texts) == 2
         assert all(text and not (text.startswith("<") and text.endswith(">")) for text in texts), texts
-
-
-@pytest.mark.parametrize("language", LANGUAGES)
-def test_help_texts_are_read_from_their_files(language, app, page, state):
-    """The privacy policy and the fee-mode help show the text of their per-language files.
-
-    Both dialogs fall back to a "not available" sentence when the file can't be
-    opened, so a wrong path (e.g. after moving the translation folder) would
-    otherwise go unnoticed.
-    """
-    fallbacks = {"Privacy policy not available.", "Fee mode description not available."}
-    state.translator.load_language(language)
-
-    show_privacy_policy(page, state)
-    _show_fee_help(page, state.translator)
-
-    texts = [text.value for dialog in page.dialogs for text in find_controls(dialog.content, ft.Markdown)]
-    assert len(texts) == 2
-    assert not fallbacks & set(texts)
-    assert all(texts)

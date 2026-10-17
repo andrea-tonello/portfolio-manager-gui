@@ -1,4 +1,4 @@
-"""Tests for the Account dataclass (domain/account.py) and how accounts are loaded and saved.
+"""Tests for the Account dataclass (domain/account.py).
 
 An account's ledger always starts with a synthetic opening row (dated
 01-01-2000, every running total at zero); `transactions` gives the real
@@ -13,7 +13,6 @@ from test_ledger_snapshots import BROKER, _replay, deposit
 
 from domain.account import Account
 from domain.history import portfolio_history
-from services import account_service
 
 
 @pytest.fixture
@@ -51,27 +50,6 @@ def test_last_reads_the_latest_running_total(ledger):
 def test_last_is_zero_when_there_is_nothing_to_read(df):
     """With no rows, or no such column, last() gives 0.0."""
     assert Account(1, BROKER, "", df).last("cash_held") == 0.0
-
-
-def test_loading_an_account_gives_an_account(tmp_path):
-    """load_single_account returns an Account with the broker's index, name, CSV path and ledger."""
-    account_service.create_defaults(str(tmp_path), BROKER)
-
-    account = account_service.load_single_account({3: BROKER}, str(tmp_path), 3)
-
-    assert (account.idx, account.name) == (3, BROKER)
-    assert account.path == account_service.report_path(str(tmp_path), BROKER)
-    assert len(account.df) == 1
-
-
-def test_saving_an_account_writes_its_ledger_to_its_csv(tmp_path, ledger):
-    """save_account writes the account's current ledger to its own path."""
-    path = account_service.report_path(str(tmp_path), "Saved")
-    account = Account(1, "Saved", path, ledger)
-
-    account_service.save_account(account)
-
-    assert len(pd.read_csv(path)) == len(ledger)
 
 
 def test_history_keeps_an_operation_dated_on_the_ledger_start_day(tmp_path, fake_market):

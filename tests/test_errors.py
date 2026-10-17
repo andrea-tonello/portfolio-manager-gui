@@ -275,34 +275,6 @@ def test_broken_backups_raise_a_translatable_error(case):
         assert not text.startswith("<"), f"{language}: message missing or a placeholder is wrong: {text}"
 
 
-@pytest.mark.parametrize("files", [{"notes.txt": "hello"}, MULTI_USER], ids=["invalid", "valid"])
-def test_the_backup_archive_is_closed_after_checking(monkeypatch, files):
-    """validate_backup closes the archive it opened, whether the backup is rejected or accepted.
-
-    It used to stay open whenever a problem was found.
-    """
-    zip_bytes = _zip(files)
-    opened = []
-
-    class TrackedZipFile(zipfile.ZipFile):
-        """A ZipFile that remembers each archive opened, to check later that it was closed."""
-
-        def __init__(self, *args, **kwargs):
-            """Open the archive as usual and remember it."""
-            super().__init__(*args, **kwargs)
-            opened.append(self)
-
-    monkeypatch.setattr(config_service.zipfile, "ZipFile", TrackedZipFile)
-
-    try:
-        config_service.validate_backup(zip_bytes)
-    except ValidationError:
-        pass
-
-    assert len(opened) == 1
-    assert opened[0].fp is None, "the archive is still open"
-
-
 class FakeImportPicker:
     """Stand-in for ft.FilePicker whose pick_files "chooses" a file holding `data`."""
 

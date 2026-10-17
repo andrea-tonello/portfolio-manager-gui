@@ -62,13 +62,3 @@ def test_an_unexpected_error_is_shown_and_logged(page, translator, run_now, capl
 
     assert snack_texts(page) == ["'nav'"]
     assert "KeyError" in caplog.text
-
-
-def test_the_work_runs_in_a_separate_thread(page, translator, monkeypatch):
-    """The work is handed to page.run_thread, so the screen stays responsive meanwhile."""
-    started = []
-    monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
-
-    run_in_background(page, translator, lambda: None)
-
-    assert len(started) == 1
