@@ -183,5 +183,17 @@ def test_translator_section_returns_a_group_of_messages():
     """Translator.section gives the messages under a key as a dict, or {} for a key that doesn't exist."""
     t = Translator("en")
 
-    assert t.section("glossary.page_1")["title"]
+    assert t.section("glossary.page_2")["title"]
     assert t.section("glossary.no_such_page") == {}
+
+
+def test_translator_longer_text_falls_back_to_english(tmp_path):
+    """A longer text (<name>_<language>.txt) missing in the user's language is read in English; missing in both, None."""
+    (tmp_path / "both_it.txt").write_text("In italiano", encoding="utf-8")
+    (tmp_path / "both_en.txt").write_text("In English", encoding="utf-8")
+    (tmp_path / "english_only_en.txt").write_text("Only in English", encoding="utf-8")
+    t = Translator("it", locales_dir=str(tmp_path))
+
+    assert t.load_text("both") == "In italiano"
+    assert t.load_text("english_only") == "Only in English"
+    assert t.load_text("nowhere") is None

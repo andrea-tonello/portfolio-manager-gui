@@ -32,20 +32,24 @@ class Translator:
             return f"<{key}>"
 
     def load_text(self, name):
-        """Return the longer text `<name>_<language>.txt` from the translations folder, or None if it is missing.
+        """Return the longer text `<name>_<language>.txt` from the translations folder (Markdown, for the dialogs).
 
+        Falls back to the English text when there is none in the current
+        language, and returns None when there is none at all.
         Example: load_text("privacy_policy") reads privacy_policy_it.txt when the app is in Italian.
         """
-        try:
-            with open(os.path.join(self.locales_dir, f"{name}_{self.language_code}.txt"), encoding="utf-8") as f:
-                return f.read()
-        except FileNotFoundError:
-            return None
+        for language in dict.fromkeys([self.language_code, DEFAULT_LANG]):
+            try:
+                with open(os.path.join(self.locales_dir, f"{name}_{language}.txt"), encoding="utf-8") as f:
+                    return f.read()
+            except FileNotFoundError:
+                pass
+        return None
 
     def section(self, key):
         """Return the group of messages under `key` as a dict, in file order; {} if there is no such group.
 
-        Example: section("glossary.page_1") -> {"title": "Glossary", "date_title": "Date", ...}
+        Example: section("glossary.page_2") -> {"title": "Asset Allocation", "class_title": "By Class", ...}
         """
         value = self.strings
         for part in key.split("."):

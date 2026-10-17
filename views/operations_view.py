@@ -3,7 +3,7 @@ import flet as ft
 from components.buttons import action_card_btn, mark_card_selected, pill_btn, pill_style
 from components.background import run_in_background
 from components.date_field import DateField
-from components.dialogs import show_info_dialog
+from components.dialogs import show_info_dialog, show_text_dialog
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
 from components.snack import error_message, show_snack
@@ -101,9 +101,7 @@ def _held_asset_option(ticker, name, quantity=None):
 
 def _show_fee_help(page, t):
     """Explain the fee modes, with the longer text from fee_mode_help_<language>.txt."""
-    show_info_dialog(page, t.get("operations.stock.fee_mode_title"),
-                     t.load_text("fee_mode_help") or "Fee mode description not available.",
-                     markdown=True, title_size=21)
+    show_text_dialog(page, t, "operations.stock.fee_mode_title", "fee_mode_help", title_size=21)
 
 
 class OperationsView:

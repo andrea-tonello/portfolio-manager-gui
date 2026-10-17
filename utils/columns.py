@@ -2,48 +2,19 @@
 Centralised column definitions for internal DataFrame storage.
 
 Internal storage uses English column names.
-Export uses locale-specific headers resolved via the translator (glossary keys).
+Export uses locale-specific headers resolved via the translator ("columns" keys).
 """
 
-# Every column of an account CSV, in file order, with the glossary key of the
-# name shown for it (in the Transactions table and as the export header).
-COLUMN_TITLE_KEYS = {
-    "date": "glossary.page_1.date_title",
-    "account": "glossary.page_1.account_title",
-    "operation": "glossary.page_1.operation_title",
-    "product": "glossary.page_1.product_title",
-    "ticker": "glossary.page_1.ticker_title",
-    "asset_name": "glossary.page_1.asset_name_title",
-    "ter": "glossary.page_1.ter_title",
-    "curr": "glossary.page_1.currency_title",
-    "conv_rate": "glossary.page_1.exch_rate_title",
-    "qt_exch": "glossary.page_1.qt_exch_title",
-    "price": "glossary.page_1.price_title",
-    "price_eur": "glossary.page_1.eur_price_title",
-    "nominal_amount": "glossary.page_1.nominal_value_title",
-    "fee": "glossary.page_1.fees_title",
-    "qt_held": "glossary.page_1.qt_held_title",
-    "abp": "glossary.page_1.avg_price_title",
-    "residual_amount": "glossary.page_1.avg_value_title",
-    "effective_amount": "glossary.page_1.eff_value_title",
-    "released_amount": "glossary.page_1.released_value_title",
-    "gross_gain": "glossary.page_1.gross_cap_gain_title",
-    "generated_loss": "glossary.page_1.cap_loss_title",
-    "expiry": "glossary.page_1.exp_date_title",
-    "carryforward": "glossary.page_1.backpack_title",
-    "pending_fees": "glossary.page_1.pending_fees_title",
-    "taxable_gain": "glossary.page_1.cap_gain_tax_title",
-    "tax_bracket": "glossary.page_1.tax_bracket_title",
-    "tax": "glossary.page_1.tax_amount_title",
-    "pl": "glossary.page_1.pl_title",
-    "cash_held": "glossary.page_1.cash_held_title",
-    "assets_value": "glossary.page_1.assets_value_title",
-    "nav": "glossary.page_1.nav_title",
-    "committed_cash": "glossary.page_1.historic_cash_title",
-}
-
-# The internal column names, in file order.
-COLUMNS = list(COLUMN_TITLE_KEYS)
+# Every column of an account CSV, in file order. The name shown for each (in
+# the Transactions table and as the export header) is "columns.<column>" in the
+# locale files, e.g. "columns.abp" -> "PMC"; glossary_columns_<language>.txt explains them.
+COLUMNS = [
+    "date", "account", "operation", "product", "ticker", "asset_name", "ter", "curr", "conv_rate",
+    "qt_exch", "price", "price_eur", "nominal_amount", "fee", "qt_held", "abp", "residual_amount",
+    "effective_amount", "released_amount", "gross_gain", "generated_loss", "expiry", "carryforward",
+    "pending_fees", "taxable_gain", "tax_bracket", "tax", "pl", "cash_held", "assets_value", "nav",
+    "committed_cash",
+]
 
 # Maps internal English operation values → locale keys for export.
 OPERATION_LOCALE_KEYS = {
@@ -70,7 +41,7 @@ PRODUCT_LOCALE_KEYS = {
 
 def export_headers(translator):
     """Return dict mapping internal column name → locale display name."""
-    return {col: translator.get(key).strip() for col, key in COLUMN_TITLE_KEYS.items()}
+    return {col: translator.get(f"columns.{col}").strip() for col in COLUMNS}
 
 
 def localized_value_maps(translator):

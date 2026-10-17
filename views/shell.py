@@ -10,7 +10,13 @@ from dataclasses import dataclass
 
 import flet as ft
 
-from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
+from components.dialogs import (
+    GLOSSARY_STYLE,
+    show_contacts,
+    show_privacy_policy,
+    show_text_dialog,
+    show_user_manager,
+)
 from views.home_view import HomeView
 from views.operations_view import OperationsView
 from views.analysis_view import TOOLS as ANALYSIS_TOOLS
@@ -24,15 +30,15 @@ from utils.constants import APP_VERSION, GITHUB_URL
 class TabSpec:
     """One tab of the bottom navigation bar: its name, icons, screen and info button.
 
-    `glossary_page` receives the AppState and returns the glossary page the
-    tab's floating info button opens; None means the tab has no info button.
+    `show_info` receives the AppController and opens the dialog of the tab's
+    floating info button; None means the tab has no info button.
     """
 
     label_key: str
     icon: str
     selected_icon: str | None
     view: type
-    glossary_page: Callable[..., int] | None = None
+    show_info: Callable[..., None] | None = None
 
 
 # The tabs, in navigation-bar order. Everything about a tab is on its line.
@@ -40,9 +46,10 @@ TABS = (
     TabSpec("nav.home", ft.Icons.HOME_OUTLINED, ft.Icons.HOME, HomeView),
     TabSpec("nav.operations", ft.Icons.SWAP_HORIZ, None, OperationsView),
     TabSpec("nav.analysis", ft.Icons.ANALYTICS_OUTLINED, ft.Icons.ANALYTICS, AnalysisView,
-            glossary_page=lambda state: ANALYSIS_TOOLS[state.analysis_tab_index].glossary_page),
+            show_info=lambda app: show_glossary(app, ANALYSIS_TOOLS[app.state.analysis_tab_index].glossary_page)),
     TabSpec("nav.transactions", ft.Icons.RECEIPT_LONG_OUTLINED, ft.Icons.RECEIPT_LONG, TransactionsView,
-            glossary_page=lambda state: 1),  # the page explaining the table's columns
+            show_info=lambda app: show_text_dialog(app.page, app.state.translator, "glossary.columns_title",
+                                                   "glossary_columns", md_style_sheet=GLOSSARY_STYLE)),
 )
 
 # Where Home is in TABS: the app opens on it, and its app bar shows the user's name.
@@ -229,13 +236,13 @@ def _build_nav_bar(app, selected_index: int) -> ft.NavigationBar:
 
 
 def _with_info_button(app, selected_index: int, view: ft.Control) -> ft.Control:
-    """Add the floating info button opening the tab's glossary page; tabs without one are returned unchanged."""
-    glossary_page = TABS[selected_index].glossary_page
-    if glossary_page is None:
+    """Add the floating info button opening the tab's explanations; tabs without one are returned unchanged."""
+    show_info = TABS[selected_index].show_info
+    if show_info is None:
         return view
 
     def info_handler(_):
-        show_glossary(app, glossary_page(app.state))
+        show_info(app)
 
     return ft.Stack([
         ft.Column([view], expand=True),
@@ -288,7 +295,7 @@ def show_settings(app):
 
 
 def show_glossary(app, page_num):
-    """Show glossary page `page_num` (1-6) of the locale file, explaining the terms used on screen."""
+    """Show glossary page `page_num` (2-6) of the locale file, explaining the terms of an Analysis tool."""
     page = app.page
     page_data = app.state.translator.section(f"glossary.page_{page_num}")
 
@@ -310,7 +317,7 @@ def show_glossary(app, page_num):
         title=ft.Text(page_data.get("title", "")),
         content=ft.Container(
             content=ft.Column(controls, scroll=ft.ScrollMode.AUTO, tight=True, spacing=3),
-        height=320 if page_num in [1, 3, 4] else 150,
+        height=320 if page_num in [3, 4] else 150,
         width=550),
         actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
     )

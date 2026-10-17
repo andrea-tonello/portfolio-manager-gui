@@ -54,9 +54,9 @@ def test_settings_page_builds(app, page):
     assert page.views[-1].route == "/settings"
 
 
-@pytest.mark.parametrize("glossary_page", range(1, 7))
+@pytest.mark.parametrize("glossary_page", range(2, 7))
 def test_glossary_dialogs_build(glossary_page, app, page):
-    """Each Info-button glossary page (1-6) builds its dialog, with its title."""
+    """Each Analysis Info-button glossary page (2-6) builds its dialog, with its title."""
     show_glossary(app, glossary_page)
 
     assert len(page.dialogs) == 1

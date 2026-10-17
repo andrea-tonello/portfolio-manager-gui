@@ -31,7 +31,5 @@ I'd guess 1, but your Fineco statements would show which.
 - Non-chronological insertions
 - Bonds
 - Bonds ETFs
-- Markdown for TransactionView
-- Markdown for AnalysisView
 - iOS UI
     - NavigationBar

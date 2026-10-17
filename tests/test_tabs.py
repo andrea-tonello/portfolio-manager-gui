@@ -1,14 +1,18 @@
 """Tests for what each of the four tabs shows around its content: navigation bar, app bar, info button.
 
 The tabs are Home, Operations, Analysis and Transactions, in that order.
-Analysis and Transactions have a floating info button opening a page of the
-glossary (assets/i18n/<language>.json, "glossary"); Analysis opens the page
-of the tool currently selected.
+Analysis and Transactions have a floating info button. Analysis opens the page
+of the glossary (assets/i18n/<language>.json, "glossary") of the tool currently
+selected; Transactions opens the description of its columns
+(assets/i18n/glossary_columns_<language>.txt).
 """
 
 import flet as ft
 import pytest
 from conftest import find_controls
+
+from utils.columns import COLUMNS
+from utils.constants import LANGUAGES
 
 TAB_LABELS = ["Home", "Operations", "Analysis", "Transactions"]
 
@@ -65,10 +69,21 @@ def test_analysis_info_button_explains_the_selected_tool(app, page, state, analy
     assert page.dialogs[-1].title.value == _glossary_title(state, page_num)
 
 
-def test_transactions_info_button_explains_the_columns(app, page, state):
-    """In Transactions the info button opens glossary page 1, which explains the table's columns."""
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_transactions_info_button_explains_every_column(language, app, page, state):
+    """In Transactions the info button explains the table's columns, in the user's language, with a heading for each.
+
+    The headings must be the columns' names ("columns" in the locale file): a
+    column renamed there but not in glossary_columns_<language>.txt fails here.
+    """
+    t = state.translator
+    t.load_language(language)
     app.show_tab(3)
 
     _info_button(page).on_click(None)
 
-    assert page.dialogs[-1].title.value == _glossary_title(state, 1)
+    dialog = page.dialogs[-1]
+    [text] = find_controls(dialog.content, ft.Markdown)
+    assert dialog.title.value == t.get("glossary.columns_title")
+    missing = [col for col in COLUMNS if f"### {t.get(f'columns.{col}')}\n" not in text.value]
+    assert missing == []

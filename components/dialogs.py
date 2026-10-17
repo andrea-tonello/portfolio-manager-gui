@@ -3,17 +3,29 @@ import flet as ft
 from utils.constants import GITHUB_URL
 
 
-def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None, actions=None):
+# The look of a glossary's Markdown: one bold "### <term>" heading per entry,
+# kept close to its explanation and farther from the entry above.
+GLOSSARY_STYLE = ft.MarkdownStyleSheet(
+    h3_text_style=ft.TextStyle(size=15, weight=ft.FontWeight.BOLD),
+    h3_padding=ft.Padding.only(top=12),
+    block_spacing=4,
+)
+
+
+def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None, actions=None,
+                     md_style_sheet=None):
     """Show a read-only dialog: a title, an explanation and an OK button that closes it.
 
     Used by the "?" help buttons, the privacy policy, the contacts and the update notice. With
-    markdown=True the body can contain formatting and links (opened in the browser). The dialog
-    is as tall as its text, up to the screen's height, and then scrolls; pass `height` to give
-    the text a box of that height to scroll in instead (the privacy policy).
+    markdown=True the body can contain formatting and links (opened in the browser), styled by
+    `md_style_sheet` if given (e.g. GLOSSARY_STYLE). The dialog is as tall as its text, up to
+    the screen's height, and then scrolls; pass `height` to give the text a box of that height
+    to scroll in instead (the privacy policy).
     `actions` replaces the OK button, e.g. with Later and Download.
     """
     if markdown:
-        content = ft.Markdown(body, auto_follow_links=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB)
+        content = ft.Markdown(body, auto_follow_links=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                              md_style_sheet=md_style_sheet)
     else:
         content = ft.Text(body)
     if height is not None:
@@ -28,12 +40,19 @@ def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None,
     ))
 
 
+def show_text_dialog(page: ft.Page, translator, title_key, name, **dialog_kwargs):
+    """Show the longer text <name>_<language>.txt (Markdown) under the title `title_key`, e.g. a glossary.
+
+    Any other keyword goes to show_info_dialog, e.g. height=450.
+    Example: show_text_dialog(page, t, "glossary.columns_title", "glossary_columns").
+    """
+    show_info_dialog(page, translator.get(title_key), translator.load_text(name) or "Text not available.",
+                     markdown=True, **dialog_kwargs)
+
+
 def show_privacy_policy(page: ft.Page, state):
     """Show the privacy policy, read from privacy_policy_<language>.txt."""
-    t = state.translator
-    show_info_dialog(page, t.get("settings.privacy_policy"),
-                     t.load_text("privacy_policy") or "Privacy policy not available.",
-                     markdown=True, height=450)
+    show_text_dialog(page, state.translator, "settings.privacy_policy", "privacy_policy", height=450)
 
 
 def show_contacts(page: ft.Page, state):

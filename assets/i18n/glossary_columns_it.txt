@@ -1,0 +1,97 @@
+### Data
+Data dell'esecuzione dell'operazione
+
+### Conto
+Conto sul quale è stata svolta l'operazione
+
+### Operazione
+Tipo di operazione (Acquisto, Vendita, Deposito...)
+
+### Prodotto
+Tipo di prodotto (Azione, ETF, Contanti...)
+
+### Ticker
+Ticker dello strumento, nel caso fosse richiesto. Segue lo standard di Yahoo Finance
+
+### Nome Asset
+Nome esaustivo dello strumento
+
+### TER
+Per strumenti idonei, Total Expense Ratio annualizzato
+
+### Valuta
+Valuta dell'operazione. Attualmente supportate: EUR, USD
+
+### Tasso di Conv.
+Tasso di conversione EUR-USD dell'operazione
+
+### QT. Scambio
+Quantità dello strumento scambiata durante l'operazione corrente. Positiva se Acquisto, negativa se Vendita
+
+### Prezzo
+Prezzo unitario in valuta originale. Negativo se Acquisto, positivo se Vendita
+
+### Prezzo EUR
+Prezzo unitario in EUR. Negativo se Acquisto, positivo se Vendita
+
+### Imp. Nominale Operaz.
+Controvalore diretto dell'operazione. Se riferito a strumenti, è uguale a *QT. Scambio × Prezzo EUR*
+
+### Commissioni
+Commissioni applicate dall'intermediario per l'operazione
+
+### QT. Attuale
+Quantità attuale dello strumento dopo l'operazione corrente
+
+### PMC
+Prezzo Medio di Carico dello strumento. Generalmente i prezzi includono le commissioni, ma ciò può variare in base allo strumento e broker. Calcolato come *Σ (QT × Prezzo) / Σ QT*, su tutti gli acquisti
+
+### Imp. Residuo
+Importo Residuo dello strumento. Calcolato come *PMC × QT. Attuale*
+
+### Imp. Effettivo Operaz.
+Importo effettivo dell'operazione al netto di eventuali commissioni
+
+### Costo Rilasciato
+Costo rilasciato dopo la vendita di uno strumento. Calcolato come *PMC × QT. Scambio*
+
+### Plusv. Lorda
+Plusvalenza lorda generata dalla vendita. Calcolata come *Imp. Effettivo − Costo Rilasciato*
+
+### Minusv. Generata
+Minusvalenza generata dall'operazione. Per alcuni strumenti (es. ETF) si possono generare anche all'acquisto (minusvalenza da commissione)
+
+### Scadenza
+Data di scadenza della minusvalenza, oltre la quale non potrà più essere compensata
+
+### Zainetto Fiscale
+Tiene conto del totale delle minusvalenze ancora da compensare, e provvede a rimuoverle eventualmente a scadenza
+
+### Commissioni da Recuperare
+Commissioni di acquisto dell'ETF non ancora aggiunte allo Zainetto Fiscale. Vengono aggiunte dalla prossima vendita dello strumento in plusvalenza, e perse se prima si vendono tutte le quote
+
+### Plusv. Imponibile
+Plusvalenza sulla quale si andrà effettivamente a pagare l'imposta. Si riduce in caso di minusvalenze da compensare.
+
+*Esempio:* con una plusvalenza di 20€ e 5€ nello Zainetto Fiscale, si paga l'imposta solo su 20 − 5 = 15€, invece che su 20€
+
+### Aliquota Fiscale
+Aliquota fiscale dello strumento (es. 26% per le Azioni)
+
+### Imposta
+Imposta pagata, calcolata sulla plusvalenza imponibile
+
+### P&L
+Profit & Loss della vendita. Calcolato come *Plusv. Lorda − Imposta*
+
+### Liquidità Attuale
+Liquidità disponibile nel conto dopo l'operazione
+
+### Valore Titoli
+Valore degli strumenti detenuti nel conto dopo l'operazione
+
+### NAV
+Net Asset Value dopo l'operazione. Calcolato come *Liquidità Attuale + Valore Titoli*
+
+### Liq. Impegnata
+Liquidità totale immessa nel conto. Tiene conto esclusivamente di depositi e prelievi
