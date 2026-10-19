@@ -184,19 +184,26 @@ class GeneralForm:
 
         split_help = _help_button(self.page, t, "operations.split.title", "operations.split.descr")
 
-        self.kind = ft.RadioGroup(
-            value="deposit",
+        # The operation chosen. A cash movement is picked in the segmented button, a dividend or a
+        # split in the radio buttons below it; picking in one clears the other (_select_kind).
+        self.kind = "deposit"
+        self.cash_kind = ft.SegmentedButton(
+            show_selected_icon=False,  # the colour shows the choice; the check mark squeezed narrow phones
+            selected=[self.kind],
+            allow_multiple_selection=False,
+            allow_empty_selection=False,  # True only while a dividend or a split is chosen (_select_kind)
+            disabled=no_account,
+            on_change=self._on_cash_kind_change,
+            segments=[
+                ft.Segment(value="deposit", label=t.get("operations.cash.op_deposit")),
+                ft.Segment(value="withdrawal", label=t.get("operations.cash.op_withdrawal")),
+                ft.Segment(value="charge", label=t.get("operations.cash.op_charge")),
+            ],
+        )
+        self.corporate_kind = ft.RadioGroup(
+            value=None,
             disabled=no_account,
             content=ft.Column([
-                ft.Text(t.get("operations.general.cash_section"),
-                        size=16, weight=ft.FontWeight.BOLD, color=header_color),
-                ft.Container(height=8),
-                ft.ResponsiveRow([
-                    ft.Radio(value="deposit", label=t.get("operations.cash.op_deposit"), disabled=no_account, col={"xs": 6, "md": 4}),
-                    ft.Radio(value="withdrawal", label=t.get("operations.cash.op_withdrawal"), disabled=no_account, col={"xs": 6, "md": 4}),
-                    ft.Radio(value="charge", label=t.get("operations.cash.op_charge"), disabled=no_account, col={"xs": 12, "md": 4}),
-                ]),
-                ft.Container(height=15),
                 ft.Text(t.get("operations.general.corporate_section"),
                         size=16, weight=ft.FontWeight.BOLD, color=header_color),
                 ft.Container(height=8),
@@ -207,9 +214,16 @@ class GeneralForm:
                     split_help,
                 ], spacing=0),
                 ft.Divider(),
-            ], spacing=0, opacity=0.4 if no_account else 1.0),
-            on_change=self._on_kind_change,
+            ], spacing=0),
+            on_change=lambda _: self._select_kind(self.corporate_kind.value),
         )
+        kind_section = ft.Column([
+            ft.Text(t.get("operations.general.cash_section"), size=16, weight=ft.FontWeight.BOLD, color=header_color),
+            ft.Container(height=8),
+            self.cash_kind,
+            ft.Container(height=15),
+            self.corporate_kind,
+        ], spacing=0, opacity=0.4 if no_account else 1.0)
         self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
 
         self.amount = rounded_text_field(label=t.get("operations.cash.amount"),
@@ -263,12 +277,12 @@ class GeneralForm:
             (self.split_ratio, self.split_ratio_row),
         ])
 
-        label_key, bgcolor = _KIND_BUTTONS[self.kind.value]
+        label_key, bgcolor = _KIND_BUTTONS[self.kind]
         self._add_btn = pill_btn(t.get(label_key), self.submit, icon=ft.Icons.ADD,
                                  bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE, disabled=no_account)
 
         col = ft.Column([
-            self.kind,
+            kind_section,
             self.date.control,
             ft.ResponsiveRow([
                 self.amount, self.ticker_row, self.description,
@@ -281,16 +295,30 @@ class GeneralForm:
             self.date.field, self.amount, self.ticker.field, self.description, self.split_ratio,
         ], prefix="cash", padding=20, button=self._add_btn, loading=self.loading)
 
-    def _on_kind_change(self, e):
-        """Show the fields the chosen operation needs, and its name and colour on the button; a split needs something held to split."""
+    def _on_cash_kind_change(self, e):
+        """Choose the cash movement tapped."""
+        self._select_kind(self.cash_kind.selected[0])
+
+    def _select_kind(self, kind):
+        """Make `kind` the operation chosen, in whichever control holds it, clearing the other.
+
+        Shows the fields it needs, and its name and colour on the button. A
+        split needs something held to split: without, the form goes back to a deposit.
+        """
         t = self.state.translator
-        kind = self.kind.value
         account = _selected_account(self.state)
 
         if kind == "split" and not _held_tickers(account.df if account else None):
             show_snack(self.page, t.get("operations.split.no_holdings"), error=True)
-            self.kind.value = "deposit"
             kind = "deposit"
+
+        self.kind = kind
+        is_cash = kind in ("deposit", "withdrawal", "charge")
+        self.cash_kind.selected = [kind] if is_cash else []
+        # No segment may be left empty while one is chosen: tapping it again then does nothing.
+        # (Tapped empty and set back from here, it would stay empty on screen.)
+        self.cash_kind.allow_empty_selection = not is_cash
+        self.corporate_kind.value = None if is_cash else kind
 
         is_split = (kind == "split")
         self.amount.visible = not is_split
@@ -318,7 +346,7 @@ class GeneralForm:
 
         try:
             day = validate_date(self.date.value, ledger_df=account.df)
-            if self.kind.value == "split":
+            if self.kind == "split":
                 build_ledger = self._checked_split(account, day)
             else:
                 build_ledger = self._checked_cash_operation(account, day)
@@ -337,7 +365,7 @@ class GeneralForm:
 
     def _checked_cash_operation(self, account, day):
         """Check the amount of a cash operation or dividend; return a function building the ledger with it."""
-        kind = self.kind.value
+        kind = self.kind
         amount = operations_service.parse_cash_amount(kind, self.amount.value)
         service_kind = "deposit_withdrawal" if kind in ("deposit", "withdrawal") else kind
         ticker = self.ticker.value if kind == "dividend" else None

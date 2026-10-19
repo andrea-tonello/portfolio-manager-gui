@@ -72,7 +72,7 @@
       "op_deposit": "Deposito",
       "op_withdrawal": "Prelievo",
       "op_dividend": "Dividendo",
-      "op_charge": "Bollo / Altre imposte",
+      "op_charge": "Imposte",
       "amount": "Valore operazione EUR",
       "dividend_amount": "Dividendo in EUR al netto di tasse",
       "charge_descr": "Descrizione imposta (es. \"Bollo Q2 2025\")",

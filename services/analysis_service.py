@@ -247,12 +247,8 @@ def compute_correlation(accounts: list[Account], start_ref_date: DateLike, end_r
 def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_date: DateLike) -> dict:
     """Drawdown of the portfolio made of `accounts` (a list of Account) between the two dates.
 
-    The drawdown on a day is how far the portfolio's growth has fallen below its
-    highest point so far, with deposits and withdrawals taken out (the time-weighted
-    return, as for the volatility and the Sharpe ratio). Measured on the NAV
-    itself, a withdrawal would count as a loss and a deposit could hide one.
-    Example: 10,000 of which 5,000 in a stock that never falls, then 4,000
-    withdrawn: the drawdown stays 0%, where the NAV fell by 39%.
+    The drawdown on a day is how far the portfolio's growth has fallen below its highest point 
+    so far, with deposits and withdrawals taken out (the TWRR, as for the volatility and the Sharpe ratio).
 
     Returns dict:
     {

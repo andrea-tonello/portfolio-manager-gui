@@ -85,6 +85,14 @@ target_arch = ["arm64-v8a"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    # What `flet run` and `flet build` install by themselves when missing: listed here so that
+    # `uv sync` keeps them (and the versions below) instead of removing them. Same version as flet.
+    "flet-cli==1.0.4",
+    "flet-desktop==1.0.4",
+    "flet-web==1.0.4",
+    # FastAPI 0.145 (2026-10-18) removed `openapi_prefix`, which flet-web 1.0.4 still passes, so
+    # `flet run --android` and `--web` crashed at start. Remove once a Flet release fixes it.
+    "fastapi<0.145",
 ]
 
 [tool.pytest.ini_options]

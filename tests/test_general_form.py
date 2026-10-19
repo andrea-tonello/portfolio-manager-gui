@@ -45,6 +45,16 @@ def general_form(monkeypatch, app, page, state):
     return form, lambda: form.submit(None), calls
 
 
+def _choose(form, kind):
+    """Pick the operation `kind` as the user does: a segment for a cash movement, a radio button for the others."""
+    if kind in ("deposit", "withdrawal", "charge"):
+        form.cash_kind.selected = [kind]
+        form.cash_kind.on_change(None)
+    else:
+        form.corporate_kind.value = kind
+        form.corporate_kind.on_change(None)
+
+
 @pytest.mark.parametrize("kind, service_kind, amount, extra", [
     ("deposit", "deposit_withdrawal", 100.0, {}),
     ("withdrawal", "deposit_withdrawal", -100.0, {}),
@@ -57,7 +67,7 @@ def test_cash_operation_reaches_the_service(general_form, kind, service_kind, am
     A dividend also passes its ticker, a charge its description.
     """
     form, submit, calls = general_form
-    form.kind.value = kind
+    _choose(form, kind)
     form.amount.value = "100"
     for name, value in extra.items():
         getattr(form, name).value = value
@@ -72,7 +82,7 @@ def test_cash_operation_reaches_the_service(general_form, kind, service_kind, am
 def test_split_reaches_the_service_with_the_ratio_typed(general_form):
     """A 2:1 split of BBB.MI is passed on as ticker "BBB.MI" and ratio 2.0."""
     form, submit, calls = general_form
-    form.kind.value = "split"
+    _choose(form, "split")
     form.split_ticker.value = "BBB.MI"
     form.split_ratio.value = "2"
 
@@ -100,7 +110,10 @@ def test_general_form_refuses_invalid_values(general_form, page, changes, messag
     form, submit, calls = general_form
     form.amount.value = "100"
     for name, value in changes.items():
-        getattr(form, name).value = value
+        if name == "kind":
+            _choose(form, value)
+        else:
+            getattr(form, name).value = value
 
     submit()
 
