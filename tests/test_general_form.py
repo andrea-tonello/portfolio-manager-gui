@@ -46,13 +46,10 @@ def general_form(monkeypatch, app, page, state):
 
 
 def _choose(form, kind):
-    """Pick the operation `kind` as the user does: a segment for a cash movement, a radio button for the others."""
-    if kind in ("deposit", "withdrawal", "charge"):
-        form.cash_kind.selected = [kind]
-        form.cash_kind.on_change(None)
-    else:
-        form.corporate_kind.value = kind
-        form.corporate_kind.on_change(None)
+    """Pick the operation `kind` as the user does: its segment, in the cash or the corporate actions button."""
+    buttons = form.cash_kind if kind in ("deposit", "withdrawal", "charge") else form.corporate_kind
+    buttons.selected = [kind]
+    buttons.on_change(None)
 
 
 @pytest.mark.parametrize("kind, service_kind, amount, extra", [

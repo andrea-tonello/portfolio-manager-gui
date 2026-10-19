@@ -182,48 +182,53 @@ class GeneralForm:
         holdings = _held_tickers(account.df if account else None)
         header_color = ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE)
 
-        split_help = _help_button(self.page, t, "operations.split.title", "operations.split.descr")
+        # Shown next to the corporate actions only while the split is chosen (_select_kind).
+        self._split_help = _help_button(self.page, t, "operations.split.title", "operations.split.descr")
+        self._split_help.visible = False
 
-        # The operation chosen. A cash movement is picked in the segmented button, a dividend or a
-        # split in the radio buttons below it; picking in one clears the other (_select_kind).
+        # The operation chosen. A cash movement is picked in the first segmented button, a dividend
+        # or a split in the second; picking in one empties the other (_select_kind).
         self.kind = "deposit"
         self.cash_kind = ft.SegmentedButton(
             show_selected_icon=False,  # the colour shows the choice; the check mark squeezed narrow phones
             selected=[self.kind],
             allow_multiple_selection=False,
-            allow_empty_selection=False,  # True only while a dividend or a split is chosen (_select_kind)
+            allow_empty_selection=False,  # True only while the other button holds the choice (_select_kind)
             disabled=no_account,
-            on_change=self._on_cash_kind_change,
+            on_change=lambda _: self._select_kind(self.cash_kind.selected[0]),
             segments=[
                 ft.Segment(value="deposit", label=t.get("operations.cash.op_deposit")),
                 ft.Segment(value="withdrawal", label=t.get("operations.cash.op_withdrawal")),
                 ft.Segment(value="charge", label=t.get("operations.cash.op_charge")),
             ],
         )
-        self.corporate_kind = ft.RadioGroup(
-            value=None,
+        self.corporate_kind = ft.SegmentedButton(
+            show_selected_icon=False,
+            selected=[],
+            allow_multiple_selection=False,
+            allow_empty_selection=True,
             disabled=no_account,
-            content=ft.Column([
-                ft.Text(t.get("operations.general.corporate_section"),
-                        size=16, weight=ft.FontWeight.BOLD, color=header_color),
-                ft.Container(height=8),
-                ft.Radio(value="dividend", label=t.get("operations.cash.op_dividend"), disabled=no_account),
-                ft.Row([
-                    ft.Radio(value="split", label=t.get("operations.split.title"), disabled=no_account),
-                    ft.Container(expand=True),
-                    split_help,
-                ], spacing=0),
-                ft.Divider(),
-            ], spacing=0),
-            on_change=lambda _: self._select_kind(self.corporate_kind.value),
+            on_change=lambda _: self._select_kind(self.corporate_kind.selected[0]),
+            expand=True,  # narrows to make room for the split's "?"
+            segments=[
+                ft.Segment(value="dividend", label=t.get("operations.cash.op_dividend")),
+                ft.Segment(value="split", label=t.get("operations.split.title")),
+            ],
         )
         kind_section = ft.Column([
             ft.Text(t.get("operations.general.cash_section"), size=16, weight=ft.FontWeight.BOLD, color=header_color),
             ft.Container(height=8),
             self.cash_kind,
             ft.Container(height=15),
-            self.corporate_kind,
-        ], spacing=0, opacity=0.4 if no_account else 1.0)
+            ft.Text(t.get("operations.general.corporate_section"), size=16, weight=ft.FontWeight.BOLD,
+                    color=header_color),
+            ft.Container(height=8),
+            # As tall as the "?" whether it shows or not, so nothing below moves when the split is picked.
+            ft.Row([self.corporate_kind, self._split_help], height=40,
+                   vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.Divider(),
+        ], spacing=0, opacity=0.4 if no_account else 1.0,
+           horizontal_alignment=ft.CrossAxisAlignment.STRETCH)  # both segmented buttons as wide as the form
         self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
 
         self.amount = rounded_text_field(label=t.get("operations.cash.amount"),
@@ -295,15 +300,12 @@ class GeneralForm:
             self.date.field, self.amount, self.ticker.field, self.description, self.split_ratio,
         ], prefix="cash", padding=20, button=self._add_btn, loading=self.loading)
 
-    def _on_cash_kind_change(self, e):
-        """Choose the cash movement tapped."""
-        self._select_kind(self.cash_kind.selected[0])
-
     def _select_kind(self, kind):
-        """Make `kind` the operation chosen, in whichever control holds it, clearing the other.
+        """Make `kind` the operation chosen, in the segmented button that offers it, emptying the other.
 
-        Shows the fields it needs, and its name and colour on the button. A
-        split needs something held to split: without, the form goes back to a deposit.
+        Shows the fields it needs, the split's "?" for a split, and its name
+        and colour on the button. A split needs something held to split:
+        without, the form goes back to a deposit.
         """
         t = self.state.translator
         account = _selected_account(self.state)
@@ -313,14 +315,15 @@ class GeneralForm:
             kind = "deposit"
 
         self.kind = kind
-        is_cash = kind in ("deposit", "withdrawal", "charge")
-        self.cash_kind.selected = [kind] if is_cash else []
-        # No segment may be left empty while one is chosen: tapping it again then does nothing.
-        # (Tapped empty and set back from here, it would stay empty on screen.)
-        self.cash_kind.allow_empty_selection = not is_cash
-        self.corporate_kind.value = None if is_cash else kind
+        for buttons in (self.cash_kind, self.corporate_kind):
+            offers = any(segment.value == kind for segment in buttons.segments)
+            buttons.selected = [kind] if offers else []
+            # The button holding the choice can't be emptied: tapping its segment again does nothing.
+            # (Emptied by a tap and set back from here, it would stay empty on screen.)
+            buttons.allow_empty_selection = not offers
 
         is_split = (kind == "split")
+        self._split_help.visible = is_split
         self.amount.visible = not is_split
         self.ticker_row.visible = (kind == "dividend")
         self.description.visible = (kind == "charge")
