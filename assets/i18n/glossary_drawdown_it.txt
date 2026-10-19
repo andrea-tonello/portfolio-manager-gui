@@ -2,3 +2,5 @@
 Misura il declino percentuale del valore del portafoglio (o di un asset) dal suo picco storico al susseguente minimo.
 
 Il Maximum Drawdown, in particolare, riporta la differenza maggiore.
+
+Depositi e prelievi non contano: un prelievo non è una perdita, e un deposito non nasconde un calo. Come per il TWRR, si misura solo l'andamento degli investimenti.

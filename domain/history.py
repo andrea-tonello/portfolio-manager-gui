@@ -128,7 +128,9 @@ def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers
             portfolio_history_df['nav'] = portfolio_history_df['assets_value'] + portfolio_history_df['cash']
             portfolio_history_df["cash_flow"] = portfolio_history_df["committed_cash"].diff()
 
-            previous_nav = portfolio_history_df['nav'].shift(1)
+            # A day that starts from an empty portfolio has no return (NaN, skipped by cumprod):
+            # dividing by its 0 would make it infinite, and every cumulative value after it too.
+            previous_nav = portfolio_history_df['nav'].shift(1).where(lambda nav: nav > 0)
             portfolio_history_df["daily_twrr"] = (
                 portfolio_history_df['nav'] - previous_nav - portfolio_history_df['cash_flow']
             ) / previous_nav

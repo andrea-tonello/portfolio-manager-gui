@@ -2,6 +2,8 @@
 
 ### Bug Fixes
 
+- Drawdown does no longer consider cash flows in its computation
+
 ### Features
 
 - Added *Search for Updates* option in the Drawer

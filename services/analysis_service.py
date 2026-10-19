@@ -247,6 +247,13 @@ def compute_correlation(accounts: list[Account], start_ref_date: DateLike, end_r
 def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_date: DateLike) -> dict:
     """Drawdown of the portfolio made of `accounts` (a list of Account) between the two dates.
 
+    The drawdown on a day is how far the portfolio's growth has fallen below its
+    highest point so far, with deposits and withdrawals taken out (the time-weighted
+    return, as for the volatility and the Sharpe ratio). Measured on the NAV
+    itself, a withdrawal would count as a loss and a deposit could hide one.
+    Example: 10,000 of which 5,000 in a stock that never falls, then 4,000
+    withdrawn: the drawdown stays 0%, where the NAV fell by 39%.
+
     Returns dict:
     {
         "pf_history": DataFrame,
@@ -262,8 +269,9 @@ def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_
 
     pf_history_df = portfolio_history(start_ref_date, end_ref_date, accounts)
     pf_history_df = pf_history_df.dropna()
-    running_max = pf_history_df["nav"].expanding().max()
-    drawdown = (pf_history_df["nav"] - running_max) / running_max
+    # Growth from 1.0 on the start date; a peak of at least 1.0 counts a loss on the very first day too.
+    growth = 1 + pf_history_df["cumulative_twrr"]
+    drawdown = growth / growth.cummax().clip(lower=1.0) - 1
     mdd = drawdown.min()
 
     return {
