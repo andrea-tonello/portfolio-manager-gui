@@ -1,3 +1,23 @@
+## [0.4.5] (2026-XX-XX)
+
+### Bug Fixes
+
+### Features
+
+- Added *Search for Updates* option in the Drawer
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [0.4.4] (2026-10-17)
 
 ### Bug Fixes
@@ -10,13 +30,6 @@
 - Updated Buy/Sell switch colors to reflect the confirmation button's
 - *Analysis → Statistics*: split the visualization of performance graph and text summary into two UI paths instead of having them together
 - Migrated *Analysis, Transactions* glossary text to markdown for better formatting
-
-
-
-
-
-
-
 
 
 

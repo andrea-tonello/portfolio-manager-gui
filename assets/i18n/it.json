@@ -353,7 +353,10 @@
   "update": {
     "title": "Versione {version} disponibile",
     "later": "Più tardi",
-    "download": "Aggiorna"
+    "download": "Aggiorna",
+    "search_for_updates": "Controlla Aggiornamenti",
+    "no_updates": "L'ultima versione è già installata",
+    "check_failed": "Impossibile controllare gli aggiornamenti. Riprova più tardi"
   },
 
 

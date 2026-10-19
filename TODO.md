@@ -2,7 +2,7 @@
 ## BACKLOG
 
 - XEON ticker appears when Stocks ETFs is selected
-- 0.4.4: aggiorna screenshot Drawer
+- 0.4.5: aggiorna screenshot Drawer
 
 - [INVESTIGATE] Nel drawdown sto contando i flussi di cassa? È corretto?
 - [INVESTIGATE] Liquidità impegnata in negativo (BG Saxo)

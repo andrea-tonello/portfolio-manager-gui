@@ -353,7 +353,10 @@
   "update": {
     "title": "Version {version} available",
     "later": "Later",
-    "download": "Update"
+    "download": "Update",
+    "search_for_updates": "Search for Updates",
+    "no_updates": "You are on the latest version",
+    "check_failed": "Couldn't check for updates. Try again later"
   },
 
 

@@ -17,6 +17,7 @@ from components.dialogs import (
     show_text_dialog,
     show_user_manager,
 )
+from components.update_check import check_for_update
 from views.home_view import HomeView
 from views.operations_view import OperationsView
 from views.analysis_view import TOOLS as ANALYSIS_TOOLS
@@ -158,6 +159,13 @@ def _build_drawer(app) -> ft.NavigationDrawer:
                 leading=ft.Icon(ft.Icons.COMMENT),
                 title=ft.Text(t.get("settings.contacts")),
                 on_click=lambda: show_contacts(page, app.state),
+                min_height=60,
+                content_padding=ft.Padding.only(left=25),
+            ),
+            ft.ListTile(
+                leading=ft.Icon(ft.Icons.FILE_DOWNLOAD_OUTLINED),
+                title=ft.Text(t.get("update.search_for_updates")),
+                on_click=lambda: check_for_update(page, t, manual=True),
                 min_height=60,
                 content_padding=ft.Padding.only(left=25),
             ),

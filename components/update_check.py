@@ -1,9 +1,14 @@
-"""Telling the user at launch that a newer version is on GitHub, with a button to download it."""
+"""Telling the user that a newer version is on GitHub, with a button to download it: at launch, or when asked."""
+
+import logging
 
 import flet as ft
 
 from components.dialogs import show_info_dialog
+from components.snack import show_snack
 from services import update_service
+
+logger = logging.getLogger(__name__)
 
 # The file each platform installs, as the release workflow names it, e.g.
 # portfolio-manager-0.4.1.apk. Other platforms (e.g. iOS, which has no build)
@@ -16,17 +21,27 @@ _DOWNLOADS = {
 }
 
 
-def check_for_update(page, translator):
+def check_for_update(page, translator, manual=False):
     """Ask GitHub for a newer release in the background and, if there is one, show its notes.
 
-    Nothing is shown when the app is up to date or GitHub can't be reached.
+    The automatic check at launch shows nothing else. A manual one (manual=True,
+    the drawer's "Search for Updates") also says when the app is up to date, or
+    when GitHub couldn't be reached.
     Download opens this platform's file in the browser: on Android, opening
     the downloaded APK installs it over the app, keeping its data.
     """
     def worker():
         """Run the check off the screen's thread, so a slow connection never freezes it."""
-        release = update_service.newer_release()
+        try:
+            release = update_service.newer_release()
+        except update_service.UpdateCheckFailed:
+            logger.info("Update check failed", exc_info=True)
+            if manual:
+                show_snack(page, translator.get("update.check_failed"), error=True)
+            return
         if release is None:
+            if manual:
+                show_snack(page, translator.get("update.no_updates"))
             return
         version = release["tag_name"].removeprefix("v")
         urls = {asset["name"]: asset["browser_download_url"] for asset in release.get("assets", [])}
