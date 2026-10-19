@@ -182,7 +182,7 @@ class HomeView:
             self.page,
             label=t.get("home.watchlist_add"),
             expand=True,
-            height=46,
+            height=48,
             on_submit=self._on_watchlist_add,
         )
         add_row = ft.Container(ft.Row([

@@ -64,11 +64,10 @@
     "added_transaction": "Transaction saved",
     "general": {
       "title": "GENERAL",
-      "cash_section": "Cash Operations",
-      "corporate_section": "Corporate Actions"
+      "cash_section": "Cash Transfers",
+      "corporate_section": "Other Operations"
     },
     "cash": {
-      "title": "CASH OPERATIONS",
       "op_deposit": "Deposit",
       "op_withdrawal": "Withdrawal",
       "op_transfer": "Transfer",

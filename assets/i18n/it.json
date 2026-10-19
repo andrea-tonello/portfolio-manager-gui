@@ -64,11 +64,10 @@
     "added_transaction": "Transazione salvata",
     "general": {
       "title": "GENERALE",
-      "cash_section": "Liquidità",
-      "corporate_section": "Operazioni Societarie"
+      "cash_section": "Trasferimenti di Liquidità",
+      "corporate_section": "Altre Operazioni"
     },
     "cash": {
-      "title": "LIQUIDITÀ",
       "op_deposit": "Deposito",
       "op_withdrawal": "Prelievo",
       "op_transfer": "Trasferimento",
@@ -135,7 +134,7 @@
       "not_implemented": "Obbligazioni non ancora implementate. Premi Invio per continuare..."
     },
     "split": {
-      "title": "Split Quote",
+      "title": "Split quote",
       "descr": "Se il prezzo di uno strumento è troppo basso o troppo alto, l'emittente può decidere di frazionare le quote (split).\nFrazionamento N-per-1: 1 quota viene divisa in N quote.\nFrazionamento inverso, 1-per-N: N quote vengono raggruppate in 1.\nIn entrambi i casi, il frazionamento non altera il valore del tuo investimento.\n\nL'applicazione rileva in automatico i frazionamenti durante il refresh della Home page. Se ciò non dovesse avvenire correttamente, questa opzione ti permette di registrarne uno manualmente.",
       "ticker": "Ticker",
       "ticker_notheld": "Non possiedi attualmente {ticker}",

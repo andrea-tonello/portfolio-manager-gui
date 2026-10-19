@@ -196,12 +196,18 @@ class GeneralForm:
             allow_empty_selection=False,  # True only while the other button holds the choice (_select_kind)
             disabled=no_account,
             on_change=lambda _: self._select_kind(self.cash_kind.selected[0]),
+            expand=True,  # as wide as its row, like the corporate actions
             segments=[
                 ft.Segment(value="deposit", label=t.get("operations.cash.op_deposit")),
                 ft.Segment(value="withdrawal", label=t.get("operations.cash.op_withdrawal")),
                 ft.Segment(value="charge", label=t.get("operations.cash.op_charge")),
             ],
         )
+        cash_column = ft.Column([
+            ft.Text(t.get("operations.general.cash_section"), size=16, weight=ft.FontWeight.BOLD, color=header_color),
+            ft.Row([self.cash_kind], height=48, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ], spacing=2, col={"xs": 12, "md": 6})
+
         self.corporate_kind = ft.SegmentedButton(
             show_selected_icon=False,
             selected=[],
@@ -215,20 +221,19 @@ class GeneralForm:
                 ft.Segment(value="split", label=t.get("operations.split.title")),
             ],
         )
+        corporate_column = ft.Column([
+            ft.Text(t.get("operations.general.corporate_section"), size=16, weight=ft.FontWeight.BOLD, color=header_color),
+            ft.Row([self.corporate_kind, self._split_help], height=48, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ], spacing=2, col={"xs": 12, "md": 6})
+
+
+
         kind_section = ft.Column([
-            ft.Text(t.get("operations.general.cash_section"), size=16, weight=ft.FontWeight.BOLD, color=header_color),
-            ft.Container(height=8),
-            self.cash_kind,
-            ft.Container(height=15),
-            ft.Text(t.get("operations.general.corporate_section"), size=16, weight=ft.FontWeight.BOLD,
-                    color=header_color),
-            ft.Container(height=8),
-            # As tall as the "?" whether it shows or not, so nothing below moves when the split is picked.
-            ft.Row([self.corporate_kind, self._split_help], height=40,
-                   vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ft.ResponsiveRow([cash_column, corporate_column,], spacing=20),
+            ft.Container(height=10),
             ft.Divider(),
         ], spacing=0, opacity=0.4 if no_account else 1.0,
-           horizontal_alignment=ft.CrossAxisAlignment.STRETCH)  # both segmented buttons as wide as the form
+           horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
         self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
 
         self.amount = rounded_text_field(label=t.get("operations.cash.amount"),
