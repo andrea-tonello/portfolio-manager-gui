@@ -355,6 +355,7 @@
     "later": "Later",
     "download": "Update",
     "search_for_updates": "Search for Updates",
+    "checking": "Checking…",
     "no_updates": "You are on the latest version",
     "check_failed": "Couldn't check for updates. Try again later"
   },

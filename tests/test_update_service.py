@@ -9,9 +9,11 @@ import json
 import urllib.error
 import urllib.request
 
+import flet as ft
 import pytest
-from conftest import snack_texts
+from conftest import find_controls, snack_texts
 
+from components import update_check
 from components.update_check import check_for_update
 from services import update_service
 from services.update_service import UpdateCheckFailed, newer_release
@@ -62,22 +64,49 @@ def _offline():
     raise UpdateCheckFailed
 
 
-@pytest.mark.parametrize("answer, manual, shown", [
-    (lambda: None, True, ["You are on the latest version"]),
-    (_offline, True, ["Couldn't check for updates. Try again later"]),
-    (lambda: None, False, []),
-    (_offline, False, []),
-], ids=["manual-up-to-date", "manual-offline", "launch-up-to-date", "launch-offline"])
-def test_only_a_check_the_user_asked_for_says_why_nothing_is_offered(page, translator, monkeypatch,
-                                                                   answer, manual, shown):
-    """Searching for updates from the drawer says the app is up to date, or that GitHub couldn't be reached.
+RELEASE = {"tag_name": "v9.9.9", "body": "notes", "html_url": "https://github.com/release", "assets": []}
 
-    The automatic check at launch stays silent in both cases. Offline, a
-    manual check used to report the app up to date.
+
+@pytest.mark.parametrize("answer, shown", [
+    (lambda: None, "You are on the latest version"),
+    (_offline, "Couldn't check for updates. Try again later"),
+    (lambda: RELEASE, None),
+], ids=["up-to-date", "offline", "newer-release"])
+def test_searching_from_the_drawer_answers_under_the_entry_until_it_closes(app, page, monkeypatch, answer, shown):
+    """The drawer's entry says "Checking…" while greyed out, then its answer, until the drawer closes.
+
+    A snack bar would be hidden under the open drawer. A newer release opens
+    its dialog instead, leaving the entry plain. Offline, the search used to
+    report the app up to date. GitHub answers at once here, so "Checking…"
+    waits out the rest of its second before the answer replaces it. Closing
+    the drawer during the search leaves "Checking…", as the search goes on.
     """
+    app.show_tab(0)
+    drawer = page.end_drawer
+    [tile] = [tile for tile in find_controls(drawer, ft.ListTile) if tile.title.value == "Search for Updates"]
+    monkeypatch.setattr(update_service, "newer_release", answer)
+    searches, waits = [], []
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: searches.append(fn))
+    monkeypatch.setattr(update_check.time, "sleep", waits.append)
+
+    tile.on_click(None)
+    drawer.on_dismiss()
+    assert (tile.subtitle.value, tile.disabled, isinstance(tile.trailing, ft.ProgressRing)) == ("Checking…", True, True)
+    searches.pop()()
+
+    assert waits == [pytest.approx(1, abs=0.1)]
+    assert (tile.subtitle and tile.subtitle.value, tile.disabled, tile.trailing) == (shown, False, None)
+    assert [dialog.title.value for dialog in page.dialogs] == ([] if shown else ["Version 9.9.9 available"])
+    drawer.on_dismiss()
+    assert tile.subtitle is None
+
+
+@pytest.mark.parametrize("answer", [lambda: None, _offline], ids=["up-to-date", "offline"])
+def test_the_check_at_launch_stays_silent(page, translator, monkeypatch, answer):
+    """With nothing to offer, the automatic check at launch shows no message and no dialog."""
     monkeypatch.setattr(update_service, "newer_release", answer)
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
 
-    check_for_update(page, translator, manual=manual)
+    check_for_update(page, translator)
 
-    assert snack_texts(page) == shown
+    assert (snack_texts(page), page.dialogs) == ([], [])

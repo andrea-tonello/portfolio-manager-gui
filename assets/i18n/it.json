@@ -355,6 +355,7 @@
     "later": "Più tardi",
     "download": "Aggiorna",
     "search_for_updates": "Controlla Aggiornamenti",
+    "checking": "Controllo in corso…",
     "no_updates": "L'ultima versione è già installata",
     "check_failed": "Impossibile controllare gli aggiornamenti. Riprova più tardi"
   },

@@ -17,7 +17,7 @@ from components.dialogs import (
     show_text_dialog,
     show_user_manager,
 )
-from components.update_check import check_for_update
+from components.update_check import update_tile
 from views.home_view import HomeView
 from views.operations_view import OperationsView
 from views.analysis_view import TOOLS as ANALYSIS_TOOLS
@@ -125,6 +125,7 @@ def _build_drawer(app) -> ft.NavigationDrawer:
     """The side menu: Settings, the user manager, privacy policy, contacts, the GitHub link and the version."""
     page, state = app.page, app.state
     t = state.translator
+    update_entry, clear_update_answer = update_tile(page, t)
     # The drawer puts its controls in a scrolling list, where `expand` does nothing. A column as tall
     # as the drawer (the page minus the status bar) gives the spacer room to push the footer down.
     content = ft.Column(
@@ -162,13 +163,7 @@ def _build_drawer(app) -> ft.NavigationDrawer:
                 min_height=60,
                 content_padding=ft.Padding.only(left=25),
             ),
-            ft.ListTile(
-                leading=ft.Icon(ft.Icons.FILE_DOWNLOAD_OUTLINED),
-                title=ft.Text(t.get("update.search_for_updates")),
-                on_click=lambda: check_for_update(page, t, manual=True),
-                min_height=60,
-                content_padding=ft.Padding.only(left=25),
-            ),
+            update_entry,
             ft.Divider(),
             ft.ListTile(
                 trailing=ft.Icon(ft.Icons.OPEN_IN_NEW),
@@ -193,6 +188,7 @@ def _build_drawer(app) -> ft.NavigationDrawer:
     return ft.NavigationDrawer(
         selected_index=None,
         controls=[ft.Container(content, height=page.height - app.top_inset)],
+        on_dismiss=lambda: clear_update_answer(),  # however the drawer closes
     )
 
 
