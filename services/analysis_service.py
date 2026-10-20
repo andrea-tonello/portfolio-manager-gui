@@ -18,7 +18,7 @@ TRADING_DAYS_PER_YEAR = 252
 # Yearly return of a riskless investment, which the Sharpe ratio subtracts from the portfolio's.
 RISK_FREE_RATE = 0.02
 # Monte Carlo VaR: how many future outcomes to simulate, and the first day of
-# price history used to estimate the assets' returns and how they move together.
+# price history whose days the outcomes are built from.
 VAR_SIMULATIONS = 50_000
 VAR_HISTORY_START = "2010-01-01"
 # What the sector allocation splits: shares of companies, held directly or
@@ -278,21 +278,38 @@ def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_
     }
 
 
-def _simulate_outcomes(value, daily_return, daily_std, days, num_simulations, rng=None):
-    """Simulate many possible gains/losses (EUR) of the portfolio over `days` days, all at once.
+def _simulate_outcomes(value, daily_returns, days, num_simulations, rng=None):
+    """Simulate `num_simulations` possible future gains/losses scenarios of 
+    the portfolio  over `days` days, using data from the past.
 
-    Each outcome is value × daily_return × days + value × daily_std × z × √days,
-    where z is a random number from the standard bell curve (mostly between -2
-    and +2). The VaR is then read off the worst outcomes, and the chart draws
-    their histogram.
+    Inputs:
+    - `value`: the invested value in EUR (no cash)
+    - `daily_returns`: a np.array of the portfolio's past daily returns since VAR_HISTORY_STARTS
+    - `days`: how many days ahead each outcome looks, e.g. 10
+    - `num_simulations`: how many outcomes to simulate, e.g. 50,000
+    - `rng`: a NumPy random generator
+
+    Output: a np.array of `num_simulations` gains or losses in EUR, one per simulated future. 
+    The VaR is read off its worst ones, and the chart draws its histogram.
+
+    Example: value 10,000 and the days picked -2%, +1%, +0.5% give
+    10,000 × (0.98 × 1.01 × 1.005 - 1) = -52.51.
     """
     rng = rng or np.random.default_rng()
-    z = rng.standard_normal(num_simulations)
-    return value * daily_return * days + value * daily_std * z * np.sqrt(days)
+
+    # What random days do we pick from daily_returns? 
+    # --> 50000x10 vector filled with random day choices: 0, 1, 2, ..., len(daily_returns)
+    picks = rng.integers(0, len(daily_returns), size=(num_simulations, days))
+
+    # daily_returns[picks],     50000x10: each value holds the return on day `picks`
+    # np.prod(1 + ..., axis=1), 50000x1 : compounds the 10 returns for each row, giving one final return per simulated future 
+    # value * (... - 1),        50000x1 : turns each final return into a gain or loss in EUR (50000x1)
+    return value * (np.prod(1 + daily_returns[picks], axis=1) - 1)
 
 
 def compute_var_mc(accounts: list[Account], confidence_interval: float, projected_days: int) -> dict:
-    """Monte Carlo Value at Risk of the portfolio made of `accounts` (a list of Account).
+    """Value at Risk by historical Monte Carlo simulation: the scenarios replay real past days, from VAR_HISTORY_START to today.
+    Only the invested value can be lost: the past returns apply to it, and the cash, which doesn't move, adds no risk.
 
     Returns dict:
     {
@@ -327,37 +344,22 @@ def compute_var_mc(accounts: list[Account], confidence_interval: float, projecte
     assets_value = [pos["value"] for pos in aggr_positions]
     asset_tickers = [pos["ticker"] for pos in aggr_positions]
 
-    cash = sum(total_liquidity)
-    portfolio_value = sum(assets_value)
-    weights = np.array(assets_value) / portfolio_value
-    portfolio_value = portfolio_value + cash
+    invested = sum(assets_value)
+    weights = np.array(assets_value) / invested
+    portfolio_value = invested + sum(total_liquidity)
 
     prices_df = download_prices_eur(total_tickers, start_ref_date, end_dt)
     if prices_df.empty:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
     prices_df = prices_df[asset_tickers]
-    log_returns = np.log(prices_df / prices_df.shift(1)).dropna()
 
-    def expected_return(tickers, log_returns, weights):
-        means = []
-        for ticker, weight in zip(tickers, weights):
-            ticker_df = log_returns[ticker].copy().dropna()
-            ticker_mean = ticker_df.mean() * weight
-            means.append(ticker_mean)
-        return np.sum(means)
-
-    def standard_deviation(cov_matrix, weights):
-        variance = weights.T @ cov_matrix @ weights
-        return np.sqrt(variance)
-
-    cov_matrix = log_returns.cov()
-    portfolio_expected_return = expected_return(asset_tickers, log_returns, weights)
-    portfolio_std_dev = standard_deviation(cov_matrix, weights)
+    # Each past day's return of the portfolio as it is now: every asset's return that day, weighted by its
+    # share of the invested value. (Simple returns, not log returns: they add up across assets.)
+    daily_returns = (prices_df.pct_change().dropna() @ weights).to_numpy()
 
     scenario_return = _simulate_outcomes(
-        portfolio_value, portfolio_expected_return, portfolio_std_dev, projected_days,
-        num_simulations=VAR_SIMULATIONS,
+        invested, daily_returns, projected_days, num_simulations=VAR_SIMULATIONS,
     ).tolist()
 
     var_value = -np.percentile(scenario_return, 100 * (1 - confidence_interval))

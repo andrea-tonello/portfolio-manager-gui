@@ -2,16 +2,14 @@
 
 VaR answers: "over the next N days, how much could the portfolio lose, in all
 but the worst 1% of cases?" The app simulates many possible outcomes and reads
-the loss at the worst-1% mark. Every outcome follows one bell curve whose centre
-and spread are known in advance, so the simulation can be checked against them.
+the loss at the worst-1% mark. Each outcome replays real past days of the
+portfolio, picked at random, rather than draws from a bell curve.
 """
 
 import json
 from datetime import date, datetime
-from statistics import NormalDist
 
 import numpy as np
-import pytest
 from conftest import FX_TICKER, fake_download_close
 from test_ledger_snapshots import _replay, buy, deposit
 from test_summary import round_floats
@@ -20,26 +18,16 @@ from domain.account import Account
 from services import analysis_service, market_data
 from services.analysis_service import _simulate_outcomes
 
-# A 20,000 EUR portfolio, +0.04% per day on average, 1.1% daily volatility, 10 days.
-VALUE, DAILY_RETURN, DAILY_STD, DAYS = 20_000, 0.0004, 0.011, 10
-CENTRE = VALUE * DAILY_RETURN * DAYS                  # +80 EUR
-SPREAD = VALUE * DAILY_STD * np.sqrt(DAYS)            # ≈ 695.7 EUR
-EXACT_VAR_99 = -(CENTRE + SPREAD * NormalDist().inv_cdf(0.01))   # ≈ 1,538.4 EUR
 
+def test_outcomes_are_made_of_real_past_days():
+    """Every outcome compounds past days picked at random: with only a -10% and a +10% day, 2 days give 3 outcomes.
 
-def test_simulated_outcomes_follow_the_expected_bell_curve():
-    """With many draws, the outcomes have the predicted centre, spread and 99% VaR.
-
-    The worst-1% outcome is the 1st percentile; the VaR is that loss as a
-    positive number (≈ 1,538 EUR here).
+    On 10,000: two bad days -1,900 (0.9 × 0.9), one of each -100 (0.9 × 1.1),
+    two good days +2,100 (1.1 × 1.1). Nothing in between, unlike a bell curve.
     """
-    outcomes = _simulate_outcomes(VALUE, DAILY_RETURN, DAILY_STD, DAYS, 200_000,
-                                  rng=np.random.default_rng(0))
+    outcomes = _simulate_outcomes(10_000, np.array([-0.10, 0.10]), 2, 1_000, rng=np.random.default_rng(0))
 
-    assert len(outcomes) == 200_000
-    assert np.mean(outcomes) == pytest.approx(CENTRE, abs=10)
-    assert np.std(outcomes) == pytest.approx(SPREAD, rel=0.01)
-    assert -np.percentile(outcomes, 1) == pytest.approx(EXACT_VAR_99, rel=0.02)
+    assert sorted({round(outcome, 2) for outcome in outcomes}) == [-1_900, -100, 2_100]
 
 
 # ── compute_var_mc: what the simulation is fed ───────────────────────
@@ -66,13 +54,19 @@ def _varying_fx_download_close(tickers, **kwargs):
     return prices, names
 
 
-def test_var_inputs_match_snapshot(tmp_path, fake_market, monkeypatch, snapshot):
-    """What compute_var_mc feeds the simulation is identical to tests/snapshots/var_inputs.json.
+# A EUR stock (AAA.MI) and a USD stock (UUU), bought in January 2024.
+INVESTMENTS = [
+    buy(date(2024, 1, 3), "AAA.MI", 10, 100.0, 2.0),
+    buy(date(2024, 1, 4), "UUU", 5, 200.0, 1.0, currency="USD", conv_rate=0.9),
+]
 
-    The account holds a EUR stock (AAA.MI) and a USD stock (UUU) on
-    31-12-2024, and a year of fake prices is used (from 2024-01-01). The
-    simulation is random, so it is replaced by a stand-in that records its
-    inputs: portfolio value, mean daily return, daily volatility, days.
+
+def _simulation_inputs(steps, folder, monkeypatch):
+    """What compute_var_mc feeds the simulation for an account made of `steps`, on 31-12-2024.
+
+    A year of fake prices is used (from 2024-01-01). The simulation is random,
+    so it is replaced by a stand-in that records its inputs: the value it is
+    applied to, the portfolio's past daily returns (as a list) and the days.
     """
     monkeypatch.setattr(analysis_service, "datetime", _FixedNow)
     monkeypatch.setattr(analysis_service, "VAR_HISTORY_START", "2024-01-01")
@@ -81,18 +75,35 @@ def test_var_inputs_match_snapshot(tmp_path, fake_market, monkeypatch, snapshot)
     monkeypatch.setattr(analysis_service, "download_close", _varying_fx_download_close)
     received = {}
 
-    def record_inputs(value, daily_return, daily_std, days, num_simulations, rng=None):
+    def record_inputs(value, daily_returns, days, num_simulations, rng=None):
         """Stand-in for _simulate_outcomes: remember the inputs and return flat outcomes."""
-        received.update(value=value, daily_return=daily_return, daily_std=daily_std, days=days)
+        received.update(value=value, daily_returns=list(daily_returns), days=days)
         return np.zeros(num_simulations)
 
     monkeypatch.setattr(analysis_service, "_simulate_outcomes", record_inputs)
-    df = _replay([
-        deposit(date(2024, 1, 2), 10_000),
-        buy(date(2024, 1, 3), "AAA.MI", 10, 100.0, 2.0),
-        buy(date(2024, 1, 4), "UUU", 5, 200.0, 1.0, currency="USD", conv_rate=0.9),
-    ], tmp_path)
+    df = _replay(steps, folder)
 
     analysis_service.compute_var_mc([Account(1, "Test Broker", "", df)], 0.99, 10)
+    return received
+
+
+def test_var_inputs_match_snapshot(tmp_path, fake_market, monkeypatch, snapshot):
+    """What compute_var_mc feeds the simulation is identical to tests/snapshots/var_inputs.json.
+
+    The past daily returns are summed up (how many, their average, spread,
+    worst and best), which is enough to notice any change in them.
+    """
+    received = _simulation_inputs([deposit(date(2024, 1, 2), 10_000), *INVESTMENTS], tmp_path, monkeypatch)
+    returns = np.array(received.pop("daily_returns"))
+    received.update(returns_count=len(returns), returns_mean=returns.mean(), returns_std=returns.std(),
+                    worst_return=returns.min(), best_return=returns.max())
 
     snapshot("var_inputs.json", json.dumps(round_floats(received), indent=2, sort_keys=True))
+
+
+def test_cash_adds_no_risk(tmp_path, fake_market, monkeypatch):
+    """The same investments give the same VaR however much cash sits next to them: cash doesn't move."""
+    little_cash = _simulation_inputs([deposit(date(2024, 1, 2), 2_000), *INVESTMENTS], tmp_path / "little", monkeypatch)
+    lots_of_cash = _simulation_inputs([deposit(date(2024, 1, 2), 42_000), *INVESTMENTS], tmp_path / "lots", monkeypatch)
+
+    assert little_cash == lots_of_cash

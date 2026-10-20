@@ -6,6 +6,13 @@
 
 - [INVESTIGATE] Liquidità impegnata in negativo (BG Saxo)
 
+- [VAR] Days dropped from the price history
+    * download_prices_eur keeps only days with a USD->EUR rate, even when every asset held is in EUR: SWDA.MI has 4,263 daily returns since 2010 alone, 3,769 with the rate
+    * A dropped day's move is merged into the next kept day, so some "daily" returns span 2+ days, and the historical VaR replays them as single days
+    * Fix: use the rate's days only when a USD asset is held. Also watch for Yahoo gaps (SWDA.MI on 09-08-2011: price stuck two days, then -15.6% in one)
+- [VAR] Bad days come in clusters, but the simulation picks each day on its own
+    * Picking runs of consecutive days instead ("block bootstrap") would keep them, e.g. March 2020's string of falls; it matters most for longer horizons (10+ days)
+
 - [BUG14] in Appendix A
 One more question, because of the gain-only rule: what happens to the pending buy fees when an ETF is sold at a loss?
   1. They're included in the loss. The loss grows by the pending buy fees plus the sale fee, and nothing stays pending. This is how costs usually count in a capital loss, so the zainetto ends up with the same total as a sale at a gain, just reported as one bigger loss.
