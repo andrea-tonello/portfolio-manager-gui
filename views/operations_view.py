@@ -190,7 +190,7 @@ class GeneralForm:
         # or a split in the second; picking in one empties the other (_select_kind).
         self.kind = "deposit"
         self.cash_kind = ft.SegmentedButton(
-            show_selected_icon=False,  # the colour shows the choice; the check mark squeezed narrow phones
+            show_selected_icon=False, 
             selected=[self.kind],
             allow_multiple_selection=False,
             allow_empty_selection=False,  # True only while the other button holds the choice (_select_kind)
@@ -200,7 +200,7 @@ class GeneralForm:
             segments=[
                 ft.Segment(value="deposit", label=t.get("operations.cash.op_deposit")),
                 ft.Segment(value="withdrawal", label=t.get("operations.cash.op_withdrawal")),
-                ft.Segment(value="charge", label=t.get("operations.cash.op_charge")),
+                #ft.Segment(value="charge", label=t.get("operations.cash.op_transfer")),
             ],
         )
         cash_column = ft.Column([
@@ -217,8 +217,9 @@ class GeneralForm:
             on_change=lambda _: self._select_kind(self.corporate_kind.selected[0]),
             expand=True,  # narrows to make room for the split's "?"
             segments=[
+                ft.Segment(value="charge", label=t.get("operations.cash.op_charge")),
                 ft.Segment(value="dividend", label=t.get("operations.cash.op_dividend")),
-                ft.Segment(value="split", label=t.get("operations.split.title")),
+                ft.Segment(value="split", label=t.get("operations.split.title_small")),
             ],
         )
         corporate_column = ft.Column([
@@ -230,8 +231,7 @@ class GeneralForm:
 
         kind_section = ft.Column([
             ft.ResponsiveRow([cash_column, corporate_column,], spacing=20),
-            ft.Container(height=10),
-            ft.Divider(),
+            ft.Container(height=30),
         ], spacing=0, opacity=0.4 if no_account else 1.0,
            horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
         self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
@@ -410,7 +410,7 @@ class EtfStockForm:
         self.page = app.page
         self.state = app.state
         self.product_type = product_type
-        self.etf_subtype = None  # the ETF type picked (a RadioGroup of product codes); ETF tab only
+        self.etf_subtype = None  # the ETF type picked (a SegmentedButton of product codes); ETF tab only
 
     def build(self) -> ft.Control:
         """Create the form's controls (kept as attributes, e.g. self.quantity) and return its layout."""
@@ -638,28 +638,46 @@ class EtfStockForm:
         self._bond_placeholder = ft.Container(
             self._bond_text, alignment=ft.alignment.Alignment.CENTER, expand=True, visible=False,
         )
-        self._bond_maturity_switch = ft.Switch(label=t.get("operations.stock.fixed"), value=False,
-                                               disabled=True,
-                                               label_position=ft.LabelPosition.LEFT,
-                                               on_change=self._on_bond_maturity_change)
-
-        # The radio values are the product codes stored in the CSV (e.g. "ETF-M").
-        self.etf_subtype = ft.RadioGroup(
-            value=Product.ETF_STOCK,
+        # The segment values are the product codes stored in the CSV (e.g. "ETF-M").
+        self.etf_subtype = ft.SegmentedButton(
+            show_selected_icon=False,
+            selected=[Product.ETF_STOCK],
+            disabled=no_account,
             on_change=self._on_etf_subtype_change,
-            content=ft.Column([
-                ft.Radio(value=Product.ETF_STOCK, label=t.get("operations.stock.stock_etf")),
-                ft.Radio(value=Product.ETF_MM, label=t.get("operations.stock.mm_etf"),),
-                ft.Row([
-                    ft.Radio(value=Product.ETF_BOND, label=t.get("operations.stock.bonds_etf"),),
-                    ft.Container(expand=True),
-                    self._bond_maturity_switch,
-                ], spacing=0),
-            ], spacing=0, opacity=0.4 if no_account else 1.0),
+            expand=True,
+            # Less room around each label than Flutter's 12 px a side: "Obbligazionari" otherwise
+            # breaks mid-word on a phone (each segment is a third of the width, about 120 px).
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=4)),
+            segments=[
+                ft.Segment(value=Product.ETF_STOCK, label=t.get("operations.stock.stock_etf")),
+                ft.Segment(value=Product.ETF_MM, label=t.get("operations.stock.mm_etf")),
+                ft.Segment(value=Product.ETF_BOND, label=t.get("operations.stock.bonds_etf")),
+            ],
         )
+        # Bond ETFs only: which kind. They aren't supported yet, so it only picks the note shown.
+        self._bond_maturity = ft.SegmentedButton(
+            show_selected_icon=False,
+            selected=["rolling"],
+            disabled=no_account,
+            on_change=self._on_bond_maturity_change,
+            expand=True,
+            segments=[
+                ft.Segment(value="rolling", label=t.get("operations.stock.rolling")),
+                ft.Segment(value="fixed", label=t.get("operations.stock.fixed")),
+            ],
+        )
+        self._bond_maturity_row = ft.Row([self._bond_maturity], visible=False, col={"xs": 12, "md": 6})
+        # On a tablet the maturity sits beside the type, on a phone below it. Without the
+        # maturity (any type but bonds) the type takes the whole width (_on_etf_subtype_change).
+        self._etf_type_row = ft.Row([self.etf_subtype], col={"xs": 12, "md": 12})
+        etf_kind = ft.ResponsiveRow([
+            self._etf_type_row,
+            self._bond_maturity_row,
+        ], opacity=0.4 if no_account else 1.0)
 
         outer = ft.Column([
-            self.etf_subtype,
+            etf_kind,
+            ft.Container(height=8),
             self._trade_fields,
             self._bond_placeholder,
         ], spacing=12)
@@ -700,7 +718,7 @@ class EtfStockForm:
         """
         held = self._sellable[self.sell_ticker.value]
         if self.etf_subtype is not None and held["product"] in (Product.ETF_STOCK, Product.ETF_MM):
-            self.etf_subtype.value = held["product"]
+            self.etf_subtype.selected = [held["product"]]
             self._on_etf_subtype_change(None)
         if held["curr"] in CURRENCIES:
             self.currency.value = held["curr"]
@@ -790,17 +808,23 @@ class EtfStockForm:
         return t.get(f"operations.stock.{key}", fee=fee, pending=fmt_eur(pending))
 
     def _on_etf_subtype_change(self, e):
-        """Show the trade fields and the button (with the tax bracket for money-market ETFs), or the note for bond ETFs."""
-        val = self.etf_subtype.value
+        """Show the trade fields and the button (with the tax bracket for money-market ETFs).
+
+        For bond ETFs, show instead their maturity choice (beside the type on a
+        tablet, which then takes half the width) and the note saying they are coming.
+        """
+        val = self.etf_subtype.selected[0]
+        is_bond = val == Product.ETF_BOND
         self._trade_fields.visible = self._add_btn.visible = val in (Product.ETF_STOCK, Product.ETF_MM)
-        self._bond_placeholder.visible = val == Product.ETF_BOND
-        self._bond_maturity_switch.disabled = val != Product.ETF_BOND
+        self._bond_placeholder.visible = self._bond_maturity_row.visible = is_bond
+        self._etf_type_row.col = {"xs": 12, "md": 6 if is_bond else 12}
         self._tax_row.visible = val == Product.ETF_MM
         self.page.update()
 
     def _on_bond_maturity_change(self, e):
         """Switch the bond ETF note between rolling and fixed maturity."""
-        key = "operations.stock.bonds_fixed_soon" if e.control.value else "operations.stock.bonds_rolling_soon"
+        is_fixed = self._bond_maturity.selected[0] == "fixed"
+        key = "operations.stock.bonds_fixed_soon" if is_fixed else "operations.stock.bonds_rolling_soon"
         self._bond_text.value = "\n\n" + self.state.translator.get(key)
         self.page.update()
 
@@ -823,7 +847,7 @@ class EtfStockForm:
             fee_mode = self._buy_fee_choice  # None until a card is tapped, refused by parse_trade
         try:
             trade = operations_service.parse_trade(
-                product=self.etf_subtype.value if self.etf_subtype is not None else Product.STOCK,
+                product=self.etf_subtype.selected[0] if self.etf_subtype is not None else Product.STOCK,
                 is_buy=is_buy,
                 day=self.date.value,
                 ticker=self._trade_ticker(),

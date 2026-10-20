@@ -95,7 +95,7 @@ def test_done_on_the_keyboard_moves_only_to_fields_that_are_shown(app, state):
                 """Stand-in for the field's focus(): record which field was asked for."""
                 focused.append((form.product_type, name))
             getattr(form, name).focus = focus
-    view.etf.etf_subtype.value = "ETF-M"
+    view.etf.etf_subtype.selected = ["ETF-M"]
     view.etf._on_etf_subtype_change(None)
 
     asyncio.run(view.etf.ter.on_submit(None))

@@ -64,8 +64,8 @@
     "added_transaction": "Transaction saved",
     "general": {
       "title": "GENERAL",
-      "cash_section": "Cash Transfers",
-      "corporate_section": "Other Operations"
+      "cash_section": "Cash transfers",
+      "corporate_section": "Other operations"
     },
     "cash": {
       "op_deposit": "Deposit",
@@ -82,9 +82,10 @@
     },
     "stock": {
       "title_etf": "ETFs",
-      "stock_etf": "Stocks ETF",
-      "mm_etf": "Money Market ETF",
-      "bonds_etf": "Bonds ETF",
+      "stock_etf": "Stocks",
+      "mm_etf": "Money Market",
+      "bonds_etf": "Bonds",
+      "rolling": "Rolling",
       "fixed": "Fixed Maturity",
       "bonds_rolling_soon": "Bonds ETFs Rolling Maturity\n\nComing soon",
       "bonds_fixed_soon": "Bonds ETFs Fixed Maturity\n\nComing soon",
@@ -135,6 +136,7 @@
     },
     "split": {
       "title": "Shares Split",
+      "title_small": "Split",
       "descr": "If an asset's price is too low or too high, the issuer may decide to apply a split.\nN-to-1 split: 1 share is divided into N shares.\n1-to-N reverse split: N shares are grouped into 1.\nIn both cases, splits do not alter the value of your investment.\n\nThe application auto detects splits during a Home page refresh. If auto detection fails, this option lets you manually record a split.",
       "ticker": "Ticker",
       "ticker_notheld": "You do not currently hold {ticker}",

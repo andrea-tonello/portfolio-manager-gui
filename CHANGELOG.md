@@ -7,6 +7,7 @@
 ### Features
 
 - Added *Search for Updates* option in the Drawer
+- *Operations → General*, *Operations → ETFs*: operation selection now uses `SegmentedButton`s
 
 
 

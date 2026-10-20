@@ -284,11 +284,7 @@ def _simulate_outcomes(value, daily_return, daily_std, days, num_simulations, rn
     Each outcome is value × daily_return × days + value × daily_std × z × √days,
     where z is a random number from the standard bell curve (mostly between -2
     and +2). The VaR is then read off the worst outcomes, and the chart draws
-    their histogram. NumPy generates all the random numbers in one call, which
-    is much faster than a Python loop (≈65× in testing).
-
-    `rng` is a NumPy random generator; pass one with a fixed seed to get
-    repeatable outcomes (tests), or leave it None for fresh random numbers.
+    their histogram.
     """
     rng = rng or np.random.default_rng()
     z = rng.standard_normal(num_simulations)

@@ -169,12 +169,12 @@ def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
 def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bracket, tax_rate):
     """The ETF type picked in the form is sent as the CSV's product code, with its tax rate.
 
-    The radio buttons' values are the product codes themselves, so no
+    The segments' values are the product codes themselves, so no
     translation table sits between the form and the CSV. The value is set as
     the plain string the screen hands back when the user picks a type.
     """
     form, submit, calls = open_trade_form("ETF")
-    form.etf_subtype.value = picked
+    form.etf_subtype.selected = [picked]
     form.fee_mode.value = "abp"
     if tax_bracket:
         form.tax_bracket.value = tax_bracket
@@ -255,7 +255,7 @@ def test_picking_the_asset_to_sell_sets_its_etf_type_and_currency(app, state, tm
         form.sell_ticker.value = ticker
         form.sell_ticker.on_select(None)
 
-    assert (view.etf.etf_subtype.value, view.etf._tax_row.visible) == ("ETF-M", True)
+    assert (view.etf.etf_subtype.selected, view.etf._tax_row.visible) == (["ETF-M"], True)
     assert (view.stock.currency.value, view.stock.exch_rate.visible) == ("USD", True)
 
 
@@ -294,7 +294,10 @@ def test_form_refuses_invalid_values(open_trade_form, page, tab, changes, messag
     """
     form, submit, calls = open_trade_form(tab)
     for field, value in changes.items():
-        getattr(form, field).value = value
+        if field == "etf_subtype":
+            form.etf_subtype.selected = [value]
+        else:
+            getattr(form, field).value = value
 
     submit()
 
