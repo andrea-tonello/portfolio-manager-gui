@@ -13,8 +13,9 @@ from test_ledger_snapshots import _replay, buy, deposit
 
 from domain.account import Account
 from domain.errors import ValidationError
+from domain.newrow import newrow_cash
 from services.analysis_service import compute_summary
-from services.operations_service import execute_transfer, parse_transfer
+from services.operations_service import execute_transfer, parse_transfer, remove_last_operation
 
 DAY = date(2024, 6, 3)
 
@@ -93,3 +94,55 @@ def test_a_transfer_is_refused_with_its_reason(accounts, recipient, day, amount,
         parse_transfer(fineco.df, directa if recipient else None, day, amount)
 
     assert (info.value.key, info.value.params) == (key, params)
+
+
+# ── Undoing a transfer ───────────────────────────────────────────────
+
+def _transfer(fineco, directa, amount=500):
+    """Record `amount` from Fineco to Directa on DAY; return both accounts with their new rows."""
+    fineco_df, directa_df = execute_transfer(fineco, directa, DAY.strftime("%d-%m-%Y"), DAY, amount)
+    return Account(1, "Fineco", "", fineco_df), Account(2, "Directa", "", directa_df)
+
+
+def test_two_equal_transfers_on_the_same_day_are_undone_one_pair_at_a_time(accounts):
+    """Each undo removes the last transfer from both accounts; after two, both are as before.
+
+    The two transfers are identical, so either pairing of their halves gives the same accounts.
+    """
+    before = accounts
+    fineco, directa = _transfer(*_transfer(*accounts))
+
+    for _ in range(2):
+        changed = remove_last_operation(fineco, {1: fineco, 2: directa})
+        assert set(changed) == {1, 2}
+        fineco, directa = Account(1, "Fineco", "", changed[1]), Account(2, "Directa", "", changed[2])
+
+    assert (len(fineco.df), len(directa.df)) == (len(before[0].df), len(before[1].df))
+    assert (fineco.last("cash_held"), directa.last("cash_held")) == (9_000, 1_000)
+
+
+def test_a_transfer_waits_while_the_other_account_has_newer_operations(accounts):
+    """With a deposit in Directa after the transfer, undoing it from Fineco is refused, naming Directa.
+
+    Directa's transfer row is no longer its last: removing it would break the totals of the rows after it.
+    """
+    fineco, directa = _transfer(*accounts)
+    directa = Account(2, "Directa", "", newrow_cash(directa.df, "04-06-2024", date(2024, 6, 4), "Directa", 100,
+                                                    "Deposit", "Cash", float("nan"), float("nan")))
+
+    with pytest.raises(ValidationError) as info:
+        remove_last_operation(fineco, {1: fineco, 2: directa})
+
+    assert (info.value.key, info.value.params) == ("transactions.transfer_newer_ops", {"account": "Directa"})
+
+
+@pytest.mark.parametrize("other_half", ["account-deleted", "row-already-removed"])
+def test_a_transfer_whose_other_half_is_gone_is_removed_alone(accounts, other_half):
+    """If Directa was deleted, or its half already removed, undoing from Fineco removes Fineco's row only."""
+    fineco, directa = _transfer(*accounts)
+    others = {1: fineco} if other_half == "account-deleted" else {1: fineco, 2: accounts[1]}
+
+    changed = remove_last_operation(fineco, others)
+
+    assert set(changed) == {1}
+    assert changed[1].iloc[-1]["operation"] == "Buy"

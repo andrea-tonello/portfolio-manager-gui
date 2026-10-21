@@ -174,6 +174,51 @@ def execute_transfer(source: Account, recipient: Account, date_str: str, ref_dat
     return source_df, recipient_df
 
 
+def _other_side(row, account: Account, accounts: dict[int, Account]) -> tuple[Account | None, int | None]:
+    """Find the other half of the transfer recorded in `row`, the last row of `account`.
+
+    Returns (the other account, the position of its matching row), or (None, None)
+    when there is none: that account was deleted, or its row was already removed.
+    The match is the opposite operation, on the same day, for the same amount,
+    naming `account`: rows can't tell more apart, and two equal ones are interchangeable.
+    """
+    other = next((acc for acc in accounts.values() if acc.name == row["asset_name"] and acc.idx != account.idx), None)
+    if other is None:
+        return None, None
+    opposite = Op.TRANSFER_IN if row["operation"] == Op.TRANSFER_OUT else Op.TRANSFER_OUT
+    rows = other.df
+    matches = rows.index[(rows["operation"] == opposite) & (rows["date"] == row["date"])
+                         & (rows["asset_name"] == account.name) & (rows["effective_amount"] == -row["effective_amount"])]
+    return (other, matches[-1]) if len(matches) else (None, None)
+
+
+def remove_last_operation(account: Account, accounts: dict[int, Account]) -> dict[int, pd.DataFrame]:
+    """Return {account number: ledger} for every account changed by undoing `account`'s last operation.
+
+    Usually that is `account` alone, without its last row. A transfer was
+    recorded in two accounts, so its other half goes too: the account named
+    in the row, if that row is still its last. If that account has newer
+    operations, raises ValidationError("transactions.transfer_newer_ops"):
+    removing a row from the middle would break its running totals, so those
+    must be undone first. With no other half left (account deleted, row removed
+    already), `account`'s row goes alone. `accounts` are all the loaded accounts, by number.
+
+    Example: Fineco's last row is "Transfer Out" 500 to Directa, and Directa's
+    last row the matching "Transfer In" -> {Fineco: without it, Directa: without it}.
+    """
+    changed = {account.idx: account.df.iloc[:-1]}
+    row = account.df.iloc[-1]
+    if row["operation"] not in (Op.TRANSFER_OUT, Op.TRANSFER_IN):
+        return changed
+    other, position = _other_side(row, account, accounts)
+    if other is None:
+        return changed
+    if position != other.df.index[-1]:
+        raise ValidationError("transactions.transfer_newer_ops", account=other.name)
+    changed[other.idx] = other.df.iloc[:-1]
+    return changed
+
+
 def execute_etf_stock(df: pd.DataFrame, broker: str, date_str: str, ref_date: date,
                       currency: str, conv_rate: float, ticker: str, quantity: int, price: float,
                       fee: float, ter: TextCell, product_type: str, *, is_buy: bool, asset_name: str | None = None,

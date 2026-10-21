@@ -58,6 +58,30 @@ def localized_value_maps(translator):
     }
 
 
+# How a transfer's other account is shown, by the transfer's direction.
+TRANSFER_COUNTERPART_KEYS = {
+    "Transfer Out": "values.transfer_to",
+    "Transfer In": "values.transfer_from",
+}
+
+
+def show_transfer_counterparts(df, translator):
+    """Return a copy of `df` where each transfer's asset_name says which way the cash went, in the user's language.
+
+    The ledger keeps the other account's bare name: it doesn't depend on the
+    language, and it identifies the account (removing a transfer finds its
+    other half by it). The direction is only added to show it.
+    Example in Italian: "Directa" on a Transfer Out row -> "verso: Directa"; on a Transfer In row -> "da: Directa".
+    """
+    out = df.copy()
+    if "operation" not in out.columns or "asset_name" not in out.columns:
+        return out
+    for operation, key in TRANSFER_COUNTERPART_KEYS.items():
+        rows = out["operation"] == operation
+        out.loc[rows, "asset_name"] = out.loc[rows, "asset_name"].map(lambda name, k=key: translator.get(k, account=name))
+    return out
+
+
 def _translate_values(df, translator):
     """Translate operation and product column values to locale strings."""
     for col, mapping in localized_value_maps(translator).items():
@@ -68,7 +92,7 @@ def _translate_values(df, translator):
 
 def rename_for_export(df, translator):
     """Return a copy of *df* with columns and values translated for export."""
-    out = df.copy()
+    out = show_transfer_counterparts(df, translator)  # before the operations are translated: it reads them
     _translate_values(out, translator)
     mapping = export_headers(translator)
     return out.rename(columns=mapping)

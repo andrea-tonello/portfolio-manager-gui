@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 from components.buttons import action_card_btn
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
-from components.snack import show_snack
-from services import account_service, config_service
-from utils.columns import COLUMNS, rename_for_export, export_headers, localized_value_maps
+from components.snack import error_message, show_snack
+from domain.errors import ValidationError
+from domain.ledger import Op
+from services import account_service, config_service, operations_service
+from utils.columns import COLUMNS, export_headers, localized_value_maps, rename_for_export, show_transfer_counterparts
 from utils.constants import DEFAULT_TX_FILTER, REPORT_PREFIX
 
 _DEFAULT_DISPLAY_COLS = [
@@ -306,6 +308,7 @@ class TransactionsView:
         t = self.state.translator
         if df is None or df.empty:
             return ft.Text(t.get("transactions.empty"), size=16)
+        df = show_transfer_counterparts(df, t)  # "verso: Directa" rather than the bare name stored
 
         available_cols = [c for c in self._visible_cols if c in df.columns]
 
@@ -364,12 +367,49 @@ class TransactionsView:
         await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
+        """Remove account `idx`'s last operation. A transfer is in two accounts: ask first, then remove both halves.
+
+        See operations_service.remove_last_operation for which rows go, and
+        when a transfer can't be removed yet.
+        """
         s = self.state
         t = s.translator
         account = s.get_account(idx)
-        if account and account.has_transactions:
-            s.commit(idx, account.df.iloc[:-1])
-            show_snack(self.page, t.get("transactions.row_removed"))
-            self.app.refresh()
-        else:
+        if not (account and account.has_transactions):
             show_snack(self.page, t.get("transactions.no_rows"), error=True)
+            return
+        try:
+            changed = operations_service.remove_last_operation(account, s.accounts)
+        except ValidationError as ex:
+            show_snack(self.page, error_message(t, ex), error=True)
+            return
+
+        def remove(message_key):
+            """Save the accounts without the operation, say so, and show the tab again."""
+            for acc_idx, df in changed.items():
+                s.commit(acc_idx, df)
+            show_snack(self.page, t.get(message_key))
+            self.app.refresh()
+
+        if account.df.iloc[-1]["operation"] not in (Op.TRANSFER_OUT, Op.TRANSFER_IN):
+            remove("transactions.row_removed")
+            return
+
+        names = [s.accounts[acc_idx].name for acc_idx in changed]
+        text = (t.get("transactions.transfer_undo_both", first=names[0], second=names[1]) if len(names) == 2
+                else t.get("transactions.transfer_undo_one", account=names[0]))
+
+        def confirm(_):
+            """Close the question and remove the transfer."""
+            self.page.pop_dialog()
+            remove("transactions.transfer_removed")
+
+        self.page.show_dialog(ft.AlertDialog(
+            title=ft.Text(t.get("transactions.transfer_undo_title")),
+            content=ft.Text(text),
+            actions=[
+                ft.TextButton(t.get("components.cancel"), on_click=lambda _: self.page.pop_dialog()),
+                ft.TextButton(t.get("transactions.transfer_undo_confirm"), style=ft.ButtonStyle(color=ft.Colors.RED),
+                              on_click=confirm),
+            ],
+        ))

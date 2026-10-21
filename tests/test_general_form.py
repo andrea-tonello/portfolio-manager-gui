@@ -127,7 +127,7 @@ def test_a_transfer_needs_another_account(general_form, page):
 
     _choose(form, "transfer")
 
-    assert snack_texts(page) == ["You need another account to transfer cash to"]
+    assert snack_texts(page) == ["You first need another account to transfer cash to"]
     assert (form.kind, form.cash_kind.selected, form.recipient_row.visible) == ("withdrawal", ["withdrawal"], False)
 
 
