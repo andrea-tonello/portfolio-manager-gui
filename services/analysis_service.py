@@ -6,7 +6,7 @@ from itertools import chain
 from domain.account import Account
 from domain.errors import ValidationError
 from domain.history import portfolio_history
-from domain.ledger import Op, Product, get_pf_date, holding_rows
+from domain.ledger import CASH_FLOWS, Product, get_pf_date, holding_rows
 from domain.positions import aggregate_positions, get_tickers, priced_positions
 from domain.returns import xirr
 from services.market_data import download_close, download_prices_eur, fetch_sector_weights, fetch_ticker_name
@@ -90,9 +90,9 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
             pl_unrealized = pl + sum([pos["value"] - pos["pmc"] * pos["quantity"] for pos in positions])
         nav = current_liq + asset_value
 
-        # XIRR cash flows: deposits (money in, negative), withdrawals (money out,
-        # positive), and finally the account's value today, as if cashed out now.
-        cashflow_df = df_valid[df_valid["operation"].isin((Op.DEPOSIT, Op.WITHDRAWAL))]
+        # XIRR cash flows: deposits and transfers in (money in, negative), withdrawals and transfers out
+        # (money out, positive), and finally the account's value today, as if cashed out now.
+        cashflow_df = df_valid[df_valid["operation"].isin(CASH_FLOWS)]
         flows = (cashflow_df["effective_amount"] * -1).tolist() + [nav]
         flows_dates = cashflow_df["date"].tolist() + [ref_date]
 
@@ -293,7 +293,7 @@ def _simulate_outcomes(value, daily_returns, days, num_simulations, rng=None):
     The VaR is read off its worst ones, and the chart draws its histogram.
 
     Example: value 10,000 and the days picked -2%, +1%, +0.5% give
-    10,000 × (0.98 × 1.01 × 1.005 - 1) = -52.51.
+    10,000€ * (0.98 * 1.01 * 1.005 - 1) = -52.51€.
     """
     rng = rng or np.random.default_rng()
 

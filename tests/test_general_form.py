@@ -1,4 +1,4 @@
-"""Tests for the General tab of the Operations screen: cash operations and splits.
+"""Tests for the General tab of the Operations screen: cash operations, transfers and splits.
 
 The form hands the operation to operations_service with a sign convention:
 amounts are typed as positive numbers, and a withdrawal is passed on as a
@@ -10,6 +10,7 @@ from datetime import date
 
 import pytest
 from conftest import snack_texts
+from test_ledger_snapshots import _replay, deposit
 
 from services import operations_service
 from views.operations_view import OperationsView
@@ -46,8 +47,9 @@ def general_form(monkeypatch, app, page, state):
 
 
 def _choose(form, kind):
-    """Pick the operation `kind` as the user does: its segment, in the cash or the corporate actions button."""
-    buttons = form.cash_kind if kind in ("deposit", "withdrawal", "charge") else form.corporate_kind
+    """Pick the operation `kind` as the user does: its segment, in whichever button offers it."""
+    buttons = next(buttons for buttons in (form.cash_kind, form.corporate_kind)
+                   if any(segment.value == kind for segment in buttons.segments))
     buttons.selected = [kind]
     buttons.on_change(None)
 
@@ -116,3 +118,39 @@ def test_general_form_refuses_invalid_values(general_form, page, changes, messag
 
     assert calls == []
     assert snack_texts(page) == [message]
+
+
+def test_a_transfer_needs_another_account(general_form, page):
+    """With a single account, Transfer says there is nowhere to send cash and the form stays on the operation before."""
+    form, _, _ = general_form
+    _choose(form, "withdrawal")
+
+    _choose(form, "transfer")
+
+    assert snack_texts(page) == ["You need another account to transfer cash to"]
+    assert (form.kind, form.cash_kind.selected, form.recipient_row.visible) == ("withdrawal", ["withdrawal"], False)
+
+
+def test_a_transfer_from_the_form_records_it_in_both_accounts(app, page, state, tmp_path, monkeypatch):
+    """Transfer, a recipient and 500: the test account sends 500 to the second one, which receives it.
+
+    The amount shows the cash available (8,723.12, the test account's) while Transfer is chosen.
+    """
+    second = state.add_broker("Second Broker")
+    state.commit(second, _replay([deposit(date(2024, 1, 2), 1_000)], tmp_path / "second").assign(account="Second Broker"))
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
+    state.ops_acc_idx = 1
+    view = OperationsView(app)
+    view.build()
+    form = view.general
+    form.date.value = date(2025, 1, 10)
+
+    _choose(form, "transfer")
+    assert form.amount.helper == "Available: 8,723.12€"
+    form.recipient.value = str(second)
+    form.amount.value = "500"
+    form.submit(None)
+
+    sent, received = state.get_account(1).df.iloc[-1], state.get_account(second).df.iloc[-1]
+    assert (sent["operation"], sent["asset_name"], sent["cash_held"]) == ("Transfer Out", "Second Broker", 8_223.12)
+    assert (received["operation"], received["asset_name"], received["cash_held"]) == ("Transfer In", "Test Broker", 1_500)

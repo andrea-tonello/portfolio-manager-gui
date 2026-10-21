@@ -56,6 +56,7 @@
     "add_transaction": "Add Transaction",
     "add_deposit": "Add Deposit",
     "add_withdrawal": "Add Withdrawal",
+    "add_transfer": "Add Transfer",
     "add_tax": "Add Charge",
     "add_dividend": "Add Dividend",
     "add_split": "Add Split",
@@ -79,6 +80,14 @@
       "error_cash": "The cash amount must be a number greater than 0",
       "error_dividend": "The dividend must be a number greater than 0",
       "error_charge": "The tax amount must be a number greater than 0"
+    },
+    "transfer": {
+      "recipient": "Recipient account",
+      "available": "Available: {available}",
+      "no_other_account": "You first need another account to transfer cash to",
+      "no_recipient": "Select the recipient account",
+      "not_enough_cash": "Not enough cash available ({available})",
+      "date_recipient": "The date cannot be earlier than the last operation of {account}"
     },
     "stock": {
       "title_etf": "ETFs",
@@ -366,6 +375,8 @@
   "values": {
     "op_deposit": "Deposit",
     "op_withdrawal": "Withdrawal",
+    "op_transfer_out": "Transfer out",
+    "op_transfer_in": "Transfer in",
     "op_buy": "Buy",
     "op_sell": "Sell",
     "op_dividend": "Dividend",

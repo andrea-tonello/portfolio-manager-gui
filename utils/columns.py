@@ -20,6 +20,8 @@ COLUMNS = [
 OPERATION_LOCALE_KEYS = {
     "Deposit": "values.op_deposit",
     "Withdrawal": "values.op_withdrawal",
+    "Transfer Out": "values.op_transfer_out",
+    "Transfer In": "values.op_transfer_in",
     "Buy": "values.op_buy",
     "Sell": "values.op_sell",
     "Dividend": "values.op_dividend",

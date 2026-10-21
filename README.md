@@ -31,7 +31,7 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
 ## Funzionalità principali
 
 - **Gestione multi-conto**: supporto a più account con alias personalizzabili
-- **Operazioni su liquidità**: depositi, prelievi, dividendi, imposte
+- **Operazioni su liquidità**: depositi, prelievi, trasferimenti tra conti, dividendi, imposte
 - **Operazioni su titoli**: acquisto e vendita di azioni ed ETF, con gestione valuta (EUR/USD), commissioni e TER (supporto alle obbligazioni in arrivo)
 - **Panoramica del portafoglio** con posizioni aperte, P&L e prezzi in tempo reale (Yahoo Finance)
 - **Watchlist** di titoli personalizzabile
@@ -85,7 +85,7 @@ Quattro schermate principali:
 
 - **HOME**: Panoramica conto, posizioni aperte, watchlist
 - **OPERAZIONI**: Inserimento di nuove transazioni, supporto EUR/USD. Le transazioni vengono salvate automaticamente ad ogni inserimento.
-    - *Liquidità* (depositi, prelievi, dividendi, imposte)
+    - *Liquidità* (depositi, prelievi, trasferimenti tra conti, dividendi, imposte)
     - *ETF Azionari, ETF Monetari* (acquisto/vendita) 
     - *Azioni* (acquisto/vendita)
     - **In programma:** *ETF Obbligazionari, Obbligazioni*
@@ -171,7 +171,7 @@ Built with [Flet](https://flet.dev/), it is mainly designed for mobile use (Andr
 ## Main Features
 
 - **Multi-account management**: support for multiple accounts with custom aliases
-- **Cash operations**: deposits, withdrawals, dividends, taxes/charges
+- **Cash operations**: deposits, withdrawals, transfers between accounts, dividends, taxes/charges
 - **Securities operations**: buying and selling stocks and ETFs, with currency handling (EUR/USD), fees and TER (bond support coming soon)
 - **Portfolio overview** with open positions, P&L and live prices (Yahoo Finance)
 - **Customizable watchlist**
@@ -186,7 +186,7 @@ Four main tabs:
 
 - **HOME**: account overview, open positions, watchlist
 - **OPERATIONS**: entry of new transactions, EUR/USD support. Transactions are saved automatically as they are entered.
-    - *Cash* (deposits, withdrawals, dividends, taxes/charges)
+    - *Cash* (deposits, withdrawals, transfers between accounts, dividends, taxes/charges)
     - *Equity ETFs, Money Market ETFs* (buy/sell)
     - *Stocks* (buy/sell)
     - **Planned:** *Bond ETFs, Bonds*

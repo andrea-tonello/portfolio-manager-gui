@@ -9,7 +9,9 @@ from services.market_data import fetch_splits
 from services.market_data import fetch_ticker_name as fetch_name
 from services.validation import parse_positive, validate_date
 from utils.constants import CURRENCIES
+from utils.formatting import fmt_eur
 from utils.other_utils import round_half_up
+from domain.account import Account
 from domain.errors import ValidationError
 from domain.ledger import ETF_PRODUCTS, Op, Product, TextCell
 from domain.positions import first_trade_date, unrecorded_splits
@@ -127,6 +129,49 @@ def execute_cash_operation(df: pd.DataFrame, broker: str, op_kind: str, date_str
 
     return newrow_cash(df, date_str, ref_date, broker, amount,
                        op_type, product, tk, name)
+
+
+def parse_transfer(source_df: pd.DataFrame, recipient: Account | None, day: date, text: str | None) -> float:
+    """Check a transfer of cash from the account whose ledger is `source_df` to `recipient`; return its amount.
+
+    `day` must already be checked against the source's ledger, as for every
+    operation. Raises ValidationError for the first problem: no recipient
+    chosen; `day` earlier than the recipient's last operation (its rows must
+    stay in date order too); an amount that isn't a number above 0; more than
+    the cash the source holds, which is its last row's since `day` comes after it.
+
+    Example: with 4,584.10 EUR held, "5000" raises
+    ValidationError("operations.transfer.not_enough_cash", available="4,584.10€").
+    """
+    if recipient is None:
+        raise ValidationError("operations.transfer.no_recipient")
+    recipient_dates = pd.to_datetime(recipient.df["date"], dayfirst=True, errors="coerce").dropna()
+    if not recipient_dates.empty and day < recipient_dates.max().date():
+        raise ValidationError("operations.transfer.date_recipient", account=recipient.name)
+    amount = parse_positive(text, "operations.cash.error_cash")
+    available = float(source_df["cash_held"].iloc[-1])
+    if amount > available:
+        raise ValidationError("operations.transfer.not_enough_cash", available=fmt_eur(available))
+    return amount
+
+
+def execute_transfer(source: Account, recipient: Account, date_str: str, ref_date: date,
+                     amount: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Record `amount` EUR of cash moving from `source` to `recipient`: return both ledgers, each with its new row.
+
+    The source gets a Transfer Out row (-amount), the recipient a Transfer In
+    row (+amount), each naming the other account in its asset_name. For each
+    account it is money going out or coming in (its committed cash changes);
+    across all accounts the two rows cancel out.
+
+    Example: 500 from Fineco to Directa -> Fineco's cash -500 ("Transfer Out",
+    "Directa"), Directa's cash +500 ("Transfer In", "Fineco").
+    """
+    source_df = newrow_cash(source.df, date_str, ref_date, source.name, -amount,
+                            Op.TRANSFER_OUT, Product.CASH, np.nan, recipient.name)
+    recipient_df = newrow_cash(recipient.df, date_str, ref_date, recipient.name, amount,
+                               Op.TRANSFER_IN, Product.CASH, np.nan, source.name)
+    return source_df, recipient_df
 
 
 def execute_etf_stock(df: pd.DataFrame, broker: str, date_str: str, ref_date: date,

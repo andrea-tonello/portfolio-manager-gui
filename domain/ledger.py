@@ -10,8 +10,8 @@ How the rows work together:
 
 - Every row carries the account's running totals after its operation:
   cash_held, assets_value (the positions, valued on the row's date), nav
-  (cash_held + assets_value), committed_cash (money deposited minus money
-  withdrawn) and carryforward (capital losses that can still offset future
+  (cash_held + assets_value), committed_cash (money deposited or transferred
+  in, minus money withdrawn or transferred out) and carryforward (capital losses that can still offset future
   gains, the Italian "zainetto fiscale"; see domain/tax.py). The last row
   gives the account as it stands.
 - Buy, sell and split rows also carry the totals of their own asset: qt_held
@@ -56,11 +56,19 @@ class Op(StrEnum):
 
     DEPOSIT = "Deposit"
     WITHDRAWAL = "Withdrawal"
+    TRANSFER_OUT = "Transfer Out"  # cash sent to another of the user's accounts
+    TRANSFER_IN = "Transfer In"    # cash received from another of the user's accounts
     BUY = "Buy"
     SELL = "Sell"
     SPLIT = "Split"
     DIVIDEND = "Dividend"
     TAX = "Tax"  # a tax or fee paid from cash, e.g. stamp duty
+
+
+# The operations moving money into or out of an account, not within it: they change its
+# committed cash and are the cash flows of its XIRR and TWRR. A transfer is such a flow for each
+# of its two accounts; across all accounts, its two rows cancel out.
+CASH_FLOWS = frozenset({Op.DEPOSIT, Op.WITHDRAWAL, Op.TRANSFER_OUT, Op.TRANSFER_IN})
 
 
 class Product(StrEnum):

@@ -56,6 +56,7 @@
     "add_transaction": "Aggiungi Transazione",
     "add_deposit": "Aggiungi Deposito",
     "add_withdrawal": "Aggiungi Prelievo",
+    "add_transfer": "Aggiungi Trasferimento",
     "add_tax": "Aggiungi Addebito",
     "add_dividend": "Aggiungi Dividendo",
     "add_split": "Aggiungi Split",
@@ -79,6 +80,14 @@
       "error_cash": "Il contante inserito deve essere un numero diverso da 0",
       "error_dividend": "Il dividendo inserito deve essere un numero maggiore di 0",
       "error_charge": "L'imposta inserita deve essere un numero maggiore di 0"
+    },
+    "transfer": {
+      "recipient": "Conto destinatario",
+      "available": "Disponibile: {available}",
+      "no_other_account": "Non hai un altro conto su cui trasferire liquidità",
+      "no_recipient": "Seleziona il conto di destinazione",
+      "not_enough_cash": "Liquidità disponibile insufficiente ({available})",
+      "date_recipient": "La data non può precedere l'ultima operazione di {account}"
     },
     "stock": {
       "title_etf": "ETF",
@@ -366,6 +375,8 @@
   "values": {
     "op_deposit": "Deposito",
     "op_withdrawal": "Prelievo",
+    "op_transfer_out": "Trasferimento in uscita",
+    "op_transfer_in": "Trasferimento in entrata",
     "op_buy": "Acquisto",
     "op_sell": "Vendita",
     "op_dividend": "Dividendo",

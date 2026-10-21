@@ -28,6 +28,7 @@ _FEE_CARD_HEIGHT_SELL = 96
 _KIND_BUTTONS = {
     "deposit": ("operations.add_deposit", ft.Colors.GREEN_600),
     "withdrawal": ("operations.add_withdrawal", ft.Colors.RED_500),
+    "transfer": ("operations.add_transfer", None),
     "charge": ("operations.add_tax", None),
     "dividend": ("operations.add_dividend", None),
     "split": ("operations.add_split", None),
@@ -166,7 +167,7 @@ class OperationsView:
 
 
 class GeneralForm:
-    """The General tab of Operations: cash movements (deposit, withdrawal, charge), dividends and splits."""
+    """The General tab of Operations: cash movements (deposit, withdrawal, transfer), charges, dividends and splits."""
 
     def __init__(self, app):
         """Keep what the form needs; build() creates its controls."""
@@ -186,6 +187,14 @@ class GeneralForm:
         self._split_help = _help_button(self.page, t, "operations.split.title", "operations.split.descr")
         self._split_help.visible = False
 
+        # The accounts cash can be transferred to: every other one loaded, by number.
+        self._recipients = {idx: acc for idx, acc in sorted(self.state.accounts.items())
+                            if idx != self.state.ops_acc_idx}
+        # With none, Transfer is greyed out but still tappable, so _select_kind can say why
+        # (a disabled segment would ignore the tap).
+        transfer_label = ft.Text(t.get("operations.cash.op_transfer"),
+                                 color=None if self._recipients else ft.Colors.with_opacity(0.38, ft.Colors.ON_SURFACE))
+
         # The operation chosen. A cash movement is picked in the first segmented button, a dividend
         # or a split in the second; picking in one empties the other (_select_kind).
         self.kind = "deposit"
@@ -200,7 +209,7 @@ class GeneralForm:
             segments=[
                 ft.Segment(value="deposit", label=t.get("operations.cash.op_deposit")),
                 ft.Segment(value="withdrawal", label=t.get("operations.cash.op_withdrawal")),
-                #ft.Segment(value="charge", label=t.get("operations.cash.op_transfer")),
+                ft.Segment(value="transfer", label=transfer_label),
             ],
         )
         cash_column = ft.Column([
@@ -255,6 +264,13 @@ class GeneralForm:
         self.description = rounded_text_field(label=t.get("operations.cash.charge_descr"),
                                               visible=False, col={"xs": 12, "md": 6})
 
+        self.recipient = rounded_dropdown(
+            label=t.get("operations.transfer.recipient"),
+            options=[ft.dropdown.Option(key=str(idx), text=acc.name) for idx, acc in self._recipients.items()],
+            expand=True,
+        )
+        self.recipient_row = ft.Container(content=self.recipient, visible=False, col={"xs": 12, "md": 6})
+
         self.split_ticker = rounded_dropdown(
             label=t.get("operations.split.ticker"),
             options=[_held_asset_option(ticker, name) for ticker, name in holdings],
@@ -295,7 +311,7 @@ class GeneralForm:
             kind_section,
             self.date.control,
             ft.ResponsiveRow([
-                self.amount, self.ticker_row, self.description,
+                self.recipient_row, self.amount, self.ticker_row, self.description,
                 self.split_ticker_row, self.split_ratio_row,
             ],),
             ft.Container(height=20),
@@ -308,9 +324,11 @@ class GeneralForm:
     def _select_kind(self, kind):
         """Make `kind` the operation chosen, in the segmented button that offers it, emptying the other.
 
-        Shows the fields it needs, the split's "?" for a split, and its name
-        and colour on the button. A split needs something held to split:
-        without, the form goes back to a deposit.
+        Shows the fields it needs, the split's "?" for a split, the cash
+        available for a transfer, and its name and colour on the button. A
+        split needs something held to split: without, the form goes back to a
+        deposit. A transfer needs another account to send to: without, it goes
+        back to the operation chosen before.
         """
         t = self.state.translator
         account = _selected_account(self.state)
@@ -318,6 +336,9 @@ class GeneralForm:
         if kind == "split" and not _held_tickers(account.df if account else None):
             show_snack(self.page, t.get("operations.split.no_holdings"), error=True)
             kind = "deposit"
+        if kind == "transfer" and not self._recipients:
+            show_snack(self.page, t.get("operations.transfer.no_other_account"), error=True)
+            kind = self.kind
 
         self.kind = kind
         for buttons in (self.cash_kind, self.corporate_kind):
@@ -328,16 +349,20 @@ class GeneralForm:
             buttons.allow_empty_selection = not offers
 
         is_split = (kind == "split")
+        is_transfer = (kind == "transfer")
         self._split_help.visible = is_split
         self.amount.visible = not is_split
+        self.recipient_row.visible = is_transfer
         self.ticker_row.visible = (kind == "dividend")
         self.description.visible = (kind == "charge")
         self.split_ticker_row.visible = is_split
         self.split_ratio_row.visible = is_split
-        self.amount.label = (
-            t.get("operations.cash.dividend_amount") if kind == "dividend"
-            else t.get("operations.cash.amount")
-        )
+        self.amount.label = {
+            "dividend": t.get("operations.cash.dividend_amount"),
+        }.get(kind, t.get("operations.cash.amount"))
+        # A transfer can't move more cash than the account holds: say how much that is.
+        self.amount.helper = (t.get("operations.transfer.available", available=fmt_eur(account.last("cash_held")))
+                              if is_transfer and account else None)
         label_key, bgcolor = _KIND_BUTTONS[kind]
         self._add_btn.content = t.get(label_key)
         self._add_btn.style = pill_style(bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE)
@@ -355,45 +380,69 @@ class GeneralForm:
         try:
             day = validate_date(self.date.value, ledger_df=account.df)
             if self.kind == "split":
-                build_ledger = self._checked_split(account, day)
+                build_ledgers = self._checked_split(account, day)
+            elif self.kind == "transfer":
+                build_ledgers = self._checked_transfer(account, day)
             else:
-                build_ledger = self._checked_cash_operation(account, day)
+                build_ledgers = self._checked_cash_operation(account, day)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
-        acc_idx = s.ops_acc_idx
 
         def save():
-            """Record the operation, save the account and show the tab again."""
-            s.commit(acc_idx, build_ledger())
+            """Record the operation (in both accounts for a transfer), save them and show the tab again.
+
+            Every new ledger is built before any is saved, so a failure while
+            building (e.g. no prices) leaves no account half-changed.
+            """
+            for acc_idx, df in build_ledgers().items():
+                s.commit(acc_idx, df)
             show_snack(self.page, t.get("operations.added_transaction"))
             self.app.refresh()
 
         run_in_background(self.page, t, save, loading=self.loading)
 
     def _checked_cash_operation(self, account, day):
-        """Check the amount of a cash operation or dividend; return a function building the ledger with it."""
+        """Check the amount of a cash operation or dividend; return a function building the ledger with it.
+
+        The function returns {account number: new ledger}, as for every operation (see submit).
+        """
         kind = self.kind
         amount = operations_service.parse_cash_amount(kind, self.amount.value)
         service_kind = "deposit_withdrawal" if kind in ("deposit", "withdrawal") else kind
         ticker = self.ticker.value if kind == "dividend" else None
         description = self.description.value if kind == "charge" else None
         df = account.df
-        return lambda: operations_service.execute_cash_operation(
+        return lambda: {account.idx: operations_service.execute_cash_operation(
             df, account.name, service_kind, day.strftime(DATE_FORMAT), day, amount,
             ticker=ticker, description=description,
-        )
+        )}
+
+    def _checked_transfer(self, account, day):
+        """Check the recipient and amount of a transfer; return a function building both accounts' ledgers with it.
+
+        The function returns {account number: new ledger} for the account sending and the one receiving.
+        """
+        recipient = self._recipients.get(int(self.recipient.value)) if self.recipient.value else None
+        amount = operations_service.parse_transfer(account.df, recipient, day, self.amount.value)
+        return lambda: dict(zip(
+            (account.idx, recipient.idx),
+            operations_service.execute_transfer(account, recipient, day.strftime(DATE_FORMAT), day, amount),
+        ))
 
     def _checked_split(self, account, day):
-        """Check the ticker and ratio of a split; return a function building the ledger with it."""
+        """Check the ticker and ratio of a split; return a function building the ledger with it.
+
+        The function returns {account number: new ledger}, as for every operation (see submit).
+        """
         ticker = self.split_ticker.value
         if not ticker:
             raise ValidationError("operations.stock.ticker_error")
         ratio = parse_positive(self.split_ratio.value, "operations.split.ratio_error")
         df = account.df
-        return lambda: operations_service.execute_split(
+        return lambda: {account.idx: operations_service.execute_split(
             df, account.name, day.strftime(DATE_FORMAT), day, ticker, ratio,
-        )
+        )}
 
 
 class EtfStockForm:

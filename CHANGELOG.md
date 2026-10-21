@@ -1,4 +1,4 @@
-## [0.4.5] (2026-XX-XX)
+## [0.4.5] (2026-10-21)
 
 ### Bug Fixes
 
@@ -6,8 +6,10 @@
 
 ### Features
 
-- Added *Search for Updates* option in the Drawer
+- *Operations → General*: new "Transfer" operation available
 - *Operations → General*, *Operations → ETFs*: operation selection now uses `SegmentedButton`s
+- Added *Search for Updates* option in the Drawer
+- VaR simulations now replay real past days instead of assuming a bell curve
 
 
 

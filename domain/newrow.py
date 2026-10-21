@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 from domain.errors import ValidationError
-from domain.ledger import Op, TextCell, base_row, holding_rows
+from domain.ledger import CASH_FLOWS, Op, TextCell, base_row, holding_rows
 from domain.positions import priced_positions
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, pending_fees, sell_asset
 from utils.date_utils import DateLike
@@ -27,7 +27,7 @@ def newrow_cash(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str
 
     current_liq = float(df["cash_held"].iloc[-1]) + cash
 
-    if op_type in (Op.DEPOSIT, Op.WITHDRAWAL):
+    if op_type in CASH_FLOWS:  # deposits, withdrawals and transfers change the money put into the account
         historic_liq = float(df["committed_cash"].iloc[-1]) + cash
     else:
         historic_liq = float(df["committed_cash"].iloc[-1])
