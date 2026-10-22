@@ -13,19 +13,15 @@ from services.market_data import download_close, download_prices_eur, fetch_sect
 from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
-# Days a stock exchange is open in a year; turns daily returns and volatility into yearly ones.
-TRADING_DAYS_PER_YEAR = 252
-# Yearly return of a riskless investment, which the Sharpe ratio subtracts from the portfolio's.
-RISK_FREE_RATE = 0.02
-# Monte Carlo VaR: how many future outcomes to simulate, and the first day of
-# price history whose days the outcomes are built from.
-VAR_SIMULATIONS = 50_000
-VAR_HISTORY_START = "2010-01-01"
-# What the sector allocation splits: shares of companies, held directly or
-# through an ETF. Bond and money-market ETFs and cash have no sector.
-EQUITY_PRODUCTS = {Product.STOCK, Product.ETF_STOCK}
-# The sector of the shares Yahoo has no sectors for.
-UNCLASSIFIED = "unclassified"
+TRADING_DAYS_PER_YEAR = 252                             # Days a stock exchange is open in a year
+RISK_FREE_RATE = 0.02                                   # Yearly return of a riskless investment
+
+VAR_SIMULATIONS = 50_000                                # VaR: how many future outcomes to simulate
+VAR_HISTORY_START = "2010-01-01"                        # VaR: first day of historic price data
+VAR_BLOCK_DAYS = 20                                     # VaR: the longest block of consecutive past days an outcome replays
+
+EQUITY_PRODUCTS = {Product.STOCK, Product.ETF_STOCK}    # For Sector allocation 
+UNCLASSIFIED = "unclassified"                           # The sector of the shares Yahoo has no sectors for
 
 
 def summary_history(accounts: list[Account], ref_date: date, dt_str: str) -> pd.DataFrame | None:
@@ -279,8 +275,8 @@ def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_
 
 
 def _simulate_outcomes(value, daily_returns, days, num_simulations, rng=None):
-    """Simulate `num_simulations` possible future gains/losses scenarios of 
-    the portfolio  over `days` days, using data from the past.
+    """Simulate `num_simulations` possible future gains/losses scenarios of the portfolio over `days` days, 
+    using data from the past. Each scenario replays *blocks* of consecutive past days.
 
     Inputs:
     - `value`: the invested value in EUR (no cash)
@@ -297,9 +293,17 @@ def _simulate_outcomes(value, daily_returns, days, num_simulations, rng=None):
     """
     rng = rng or np.random.default_rng()
 
-    # What random days do we pick from daily_returns? 
-    # --> 50000x10 vector filled with random day choices: 0, 1, 2, ..., len(daily_returns)
-    picks = rng.integers(0, len(daily_returns), size=(num_simulations, days))
+    # How many consecutive days a block holds: never more than the horizon, nor than the history.
+    block = min(VAR_BLOCK_DAYS, days, len(daily_returns))
+    blocks_needed = -(-days // block)  # rounded up: 50 days need 3 blocks of 20
+
+    # Which day does each block start on?
+    # --> 50000x3 random positions in daily_returns, early enough for the whole block to fit
+    starts = rng.integers(0, len(daily_returns) - block + 1, size=(num_simulations, blocks_needed))
+
+    # Which past days does each scenario replay?
+    # --> 50000x50: each start followed by the next 19 days, the blocks one after the other, cut to 50 days
+    picks = (starts[:, :, None] + np.arange(block)).reshape(num_simulations, -1)[:, :days]
 
     # daily_returns[picks],     50000x10: each value holds the return on day `picks`
     # np.prod(1 + ..., axis=1), 50000x1 : compounds the 10 returns for each row, giving one final return per simulated future 
@@ -308,8 +312,8 @@ def _simulate_outcomes(value, daily_returns, days, num_simulations, rng=None):
 
 
 def compute_var_mc(accounts: list[Account], confidence_interval: float, projected_days: int) -> dict:
-    """Value at Risk by historical Monte Carlo simulation: the scenarios replay real past days, from VAR_HISTORY_START to today.
-    Only the invested value can be lost: the past returns apply to it, and the cash, which doesn't move, adds no risk.
+    """Value at Risk by historical Monte Carlo simulation: the scenarios replay blocks of real consecutive past days, from VAR_HISTORY_START 
+    to today. Only the invested value can be lost: the past returns apply to it, and the cash, which doesn't move, adds no risk.
 
     Returns dict:
     {

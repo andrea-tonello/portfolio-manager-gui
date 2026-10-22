@@ -1,3 +1,26 @@
+## [0.4.6] (2026-XX-XX)
+
+### Bug Fixes
+
+- Drawdown does no longer consider cash flows in its computation
+
+### Features
+
+- VaR simulations now replay runs of **consecutive** days together
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [0.4.5] (2026-10-21)
 
 ### Bug Fixes
@@ -10,16 +33,6 @@
 - *Operations → General*, *Operations → ETFs*: operation selection now uses `SegmentedButton`s
 - Added *Search for Updates* option in the Drawer
 - VaR simulations now replay real past days instead of assuming a bell curve
-
-
-
-
-
-
-
-
-
-
 
 
 

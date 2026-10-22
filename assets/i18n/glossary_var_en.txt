@@ -1,4 +1,4 @@
 ### Portfolio Value at Risk (VaR)
 Maximum expected loss over a specified time horizon in days, given a confidence interval. The higher the number of projected days, the less reliable the results.
 
-The implementation used here is a historical (Monte Carlo) simulation: each scenario is built from real past days, picked at random and applied to the current portfolio. So the sharpest crashes, like March 2020's, appear in the scenarios as often as they actually happened. Cash is not considered at risk.
+The implementation used here is a historical (Monte Carlo) simulation: each scenario replays real stretches of consecutive past days (up to about a month), starting on random days and applied to the current portfolio; longer horizons chain several stretches. Bad days tend to come in clusters, and keeping the days in their real order keeps them together: March 2020's string of falls appears in the scenarios as it happened, not scattered among calm days. Cash is not considered at risk.

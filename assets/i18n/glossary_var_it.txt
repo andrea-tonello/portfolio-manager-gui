@@ -1,4 +1,4 @@
 ### Value at Risk del Portafoglio (VaR)
 Massima perdita attesa su un orizzonte di tempo specificato in giorni, dato un intervallo di confidenza. Più l'orizzonte è lungo, meno attendibili saranno i risultati.
 
-L'implementazione qui utilizzata si basa su una simulazione storica (Monte Carlo): ogni scenario ricompone giorni reali del passato, estratti a caso, applicati al portafoglio attuale. Così i crolli più forti, come quello del marzo 2020, compaiono negli scenari con la frequenza con cui sono avvenuti. La liquidità non viene considerata a rischio.
+L'implementazione qui utilizzata si basa su una simulazione storica (Monte Carlo): ogni scenario ripercorre tratti reali di giorni consecutivi del passato (fino a circa un mese), che iniziano in giorni estratti a caso, applicati al portafoglio attuale; gli orizzonti più lunghi concatenano più tratti. I giorni negativi tendono ad arrivare in serie, e mantenere i giorni nel loro ordine reale li tiene insieme: la serie di ribassi del marzo 2020 compare negli scenari così come è avvenuta, non sparsa tra giorni tranquilli. La liquidità non viene considerata a rischio.

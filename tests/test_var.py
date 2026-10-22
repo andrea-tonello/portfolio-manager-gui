@@ -2,8 +2,8 @@
 
 VaR answers: "over the next N days, how much could the portfolio lose, in all
 but the worst 1% of cases?" The app simulates many possible outcomes and reads
-the loss at the worst-1% mark. Each outcome replays real past days of the
-portfolio, picked at random, rather than draws from a bell curve.
+the loss at the worst-1% mark. Each outcome replays blocks of real consecutive
+past days of the portfolio, starting at random, rather than draws from a bell curve.
 """
 
 import json
@@ -19,15 +19,20 @@ from services import analysis_service, market_data
 from services.analysis_service import _simulate_outcomes
 
 
-def test_outcomes_are_made_of_real_past_days():
-    """Every outcome compounds past days picked at random: with only a -10% and a +10% day, 2 days give 3 outcomes.
+def test_outcomes_chain_blocks_of_real_consecutive_days(monkeypatch):
+    """Every outcome chains blocks of consecutive past days, cut to the horizon.
 
-    On 10,000: two bad days -1,900 (0.9 × 0.9), one of each -100 (0.9 × 1.1),
-    two good days +2,100 (1.1 × 1.1). Nothing in between, unlike a bell curve.
+    The past is -10%, -10%, +10%; with blocks of 2 days, the only blocks are
+    (-10%, -10%) and (-10%, +10%). 3 days are a block, then the first day of
+    another, which is always -10%. On 10,000: -2,710 (0.9 × 0.9 × 0.9) or
+    -1,090 (0.9 × 1.1 × 0.9). Days picked one by one could also give +3,310
+    (three +10% days), but two +10% days in a row never happened.
     """
-    outcomes = _simulate_outcomes(10_000, np.array([-0.10, 0.10]), 2, 1_000, rng=np.random.default_rng(0))
+    monkeypatch.setattr(analysis_service, "VAR_BLOCK_DAYS", 2)
 
-    assert sorted({round(outcome, 2) for outcome in outcomes}) == [-1_900, -100, 2_100]
+    outcomes = _simulate_outcomes(10_000, np.array([-0.10, -0.10, 0.10]), 3, 1_000, rng=np.random.default_rng(0))
+
+    assert sorted({round(outcome, 2) for outcome in outcomes}) == [-2_710, -1_090]
 
 
 # ── compute_var_mc: what the simulation is fed ───────────────────────
