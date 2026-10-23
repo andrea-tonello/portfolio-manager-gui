@@ -190,10 +190,11 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     "EUR" or "USD". USD prices are multiplied by that day's USD->EUR rate, or
     the last one before it when that day has none: the rate never removes a
     day of prices, and is only downloaded when a USD ticker needs it. A
-    missing price repeats the previous day's, and days before every ticker
-    has a price are dropped. Returns an empty DataFrame when there are no
-    tickers or no prices; raises RuntimeError when USD prices can't be
-    converted because the rate is unavailable.
+    missing price repeats the previous day's. Before a ticker's first price
+    (e.g. an ETF listed after `start`) its column is empty (NaN), and the day
+    is still kept for the other tickers: each caller decides what that means.
+    Returns an empty DataFrame when there are no tickers or no prices; raises
+    RuntimeError when USD prices can't be converted because the rate is unavailable.
 
     Example: [("ISP.MI", "EUR"), ("AAPL", "USD")] -> columns ISP.MI and AAPL,
     where AAPL at 200 USD on a day the rate is 0.92 becomes 184 EUR.
@@ -203,7 +204,7 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     prices, _ = download_close([ticker for ticker, _ in tickers_with_currency], start=start, end=end)
     if prices.empty:
         return prices
-    prices = prices.ffill().dropna()
+    prices = prices.ffill().dropna(how="all")
     if prices.empty:
         return prices
 
@@ -214,8 +215,7 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
             raise RuntimeError("No USD->EUR exchange rate available to convert USD prices")
         rate = rates[USDEUR_TICKER].dropna()
         rate = rate.reindex(rate.index.union(prices.index)).ffill().reindex(prices.index)
-        prices[usd_tickers] = prices[usd_tickers].mul(rate, axis=0)
-        prices = prices.dropna()  # days before the first rate: their USD prices can't be converted
+        prices[usd_tickers] = prices[usd_tickers].mul(rate, axis=0)  # NaN before the first rate
     return prices
 
 

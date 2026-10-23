@@ -4,6 +4,9 @@
 
 - Drawdown does no longer consider cash flows in its computation
 - Fixed `download_close` skipping fridays on some scenarios
+- Yearly TWRR is now annualised by calendar days, like XIRR
+- Holding a recently listed asset no longer cuts the performance history to its listing date
+
 
 ### Features
 

@@ -10,9 +10,14 @@ after an intended change.
 import json
 from datetime import date
 
+import numpy as np
+import pandas as pd
+from conftest import fake_download_close
+
 from domain.account import Account
-from services.analysis_service import compute_summary
-from test_ledger_snapshots import ETFS_AND_USD, STOCKS_EUR, _replay
+from services import market_data
+from services.analysis_service import compute_summary, summary_history
+from test_ledger_snapshots import ETFS_AND_USD, STOCKS_EUR, _replay, buy, deposit
 
 ACCOUNT_FIELDS = ("broker_name", "nav", "current_liq", "asset_value", "historic_liq",
                   "pl", "pl_unrealized", "xirr_full", "xirr_ann")
@@ -65,3 +70,27 @@ def test_summary_matches_snapshot(tmp_path, fake_market, snapshot):
     result = compute_summary(accounts, date(2024, 12, 31), "31-12-2024")
 
     snapshot("summary.json", summary_as_json(result))
+
+
+def test_an_asset_listed_recently_does_not_cut_the_history(tmp_path, fake_market, monkeypatch):
+    """The history starts with the account even if an asset bought later only has prices from a recent day.
+
+    EEE.MI has prices only from 1 May 2024, as if it had been listed then, and
+    is bought on 15 May. The history used to start on 1 May, the first day
+    every asset ever held had a price, so January to April vanished from the
+    Statistics chart.
+    """
+    def listed_in_may(tickers, **kwargs):
+        """The fake prices, with none for EEE.MI before 1 May 2024."""
+        prices, names = fake_download_close(tickers, **kwargs)
+        if "EEE.MI" in prices.columns:
+            prices.loc[prices.index < "2024-05-01", "EEE.MI"] = np.nan
+        return prices, names
+
+    monkeypatch.setattr(market_data, "download_close", listed_in_may)
+    df = _replay([deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "BBB.MI", 100, price=50.0, fee=0.0),
+                  buy(date(2024, 5, 15), "EEE.MI", 10, price=100.0, fee=0.0)], tmp_path)
+
+    history = summary_history([Account(1, "Test Broker", "", df)], date(2024, 6, 28), "28-06-2024")
+
+    assert history["Date"].iloc[0] == pd.Timestamp("2024-01-03")

@@ -119,7 +119,9 @@ def _build_portfolio_timeseries(final_df, prices_df, target_index, total_tickers
             portfolio_history_df[only_tickers] = portfolio_history_df[only_tickers].fillna(0)
 
             if not prices_df.empty:
-                prices_df_for_calc = prices_df.reindex(columns=only_tickers, fill_value=0.0)
+                # Before an asset's first price (e.g. an ETF listed after the history starts), use that first
+                # price: the asset is usually not held yet, and if it is, it's the best guess there is.
+                prices_df_for_calc = prices_df.bfill().reindex(columns=only_tickers, fill_value=0.0)
                 portfolio_history_df['assets_value'] = (prices_df_for_calc * portfolio_history_df[only_tickers]).sum(axis=1)
             else:
                 portfolio_history_df['assets_value'] = 0.0

@@ -186,19 +186,20 @@ def test_a_day_without_an_exchange_rate_uses_the_day_befores(closes):
     assert prices["UUU"].tolist() == pytest.approx([90, 90, 94, 96])
 
 
-def test_gaps_are_filled_and_days_before_a_ticker_starts_are_dropped(closes):
-    """A missing price repeats the day before; days before every ticker has a price are dropped.
+def test_gaps_are_filled_and_days_before_a_ticker_starts_are_kept(closes):
+    """A missing price repeats the day before; before a ticker's first price, it has none and the day is kept.
 
     Example: AAA.MI has no price on the 3rd (it repeats 10) and BBB.MI starts
-    on the 3rd, so the result starts on the 3rd.
+    on the 3rd, so on the 2nd only AAA.MI has a price. Dropping the 2nd
+    instead, as it used to be, cut the history of every older asset.
     """
     closes.update({"AAA.MI": [10, None, 12, 13], "BBB.MI": [None, 20, 21, 22], FX: [0.9] * 4})
 
     prices = download_prices_eur([("AAA.MI", "EUR"), ("BBB.MI", "EUR")], START, END)
 
-    assert list(prices.index) == list(DAYS[1:])
-    assert prices["AAA.MI"].tolist() == [10, 12, 13]
-    assert prices["BBB.MI"].tolist() == [20, 21, 22]
+    assert list(prices.index) == list(DAYS)
+    assert prices["AAA.MI"].tolist() == [10, 10, 12, 13]
+    assert prices["BBB.MI"].tolist() == pytest.approx([float("nan"), 20, 21, 22], nan_ok=True)
 
 
 def test_eur_prices_do_not_need_an_exchange_rate(closes):

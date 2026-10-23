@@ -358,7 +358,8 @@ def compute_var_mc(accounts: list[Account], confidence_interval: float, projecte
     if prices_df.empty:
         return {"var": 0.0, "scenario_return": [], "portfolio_value": portfolio_value, "has_positions": False}
 
-    prices_df = prices_df[asset_tickers]
+    # Only the days every asset held has a price: before an ETF was listed, its returns aren't known.
+    prices_df = prices_df[asset_tickers].dropna()
 
     # Each past day's return of the portfolio as it is now: every asset's return that day, weighted by its
     # share of the invested value. (Simple returns, not log returns: they add up across assets.)
