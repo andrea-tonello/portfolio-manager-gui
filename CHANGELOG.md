@@ -3,10 +3,12 @@
 ### Bug Fixes
 
 - Drawdown does no longer consider cash flows in its computation
+- Fixed `download_close` skipping fridays on some scenarios
 
 ### Features
 
 - VaR simulations now replay runs of **consecutive** days together
+
 
 
 

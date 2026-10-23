@@ -126,7 +126,10 @@ def download_close(tickers: str | list[str], start: DateLike | None = None, end:
                 closes = indicators.get("quote", [{}])[0].get("close", [])
             if not timestamps or not closes:
                 return None
-            dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_localize(None).normalize()
+            # Each day as the exchange's own clock tells it, not UTC's: Yahoo stamps the USD->EUR rate at
+            # midnight London time, which in British summer time is 23:00 UTC of the day before.
+            timezone = meta.get("exchangeTimezoneName") or "UTC"
+            dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_convert(timezone).tz_localize(None).normalize()
             s = pd.Series(closes, index=dates, name=ticker, dtype=float)
             s = s[~s.index.duplicated(keep="last")]
             return (ticker, s, name)
@@ -184,8 +187,9 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     """Download daily closing prices in EUR: one column per ticker, all on the same days.
 
     `tickers_with_currency` is a list of (ticker, currency) pairs, currency
-    "EUR" or "USD". USD prices are multiplied by that day's USD->EUR rate.
-    Only days with a rate are kept (when the rate can be downloaded), a
+    "EUR" or "USD". USD prices are multiplied by that day's USD->EUR rate, or
+    the last one before it when that day has none: the rate never removes a
+    day of prices, and is only downloaded when a USD ticker needs it. A
     missing price repeats the previous day's, and days before every ticker
     has a price are dropped. Returns an empty DataFrame when there are no
     tickers or no prices; raises RuntimeError when USD prices can't be
@@ -199,21 +203,19 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     prices, _ = download_close([ticker for ticker, _ in tickers_with_currency], start=start, end=end)
     if prices.empty:
         return prices
-    rates, _ = download_close(USDEUR_TICKER, start=start, end=end)
-
-    if not rates.empty:
-        common_dates = prices.index.intersection(rates.index)
-        prices = prices.loc[common_dates]
-        rates = rates.loc[common_dates].ffill().dropna()
     prices = prices.ffill().dropna()
     if prices.empty:
         return prices
 
     usd_tickers = [t for t, currency in tickers_with_currency if currency == "USD" and t in prices.columns]
     if usd_tickers:
+        rates, _ = download_close(USDEUR_TICKER, start=start, end=end)
         if rates.empty:
             raise RuntimeError("No USD->EUR exchange rate available to convert USD prices")
-        prices[usd_tickers] = prices[usd_tickers].mul(rates[USDEUR_TICKER], axis=0)
+        rate = rates[USDEUR_TICKER].dropna()
+        rate = rate.reindex(rate.index.union(prices.index)).ffill().reindex(prices.index)
+        prices[usd_tickers] = prices[usd_tickers].mul(rate, axis=0)
+        prices = prices.dropna()  # days before the first rate: their USD prices can't be converted
     return prices
 
 

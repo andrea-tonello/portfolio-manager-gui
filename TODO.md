@@ -5,10 +5,6 @@
 
 - [INVESTIGATE] Liquidità impegnata in negativo (BG Saxo)
 
-- [VAR] Days dropped from the price history
-    * download_prices_eur keeps only days with a USD->EUR rate, even when every asset held is in EUR: SWDA.MI has 4,263 daily returns since 2010 alone, 3,769 with the rate
-    * A dropped day's move is merged into the next kept day, so some "daily" returns span 2+ days, and the historical VaR replays them as single days
-    * Fix: use the rate's days only when a USD asset is held. Also watch for Yahoo gaps (SWDA.MI on 09-08-2011: price stuck two days, then -15.6% in one)
 
 - [BUG14] in Appendix A
 One more question, because of the gain-only rule: what happens to the pending buy fees when an ETF is sold at a loss?

@@ -100,6 +100,27 @@ def test_download_close_always_returns_a_dataframe_with_one_column_per_known_tic
     assert names == {t: f"{t} Name" for t in known}
 
 
+def test_each_price_gets_the_day_of_its_exchange_not_of_utc(monkeypatch):
+    """The USD->EUR rate, stamped at midnight London time, keeps its London day in British summer time.
+
+    Yahoo stamps Friday 2 August 2024's rate 00:00 in London, which is 23:00 UTC on Thursday. 
+    Read as UTC, every summer rate moved to the day before, and Fridays had none: about 30 days a year went missing.
+    """
+    def fake_fetch_chart(ticker, **kwargs):
+        """Return Friday's and Monday's rates, stamped at midnight London time like Yahoo's."""
+        return {
+            "meta": {"exchangeTimezoneName": "Europe/London"},
+            "timestamp": [int(pd.Timestamp(day, tz="Europe/London").timestamp()) for day in ("2024-08-02", "2024-08-05")],
+            "indicators": {"quote": [{"close": [0.92, 0.91]}]},
+        }
+
+    monkeypatch.setattr(market_data, "_fetch_chart", fake_fetch_chart)
+
+    prices, _ = download_close("USDEUR=X")
+
+    assert list(prices.index) == [pd.Timestamp("2024-08-02"), pd.Timestamp("2024-08-05")]
+
+
 def test_download_close_with_no_known_ticker_returns_an_empty_dataframe(yahoo_charts):
     """If Yahoo knows none of the tickers, the result is an empty DataFrame and no names."""
     prices, names = download_close(["NOPE.MI"])
@@ -149,13 +170,20 @@ def test_usd_prices_are_converted_with_each_days_rate(closes):
     assert prices["UUU"].tolist() == pytest.approx([90, 92, 94, 96])
 
 
-def test_days_without_an_exchange_rate_are_dropped(closes):
-    """Only days with a USD->EUR rate are kept, even for EUR prices, so every column covers the same days."""
+def test_a_day_without_an_exchange_rate_uses_the_day_befores(closes):
+    """A day with prices but no USD->EUR rate is kept: its USD prices use the previous day's rate.
+
+    Dropping it instead merged its move into the next day, so some "daily"
+    returns spanned two days. Example: no rate on the 3rd, so UUU's 100 USD
+    becomes 90 EUR at the 2nd's rate of 0.90.
+    """
     closes.update({"AAA.MI": [10, 11, 12, 13], "UUU": [100, 100, 100, 100], FX: [0.90, None, 0.94, 0.96]})
 
     prices = download_prices_eur([("AAA.MI", "EUR"), ("UUU", "USD")], START, END)
 
-    assert list(prices.index) == [DAYS[0], DAYS[2], DAYS[3]]
+    assert list(prices.index) == list(DAYS)
+    assert prices["AAA.MI"].tolist() == [10, 11, 12, 13]
+    assert prices["UUU"].tolist() == pytest.approx([90, 90, 94, 96])
 
 
 def test_gaps_are_filled_and_days_before_a_ticker_starts_are_dropped(closes):
