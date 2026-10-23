@@ -1,4 +1,4 @@
-## [0.4.6] (2026-XX-XX)
+## [0.4.6] (2026-10-23)
 
 ### Bug Fixes
 
@@ -7,22 +7,9 @@
 - Yearly TWRR is now annualised by calendar days, like XIRR
 - Holding a recently listed asset no longer cuts the performance history to its listing date
 
-
 ### Features
 
 - VaR simulations now replay runs of **consecutive** days together
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
