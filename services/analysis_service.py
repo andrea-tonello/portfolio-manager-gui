@@ -157,9 +157,11 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
 
         # TWRR
         if pf_history_df is not None and not pf_history_df.empty:
-            days_twrr = len(pf_history_df)
+            # Yearly by calendar days, like XIRR: counting the history's rows as trading days would depend on
+            # the markets held (Milan and US together have ~258 a year). E.g. +50% over 730 days -> +22.47% a year.
+            days_twrr = max((pf_history_df["Date"].iloc[-1] - pd.Timestamp(min_date)).days, 1)
             twrr_total = pf_history_df["cumulative_twrr"].iloc[-1]
-            twrr_ann = (1 + twrr_total) ** (TRADING_DAYS_PER_YEAR / days_twrr) - 1
+            twrr_ann = (1 + twrr_total) ** (365 / days_twrr) - 1
 
             # Sharpe
             risk_free_daily = (1 + RISK_FREE_RATE) ** (1 / TRADING_DAYS_PER_YEAR) - 1
