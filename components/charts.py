@@ -219,8 +219,9 @@ def chart_summary(translator, pf_history) -> ft.Control:
         ("committed_cash", translator.get("analysis.charts.committed_cash"), ft.Colors.LIGHT_GREEN, 1.0, [4, 4]),
     ]
 
-    # Downsample the NAV series for performance
-    nav_values = [float(pf_history.iloc[i]["nav"]) for i in range(n)]
+    # Downsample the NAV series for performance. Columns are read whole, never row by row:
+    # pf_history.iloc[i] builds a pandas row each time, which took ~170 ms on 4,000 days.
+    nav_values = pf_history["nav"].tolist()
     _, sample_indices = _downsample_series(nav_values, max_points=150)
 
     all_y = []
@@ -228,8 +229,8 @@ def chart_summary(translator, pf_history) -> ft.Control:
     first_series = True
     for col, label, color, width, dash in series_config:
         points = []
-        for idx in sample_indices:
-            y = float(pf_history.iloc[idx][col])
+        values = pf_history[col].to_numpy(dtype=float)[sample_indices].tolist()
+        for idx, y in zip(sample_indices, values):
             if first_series:
                 tip = fch.LineChartDataPointTooltip(
                     text=f"{_fmt_date(dates[idx])}\n{label}: {y:,.0f}",
@@ -412,8 +413,8 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
 
     mdd_pct = mdd * 100
 
-    # Downsample for performance
-    dd_values = [float(drawdown_pct.iloc[i]) for i in range(n)]
+    # Downsample for performance (the series read whole: see chart_summary)
+    dd_values = drawdown_pct.iloc[:n].astype(float).tolist()
     mdd_idx = int(drawdown_pct.idxmin())
     _, sample_indices = _downsample_series(dd_values, max_points=150)
     if mdd_idx not in sample_indices:
@@ -424,7 +425,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     points = []
     y_vals = []
     for idx in sample_indices:
-        y = float(drawdown_pct.iloc[idx])
+        y = dd_values[idx]
         pt_marker = (
             fch.ChartCirclePoint(color=ft.Colors.RED, radius=5)
             if idx == mdd_idx else False

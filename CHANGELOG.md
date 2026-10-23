@@ -1,3 +1,18 @@
+## [0.4.7] (2026-XX-XX)
+
+### Performance
+
+- Charts now read the history by column (6-17x faster loads)
+
+
+
+
+
+
+
+
+
+
 ## [0.4.6] (2026-10-23)
 
 ### Bug Fixes
