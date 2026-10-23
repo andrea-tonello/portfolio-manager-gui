@@ -1,6 +1,10 @@
 
 ## BACKLOG
 
+- Update Flet version when both:
+    - FastAPI bug with --android/--web flags is fixed (already fixed in 1.0.5)
+    - Support for SVG icons is added (already implemented, not yet released)
+
 - XEON ticker appears when Stocks ETFs is selected
 
 - [INVESTIGATE] Liquidità impegnata in negativo (BG Saxo)

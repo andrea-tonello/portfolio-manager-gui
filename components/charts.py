@@ -14,6 +14,8 @@ from services.analysis_service import UNCLASSIFIED
 from utils.columns import PRODUCT_LOCALE_KEYS
 from utils.formatting import fmt_eur
 
+MAX_CHART_POINTS = 100    # How many points a line chart draws at most; longer series are downsampled to this
+
 
 def _fmt_date(dt):
     """Write a date as YYYY-MM-DD, whether it is a date/Timestamp or already text."""
@@ -139,7 +141,7 @@ def _y_axis_labels(y_min, y_max, num_labels=5, suffix=""):
     return labels
 
 
-def _downsample_series(data, max_points=200):
+def _downsample_series(data, max_points=MAX_CHART_POINTS):
     """Downsample data using Largest Triangle Three Buckets algorithm for performance.
 
     Keeps first, last, and most visually significant points in between.
@@ -222,7 +224,7 @@ def chart_summary(translator, pf_history) -> ft.Control:
     # Downsample the NAV series for performance. Columns are read whole, never row by row:
     # pf_history.iloc[i] builds a pandas row each time, which took ~170 ms on 4,000 days.
     nav_values = pf_history["nav"].tolist()
-    _, sample_indices = _downsample_series(nav_values, max_points=150)
+    _, sample_indices = _downsample_series(nav_values)
 
     all_y = []
     data_series = []
@@ -348,7 +350,7 @@ def chart_rolling_correlation(translator, rolling_corr, window, asset1, asset2) 
     n = len(values)
 
     # Downsample for performance
-    _, sample_indices = _downsample_series(values, max_points=150)
+    _, sample_indices = _downsample_series(values)
 
     points = []
     y_vals = []
@@ -416,7 +418,7 @@ def chart_drawdown(translator, pf_history, drawdown_series, mdd) -> ft.Control:
     # Downsample for performance (the series read whole: see chart_summary)
     dd_values = drawdown_pct.iloc[:n].astype(float).tolist()
     mdd_idx = int(drawdown_pct.idxmin())
-    _, sample_indices = _downsample_series(dd_values, max_points=150)
+    _, sample_indices = _downsample_series(dd_values)
     if mdd_idx not in sample_indices:
         sample_indices.append(mdd_idx)
         sample_indices.sort()

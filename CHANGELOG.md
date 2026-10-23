@@ -3,6 +3,8 @@
 ### Performance
 
 - Charts now read the history by column (6-17x faster loads)
+- Line charts now draw at most 100 points (2x faster draws)
+
 
 
 
