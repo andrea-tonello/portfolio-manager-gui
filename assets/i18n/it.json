@@ -16,7 +16,16 @@
     "cancel": "Annulla",
     "apply": "Applica",
     "loading": "Caricamento...",
-    "version": "Versione"
+    "version": "Versione",
+    "periods": {
+      "1m": "1M",
+      "3m": "3M",
+      "6m": "6M",
+      "1y": "1A",
+      "3y": "3A",
+      "ytd": "YTD",
+      "max": "MAX"
+    }
   },
 
   "misc_errors": {

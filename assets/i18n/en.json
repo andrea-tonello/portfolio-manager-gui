@@ -16,7 +16,16 @@
     "cancel": "Cancel",
     "apply": "Apply",
     "loading": "Loading...",
-    "version": "Version"
+    "version": "Version",
+    "periods": {
+      "1m": "1M",
+      "3m": "3M",
+      "6m": "6M",
+      "1y": "1Y",
+      "3y": "3Y",
+      "ytd": "YTD",
+      "max": "MAX"
+    }
   },
 
   "misc_errors": {

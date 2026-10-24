@@ -21,6 +21,17 @@ from services.analysis_service import compute_drawdown
 INVESTED = [deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "BBB.MI", 100, price=50.0, fee=0.0)]
 
 
+@pytest.mark.parametrize("asked, shown", [
+    ("2023-06-01", date(2024, 1, 2)),
+    ("2024-03-01", date(2024, 3, 1)),
+], ids=["before-the-first-operation", "within-the-history"])
+def test_the_period_starts_no_earlier_than_the_first_operation(tmp_path, fake_market, asked, shown):
+    """Asked to start before the first operation (02-01-2024), the drawdown says it starts there; a later start is kept."""
+    account = Account(1, "Test Broker", "", _replay(INVESTED, tmp_path))
+
+    assert compute_drawdown([account], asked, "2024-06-28")["start"] == shown
+
+
 def max_drawdown(steps, tmp_path):
     """The maximum drawdown, from 02-01-2024 to 28-06-2024, of an account made of `steps`."""
     account = Account(1, "Test Broker", "", _replay(steps, tmp_path))

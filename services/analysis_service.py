@@ -253,13 +253,15 @@ def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_
         "pf_history": DataFrame,
         "drawdown": Series,
         "mdd": float,
+        "start": date,  # the first day measured: the start asked for, or the first operation if that comes later
         "has_data": bool,
     }
+    Example: asked from 24-10-2023 with the first operation on 04-03-2025, "start" is 04-03-2025.
     """
     accounts = [account for account in accounts if account.has_transactions]
 
     if not accounts:
-        return {"pf_history": None, "drawdown": None, "mdd": None, "has_data": False}
+        return {"pf_history": None, "drawdown": None, "mdd": None, "start": None, "has_data": False}
 
     pf_history_df = portfolio_history(start_ref_date, end_ref_date, accounts)
     pf_history_df = pf_history_df.dropna()
@@ -267,11 +269,14 @@ def compute_drawdown(accounts: list[Account], start_ref_date: DateLike, end_ref_
     growth = 1 + pf_history_df["cumulative_twrr"]
     drawdown = growth / growth.cummax().clip(lower=1.0) - 1
     mdd = drawdown.min()
+    # Before the first operation there was nothing to measure, so the period starts there at the earliest
+    first_operation = min(pd.to_datetime(account.transactions["date"].iloc[0], dayfirst=True) for account in accounts)
 
     return {
         "pf_history": pf_history_df,
         "drawdown": drawdown,
         "mdd": mdd,
+        "start": max(pd.Timestamp(start_ref_date), first_operation).date(),
         "has_data": True,
     }
 

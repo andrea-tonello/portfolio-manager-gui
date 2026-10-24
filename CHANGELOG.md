@@ -1,8 +1,12 @@
 ## [0.4.7] (2026-XX-XX)
 
+### Features
+
+- *Analysis*: added quick period selection shortcuts: 1M, 3M, 6M, 1Y, 3Y, YTD, MAX
+
 ### Performance
 
-- Tables, Charts are not redrawn on every frame while scrolling anymore (12x faster draws)
+- Tables and Charts are not redrawn on every frame while scrolling anymore (12x faster draws)
 - Charts now read the history by column (6-17x faster loads)
 - Line charts now draw at most 100 points (2x faster draws)
 

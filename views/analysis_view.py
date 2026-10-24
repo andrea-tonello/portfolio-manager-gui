@@ -23,7 +23,7 @@ from components.charts import (
     chart_summary,
     chart_var_mc,
 )
-from components.date_field import DateField, date_range_fields
+from components.date_field import DateField, PeriodShortcuts, date_range_fields
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
@@ -526,16 +526,16 @@ class DrawdownTool(AnalysisTool):
     scroll_prefix = "dd"
 
     def build_inputs(self, on_input_change):
-        """A start and end date, the whole history to start with: from the first operation to today."""
+        """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today."""
         t = self.t
         self.start, self.end = date_range_fields(
             self.page, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip(),
             t.get("components.date_format_hint"),
         )
-        self.start.value, self.end.value = self.first_day, date.today()
+        self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([self.start.field, self.end.field])
-        return [ft.Container(height=5), self.start.control, self.end.control]
+        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.start.control, self.end.control]
 
     def text_fields(self):
         """The two date boxes."""
@@ -553,11 +553,14 @@ class DrawdownTool(AnalysisTool):
         return result
 
     def render(self, result, inputs):
-        """The maximum drawdown and its chart, or why there is none."""
+        """The maximum drawdown and its chart, or why there is none.
+
+        The period reads from the first day measured: a start before the first operation shows the first operation.
+        """
         if not result["has_data"]:
             return [ft.Text(self.t.get("analysis.drawdown.error"), size=14, selectable=True)]
-        start, end = inputs
-        text = self.t.get("analysis.drawdown.result", start_dt=start.strftime(DATE_FORMAT),
+        _, end = inputs
+        text = self.t.get("analysis.drawdown.result", start_dt=result["start"].strftime(DATE_FORMAT),
                           end_dt=end.strftime(DATE_FORMAT), mdd=result["mdd"] * 100)
         return [
             ft.Text(text, size=14, selectable=True),

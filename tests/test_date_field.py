@@ -2,7 +2,8 @@
 
 A DateField is a text field where the date can be typed as DD-MM-YYYY, plus a
 calendar button that opens Flet's date picker. `value` is the date typed or
-picked, or None while the text isn't a valid date.
+picked, or None while the text isn't a valid date. Period shortcuts (1M ... MAX)
+fill a start/end pair with a period ending today.
 """
 
 from datetime import date, datetime
@@ -11,7 +12,7 @@ from types import SimpleNamespace
 import flet as ft
 import pytest
 
-from components.date_field import DateField, date_range_fields
+from components.date_field import DateField, PeriodShortcuts, date_range_fields, period_start
 from domain.ledger import LEDGER_START_DATE
 
 
@@ -107,3 +108,50 @@ def test_a_pair_with_no_dates_yet_uses_the_default_limits(page):
 
     assert _open_picker(start, page).last_date.date() == date.today()
     assert _open_picker(end, page).first_date == LEDGER_START_DATE
+
+
+# ── Period shortcuts ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("period, today, first_day, expected", [
+    ("1m", date(2026, 3, 31), date(2020, 1, 2), date(2026, 2, 28)),   # February is shorter: its last day
+    ("1m", date(2028, 3, 31), date(2020, 1, 2), date(2028, 2, 29)),   # ... 29 days in a leap year
+    ("3m", date(2026, 5, 31), date(2020, 1, 2), date(2026, 2, 28)),
+    ("6m", date(2026, 1, 15), date(2020, 1, 2), date(2025, 7, 15)),   # back across the new year
+    ("1y", date(2028, 2, 29), date(2020, 1, 2), date(2027, 2, 28)),   # no 29 February the year before
+    ("3y", date(2026, 10, 24), date(2020, 1, 2), date(2023, 10, 24)),
+    ("ytd", date(2026, 10, 24), date(2020, 1, 2), date(2026, 1, 1)),
+    ("max", date(2026, 10, 24), date(2020, 1, 2), date(2020, 1, 2)),
+    ("3y", date(2026, 10, 24), date(2025, 3, 4), date(2025, 3, 4)),   # longer than the history
+    ("ytd", date(2026, 10, 24), date(2026, 5, 4), date(2026, 5, 4)),  # first operation this year
+    ("3y", date(2026, 10, 24), None, date(2023, 10, 24)),             # first operation unknown
+])
+def test_each_period_starts_that_far_back_from_today(period, today, first_day, expected):
+    """A period goes back that many months to the same day, or the month's last day when it is shorter.
+
+    YTD starts on 1 January, MAX on the first operation. A period reaching back
+    before the first operation starts on it instead, when it is known.
+    """
+    assert period_start(period, today, first_day) == expected
+
+
+def test_a_period_shortcut_fills_the_dates_and_a_date_typed_by_hand_unselects_it(page, translator):
+    """MAX is selected and filled at first; 3M sets the start 3 months back and the end to today.
+
+    Typing a date unselects 3M and keeps the date typed: the button no longer
+    describes the dates. Tapping 3M again fills them with it again.
+    """
+    start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")
+    periods = PeriodShortcuts(translator, start, end, first_day=date(2025, 3, 4))
+    today = date.today()
+    assert (periods.buttons.selected, start.value, end.value) == (["max"], date(2025, 3, 4), today)
+
+    periods.buttons.selected = ["3m"]
+    periods.buttons.on_change(None)
+    assert (start.value, end.value) == (period_start("3m", today, None), today)
+
+    _type(start, "01-01-2026")
+    assert (periods.buttons.selected, start.value) == ([], date(2026, 1, 1))
+
+    periods.buttons.selected = ["3m"]
+    periods.buttons.on_change(None)
+    assert start.value == period_start("3m", today, None)
