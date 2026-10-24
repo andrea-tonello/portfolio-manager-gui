@@ -2,6 +2,7 @@
 
 ### Performance
 
+- Tables, Charts are not redrawn on every frame while scrolling anymore (12x faster draws)
 - Charts now read the history by column (6-17x faster loads)
 - Line charts now draw at most 100 points (2x faster draws)
 

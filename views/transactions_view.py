@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from components.buttons import action_card_btn
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
+from components.repaint_boundary import repaint_boundary
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from domain.ledger import Op
@@ -329,13 +330,15 @@ class TransactionsView:
                 cells.append(ft.DataCell(ft.Text(val, size=10)))
             rows.append(ft.DataRow(cells=cells))
 
+        # Inside the horizontal scroll, the repaint boundary spares redrawing every cell at each frame of
+        # a scroll in either direction.
         return ft.Row([
-            ft.DataTable(
+            repaint_boundary(ft.DataTable(
                 columns=columns,
                 rows=rows,
                 horizontal_lines=ft.BorderSide(1, ft.Colors.GREY_300),
                 column_spacing=12,
-            ),
+            )),
         ], scroll=ft.ScrollMode.ALWAYS,)
 
     # ── Export / Remove ───────────────────────────────────────────────
