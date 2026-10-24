@@ -14,7 +14,7 @@ from domain.positions import held_rows, held_tickers
 from domain.tax import pending_fees
 from services import operations_service
 from services.market_data import search_tickers
-from services.validation import parse_positive, validate_date
+from services.validation import last_operation_date, parse_positive, validate_date
 from utils.constants import CURRENCIES, DATE_FORMAT
 from utils.formatting import fmt_eur
 
@@ -46,6 +46,12 @@ def _selected_account(state):
     """The account picked at the top of Operations, or None when none is picked (or its file isn't loaded)."""
     idx = state.ops_acc_idx
     return None if idx is None else state.get_account(idx)
+
+
+def _earliest_new_date(state):
+    """The earliest day a new operation of the selected account can have: its last operation's (None without one)."""
+    account = _selected_account(state)
+    return last_operation_date(account.df) if account else None
 
 
 def _number(text):
@@ -243,7 +249,8 @@ class GeneralForm:
             ft.Container(height=30),
         ], spacing=0, opacity=0.4 if no_account else 1.0,
            horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
-        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
+        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"),
+                              min_date=lambda: _earliest_new_date(self.state))
 
         self.amount = rounded_text_field(label=t.get("operations.cash.amount"),
                                          keyboard_type=ft.KeyboardType.NUMBER,
@@ -485,7 +492,8 @@ class EtfStockForm:
             opacity=0.4 if no_account else 1.0,
         )
 
-        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
+        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"),
+                              min_date=lambda: _earliest_new_date(self.state))
         date_row = ft.Container(
             content=self.date.control,
             col={"xs": 12, "md": 6},

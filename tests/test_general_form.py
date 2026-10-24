@@ -1,4 +1,5 @@
-"""Tests for the General tab of the Operations screen: cash operations, transfers and splits.
+"""Tests for the General tab of the Operations screen: cash operations, transfers and splits,
+plus the date picker shared by every Operations tab.
 
 The form hands the operation to operations_service with a sign convention:
 amounts are typed as positive numbers, and a withdrawal is passed on as a
@@ -6,7 +7,7 @@ negative one. The service decides from it whether the row is a deposit or a
 withdrawal.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 from conftest import snack_texts
@@ -118,6 +119,21 @@ def test_general_form_refuses_invalid_values(general_form, page, changes, messag
 
     assert calls == []
     assert snack_texts(page) == [message]
+
+
+@pytest.mark.parametrize("tab", ["general", "etf", "stock"])
+def test_the_date_picker_starts_at_the_accounts_last_operation(app, page, state, tab):
+    """In every Operations tab, the picker offers no day before the selected account's last operation (02-09-2024).
+
+    A new operation can't be dated earlier: the picker used to offer every day since 2000.
+    """
+    state.ops_acc_idx = 1
+    view = OperationsView(app)
+    view.build()
+
+    getattr(view, tab).date.button.on_click(None)
+
+    assert page.dialogs[-1].first_date == datetime(2024, 9, 2)
 
 
 def test_a_transfer_needs_another_account(general_form, page):

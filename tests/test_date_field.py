@@ -102,6 +102,23 @@ def test_a_start_end_pair_keeps_the_end_after_the_start(page):
     assert _open_picker(end, page).first_date == datetime(2024, 3, 2)
 
 
+def test_the_picker_opens_on_the_date_shown_moved_inside_its_limits(field, page):
+    """It opens on the date in the field; one outside the limits opens on the nearest limit, as Flutter requires.
+
+    With limits that cross (the earliest allowed after the latest), it narrows
+    to the latest day alone instead of failing to open.
+    """
+    field.value = date(2024, 3, 10)
+    assert _open_picker(field, page).value == datetime(2024, 3, 10)
+
+    field.max_date = date(2024, 2, 1)
+    assert _open_picker(field, page).value == datetime(2024, 2, 1)
+
+    field.min_date = date(2024, 5, 1)
+    picker = _open_picker(field, page)
+    assert (picker.first_date, picker.last_date, picker.value) == (datetime(2024, 2, 1),) * 3
+
+
 def test_a_pair_with_no_dates_yet_uses_the_default_limits(page):
     """Until the other date is set, each picker of the pair allows the full range."""
     start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")

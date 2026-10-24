@@ -88,6 +88,25 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
     assert (correlation.start.value, correlation.end.value) == (None, today)
 
 
+def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state, tmp_path):
+    """Statistics' date and Drawdown's start offer no day before the first operation, here five days ago.
+
+    Under 20 days of history the Drawdown start is left empty (too short a
+    period to fill in), but its picker still starts at the first operation.
+    """
+    first = date.today() - timedelta(days=5)
+    idx = state.add_broker("Second Broker")
+    state.commit(idx, _replay([deposit(first, 1000)], tmp_path / "second"))
+    state.analysis_acc_idx = idx
+    view = AnalysisView(app)
+    view.build()
+    tools = {type(tab.tool): tab.tool for tab in view.tabs}
+
+    for date_field in (tools[SummaryTool].date, tools[DrawdownTool].start):
+        date_field.button.on_click(None)
+        assert page.dialogs[-1].first_date.date() == first
+
+
 def test_allocation_calculates_as_soon_as_it_is_shown(app, page, state, monkeypatch):
     """The Allocation tab starts calculating when shown, so it opens on the pie instead of an empty tab.
 

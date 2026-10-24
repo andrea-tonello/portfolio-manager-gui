@@ -70,17 +70,20 @@ class AnalysisTool:
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
 
-    def __init__(self, page, translator, first_day=None, account_name=None):
+    def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
         """Keep the page (date pickers and ticker search need it), the translator, and what is analysed.
 
-        `first_day` is the day of the first operation in the accounts analysed
-        (None before any), the default start of a period. `account_name` is
-        the name of the one account analysed, None when all of them are.
+        `first_operation` is the day of the first operation in the accounts
+        analysed (None before any): the date pickers that need history start
+        there. `first_day` is the same day as the default start of a period,
+        but None when it is less than 20 days ago (too short a period).
+        `account_name` is the name of the one account analysed, None when all of them are.
         """
         self.page = page
         self.t = translator
         self.first_day = first_day
         self.account_name = account_name
+        self.first_operation = first_operation
 
     def build_inputs(self, on_input_change) -> list[ft.Control]:
         """Create the input controls and return them in screen order.
@@ -320,15 +323,16 @@ class SummaryTool(AnalysisTool):
         ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
     )
 
-    def __init__(self, page, translator, first_day=None, account_name=None):
+    def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
         """As for every tool, plus the results kept so far, by day."""
-        super().__init__(page, translator, first_day, account_name)
+        super().__init__(page, translator, first_day, account_name, first_operation)
         self._histories = {}  # day -> the chart's history (analysis_service.summary_history)
         self._figures = {}    # day -> the figures (analysis_service.compute_summary)
 
     def build_inputs(self, on_input_change):
-        """A date, today to start with."""
-        self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"))
+        """A date, today to start with; its picker starts at the first operation (before it there is nothing to show)."""
+        self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"),
+                              min_date=self.first_operation)
         self.date.value = date.today()
         return [ft.Container(height=5), self.date.control]
 
@@ -532,6 +536,7 @@ class DrawdownTool(AnalysisTool):
             self.page, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip(),
             t.get("components.date_format_hint"),
         )
+        self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([self.start.field, self.end.field])
@@ -655,12 +660,14 @@ class AnalysisView:
         today = date.today()
         first_days = [first.date() for account in _accounts_to_analyse(self.state)
                       if (first := get_pf_date(account, today, today)[1]) is not None]
-        first_day = min(first_days, default=None)
+        first_operation = min(first_days, default=None)
+        first_day = first_operation
         if first_day is not None and (today - first_day).days < 20:
             first_day = None
         idx = self.state.analysis_acc_idx
         account_name = None if idx is None else self.state.brokers.get(idx)
-        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t, first_day, account_name), self._save_csv)
+        self.tabs = [AnalysisTab(self.page, self.state, tool(self.page, t, first_day, account_name, first_operation),
+                                 self._save_csv)
                      for tool in TOOLS]
 
         has_account = self.state.analysis_acc_idx is not None or len(self.state.accounts) > 0

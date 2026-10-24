@@ -36,6 +36,15 @@ def parse_positive(text: str | None, error_key: str, *, integer: bool = False, a
     return value
 
 
+def last_operation_date(ledger_df: pd.DataFrame | None) -> date | None:
+    """Return the day of the latest row of an account's ledger, or None without a ledger."""
+    
+    if ledger_df is None:
+        return None
+    dates = pd.to_datetime(ledger_df["date"], dayfirst=True, errors="coerce").dropna()
+    return None if dates.empty else dates.max().date()
+
+
 def validate_date(day: date | None, *, ledger_df: pd.DataFrame | None = None) -> date:
     """Return `day` if it is given and not in the future.
 
@@ -50,10 +59,9 @@ def validate_date(day: date | None, *, ledger_df: pd.DataFrame | None = None) ->
         raise ValidationError("misc_errors.nodate")
     if day > date.today():
         raise ValidationError("misc_errors.date_future")
-    if ledger_df is not None:
-        dates = pd.to_datetime(ledger_df["date"], dayfirst=True, errors="coerce").dropna()
-        if not dates.empty and day < dates.max().date():
-            raise ValidationError("misc_errors.date_sequential")
+    last = last_operation_date(ledger_df)
+    if last is not None and day < last:
+        raise ValidationError("misc_errors.date_sequential")
     return day
 
 

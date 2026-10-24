@@ -75,10 +75,14 @@ class DateField:
             self.on_change()
 
     def _open_picker(self, e):
-        """Open the date picker, limited to the dates allowed right now."""
+        """Open the date picker on the date shown (or today), limited to the dates allowed right now."""
+        last = _as_datetime(_resolve(self.max_date) or datetime.now())
+        first = min(_as_datetime(_resolve(self.min_date) or LEDGER_START_DATE), last)
+        shown = _as_datetime(self.value or date.today())
         picker = ft.DatePicker(
-            first_date=_as_datetime(_resolve(self.min_date) or LEDGER_START_DATE),
-            last_date=_as_datetime(_resolve(self.max_date) or datetime.now()),
+            first_date=first,
+            last_date=last,
+            value=min(max(shown, first), last),
             on_change=self._on_picked,
         )
         self.page.show_dialog(picker)
