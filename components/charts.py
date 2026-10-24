@@ -10,6 +10,7 @@ import flet as ft
 import flet_charts as fch
 import numpy as np
 
+from components.repaint_boundary import repaint_boundary
 from services.analysis_service import UNCLASSIFIED
 from utils.columns import PRODUCT_LOCALE_KEYS
 from utils.formatting import fmt_eur
@@ -28,8 +29,12 @@ def _no_data(t):
 
 
 def _chart_card(*children, spacing=6):
-    """The white rounded card, 320 high with a light shadow, that holds every chart and its legend."""
-    return ft.Container(
+    """The white rounded card, 320 high with a light shadow, that holds every chart and its legend.
+
+    It sits in a repaint boundary, so scrolling the Analysis tab past it moves the
+    chart already drawn instead of redrawing it at every frame.
+    """
+    return repaint_boundary(ft.Container(
         content=ft.Column(list(children), spacing=spacing, expand=True),
         bgcolor=ft.Colors.WHITE,
         border_radius=12,
@@ -39,7 +44,7 @@ def _chart_card(*children, spacing=6):
             spread_radius=1, blur_radius=3,
             color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
         ),
-    )
+    ))
 
 
 def _legend(entries, gap="   "):
