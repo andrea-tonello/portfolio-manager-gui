@@ -1,10 +1,11 @@
-"""Characterisation test for compute_summary, the numbers behind the Statistics tab.
+"""Tests for compute_summary, the numbers behind the Statistics tab.
 
-It runs compute_summary on the two test accounts from test_ledger_snapshots.py
-(one still holding shares at the end, one fully sold) with the fake prices, and
-compares the results with tests/snapshots/summary.json. Like the CSV snapshots,
-it records what the code does today; regenerate with --update-snapshots only
-after an intended change.
+The characterisation test runs compute_summary on the two test accounts from
+test_ledger_snapshots.py (one still holding shares at the end, one fully sold)
+with the fake prices, and compares the results with tests/snapshots/summary.json.
+Like the CSV snapshots, it records what the code does today; regenerate with
+--update-snapshots only after an intended change. The others check the
+figures of a period with a start date.
 """
 
 import json
@@ -12,6 +13,7 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
+import pytest
 from conftest import fake_download_close
 
 from domain.account import Account
@@ -94,3 +96,51 @@ def test_an_asset_listed_recently_does_not_cut_the_history(tmp_path, fake_market
     history = summary_history([Account(1, "Test Broker", "", df)], date(2024, 6, 28), "28-06-2024")
 
     assert history["Date"].iloc[0] == pd.Timestamp("2024-01-03")
+
+
+# ── A period with a start date ───────────────────────────────────────
+# 10,000 deposited on 02-01-2024, half spent on 100 BBB.MI at 50 (no fee). The
+# fake price rises 0.1% a day from 50 on 01-01-2024: 53.00 on 01-03-2024 and
+# 58.95 on 28-06-2024. So the account is worth 5,000 + 5,300 = 10,300 on
+# 01-03-2024 and 5,000 + 5,895 = 10,895 on 28-06-2024: 595 gained in between.
+INVESTED = [deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "BBB.MI", 100, price=50.0, fee=0.0)]
+
+
+def _figures(steps, folder, start):
+    """The portfolio figures of an account made of `steps`, on 28-06-2024, for the period from `start`."""
+    account = Account(1, "Test Broker", "", _replay(steps, folder))
+    return compute_summary([account], date(2024, 6, 28), "28-06-2024", start=start)["portfolio"]
+
+
+def test_a_period_measures_its_returns_from_the_value_on_its_first_day(tmp_path, fake_market):
+    """From 01-03-2024: 595 gained, and both returns are 10,895 / 10,300 - 1 = +5.78%.
+
+    The 10,300 the account was worth on the start day counts as the money put
+    in (XIRR), and the value a day earlier as the base (TWRR). The values
+    themselves are those on the end date, as without a start.
+    """
+    figures = _figures(INVESTED, tmp_path, start=date(2024, 3, 1))
+
+    assert figures["period_gain"] == pytest.approx(595.0)
+    assert figures["xirr_full"] == pytest.approx(10_895 / 10_300 - 1, rel=1e-6)
+    assert figures["twrr_full"] == pytest.approx(10_895 / 10_300 - 1, rel=1e-6)
+    assert figures["nav"] == pytest.approx(10_895.0)
+
+
+def test_money_deposited_during_the_period_is_not_a_gain(tmp_path, fake_market):
+    """1,000 deposited on 02-04-2024: the account ends at 11,895, but the gain is still 595."""
+    figures = _figures([*INVESTED, deposit(date(2024, 4, 2), 1_000)], tmp_path, start=date(2024, 3, 1))
+
+    assert figures["nav"] == pytest.approx(11_895.0)
+    assert figures["period_gain"] == pytest.approx(595.0)
+
+
+@pytest.mark.parametrize("start", [date(2024, 1, 2), date(2023, 6, 1)], ids=["first-operation", "before-it"])
+def test_a_start_on_or_before_the_first_operation_changes_nothing(tmp_path, fake_market, start):
+    """MAX, or any earlier start, gives the figures of no start at all, and no gain line."""
+    figures = _figures(INVESTED, tmp_path / "start", start=start)
+    no_start = _figures(INVESTED, tmp_path / "none", start=None)
+
+    assert figures["period_gain"] is None
+    for name in ("xirr_full", "xirr_ann", "twrr_full", "twrr_ann", "volatility", "sharpe_ratio"):
+        assert figures[name] == pytest.approx(no_start[name]), name

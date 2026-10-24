@@ -3,6 +3,7 @@
 ### Features
 
 - *Analysis*: added quick period selection shortcuts: 1M, 3M, 6M, 1Y, 3Y, YTD, MAX
+- Date pickers now start at the earliest date that they can work with
 
 ### Performance
 

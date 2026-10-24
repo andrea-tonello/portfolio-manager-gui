@@ -23,8 +23,8 @@ ROLLING = {"start": date(2024, 1, 2), "end": date(2024, 6, 3), "kind": "rolling"
 
 
 @pytest.mark.parametrize("tool, inputs, message", [
-    (SummaryTool, {"date": None}, "Date is missing"),
-    (SummaryTool, {"date": TOMORROW}, "Cannot insert future dates"),
+    (SummaryTool, {"start": date(2024, 1, 2), "end": None}, "Date is missing"),
+    (SummaryTool, {"start": date(2024, 1, 2), "end": TOMORROW}, "Cannot insert future dates"),
     (CorrelationTool, {"start": date(2024, 1, 2), "end": None}, "Date is missing"),
     (CorrelationTool, {"start": date(2024, 1, 2), "end": TOMORROW}, "Cannot insert future dates"),
     (CorrelationTool, {"start": date(2024, 5, 2), "end": date(2024, 5, 2)},
@@ -62,12 +62,13 @@ def test_analysis_refuses_invalid_inputs(app, page, tool, inputs, message):
     (2, date.today() - timedelta(days=5), None),
 ], ids=["all-accounts", "one-account", "under-20-days"])
 def test_default_dates(app, state, tmp_path, selection, second_deposit, first_day):
-    """Single dates start as today; periods run from the first operation of the accounts analysed to today.
+    """Periods run from the first operation of the accounts analysed to today.
 
     A second account makes its first deposit on `second_deposit`. On
     01-06-2023 it is before the test account's first operation (02-01-2024),
     so the period starts there only with all accounts. Five days ago is too
-    short a period, so the start is left empty. The rolling correlation always
+    short a period, so the start is left empty, except for Statistics, whose
+    figures make sense from the first day. The rolling correlation always
     leaves the start empty, for the two tickers.
     """
     idx = state.add_broker("Second Broker")
@@ -78,7 +79,8 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
     tools = {type(tab.tool): tab.tool for tab in view.tabs}
     today = date.today()
 
-    assert tools[SummaryTool].date.value == today
+    statistics = tools[SummaryTool]
+    assert (statistics.start.value, statistics.end.value) == (first_day or second_deposit, today)
     for tool in (CorrelationTool, DrawdownTool):
         assert (tools[tool].start.value, tools[tool].end.value) == (first_day, today)
 
@@ -89,7 +91,7 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
 
 
 def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state, tmp_path):
-    """Statistics' date and Drawdown's start offer no day before the first operation, here five days ago.
+    """The Statistics and Drawdown start pickers offer no day before the first operation, here five days ago.
 
     Under 20 days of history the Drawdown start is left empty (too short a
     period to fill in), but its picker still starts at the first operation.
@@ -102,7 +104,7 @@ def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, 
     view.build()
     tools = {type(tab.tool): tab.tool for tab in view.tabs}
 
-    for date_field in (tools[SummaryTool].date, tools[DrawdownTool].start):
+    for date_field in (tools[SummaryTool].start, tools[DrawdownTool].start):
         date_field.button.on_click(None)
         assert page.dialogs[-1].first_date.date() == first
 
@@ -182,11 +184,11 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
                         lambda *args: downloads.append(args) or real_history(*args))
 
     def statistics_tab():
-        """A freshly built Analysis screen's Statistics tab, set on 31-12-2024, and its two cards."""
+        """A freshly built Analysis screen's Statistics tab, from the first operation to 31-12-2024, and its two cards."""
         view = AnalysisView(app)
         view.build()
         [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
-        tab.tool.date.value = date(2024, 12, 31)
+        tab.tool.end.value = date(2024, 12, 31)
         return tab, *find_controls(tab.content, ft.Card)
 
     def press(tab, card):
@@ -214,7 +216,7 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
     assert press(tab, chart_card) == chart
     assert len(downloads) == 1
 
-    tab.tool.date.value = date(2024, 11, 29)
+    tab.tool.end.value = date(2024, 11, 29)
     press(tab, chart_card)
     assert len(downloads) == 2
 
@@ -240,7 +242,7 @@ def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, stat
         view = AnalysisView(app)
         view.build()
         [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
-        tab.tool.date.value = date(2024, 12, 31)
+        tab.tool.end.value = date(2024, 12, 31)
         _, figures_card = find_controls(tab.content, ft.Card)
         figures_card.content.on_click(None)
         return [text.value for text in find_controls(tab.result, ft.Text)]

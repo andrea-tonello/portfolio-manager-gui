@@ -1,3 +1,6 @@
+### Period
+NAV, cash, committed cash, P&L and the assets held are the values on the end date. The returns, volatility and Sharpe Ratio cover the period from the start date to the end date. With a start after the first operation, the portfolio's value on the start day counts as money put in then, and the gain in the period is shown: the value at the end, minus the value at the start, minus the money deposited in between (net of withdrawals).
+
 ### XIRR (Extended Internal Rate of Return)
 A type of Return. The IRR is a numerical method to calculate the Internal Rate of Return of a series of cash flows (inflows and outflows); XIRR is a variant used when flows occur at irregular time intervals. It is calculated as the rate that zeros the Net Present Value (NPV) of all flows.
 

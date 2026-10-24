@@ -1,3 +1,6 @@
+### Periodo
+NAV, liquidità, liquidità impegnata, P&L e titoli detenuti sono i valori alla data di fine. I rendimenti, la volatilità e lo Sharpe Ratio coprono il periodo dalla data di inizio alla data di fine. Con un inizio successivo alla prima operazione, il valore del portafoglio nel giorno di inizio conta come denaro investito in quel giorno, e viene mostrato il guadagno del periodo: il valore alla fine, meno il valore all'inizio, meno il denaro depositato nel frattempo (al netto dei prelievi).
+
 ### XIRR (Extended Internal Rate of Return)
 L'IRR è un metodo numerico per calcolare il Tasso Interno di Rendimento di una serie di flussi di cassa (entrate e uscite); lo XIRR è una variante utilizzata quando i flussi si verificano a intervalli di tempo non regolari. Si calcola come il tasso che azzera il Valore Attuale Netto (NPV) di tutti i flussi.
 

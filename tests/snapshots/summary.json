@@ -37,6 +37,7 @@
     "has_positions": true,
     "historic_liq": 29500.0,
     "nav": 30279.87,
+    "period_gain": null,
     "pl": 425.87,
     "pl_unrealized": 588.12,
     "positions": [

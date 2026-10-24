@@ -23,7 +23,7 @@ from components.charts import (
     chart_summary,
     chart_var_mc,
 )
-from components.date_field import DateField, PeriodShortcuts, date_range_fields
+from components.date_field import PeriodShortcuts, date_range_fields
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
@@ -32,7 +32,7 @@ from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
 from domain.ledger import get_pf_date
 from services import analysis_service
-from services.validation import parse_positive, validate_date, validate_date_range
+from services.validation import parse_positive, validate_date_range
 from utils.constants import DATE_FORMAT
 
 _INT_FILTER = ft.NumbersOnlyInputFilter()
@@ -305,14 +305,15 @@ def _format_common_stats(stats, t, dt_str):
 
 
 class SummaryTool(AnalysisTool):
-    """On a date, the chart of the value over time of the account picked (or all), or its figures.
+    """Over a period, the chart of the value over time of the account picked (or all), or its figures.
 
-    One card shows the chart, the other the figures (value, P&L, returns).
-    Both need the portfolio's whole price history, the slow part, so the
-    results are kept by day: going back to one already shown, or pressing it
-    again, downloads nothing, and the figures reuse the history of a chart
-    drawn first. They are forgotten with the tool, when the screen is left or
-    another account is picked, so coming back shows fresh prices and operations.
+    One card shows the chart, the other the figures: the values on the end
+    date, and the returns over the period. Both need the portfolio's price
+    history over the period, the slow part, so the results are kept by period:
+    going back to one already shown, or pressing it again, downloads nothing,
+    and the figures reuse the history of a chart drawn first. They are
+    forgotten with the tool, when the screen is left or another account is
+    picked, so coming back shows fresh prices and operations.
     """
 
     title_key = "analysis.op_statistics"
@@ -324,62 +325,77 @@ class SummaryTool(AnalysisTool):
     )
 
     def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
-        """As for every tool, plus the results kept so far, by day."""
+        """As for every tool, plus the results kept so far, by period."""
         super().__init__(page, translator, first_day, account_name, first_operation)
-        self._histories = {}  # day -> the chart's history (analysis_service.summary_history)
-        self._figures = {}    # day -> the figures (analysis_service.compute_summary)
+        self._histories = {}  # (start, end) -> the chart's history (analysis_service.summary_history)
+        self._figures = {}    # (start, end) -> the figures (analysis_service.compute_summary)
 
     def build_inputs(self, on_input_change):
-        """A date, today to start with; its picker starts at the first operation (before it there is nothing to show)."""
-        self.date = DateField(self.page, self.t.get("components.pick_date"), self.t.get("components.date_format_hint"),
-                              min_date=self.first_operation)
-        self.date.value = date.today()
-        return [ft.Container(height=5), self.date.control]
+        """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today.
+
+        Unlike the other tools, MAX starts at the first operation even when it
+        is less than 20 days ago: the figures make sense from the very first day.
+        """
+        t = self.t
+        self.start, self.end = date_range_fields(
+            self.page, t.get("analysis.summary.start_dt").strip(), t.get("analysis.summary.end_dt").strip(),
+            t.get("components.date_format_hint"),
+        )
+        self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
+        self.periods = PeriodShortcuts(t, self.start, self.end, self.first_operation)
+        chain_focus([self.start.field, self.end.field])
+        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.start.control, self.end.control]
 
     def text_fields(self):
-        """The date box."""
-        return [self.date.field]
+        """The two date boxes."""
+        return [self.start.field, self.end.field]
 
     def read_inputs(self):
-        """The date, if it is given and not in the future."""
-        return validate_date(self.date.value)
+        """(start, end), if both are given, not in the future, and start comes first."""
+        return validate_date_range(self.start.value, self.end.value)
 
     def compute(self, accounts, inputs):
-        """The chart's history ("chart") or the figures ("figures") of `accounts` on the day, kept for next time."""
-        action, day = inputs
-        dt_str = day.strftime(DATE_FORMAT)
+        """The chart's history ("chart") or the figures ("figures") of `accounts` over the period, kept for next time."""
+        action, period = inputs
+        start, end = period
+        dt_str = end.strftime(DATE_FORMAT)
         if action == "figures":
-            if day not in self._figures:
-                figures = analysis_service.compute_summary(accounts, day, dt_str, self._histories.get(day))
-                self._figures[day] = figures
-                self._histories[day] = figures["pf_history"]
-            return self._figures[day]
-        if day not in self._histories:
-            self._histories[day] = analysis_service.summary_history(accounts, day, dt_str)
-        return self._histories[day]
+            if period not in self._figures:
+                figures = analysis_service.compute_summary(accounts, end, dt_str, self._histories.get(period), start=start)
+                self._figures[period] = figures
+                self._histories[period] = figures["pf_history"]
+            return self._figures[period]
+        if period not in self._histories:
+            self._histories[period] = analysis_service.summary_history(accounts, end, dt_str, start=start)
+        return self._histories[period]
 
     def render(self, result, inputs):
         """"Account: <name>" ("all accounts" when all are picked), above the chart or the figures."""
         t = self.t
-        action, day = inputs
+        action, period = inputs
         name = self.account_name or t.get("analysis.all_accounts_lowercase")
         header = ft.Text(f"{t.get('analysis.summary.account_literal')}: {name}", size=14, weight=ft.FontWeight.BOLD)
         if action == "chart":
             if result is None or result.empty:
                 return [header, ft.Text(t.get("analysis.charts.no_data"))]
             return [header, chart_summary(t, result)]
-        return [header, ft.Text(self._figures_text(result, day), size=12, selectable=True)]
+        return [header, ft.Text(self._figures_text(result, *period), size=12, selectable=True)]
 
-    def _figures_text(self, result, day):
+    def _figures_text(self, result, start, end):
         """The figures of the accounts analysed taken together, from compute_summary's `result`, then what they hold.
 
-        With all accounts picked, that is only their total, not each account's
-        figures, and a ticker held in several accounts is listed once.
+        The values are those on `end`; with a start after the first operation,
+        the gain from `start` to `end` comes next, then the returns over the
+        period. With all accounts picked, that is only their total, not each
+        account's figures, and a ticker held in several accounts is listed once.
         """
         t = self.t
-        dt_str = day.strftime(DATE_FORMAT)
+        dt_str = end.strftime(DATE_FORMAT)
         pf = result["portfolio"]
         text = _format_common_stats(pf, t, dt_str)
+        if pf["period_gain"] is not None:
+            text += "\n" + t.get("analysis.summary.period_gain", start=start.strftime(DATE_FORMAT), end=dt_str,
+                                 gain=pf["period_gain"])
         if pf["has_positions"]:
             text += "\n" + t.get("analysis.summary.return_portfolio",
                                  xirr_full=pf["xirr_full"], xirr_ann=pf["xirr_ann"],

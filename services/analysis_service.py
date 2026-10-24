@@ -24,8 +24,18 @@ EQUITY_PRODUCTS = {Product.STOCK, Product.ETF_STOCK}    # For Sector allocation
 UNCLASSIFIED = "unclassified"                           # The sector of the shares Yahoo has no sectors for
 
 
-def summary_history(accounts: list[Account], ref_date: date, dt_str: str) -> pd.DataFrame | None:
-    """The portfolio's value day by day, from the first operation of `accounts` to `ref_date`.
+def _period_start(first_operation: pd.Timestamp, start: DateLike | None) -> pd.Timestamp:
+    """The day a period asked from `start` really begins: `start`, or the first operation when that comes later.
+
+    Without a start (None), it is the first operation. Example: asked from
+    24-10-2023 with the first operation on 04-03-2025, it begins on 04-03-2025.
+    """
+    return first_operation if start is None else max(first_operation, pd.Timestamp(start))
+
+
+def summary_history(accounts: list[Account], ref_date: date, dt_str: str,
+                    start: DateLike | None = None) -> pd.DataFrame | None:
+    """The portfolio's value day by day, from the first operation of `accounts` (or `start`, if later) to `ref_date`.
 
     This is the chart of the Statistics tab, and what its TWRR, volatility and
     Sharpe ratio are computed from (compute_summary). Returns None when no
@@ -34,15 +44,22 @@ def summary_history(accounts: list[Account], ref_date: date, dt_str: str) -> pd.
     """
     ref_date = pd.Timestamp(ref_date)
     first_dates = [first for account in accounts if (first := get_pf_date(account, dt_str, ref_date)[1]) is not None]
-    return portfolio_history(min(first_dates), ref_date, accounts) if first_dates else None
+    return portfolio_history(_period_start(min(first_dates), start), ref_date, accounts) if first_dates else None
 
 
 def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
-                    pf_history: pd.DataFrame | None = None) -> dict:
+                    pf_history: pd.DataFrame | None = None, start: DateLike | None = None) -> dict:
     """Statistics of each Account in `accounts` and of all of them together, on `ref_date`.
 
+    The values (NAV, cash, assets, committed cash, P&L, positions) are those
+    on `ref_date`. The portfolio's returns, volatility and Sharpe ratio cover
+    the period from `start` to `ref_date`; without a start, or with one on or
+    before the first operation, from the first operation. A later start also
+    gives the gain in the period, and its XIRR counts the portfolio's value
+    on the start day as money put in then.
+
     `pf_history` is what summary_history returned for the same accounts and
-    day, when it is already known (the chart was drawn first): passing it
+    period, when it is already known (the chart was drawn first): passing it
     saves downloading the whole price history again.
 
     Returns dict:
@@ -51,12 +68,17 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
                        historic_liq, pl, pl_unrealized, xirr_full, xirr_ann, positions }],
         "portfolio": { nav, current_liq, asset_value, historic_liq, pl, pl_unrealized,
                        xirr_full, xirr_ann, twrr_full, twrr_ann, volatility, sharpe_ratio,
-                       has_positions, positions },
+                       period_gain, has_positions, positions },
         "pf_history": DataFrame or None,
         "min_date": datetime or None,
     }
-    The portfolio's `positions` are the accounts' merged by ticker
-    (positions.aggregate_positions): a ticker held in two accounts is listed once.
+    `period_gain` is the value on `ref_date`, minus the value on the start day,
+    minus the money deposited in between (net of withdrawals); None without a
+    later start. Example: worth 10,300 on the start day and 11,895 at the end,
+    with 1,000 deposited in between: 595 gained. The accounts' own XIRRs
+    always run from their first operation. The portfolio's `positions` are the
+    accounts' merged by ticker (positions.aggregate_positions): a ticker held
+    in two accounts is listed once.
     """
     ref_date = pd.Timestamp(ref_date)
     total_current_liq = []
@@ -67,6 +89,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
     total_pl_unrealized = []
     total_flows = []
     total_flows_dates = []
+    cash_flows = []  # (date, amount) of every deposit, withdrawal and transfer: + in, - out
     first_dates = []
     accounts_with_positions = 0
     account_results = []
@@ -91,6 +114,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
         cashflow_df = df_valid[df_valid["operation"].isin(CASH_FLOWS)]
         flows = (cashflow_df["effective_amount"] * -1).tolist() + [nav]
         flows_dates = cashflow_df["date"].tolist() + [ref_date]
+        cash_flows.extend(zip(cashflow_df["date"], cashflow_df["effective_amount"]))
 
         xirr_full = np.nan
         xirr_ann = np.nan
@@ -135,18 +159,34 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
     twrr_ann = np.nan
     volatility = np.nan
     sharpe_ratio = np.nan
+    period_start = None
+    period_gain = None
 
     if first_dates:
         min_date = min(first_dates)
-        pf_history_df = pf_history if pf_history is not None else portfolio_history(min_date, ref_date, accounts)
+        period_start = _period_start(min_date, start)
+        pf_history_df = pf_history if pf_history is not None else portfolio_history(period_start, ref_date, accounts)
+
+    # A period starting after the first operation: what the portfolio was worth on its first day is the
+    # money it starts with, and only the deposits and withdrawals after that day count.
+    from_start = period_start is not None and period_start > min_date
+    if from_start:
+        cash_then, positions_then = _holdings_on(accounts, period_start)
+        nav_start = cash_then + sum(value for _, _, value in positions_then)
+        flows_in_period = [(day, amount) for day, amount in cash_flows if day > period_start]
+        period_gain = round_half_up(sum(total_nav) - nav_start - sum(amount for _, amount in flows_in_period))
 
     if accounts_with_positions > 0:
         # XIRR
-        combined_flows = list(
-            chain.from_iterable(
-                zip(dates, flows) for dates, flows in zip(total_flows_dates, total_flows)
+        if from_start:
+            combined_flows = [(period_start, -nav_start), *((day, -amount) for day, amount in flows_in_period),
+                              (ref_date, sum(total_nav))]
+        else:
+            combined_flows = list(
+                chain.from_iterable(
+                    zip(dates, flows) for dates, flows in zip(total_flows_dates, total_flows)
+                )
             )
-        )
         combined_flows.sort(key=lambda x: x[0])
         all_dates, all_flows = zip(*combined_flows)
         all_dates = list(all_dates)
@@ -159,7 +199,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
         if pf_history_df is not None and not pf_history_df.empty:
             # Yearly by calendar days, like XIRR: counting the history's rows as trading days would depend on
             # the markets held (Milan and US together have ~258 a year). E.g. +50% over 730 days -> +22.47% a year.
-            days_twrr = max((pf_history_df["Date"].iloc[-1] - pd.Timestamp(min_date)).days, 1)
+            days_twrr = max((pf_history_df["Date"].iloc[-1] - period_start).days, 1)
             twrr_total = pf_history_df["cumulative_twrr"].iloc[-1]
             twrr_ann = (1 + twrr_total) ** (365 / days_twrr) - 1
 
@@ -185,6 +225,7 @@ def compute_summary(accounts: list[Account], ref_date: date, dt_str: str,
             "twrr_ann": twrr_ann,
             "volatility": volatility,
             "sharpe_ratio": sharpe_ratio,
+            "period_gain": period_gain,
             "has_positions": accounts_with_positions > 0,
             "positions": aggregate_positions([pos for acc in account_results for pos in acc["positions"]]),
         },
