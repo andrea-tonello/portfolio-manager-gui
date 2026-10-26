@@ -176,7 +176,7 @@
     "all_accounts": "All accounts",
     "all_accounts_lowercase": "all accounts",
     "export_plot_csv": "Export CSV data",
-    "op_statistics": "STATISTICS",
+    "op_statistics": "PERFORMANCE",
     "op_correlation": "CORRELATION",
     "op_drawdown": "DRAWDOWN",
     "op_var": "VaR",
@@ -203,8 +203,8 @@
       }
     },
     "summary": {
-      "show_chart": "Performance chart",
-      "show_figures": "Portfolio statistics",
+      "show_chart": "Chart",
+      "show_figures": "Statistics",
       "account_literal": "Account",
       "nav": "\n    NAV (on {dt}): {nav:.2f}€",
       "cash": "        \u2981 Cash: {current_liq:.2f}€",

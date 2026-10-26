@@ -167,7 +167,7 @@ class AnalysisTab:
         for action, icon, label_key in self.tool.actions:
             label = ft.Text(t.get(label_key), text_align=ft.TextAlign.CENTER)
             card = action_card_btn(icon, label, lambda _, action=action: self.submit(action=action),
-                                   padding=15, height=110, expand=True)
+                                   horizontal=True, padding=0, height=50, expand=True)
             self._cards[action] = (card, label)
         return ft.Row([card for card, _ in self._cards.values()], spacing=12)
 

@@ -176,7 +176,7 @@
     "all_accounts": "Tutti i conti",
     "all_accounts_lowercase": "tutti i conti",
     "export_plot_csv": "Esporta dati in CSV",
-    "op_statistics": "STATISTICHE",
+    "op_statistics": "PERFORMANCE",
     "op_correlation": "CORRELAZIONE",
     "op_drawdown": "DRAWDOWN",
     "op_var": "VaR",
@@ -203,8 +203,8 @@
       }
     },
     "summary": {
-      "show_chart": "Grafico di performance",
-      "show_figures": "Statistiche del portafoglio",
+      "show_chart": "Grafico",
+      "show_figures": "Statistiche",
       "account_literal": "Conto",
       "nav": "\n    NAV (al {dt}): {nav:.2f}€",
       "cash": "        \u2981 Liquidità: {current_liq:.2f}€",
@@ -449,7 +449,7 @@
   "glossary": {
     "columns_title": "Descrizione delle colonne dei report",
     "allocation_title": "Allocazione Asset",
-    "statistics_title": "Informazioni sugli strumenti statistici",
+    "statistics_title": "Strumenti Statistici",
     "correlation_title": "Analisi della Correlazione",
     "drawdown_title": "Analisi del Drawdown",
     "var_title": "Value at Risk"

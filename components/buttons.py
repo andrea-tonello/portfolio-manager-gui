@@ -3,8 +3,13 @@ import flet as ft
 from components.inputs import RADIUS
 
 
-def action_card_btn(icon, label, on_click, *, padding=20, height=None, **card_kwargs) -> ft.Card:
-    """Return a raised, tappable card with a large icon above a short label.
+def action_card_btn(icon, label, on_click, *, horizontal=False, padding=20, height=None, **card_kwargs) -> ft.Card:
+    """Return a raised, tappable card with a large icon above a short label, or to its left with `horizontal`.
+
+    The two layouts are a style choice: the card keeps the one asked for
+    whatever its size. Side by side, the label takes only the width it needs,
+    so icon and label stay centred together, and wraps when the card is too
+    narrow for it on one line.
 
     Settings uses it for "Export backup" and "Import backup", Transactions for "Filters".
     `label` is a string, or an ft.Text for a label that changes later (e.g. the
@@ -13,13 +18,17 @@ def action_card_btn(icon, label, on_click, *, padding=20, height=None, **card_kw
     col={"xs": 4} inside a ResponsiveRow.
     """
     if isinstance(label, str):
-        label = ft.Text(label, text_align=ft.TextAlign.CENTER)
+        label = ft.Text(label, text_align=ft.TextAlign.START if horizontal else ft.TextAlign.CENTER)
+    if horizontal:
+        label.expand, label.expand_loose = True, True  # only the width it needs, and no more than there is
+        content = ft.Row([ft.Icon(icon, size=32), label], alignment=ft.MainAxisAlignment.CENTER,
+                         vertical_alignment=ft.CrossAxisAlignment.CENTER, spacing=12)
+    else:
+        content = ft.Column([ft.Icon(icon, size=32), label], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            alignment=ft.MainAxisAlignment.CENTER, spacing=8)
     return ft.Card(
         content=ft.Container(
-            content=ft.Column([
-                ft.Icon(icon, size=32),
-                label,
-            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, alignment=ft.MainAxisAlignment.CENTER, spacing=8),
+            content=content,
             padding=padding,
             height=height,
             border_radius=15,
