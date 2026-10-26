@@ -51,6 +51,13 @@ def _accounts_to_analyse(state):
     return [account] if account is not None else []
 
 
+def _periods_and_dates(periods, dates):
+    """The period shortcuts and the date range: side by side on large screens (md and up), one above the other on phones."""
+    periods.control.col = dates.control.col = {"xs": 12, "md": 6}
+    return ft.ResponsiveRow([periods.control, dates.control], vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=50, run_spacing=20)
+
+
 class AnalysisTool:
     """One tool of the Analysis tab. Subclasses fill in its inputs, its calculation and how its result looks.
 
@@ -305,16 +312,7 @@ def _format_common_stats(stats, t, dt_str):
 
 
 class SummaryTool(AnalysisTool):
-    """Over a period, the chart of the value over time of the account picked (or all), or its figures.
-
-    One card shows the chart, the other the figures: the values on the end
-    date, and the returns over the period. Both need the portfolio's price
-    history over the period, the slow part, so the results are kept by period:
-    going back to one already shown, or pressing it again, downloads nothing,
-    and the figures reuse the history of a chart drawn first. They are
-    forgotten with the tool, when the screen is left or another account is
-    picked, so coming back shows fresh prices and operations.
-    """
+    """Over a period, the chart of the value over time of the account picked (or all), or its figures."""
 
     title_key = "analysis.op_statistics"
     glossary = "statistics"
@@ -341,7 +339,7 @@ class SummaryTool(AnalysisTool):
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_operation)
-        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.dates.control]
+        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates)]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""
@@ -541,7 +539,7 @@ class DrawdownTool(AnalysisTool):
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
-        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.dates.control]
+        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates)]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""
