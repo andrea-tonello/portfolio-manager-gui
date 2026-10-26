@@ -133,8 +133,8 @@ class _RangeDate:
 class DateRange:
     """A start and an end date shown as text, with one button opening a dialog to change both.
 
-    The text reads e.g. "Dal: 04-03-2025   Al: 26-10-2026" ("—" for a date
-    not set). `start` and `end` hold the dates (see _RangeDate); `control` is
+    The text reads e.g. "Dal: 04-03-2025", and "Al: 26-10-2026" on the line
+    below ("—" for a date not set). `start` and `end` hold the dates (see _RangeDate); `control` is
     the row to place in a layout. The dialog has the two dates as DateFields,
     so they are typed as anywhere else in the app (digits only, dashes added),
     or picked from each one's calendar. Its OK sets both and calls their
@@ -154,9 +154,9 @@ class DateRange:
         self._redraw()
 
     def _redraw(self):
-        """Write each label with its date in bold, or "—" while it is not set."""
+        """Write each label with its date in bold, or "—" while it is not set: the start, then the end below it."""
         spans = []
-        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("    ", "")):
+        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("\n", "")):
             spans.append(ft.TextSpan(f"{label}: "))
             spans.append(ft.TextSpan(day.strftime(DATE_FORMAT) if day else "—",
                                      style=ft.TextStyle(weight=ft.FontWeight.BOLD)))

@@ -65,16 +65,20 @@ class AnalysisTool:
     Calculate is pressed, read_inputs(), compute() in a background thread,
     and render() and export() on what compute() returned. A tool with
     `auto_calculate` has no Calculate button: it calculates when shown and
-    whenever one of its inputs changes. A tool with `actions` has, instead
-    of the button, one card per action below its inputs. Pressing a card
-    calculates as Calculate does, but compute(), render() and export() get
-    (action, inputs), `action` saying which card it was.
+    whenever one of its inputs changes. A tool with `calculate_when_shown`
+    keeps its button (or cards), but also calculates when shown, with the
+    inputs it starts with, so the tab doesn't open empty. A tool with
+    `actions` has, instead of the button, one card per action below its
+    inputs. Pressing a card calculates as Calculate does, but compute(),
+    render() and export() get (action, inputs), `action` saying which card
+    it was; calculating when shown uses the first card's action.
     """
 
     title_key = ""      # translation key of the tool's tab label
     glossary = ""       # the info button explains it, while it is shown, with glossary_<glossary>_<language>.txt
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
+    calculate_when_shown = False  # True: also calculates by itself when shown, with its first inputs (see above)
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
 
     def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
@@ -183,23 +187,28 @@ class AnalysisTab:
         for action, (card, label) in self._cards.items():
             mark_card_selected(card, label, action == chosen)
 
-    def submit(self, e=None, action=None):
+    def submit(self, e=None, action=None, quiet=False):
         """Check the inputs, then calculate and show the result in the background.
 
         `action` is the action card pressed, for a tool with cards (see AnalysisTool).
+        `quiet` is for calculations the user didn't ask for (the tab was just
+        shown): inputs that can't be calculated yet, e.g. a start left empty
+        in a short history, are skipped without an error message.
         """
         t = self.state.translator
         try:
             inputs = self.tool.read_inputs()
         except ValidationError as ex:
-            show_snack(self.page, error_message(t, ex), error=True)
+            if not quiet:
+                show_snack(self.page, error_message(t, ex), error=True)
             return
         if action is not None:
             inputs = (action, inputs)
 
         accounts = _accounts_to_analyse(self.state)
         if not accounts:
-            show_snack(self.page, t.get("operations.select_account"), error=True)
+            if not quiet:
+                show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
         def calculate():
@@ -218,10 +227,11 @@ class AnalysisTab:
         run_in_background(self.page, t, calculate, loading=self.loading)
 
     def open(self):
-        """Run when the tab is shown: a tool that calculates by itself starts, unless its result is shown or coming."""
-        if (self.tool.auto_calculate and not self.result.controls and not self.loading.visible
-                and _accounts_to_analyse(self.state)):
-            self.submit(None)
+        """Run when the tab is shown: a tool that calculates by itself, or when shown, starts, unless its result is
+        shown or coming. With cards, it calculates the first card's action."""
+        if ((self.tool.auto_calculate or self.tool.calculate_when_shown) and not self.result.controls
+                and not self.loading.visible and _accounts_to_analyse(self.state)):
+            self.submit(None, action=self.tool.actions[0][0] if self.tool.actions else None, quiet=True)
 
     def _on_input_change(self):
         """An input changed, so the result shown no longer matches: calculate the new one, or just remove it."""
@@ -317,6 +327,7 @@ class SummaryTool(AnalysisTool):
     title_key = "analysis.op_statistics"
     glossary = "statistics"
     scroll_prefix = "sum"
+    calculate_when_shown = True  # the chart over the whole history (MAX)
     actions = (
         ("chart", ft.Icons.AREA_CHART, "analysis.summary.show_chart"),
         ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
@@ -531,6 +542,7 @@ class DrawdownTool(AnalysisTool):
     title_key = "analysis.op_drawdown"
     glossary = "drawdown"
     scroll_prefix = "dd"
+    calculate_when_shown = True  # over the whole history (MAX)
 
     def build_inputs(self, on_input_change):
         """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today."""
@@ -584,6 +596,7 @@ class VarTool(AnalysisTool):
     title_key = "analysis.op_var"
     glossary = "var"
     scroll_prefix = "var"
+    calculate_when_shown = True  # with the default 0.99 confidence over 10 days
 
     def build_inputs(self, on_input_change):
         """The confidence level (e.g. 0.99) and the number of days ahead."""

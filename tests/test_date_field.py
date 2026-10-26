@@ -146,13 +146,13 @@ def _text(dates):
 
 
 def test_the_range_reads_as_text_with_a_dash_for_a_date_not_set(page, translator):
-    """Each label is followed by its date as DD-MM-YYYY, or by "—" until the date is set."""
+    """Each label is followed by its date as DD-MM-YYYY, or by "—" until the date is set; the end goes below the start."""
     dates = DateRange(page, translator, "Dal", "Al")
-    assert _text(dates) == "Dal: —    Al: —"
+    assert _text(dates) == "Dal: —\nAl: —"
 
     dates.start.value, dates.end.value = date(2025, 3, 4), date(2026, 10, 26)
 
-    assert _text(dates) == "Dal: 04-03-2025    Al: 26-10-2026"
+    assert _text(dates) == "Dal: 04-03-2025\nAl: 26-10-2026"
 
 
 def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator):
@@ -172,7 +172,7 @@ def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator)
     _ok(dialog)
 
     assert (dates.start.value, dates.end.value) == (date(2025, 6, 2), date(2025, 9, 1))
-    assert _text(dates) == "Start: 02-06-2025    End: 01-09-2025"
+    assert _text(dates) == "Start: 02-06-2025\nEnd: 01-09-2025"
     assert periods.buttons.selected == [] and dialog not in page.dialogs
 
 

@@ -1,6 +1,7 @@
 """Tests for the inputs of the Analysis tools: their default dates, the checks on dates, tickers,
-windows and the VaR settings, the Allocation tool calculating by itself (it has no Calculate button),
-and the Statistics tool's two cards (chart and figures) sharing what they calculate.
+windows and the VaR settings, the tabs that calculate as soon as they are shown (Allocation, which
+has no Calculate button, recalculates by itself too), and the Statistics tool's two cards (chart
+and figures) sharing what they calculate.
 
 A refused input shows its message, and the calculation doesn't start.
 """
@@ -111,11 +112,13 @@ def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, 
         assert page.dialogs[-1].first_date.date() == first
 
 
-def test_allocation_calculates_as_soon_as_it_is_shown(app, page, state, monkeypatch):
-    """The Allocation tab starts calculating when shown, so it opens on the pie instead of an empty tab.
+def test_tabs_calculate_as_soon_as_they_are_shown(app, page, state, monkeypatch):
+    """Allocation, Performance, Drawdown and VaR start calculating when shown, so they don't open on an empty tab.
 
-    It starts when the screen opens on it and when the user switches to it, but
-    not a second time while its result is still coming. The other tools wait for Calculate.
+    They start when the screen opens on them and when the user switches to
+    them, but not a second time while their result is still coming.
+    Performance shows its chart over the whole history (MAX). Correlation
+    waits for Calculate.
     """
     started = []
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
@@ -125,18 +128,20 @@ def test_allocation_calculates_as_soon_as_it_is_shown(app, page, state, monkeypa
         view._on_tab_change(SimpleNamespace(control=SimpleNamespace(selected_index=index)))
 
     state.analysis_tab_index = 0
-    AnalysisView(app).build()
-    assert len(started) == 1  # opened on Allocation
-
-    state.analysis_tab_index = 1
     view = AnalysisView(app)
     view.build()
-    assert len(started) == 1  # opened on Statistics
+    assert len(started) == 1  # opened on Allocation
+
+    for index, calculates in [(1, True), (2, False), (3, True), (4, True)]:
+        before = len(started)
+        show(index)
+        assert len(started) == before + calculates, type(view.tabs[index].tool).__name__
     show(0)
-    assert len(started) == 2  # switched to Allocation
     show(1)
-    show(0)
-    assert len(started) == 2  # back on Allocation before its result arrived
+    assert len(started) == 4  # back on tabs whose results are still coming
+
+    started[1]()  # Performance's calculation
+    assert any(find_controls(view.tabs[1].result, fch.LineChart))
 
 
 def test_allocation_recalculates_when_another_split_is_picked(app, page, state, monkeypatch):
