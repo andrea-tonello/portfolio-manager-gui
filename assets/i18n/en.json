@@ -9,6 +9,7 @@
 
   "components": {
     "pick_date": "Select date",
+    "pick_range": "Select period",
     "date_format_hint": "DD-MM-YYYY",
     "confirm": "Confirm",
     "calculate": "Calculate",
@@ -213,8 +214,8 @@
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L including unrealized: {pl_unrealized:.2f}€",
       "period_gain": "    Gain from {start} to {end}: {gain:.2f}€",
-      "start_dt": "Analysis start date",
-      "end_dt": "Analysis end date",
+      "start_dt": "Start",
+      "end_dt": "End",
       "return_portfolio": "    Return\n        \u2981 Total XIRR: {xirr_full:.2%}\n        \u2981 Annualized XIRR: {xirr_ann:.2%}\n        \u2981 Total TWRR: {twrr_full:.2%}\n        \u2981 Annualized TWRR: {twrr_ann:.2%}\n",
       "volatility": "    Annualized volatility: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",
@@ -226,8 +227,8 @@
       }
     },
     "corr": {
-      "start_dt": "Analysis start date",
-      "end_dt": "Analysis end date",
+      "start_dt": "Start",
+      "end_dt": "End",
       "simple": "Simple Correlation",
       "simple_error": "Correlation matrix cannot be calculated: no assets found in portfolio.",
       "rolling": "Rolling Correlation",
@@ -241,8 +242,8 @@
       "plot_title_rolling": "Interval: {window}d    Assets: {asset1}, {asset2}"
     },
     "drawdown": {
-      "start_dt": "Analysis start date",
-      "end_dt": "Analysis end date",
+      "start_dt": "Start",
+      "end_dt": "End",
       "result": "Maximum Portfolio Drawdown between {start_dt} and {end_dt}: {mdd:.2f}%",
       "error": "No data present in transaction history across all accounts.\nDrawdown cannot be calculated.",
       "legend": "Maximum Drawdown: {mdd:.2f}%",

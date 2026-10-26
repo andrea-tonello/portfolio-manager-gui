@@ -91,7 +91,7 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
 
 
 def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state, tmp_path):
-    """The Statistics and Drawdown start pickers offer no day before the first operation, here five days ago.
+    """The Performance and Drawdown start calendars offer no day before the first operation, here five days ago.
 
     Under 20 days of history the Drawdown start is left empty (too short a
     period to fill in), but its picker still starts at the first operation.
@@ -104,8 +104,10 @@ def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, 
     view.build()
     tools = {type(tab.tool): tab.tool for tab in view.tabs}
 
-    for date_field in (tools[SummaryTool].start, tools[DrawdownTool].start):
-        date_field.button.on_click(None)
+    for tool in (tools[SummaryTool], tools[DrawdownTool]):
+        tool.dates.button.on_click(None)
+        start_row = page.dialogs[-1].content.controls[0]
+        start_row.controls[1].on_click(None)  # the start's calendar button, in the range's dialog
         assert page.dialogs[-1].first_date.date() == first
 
 

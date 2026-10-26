@@ -23,7 +23,7 @@ from components.charts import (
     chart_summary,
     chart_var_mc,
 )
-from components.date_field import PeriodShortcuts, date_range_fields
+from components.date_field import DateRange, PeriodShortcuts
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
@@ -337,18 +337,11 @@ class SummaryTool(AnalysisTool):
         is less than 20 days ago: the figures make sense from the very first day.
         """
         t = self.t
-        self.start, self.end = date_range_fields(
-            self.page, t.get("analysis.summary.start_dt").strip(), t.get("analysis.summary.end_dt").strip(),
-            t.get("components.date_format_hint"),
-        )
+        self.dates = DateRange(self.page, t, t.get("analysis.summary.start_dt").strip(), t.get("analysis.summary.end_dt").strip())
+        self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_operation)
-        chain_focus([self.start.field, self.end.field])
-        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.start.control, self.end.control]
-
-    def text_fields(self):
-        """The two date boxes."""
-        return [self.start.field, self.end.field]
+        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.dates.control]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""
@@ -453,10 +446,8 @@ class CorrelationTool(AnalysisTool):
             on_change=on_kind_change,
         )
 
-        self.start, self.end = date_range_fields(
-            self.page, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip(),
-            t.get("components.date_format_hint"),
-        )
+        self.dates = DateRange(self.page, t, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip())
+        self.start, self.end = self.dates.start, self.dates.end
         self.start.value, self.end.value = self.first_day, date.today()
 
         self.asset1 = TickerSearchField(
@@ -479,18 +470,16 @@ class CorrelationTool(AnalysisTool):
 
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([
-            self.start.field,
-            self.end.field,
             (self.asset1.field, self.rolling_fields),
             (self.asset2.field, self.rolling_fields),
             (self.window, self.rolling_fields),
         ])
 
-        return [self.kind, ft.Container(height=5), self.start.control, self.end.control, self.rolling_fields]
+        return [self.kind, ft.Container(height=5), self.dates.control, self.rolling_fields]
 
     def text_fields(self):
-        """The dates, the tickers and the window."""
-        return [self.start.field, self.end.field, self.asset1.field, self.asset2.field, self.window]
+        """The tickers and the window."""
+        return [self.asset1.field, self.asset2.field, self.window]
 
     def read_inputs(self):
         """(start, end, asset1, asset2, window); the last three are None for the correlation of all assets."""
@@ -548,19 +537,11 @@ class DrawdownTool(AnalysisTool):
     def build_inputs(self, on_input_change):
         """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today."""
         t = self.t
-        self.start, self.end = date_range_fields(
-            self.page, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip(),
-            t.get("components.date_format_hint"),
-        )
+        self.dates = DateRange(self.page, t, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip())
+        self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
-        # Chain on_submit for keyboard "next field" navigation
-        chain_focus([self.start.field, self.end.field])
-        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.start.control, self.end.control]
-
-    def text_fields(self):
-        """The two date boxes."""
-        return [self.start.field, self.end.field]
+        return [ft.Container(height=5), self.periods.control, ft.Container(height=5), self.dates.control]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""

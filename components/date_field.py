@@ -1,4 +1,5 @@
-"""A date input: a text field for typing DD-MM-YYYY plus a calendar button opening Flet's date picker."""
+"""Date inputs: a text field for typing DD-MM-YYYY plus a calendar button opening Flet's date picker,
+and a start/end range shown as text, with one button opening a dialog to change both."""
 
 import calendar
 import re
@@ -6,8 +7,12 @@ from datetime import date, datetime, timedelta
 
 import flet as ft
 
+from components.focus_chain import chain_focus
 from components.inputs import DATE_INPUT_FILTER, rounded_text_field
+from components.snack import error_message
+from domain.errors import ValidationError
 from domain.ledger import LEDGER_START_DATE
+from services.validation import validate_date_range
 from utils.constants import DATE_FORMAT
 from utils.date_utils import parse_date_input
 
@@ -88,33 +93,123 @@ class DateField:
         self.page.show_dialog(picker)
 
     def _on_picked(self, e):
-        """Use the picked day as the value.
-
-        The picker reports midnight of the chosen day in UTC, which in a time
-        zone behind UTC arrives as the evening before. Adding 12 hours before
-        taking the date lands on the chosen day either way.
-        """
-        picked = e.control.value
-        if isinstance(picked, datetime):
-            picked = (picked + timedelta(hours=12)).date()
-        self.value = picked
+        """Use the picked day as the value."""
+        self.value = _picked_day(e.control.value)
         if self.on_change:
             self.on_change()
         self.page.update()
 
 
-def date_range_fields(page: ft.Page, start_label: str, end_label: str, hint_text: str):
-    """Return (start, end) DateFields whose pickers keep the end at least a day after the start.
+class _RangeDate:
+    """One end of a DateRange: its date, and the calendar limit and listener a DateField would have.
 
-    Example: with the end set to 30-06-2024, the start's picker stops at
-    29-06-2024; with the start set to 01-03-2024, the end's picker starts at
-    02-03-2024. Dates typed by hand are not limited; the screens check them.
+    `value` is the date (None while unset); setting it redraws the range's
+    text, but doesn't call `on_change`, which is for dates the user changed.
+    `min_date` / `max_date` limit the dialog's calendars, as for a DateField
+    (only the start's min_date and the end's max_date are used).
     """
-    start = DateField(page, start_label, hint_text)
-    end = DateField(page, end_label, hint_text)
-    start.max_date = lambda: end.value - timedelta(days=1) if end.value else None
-    end.min_date = lambda: start.value + timedelta(days=1) if start.value else None
-    return start, end
+
+    def __init__(self, page: ft.Page, redraw):
+        """An unset date; `redraw()` writes the range's text again."""
+        self.page = page
+        self.min_date = None
+        self.max_date = None
+        self.on_change = None
+        self._value = None
+        self._redraw = redraw
+
+    @property
+    def value(self) -> date | None:
+        """The date, or None."""
+        return self._value
+
+    @value.setter
+    def value(self, day: date | None):
+        """Set the date and show it in the range's text."""
+        self._value = day
+        self._redraw()
+
+
+class DateRange:
+    """A start and an end date shown as text, with one button opening a dialog to change both.
+
+    The text reads e.g. "Dal: 04-03-2025   Al: 26-10-2026" ("—" for a date
+    not set). `start` and `end` hold the dates (see _RangeDate); `control` is
+    the row to place in a layout. The dialog has the two dates as DateFields,
+    so they are typed as anywhere else in the app (digits only, dashes added),
+    or picked from each one's calendar. Its OK sets both and calls their
+    `on_change`.
+    """
+
+    def __init__(self, page: ft.Page, translator, start_label: str, end_label: str):
+        """Build the text and the button; both dates start unset."""
+        self.page = page
+        self.t = translator
+        self._labels = (start_label, end_label)
+        self.text = ft.Text(size=16, expand=True)
+        self.start = _RangeDate(page, self._redraw)
+        self.end = _RangeDate(page, self._redraw)
+        self.button = ft.FilledTonalIconButton(icon=ft.Icons.DATE_RANGE, on_click=self._open_dialog)
+        self.control = ft.Row([self.text, self.button])
+        self._redraw()
+
+    def _redraw(self):
+        """Write each label with its date in bold, or "—" while it is not set."""
+        spans = []
+        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("    ", "")):
+            spans.append(ft.TextSpan(f"{label}: "))
+            spans.append(ft.TextSpan(day.strftime(DATE_FORMAT) if day else "—",
+                                     style=ft.TextStyle(weight=ft.FontWeight.BOLD)))
+            spans.append(ft.TextSpan(gap))
+        self.text.spans = spans
+
+    def _open_dialog(self, e):
+        """Open the dialog with the two dates shown, as DateFields to type or pick them.
+
+        The start's calendar runs from `start.min_date` (by default the
+        accounts' opening date) to the day before the end; the end's from the
+        day after the start to `end.max_date` (by default today). OK checks
+        both dates (given, not in the future, the start first) and either says
+        what is wrong inside the dialog, or sets them and closes it.
+        """
+        t = self.t
+        hint = t.get("components.date_format_hint")
+        start = DateField(self.page, self._labels[0], hint)
+        end = DateField(self.page, self._labels[1], hint)
+        start.min_date = self.start.min_date
+        start.max_date = lambda: end.value - timedelta(days=1) if end.value else _resolve(self.end.max_date)
+        end.min_date = lambda: start.value + timedelta(days=1) if start.value else _resolve(self.start.min_date)
+        end.max_date = self.end.max_date
+        start.value, end.value = self.start.value, self.end.value
+        error = ft.Text(color=ft.Colors.ERROR, size=13, visible=False)
+        chain_focus([start.field, end.field])
+
+        def on_ok(_):
+            """Set the two dates, or say what is wrong with them."""
+            try:
+                first, last = validate_date_range(start.value, end.value)
+            except ValidationError as ex:
+                error.value, error.visible = error_message(t, ex), True
+                self.page.update()
+                return
+            self.page.pop_dialog()
+            self._set(first, last)
+
+        self.page.show_dialog(ft.AlertDialog(
+            title=ft.Text(t.get("components.pick_range")),
+            content=ft.Column([start.control, end.control, error], tight=True, spacing=16, width=400),
+            actions=[
+                ft.TextButton(t.get("components.cancel"), on_click=lambda _: self.page.pop_dialog()),
+                ft.FilledButton(t.get("components.confirm"), on_click=on_ok),
+            ],
+        ))
+
+    def _set(self, start, end):
+        """Set both dates as the user chose them, tell each date's listener once, and redraw."""
+        self.start.value, self.end.value = start, end
+        for listener in {self.start.on_change, self.end.on_change} - {None}:
+            listener()
+        self.page.update()
 
 
 # The periods offered above a start/end pair (PeriodShortcuts), in screen order. Each ends today;
@@ -197,3 +292,15 @@ def _resolve(bound):
 def _as_datetime(day):
     """The date picker takes datetimes: turn a plain date into midnight of that day."""
     return day if isinstance(day, datetime) else datetime.combine(day, datetime.min.time())
+
+
+def _picked_day(picked):
+    """The day a date picker reported, as a date.
+
+    The pickers report midnight of the chosen day in UTC, which in a time zone
+    behind UTC arrives as the evening before. Adding 12 hours before taking the
+    date lands on the chosen day either way: 09-05-2024 22:00 -> 10-05-2024.
+    """
+    if isinstance(picked, datetime):
+        return (picked + timedelta(hours=12)).date()
+    return picked

@@ -9,6 +9,7 @@
 
   "components": {
     "pick_date": "Seleziona data",
+    "pick_range": "Seleziona periodo",
     "date_format_hint": "GG-MM-AAAA",
     "confirm": "Conferma",
     "calculate": "Calcola",
@@ -213,8 +214,8 @@
       "pl": "    P&L: {pl:.2f}€",
       "pl_unrealized": "    P&L comprendente il non realizzato: {pl_unrealized:.2f}€",
       "period_gain": "    Guadagno dal {start} al {end}: {gain:.2f}€",
-      "start_dt": "Data inizio analisi",
-      "end_dt": "Data fine analisi",
+      "start_dt": "Dal",
+      "end_dt": "Al",
       "return_portfolio": "    Rendimento\n        \u2981 XIRR totale: {xirr_full:.2%}\n        \u2981 XIRR annualizzato: {xirr_ann:.2%}\n        \u2981 TWRR totale: {twrr_full:.2%}\n        \u2981 TWRR annualizzato: {twrr_ann:.2%}\n",
       "volatility": "    Volatilità annualizzata: {volatility:.2%}",
       "sharpe_ratio": "    Sharpe Ratio: {sharpe_ratio:.2f}\n",
@@ -226,8 +227,8 @@
       }
     },
     "corr": {
-      "start_dt": "Data inizio analisi",
-      "end_dt": "Data fine analisi",
+      "start_dt": "Dal",
+      "end_dt": "Al",
       "simple": "Correlazione Semplice",
       "simple_error": "Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.",
       "rolling": "Correlazione Rolling",
@@ -241,8 +242,8 @@
       "plot_title_rolling": "Intervallo: {window}gg    Assets: {asset1}, {asset2}"
     },
     "drawdown": {
-      "start_dt": "Data inizio analisi",
-      "end_dt": "Data fine analisi",
+      "start_dt": "Dal",
+      "end_dt": "Al",
       "result": "Drawdown massimo del portafoglio tra il {start_dt} ed il {end_dt}: {mdd:.2f}%",
       "error": "Nessun dato presente nello storico delle transazioni, tra tutti i conti. Drawdown non calcolabile.",
       "legend": "Drawdown massimo: {mdd:.2f}%",

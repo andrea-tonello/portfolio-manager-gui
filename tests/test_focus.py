@@ -104,7 +104,7 @@ def test_done_on_the_keyboard_moves_only_to_fields_that_are_shown(app, state):
     assert focused == [("ETF", "tax_bracket")]
 
 
-@pytest.mark.parametrize("tab, minimum", [(1, 19), (2, 10)], ids=["Operations", "Analysis"])
+@pytest.mark.parametrize("tab, minimum", [(1, 19), (2, 5)], ids=["Operations", "Analysis"])
 def test_screen_inputs_have_unique_scroll_keys(app, page, state, tab, minimum):
     """Every input that scrolls into view has an ft.ScrollKey, and no two on the same screen share one.
 

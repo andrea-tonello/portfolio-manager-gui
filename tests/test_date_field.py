@@ -2,8 +2,9 @@
 
 A DateField is a text field where the date can be typed as DD-MM-YYYY, plus a
 calendar button that opens Flet's date picker. `value` is the date typed or
-picked, or None while the text isn't a valid date. Period shortcuts (1M ... MAX)
-fill a start/end pair with a period ending today.
+picked, or None while the text isn't a valid date. A start/end range
+(DateRange) is shown as text, with one button opening a dialog to change both
+dates, and period shortcuts (1M ... MAX) fill the range with a period ending today.
 """
 
 from datetime import date, datetime
@@ -12,7 +13,7 @@ from types import SimpleNamespace
 import flet as ft
 import pytest
 
-from components.date_field import DateField, PeriodShortcuts, date_range_fields, period_start
+from components.date_field import DateField, DateRange, PeriodShortcuts, period_start
 from domain.ledger import LEDGER_START_DATE
 
 
@@ -92,16 +93,6 @@ def test_the_picker_allows_dates_from_the_ledger_start_to_today(field, page):
     assert picker.last_date.date() == date.today()
 
 
-def test_a_start_end_pair_keeps_the_end_after_the_start(page):
-    """In a start/end pair, each picker stops a day short of the other date, so the start always comes first."""
-    start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")
-    start.value = date(2024, 3, 1)
-    end.value = date(2024, 6, 30)
-
-    assert _open_picker(start, page).last_date == datetime(2024, 6, 29)
-    assert _open_picker(end, page).first_date == datetime(2024, 3, 2)
-
-
 def test_the_picker_opens_on_the_date_shown_moved_inside_its_limits(field, page):
     """It opens on the date in the field; one outside the limits opens on the nearest limit, as Flutter requires.
 
@@ -119,12 +110,98 @@ def test_the_picker_opens_on_the_date_shown_moved_inside_its_limits(field, page)
     assert (picker.first_date, picker.last_date, picker.value) == (datetime(2024, 2, 1),) * 3
 
 
-def test_a_pair_with_no_dates_yet_uses_the_default_limits(page):
-    """Until the other date is set, each picker of the pair allows the full range."""
-    start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")
+# ── A start/end range shown as text, changed in a dialog ─────────────
 
-    assert _open_picker(start, page).last_date.date() == date.today()
-    assert _open_picker(end, page).first_date == LEDGER_START_DATE
+def _range_dialog(dates, page):
+    """Tap the range's button; return the dialog it opens, and its start and end rows as (text box, calendar button)."""
+    dates.button.on_click(None)
+    dialog = page.dialogs[-1]
+    assert isinstance(dialog, ft.AlertDialog)
+    start_row, end_row, _ = dialog.content.controls
+    return dialog, start_row.controls, end_row.controls
+
+
+def _type_in(box, text):
+    """Type `text` into a dialog's text box, as the user would."""
+    box.value = text
+    box.on_change(SimpleNamespace(control=box))
+
+
+def _ok(dialog):
+    """Press the dialog's OK."""
+    dialog.actions[1].on_click(None)
+
+
+def _save_range(dates, page, start, end):
+    """Open the range's dialog, type `start` and `end` (DD-MM-YYYY) and press OK."""
+    dialog, (start_box, _), (end_box, _) = _range_dialog(dates, page)
+    _type_in(start_box, start)
+    _type_in(end_box, end)
+    _ok(dialog)
+
+
+def _text(dates):
+    """The range's text as it reads on screen."""
+    return "".join(span.text for span in dates.text.spans)
+
+
+def test_the_range_reads_as_text_with_a_dash_for_a_date_not_set(page, translator):
+    """Each label is followed by its date as DD-MM-YYYY, or by "—" until the date is set."""
+    dates = DateRange(page, translator, "Dal", "Al")
+    assert _text(dates) == "Dal: —    Al: —"
+
+    dates.start.value, dates.end.value = date(2025, 3, 4), date(2026, 10, 26)
+
+    assert _text(dates) == "Dal: 04-03-2025    Al: 26-10-2026"
+
+
+def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator):
+    """It opens on the dates shown; digits typed get their dashes; OK sets both dates and closes it.
+
+    It counts as dates set by hand: the period shortcut, which no longer
+    describes them, is unselected.
+    """
+    dates = DateRange(page, translator, "Start", "End")
+    periods = PeriodShortcuts(translator, dates.start, dates.end, first_day=date(2025, 3, 4))
+    dialog, (start_box, _), (end_box, _) = _range_dialog(dates, page)
+    assert (start_box.value, end_box.value) == ("04-03-2025", date.today().strftime("%d-%m-%Y"))
+
+    _type_in(start_box, "02062025")
+    _type_in(end_box, "01092025")
+    assert (start_box.value, end_box.value) == ("02-06-2025", "01-09-2025")
+    _ok(dialog)
+
+    assert (dates.start.value, dates.end.value) == (date(2025, 6, 2), date(2025, 9, 1))
+    assert _text(dates) == "Start: 02-06-2025    End: 01-09-2025"
+    assert periods.buttons.selected == [] and dialog not in page.dialogs
+
+
+def test_ok_with_the_start_after_the_end_says_so_and_changes_nothing(page, translator):
+    """The dialog stays open with the message, and the range keeps its dates."""
+    dates = DateRange(page, translator, "Start", "End")
+    dates.start.value, dates.end.value = date(2025, 6, 2), date(2025, 9, 1)
+    dialog, (start_box, _), _ = _range_dialog(dates, page)
+
+    _type_in(start_box, "02-10-2025")
+    _ok(dialog)
+
+    error = dialog.content.controls[-1]
+    assert (error.visible, error.value) == (True, "Start date must be before end date")
+    assert dialog in page.dialogs and dates.start.value == date(2025, 6, 2)
+
+
+def test_each_calendar_in_the_dialog_keeps_the_start_before_the_end(page, translator):
+    """The start's calendar runs from its limit (here 04-03-2025) to the day before the end; the end's from the day
+    after the start to today."""
+    dates = DateRange(page, translator, "Start", "End")
+    dates.start.min_date = date(2025, 3, 4)
+    dates.start.value, dates.end.value = date(2025, 6, 2), date(2025, 9, 1)
+    _, (_, start_calendar), (_, end_calendar) = _range_dialog(dates, page)
+
+    start_calendar.on_click(None)
+    assert (page.dialogs[-1].first_date, page.dialogs[-1].last_date) == (datetime(2025, 3, 4), datetime(2025, 8, 31))
+    end_calendar.on_click(None)
+    assert (page.dialogs[-1].first_date, page.dialogs[-1].last_date.date()) == (datetime(2025, 6, 3), date.today())
 
 
 # ── Period shortcuts ─────────────────────────────────────────────────
@@ -151,13 +228,14 @@ def test_each_period_starts_that_far_back_from_today(period, today, first_day, e
     assert period_start(period, today, first_day) == expected
 
 
-def test_a_period_shortcut_fills_the_dates_and_a_date_typed_by_hand_unselects_it(page, translator):
+def test_a_period_shortcut_fills_the_dates_and_a_range_picked_by_hand_unselects_it(page, translator):
     """MAX is selected and filled at first; 3M sets the start 3 months back and the end to today.
 
-    Typing a date unselects 3M and keeps the date typed: the button no longer
-    describes the dates. Tapping 3M again fills them with it again.
+    Picking a range unselects 3M and keeps the dates picked: the button no
+    longer describes them. Tapping 3M again fills them with it again.
     """
-    start, end = date_range_fields(page, "From", "To", "DD-MM-YYYY")
+    dates = DateRange(page, translator, "From", "To")
+    start, end = dates.start, dates.end
     periods = PeriodShortcuts(translator, start, end, first_day=date(2025, 3, 4))
     today = date.today()
     assert (periods.buttons.selected, start.value, end.value) == (["max"], date(2025, 3, 4), today)
@@ -166,7 +244,7 @@ def test_a_period_shortcut_fills_the_dates_and_a_date_typed_by_hand_unselects_it
     periods.buttons.on_change(None)
     assert (start.value, end.value) == (period_start("3m", today, None), today)
 
-    _type(start, "01-01-2026")
+    _save_range(dates, page, "01-01-2026", "01-02-2026")
     assert (periods.buttons.selected, start.value) == ([], date(2026, 1, 1))
 
     periods.buttons.selected = ["3m"]
