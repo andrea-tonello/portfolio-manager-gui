@@ -68,10 +68,15 @@ class AnalysisTool:
     whenever one of its inputs changes. A tool with `calculate_when_shown`
     keeps its button (or cards), but also calculates when shown, with the
     inputs it starts with, so the tab doesn't open empty. A tool with
-    `actions` has, instead of the button, one card per action below its
-    inputs. Pressing a card calculates as Calculate does, but compute(),
-    render() and export() get (action, inputs), `action` saying which card
-    it was; calculating when shown uses the first card's action.
+    `inline_calculate` has, instead of the Calculate pill at the bottom of the
+    tab, a small icon button (`calculate_button`, set before build_inputs())
+    that it places among its own inputs. A tool with
+    `actions` has one card per action below its inputs, and compute(),
+    render() and export() get (action, inputs), `action` saying which one.
+    Pressing a card calculates its action, instead of a Calculate button; with
+    `inline_calculate` too, the icon button calculates again the action last
+    picked (the first one to start with), e.g. for another period. Calculating
+    when shown uses that action too.
     """
 
     title_key = ""      # translation key of the tool's tab label
@@ -79,6 +84,8 @@ class AnalysisTool:
     scroll_prefix = ""  # start of its inputs' scroll keys, unique on the screen
     auto_calculate = False  # True: no Calculate button, the tool calculates by itself (see above)
     calculate_when_shown = False  # True: also calculates by itself when shown, with its first inputs (see above)
+    inline_calculate = False  # True: its Calculate is an icon button among its inputs, not the pill (see above)
+    calculate_button = None   # that icon button, for a tool with inline_calculate
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
 
     def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
@@ -127,8 +134,8 @@ class AnalysisTool:
 
 
 class AnalysisTab:
-    """The frame shared by every Analysis tool: inputs, Calculate button (or the tool's action cards, or nothing
-    if it calculates by itself), spinner, result and CSV export."""
+    """The frame shared by every Analysis tool: inputs, Calculate button (or the tool's action cards, its own
+    icon button among its inputs, or nothing if it calculates by itself), spinner, result and CSV export."""
 
     def __init__(self, page, state, tool, save_csv):
         """Frame `tool`; `save_csv(file_name, csv_bytes)` is how its export is saved (AnalysisView._save_csv)."""
@@ -138,10 +145,14 @@ class AnalysisTab:
         self._save_csv = save_csv
         self._export = None  # (file name, CSV bytes) of the result shown, when it can be exported
         self._cards = {}  # action -> (its card, the card's label), for a tool with action cards
+        self._action = tool.actions[0][0] if tool.actions else None  # the card last picked, for a tool with cards
 
     def build(self) -> ft.Control:
         """Create the tab's controls around the tool's inputs and return its layout."""
         t = self.state.translator
+        if self.tool.inline_calculate:
+            self.tool.calculate_button = ft.FilledIconButton(
+                icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, tooltip=t.get("components.calculate"), on_click=self.submit)
         self.inputs = self.tool.build_inputs(self._on_input_change)
         self.loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.result = ft.Column([], spacing=12)
@@ -157,8 +168,8 @@ class AnalysisTab:
             ft.Container(height=20),
         ], spacing=12)
 
-        if self.tool.auto_calculate or self.tool.actions:
-            # No Calculate button: the spinner turns where the result will appear, below the cards if any
+        if self.tool.auto_calculate or self.tool.actions or self.tool.inline_calculate:
+            # No Calculate pill: the spinner turns where the result will appear, below the cards if any
             cards = [self._action_cards()] if self.tool.actions else []
             self._locked_while_calculating = [*self.inputs, *cards]
             col.controls[len(self.inputs):len(self.inputs)] = [
@@ -190,12 +201,14 @@ class AnalysisTab:
     def submit(self, e=None, action=None, quiet=False):
         """Check the inputs, then calculate and show the result in the background.
 
-        `action` is the action card pressed, for a tool with cards (see AnalysisTool).
+        `action` is the action card pressed, for a tool with cards (see
+        AnalysisTool); without one, the card last picked.
         `quiet` is for calculations the user didn't ask for (the tab was just
         shown): inputs that can't be calculated yet, e.g. a start left empty
         in a short history, are skipped without an error message.
         """
         t = self.state.translator
+        action = self._action = self._action if action is None else action
         try:
             inputs = self.tool.read_inputs()
         except ValidationError as ex:
@@ -228,10 +241,10 @@ class AnalysisTab:
 
     def open(self):
         """Run when the tab is shown: a tool that calculates by itself, or when shown, starts, unless its result is
-        shown or coming. With cards, it calculates the first card's action."""
+        shown or coming. With cards, it calculates the card last picked (the first one to start with)."""
         if ((self.tool.auto_calculate or self.tool.calculate_when_shown) and not self.result.controls
                 and not self.loading.visible and _accounts_to_analyse(self.state)):
-            self.submit(None, action=self.tool.actions[0][0] if self.tool.actions else None, quiet=True)
+            self.submit(None, quiet=True)
 
     def _on_input_change(self):
         """An input changed, so the result shown no longer matches: calculate the new one, or just remove it."""
@@ -240,10 +253,10 @@ class AnalysisTab:
             self.submit(None)
 
     def _lock_inputs(self, locked):
-        """Grey out the inputs (and action cards) of a tool without a Calculate button while it calculates.
+        """Grey out the inputs (and action cards) of a tool without a Calculate pill while it calculates.
 
-        Each change, or card pressed, starts a calculation: a second one started
-        while the first runs could finish first, and the older result would then replace it.
+        Each change, card pressed or icon button among the inputs starts a calculation: a second one
+        started while the first runs could finish first, and the older result would then replace it.
         """
         for control in self._locked_while_calculating:
             control.disabled = locked
@@ -328,6 +341,7 @@ class SummaryTool(AnalysisTool):
     glossary = "statistics"
     scroll_prefix = "sum"
     calculate_when_shown = True  # the chart over the whole history (MAX)
+    inline_calculate = True  # the icon button calculates the card last picked again, e.g. for a new period
     actions = (
         ("chart", ft.Icons.AREA_CHART, "analysis.summary.show_chart"),
         ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
@@ -344,9 +358,11 @@ class SummaryTool(AnalysisTool):
 
         Unlike the other tools, MAX starts at the first operation even when it
         is less than 20 days ago: the figures make sense from the very first day.
+        Calculate is the icon button after the dates' calendar button.
         """
         t = self.t
         self.dates = DateRange(self.page, t, t.get("analysis.summary.start_dt").strip(), t.get("analysis.summary.end_dt").strip())
+        self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_operation)
@@ -543,11 +559,16 @@ class DrawdownTool(AnalysisTool):
     glossary = "drawdown"
     scroll_prefix = "dd"
     calculate_when_shown = True  # over the whole history (MAX)
+    inline_calculate = True
 
     def build_inputs(self, on_input_change):
-        """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today."""
+        """A start and end date under shortcuts for common periods; MAX to start with: from the first operation to today.
+
+        Calculate is the icon button after the dates' calendar button.
+        """
         t = self.t
         self.dates = DateRange(self.page, t, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip())
+        self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
@@ -597,21 +618,22 @@ class VarTool(AnalysisTool):
     glossary = "var"
     scroll_prefix = "var"
     calculate_when_shown = True  # with the default 0.99 confidence over 10 days
+    inline_calculate = True
 
     def build_inputs(self, on_input_change):
-        """The confidence level (e.g. 0.99) and the number of days ahead."""
+        """The confidence level (e.g. 0.99) and the number of days ahead, sharing a row with Calculate's icon button."""
         t = self.t
         self.ci = rounded_text_field(
             label=t.get("analysis.var.ci"),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=DECIMAL_INPUT_FILTER, value="0.99",
-            col={"xs": 6, "md": 6})
+            expand=True)
         self.days = rounded_text_field(
             label=t.get("analysis.var.days"),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="10",
-            col={"xs": 6, "md": 6})
+            expand=True)
         # Chain on_submit for keyboard "next field" navigation
         chain_focus([self.ci, self.days])
-        return [ft.Container(height=5), ft.ResponsiveRow([self.ci, self.days])]
+        return [ft.Container(height=5), ft.Row([self.ci, self.days, self.calculate_button])]
 
     def text_fields(self):
         """The confidence level and the days."""

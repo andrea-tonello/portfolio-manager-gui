@@ -175,13 +175,14 @@ def test_allocation_recalculates_when_another_split_is_picked(app, page, state, 
 
 
 def test_statistics_chart_and_figures_download_the_price_history_once(app, page, state, monkeypatch):
-    """Each Statistics card shows only its own result, and the slow price history is downloaded once for both.
+    """Each Performance card shows only its own result, and the slow price history is downloaded once for both.
 
     The figures shown after the chart reuse its history, and match those
     calculated from scratch. Going back to the chart downloads nothing; another
-    day does. Only the card whose result is shown is outlined. The cards are
-    greyed out while a result is coming, so a second one can't be started and
-    then be replaced by the first, arriving late.
+    day does, through the Calculate icon button, which shows the card last
+    picked again. Only the card whose result is shown is outlined. The cards
+    are greyed out while a result is coming, so another one can't be started
+    and then be replaced by the first, arriving late.
     """
     started = []
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
@@ -198,10 +199,10 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
         tab.tool.end.value = date(2024, 12, 31)
         return tab, *find_controls(tab.content, ft.Card)
 
-    def press(tab, card):
-        """Tap `card`, check the cards are greyed out until its result arrives, and return what is then shown."""
+    def press(tab, card, button=None):
+        """Tap `card` (or `button`), check the cards are greyed out until the result arrives; return what is shown."""
         [cards] = [row for row in find_controls(tab.content, ft.Row) if card in row.controls]
-        card.content.on_click(None)
+        (button or card.content).on_click(None)
         assert cards.disabled
         started.pop()()
         assert not cards.disabled
@@ -224,7 +225,7 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
     assert len(downloads) == 1
 
     tab.tool.end.value = date(2024, 11, 29)
-    press(tab, chart_card)
+    assert press(tab, chart_card, button=tab.tool.calculate_button)["chart"]  # the chart, for the new day
     assert len(downloads) == 2
 
     tab, _, figures_card = statistics_tab()

@@ -250,7 +250,7 @@
       "min_range": "L'intervallo deve contenere almeno 10 giorni di storico"
     },
     "var": {
-      "ci": "Intervallo di Confidenza",
+      "ci": "Int. di Confidenza",
       "ci_error": "L'Intervallo di Confidenza è definito tra 0 ed 1, estremi esclusi.",
       "days": "Numero di giorni",
       "days_error": "Il numero di giorni per la previsione deve essere un numero intero maggiore di 0",

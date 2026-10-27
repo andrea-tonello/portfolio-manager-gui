@@ -146,7 +146,7 @@ class DateRange:
         self.page = page
         self.t = translator
         self._labels = (start_label, end_label)
-        self.text = ft.Text(size=16, expand=True)
+        self.text = ft.Text(size=14, expand=True)
         self.start = _RangeDate(page, self._redraw)
         self.end = _RangeDate(page, self._redraw)
         self.button = ft.FilledTonalIconButton(icon=ft.Icons.DATE_RANGE, on_click=self._open_dialog)
