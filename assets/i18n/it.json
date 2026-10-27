@@ -229,9 +229,9 @@
     "corr": {
       "start_dt": "Dal",
       "end_dt": "Al",
-      "simple": "Correlazione Semplice",
+      "simple": "Semplice",
       "simple_error": "Matrice di correlazione non calcolabile: non sono presenti asset in portafoglio.",
-      "rolling": "Correlazione Rolling",
+      "rolling": "Rolling",
       "rolling_nodata": "Dati insufficienti. Prendi un intervallo più grande o diminuisci la finestra.",
       "asset1": "Ticker asset 1",
       "asset2": "Ticker asset 2",

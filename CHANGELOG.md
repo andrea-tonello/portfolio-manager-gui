@@ -1,8 +1,8 @@
-## [0.4.7] (2026-XX-XX)
+## [0.4.7] (2026-10-27)
 
 ### Features
 
-- *Analysis*: added quick period selection shortcuts: 1M, 3M, 6M, 1Y, 3Y, YTD, MAX
+- *Analysis*: general UI revision, added quick period selection shortcuts: 1M, 3M, 6M, 1Y, 3Y, YTD, MAX
 - Date pickers now start at the earliest date that they can work with
 
 ### Performance
@@ -10,14 +10,6 @@
 - Tables and Charts are not redrawn on every frame while scrolling anymore (12x faster draws)
 - Charts now read the history by column (6-17x faster loads)
 - Line charts now draw at most 100 points (2x faster draws)
-
-
-
-
-
-
-
-
 
 
 

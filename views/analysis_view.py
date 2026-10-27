@@ -30,12 +30,15 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dr
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
-from domain.ledger import get_pf_date
+from domain.ledger import LEDGER_START_DATE, get_pf_date
 from services import analysis_service
 from services.validation import parse_positive, validate_date_range
 from utils.constants import DATE_FORMAT
 
 _INT_FILTER = ft.NumbersOnlyInputFilter()
+# Where MAX starts for the rolling correlation: its two tickers needn't be held, so not at the first
+# operation but as far back as the app goes; Yahoo gives prices from when it has them.
+_ROLLING_SINCE = LEDGER_START_DATE.date()
 
 
 def _csv_bytes(df, index=False):
@@ -71,12 +74,14 @@ class AnalysisTool:
     `inline_calculate` has, instead of the Calculate pill at the bottom of the
     tab, a small icon button (`calculate_button`, set before build_inputs())
     that it places among its own inputs. A tool with
-    `actions` has one card per action below its inputs, and compute(),
+    `actions` has one card per action below its inputs (or where it places
+    `action_cards`, set before build_inputs(), among them), and compute(),
     render() and export() get (action, inputs), `action` saying which one.
-    Pressing a card calculates its action, instead of a Calculate button; with
-    `inline_calculate` too, the icon button calculates again the action last
-    picked (the first one to start with), e.g. for another period. Calculating
-    when shown uses that action too.
+    Pressing a card calculates its action, instead of a Calculate button,
+    after pick_action() has prepared the inputs for it; picking another card
+    first removes the result shown. With `inline_calculate` too, the icon
+    button calculates again the action last picked (the first one to start
+    with), e.g. for another period. Calculating when shown uses that action too.
     """
 
     title_key = ""      # translation key of the tool's tab label
@@ -87,6 +92,7 @@ class AnalysisTool:
     inline_calculate = False  # True: its Calculate is an icon button among its inputs, not the pill (see above)
     calculate_button = None   # that icon button, for a tool with inline_calculate
     actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
+    action_cards = None  # the row of those cards, for a tool that places it among its inputs
 
     def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
         """Keep the page (date pickers and ticker search need it), the translator, and what is analysed.
@@ -115,6 +121,14 @@ class AnalysisTool:
     def text_fields(self) -> list:
         """The text boxes, in screen order, that scroll into view when focused."""
         return []
+
+    def pick_action(self, action) -> bool:
+        """A card was pressed: prepare the inputs for `action` (e.g. show the fields it needs) before it is calculated.
+
+        Return True when those inputs may not be filled in yet: if they can't
+        be calculated, nothing is said (the user is about to fill them in).
+        """
+        return False
 
     def read_inputs(self):
         """Check the inputs and return what compute() needs; raise ValidationError for the first problem."""
@@ -153,6 +167,8 @@ class AnalysisTab:
         if self.tool.inline_calculate:
             self.tool.calculate_button = ft.FilledIconButton(
                 icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, tooltip=t.get("components.calculate"), on_click=self.submit)
+        if self.tool.actions:
+            self.tool.action_cards = self._action_cards()
         self.inputs = self.tool.build_inputs(self._on_input_change)
         self.loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.result = ft.Column([], spacing=12)
@@ -169,8 +185,10 @@ class AnalysisTab:
         ], spacing=12)
 
         if self.tool.auto_calculate or self.tool.actions or self.tool.inline_calculate:
-            # No Calculate pill: the spinner turns where the result will appear, below the cards if any
-            cards = [self._action_cards()] if self.tool.actions else []
+            # No Calculate pill: the spinner turns where the result will appear, below the cards if any.
+            # The cards go below the inputs, unless the tool placed them among its inputs itself.
+            placed = any(control is self.tool.action_cards for control in self.inputs)
+            cards = [self.tool.action_cards] if self.tool.actions and not placed else []
             self._locked_while_calculating = [*self.inputs, *cards]
             col.controls[len(self.inputs):len(self.inputs)] = [
                 *cards, ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER)]
@@ -188,10 +206,24 @@ class AnalysisTab:
         t = self.state.translator
         for action, icon, label_key in self.tool.actions:
             label = ft.Text(t.get(label_key), text_align=ft.TextAlign.CENTER)
-            card = action_card_btn(icon, label, lambda _, action=action: self.submit(action=action),
+            card = action_card_btn(icon, label, lambda _, action=action: self._pick(action),
                                    horizontal=True, padding=0, height=50, expand=True)
             self._cards[action] = (card, label)
         return ft.Row([card for card, _ in self._cards.values()], spacing=12)
+
+    def _pick(self, action):
+        """A card was pressed: calculate its action, once the tool has prepared its inputs for it.
+
+        Another card's result is removed first: it doesn't describe this one.
+        The card is outlined even when its inputs aren't filled in yet, as the
+        one the icon button will calculate.
+        """
+        if action != self._action:
+            self._show([], None)
+        quiet = self.tool.pick_action(action)
+        self._select_card(action)
+        self.submit(action=action, quiet=quiet)
+        self.page.update()
 
     def _select_card(self, chosen):
         """Outline the card of the `chosen` action, whose result is shown or coming; None leaves every card plain."""
@@ -445,44 +477,37 @@ class CorrelationTool(AnalysisTool):
     title_key = "analysis.op_correlation"
     glossary = "correlation"
     scroll_prefix = "corr"
+    calculate_when_shown = True  # the correlation of the assets held, over the whole history (MAX)
+    inline_calculate = True  # the icon button calculates the kind picked again, e.g. once its tickers are typed
+    actions = (
+        ("simple", ft.Icons.GRID_ON, "analysis.corr.simple"),
+        ("rolling", ft.Icons.SSID_CHART, "analysis.corr.rolling"),
+    )
 
     def build_inputs(self, on_input_change):
-        """The kind of correlation, a start and end date, and for the rolling one two tickers and a window.
+        """Period shortcuts and a start and end date, the kind of correlation, and for the rolling one two tickers
+        and a window.
 
-        The period starts as the whole history: from the first operation to today. The
-        rolling correlation leaves the start empty instead, to be chosen for the two tickers.
+        The period starts as the whole history: from the first operation to today.
+        For the rolling correlation, MAX starts as far back as prices go (_ROLLING_SINCE):
+        the two tickers needn't be held. Calculate is the icon button after the dates' calendar button.
         """
         t = self.t
-
-        def on_kind_change(e):
-            """Show the rolling correlation's fields only for it, set its default start, and drop the old result."""
-            rolling = (self.kind.value == "rolling")
-            self.rolling_fields.visible = rolling
-            self.start.value = None if rolling else self.first_day
-            on_input_change()
-            self.page.update()
-
-        self.kind = ft.RadioGroup(
-            value="simple",
-            content=ft.Column([
-                ft.Radio(value="simple", label=t.get("analysis.corr.simple")),
-                ft.Radio(value="rolling", label=t.get("analysis.corr.rolling")),
-            ], spacing=0),
-            on_change=on_kind_change,
-        )
-
+        self.kind = "simple"
         self.dates = DateRange(self.page, t, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip())
+        self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
-        self.start.value, self.end.value = self.first_day, date.today()
+        self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
 
+        # The two tickers side by side, the window below them; on large screens all three on one row
         self.asset1 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset1"),
-            col={"xs": 12, "md": 4})
+            col={"xs": 6, "md": 4})
         self.asset2 = TickerSearchField(
             self.page,
             label=t.get("analysis.corr.asset2"),
-            col={"xs": 12, "md": 4})
+            col={"xs": 6, "md": 4})
         self.window = rounded_text_field(
             label=t.get("analysis.corr.window"),
             keyboard_type=ft.KeyboardType.NUMBER, input_filter=_INT_FILTER, value="100",
@@ -500,16 +525,29 @@ class CorrelationTool(AnalysisTool):
             (self.window, self.rolling_fields),
         ])
 
-        return [self.kind, ft.Container(height=5), self.dates.control, self.rolling_fields]
+        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates), self.action_cards,
+                self.rolling_fields]
 
     def text_fields(self):
         """The tickers and the window."""
         return [self.asset1.field, self.asset2.field, self.window]
 
+    def pick_action(self, action):
+        """Show the rolling correlation's tickers and window only for it, and start its MAX as far back as prices go.
+
+        The rolling one may not have its tickers yet: if so, it is calculated
+        once they are typed and the icon button pressed.
+        """
+        rolling = action == "rolling"
+        self.kind = action
+        self.rolling_fields.visible = rolling
+        self.periods.set_first_day(_ROLLING_SINCE if rolling else self.first_day)
+        return rolling
+
     def read_inputs(self):
         """(start, end, asset1, asset2, window); the last three are None for the correlation of all assets."""
         start, end = validate_date_range(self.start.value, self.end.value)
-        if self.kind.value != "rolling":
+        if self.kind != "rolling":
             return start, end, None, None, None
         asset1 = self.asset1.value.strip()
         asset2 = self.asset2.value.strip()
@@ -520,14 +558,14 @@ class CorrelationTool(AnalysisTool):
 
     def compute(self, accounts, inputs):
         """The correlation matrix of the held assets, or the rolling correlation of the two tickers."""
-        start, end, asset1, asset2, window = inputs
+        _, (start, end, asset1, asset2, window) = inputs
         return analysis_service.compute_correlation(
             accounts, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), asset1, asset2, window,
         )
 
     def render(self, result, inputs):
         """The heatmap (or why there is none), or the rolling correlation chart."""
-        _, _, asset1, asset2, window = inputs
+        _, (_, _, asset1, asset2, window) = inputs
         if asset1 is None:
             corr_matrix = result.get("correlation_matrix")
             if corr_matrix is None:
@@ -540,7 +578,7 @@ class CorrelationTool(AnalysisTool):
 
     def export(self, result, inputs):
         """The correlation matrix, or the rolling correlation day by day."""
-        if inputs[2] is None:
+        if inputs[1][2] is None:
             corr_matrix = result.get("correlation_matrix")
             return None if corr_matrix is None else ("Correlation Matrix.csv", _csv_bytes(corr_matrix, index=True))
         rolling_corr = result.get("rolling_corr")

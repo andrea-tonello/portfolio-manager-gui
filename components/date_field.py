@@ -270,6 +270,15 @@ class PeriodShortcuts:
         today = date.today()
         self.start.value, self.end.value = period_start(period, today, self.first_day), today
 
+    def set_first_day(self, first_day: date | None):
+        """Make MAX start on `first_day`, as the earliest start of every period; the dates follow if one is selected.
+
+        Dates set by hand (no period selected) are left as they are.
+        """
+        self.first_day = first_day
+        if self.buttons.selected:
+            self._fill(self.buttons.selected[0])
+
     def _select(self, period):
         """The user picked `period`: fill the dates with it, and keep a period selected from now on."""
         self._fill(period)

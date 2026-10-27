@@ -19,7 +19,7 @@ from services import analysis_service
 from views.analysis_view import AllocationTool, AnalysisView, CorrelationTool, DrawdownTool, SummaryTool, VarTool
 
 TOMORROW = date.today() + timedelta(days=1)
-ROLLING = {"start": date(2024, 1, 2), "end": date(2024, 6, 3), "kind": "rolling",
+ROLLING = {"kind": "rolling", "start": date(2024, 1, 2), "end": date(2024, 6, 3),
            "asset1": "AAA.MI", "asset2": "BBB.MI"}
 
 
@@ -49,7 +49,10 @@ def test_analysis_refuses_invalid_inputs(app, page, tool, inputs, message):
     started = []
     page.run_thread = lambda fn, *args: started.append(fn)
     for field, value in inputs.items():
-        getattr(tab.tool, field).value = value
+        if field == "kind":
+            tab.tool.pick_action(value)  # as its card does, before calculating
+        else:
+            getattr(tab.tool, field).value = value
 
     tab.submit(None)
 
@@ -70,7 +73,7 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
     so the period starts there only with all accounts. Five days ago is too
     short a period, so the start is left empty, except for Statistics, whose
     figures make sense from the first day. The rolling correlation always
-    leaves the start empty, for the two tickers.
+    starts on 01-01-2000, as far back as prices go: its two tickers needn't be held.
     """
     idx = state.add_broker("Second Broker")
     state.commit(idx, _replay([deposit(second_deposit, 1000)], tmp_path / "second"))
@@ -86,9 +89,8 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
         assert (tools[tool].start.value, tools[tool].end.value) == (first_day, today)
 
     correlation = tools[CorrelationTool]
-    correlation.kind.value = "rolling"
-    correlation.kind.on_change(None)
-    assert (correlation.start.value, correlation.end.value) == (None, today)
+    correlation.pick_action("rolling")
+    assert (correlation.start.value, correlation.end.value) == (date(2000, 1, 1), today)
 
 
 def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state, tmp_path):
@@ -113,12 +115,11 @@ def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, 
 
 
 def test_tabs_calculate_as_soon_as_they_are_shown(app, page, state, monkeypatch):
-    """Allocation, Performance, Drawdown and VaR start calculating when shown, so they don't open on an empty tab.
+    """Every Analysis tab starts calculating when shown, so none opens empty.
 
     They start when the screen opens on them and when the user switches to
     them, but not a second time while their result is still coming.
-    Performance shows its chart over the whole history (MAX). Correlation
-    waits for Calculate.
+    Performance shows its chart over the whole history (MAX).
     """
     started = []
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
@@ -132,16 +133,48 @@ def test_tabs_calculate_as_soon_as_they_are_shown(app, page, state, monkeypatch)
     view.build()
     assert len(started) == 1  # opened on Allocation
 
-    for index, calculates in [(1, True), (2, False), (3, True), (4, True)]:
+    for index in range(1, len(view.tabs)):
         before = len(started)
         show(index)
-        assert len(started) == before + calculates, type(view.tabs[index].tool).__name__
+        assert len(started) == before + 1, type(view.tabs[index].tool).__name__
     show(0)
     show(1)
-    assert len(started) == 4  # back on tabs whose results are still coming
+    assert len(started) == len(view.tabs)  # back on tabs whose results are still coming
 
     started[1]()  # Performance's calculation
     assert any(find_controls(view.tabs[1].result, fch.LineChart))
+
+
+def test_rolling_correlation_shows_its_fields_and_waits_for_its_tickers(app, page, state, monkeypatch):
+    """Picking Rolling removes the matrix shown, shows the tickers and window, and starts MAX on 01-01-2000.
+
+    With no tickers yet, nothing is calculated and nothing is said: the user
+    is about to type them, then press the icon button, which calculates it.
+    Picking Simple hides the fields again, and MAX starts on the first
+    operation (02-01-2024) once more.
+    """
+    started = []
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
+    monkeypatch.setattr(analysis_service, "compute_correlation", lambda *args: {"correlation_matrix": None})
+    state.analysis_tab_index = 2
+    view = AnalysisView(app)
+    view.build()
+    [tab] = [tab for tab in view.tabs if isinstance(tab.tool, CorrelationTool)]
+    started.pop()()  # Simple, calculated as the screen opened on it
+    simple_card, rolling_card = find_controls(tab.tool.action_cards, ft.Card)
+    assert tab.result.controls and not tab.tool.rolling_fields.visible
+
+    rolling_card.content.on_click(None)
+    assert (tab.result.controls, tab.tool.rolling_fields.visible, tab.tool.start.value) == ([], True, date(2000, 1, 1))
+    assert started == [] and snack_texts(page) == []
+
+    tab.tool.asset1.value, tab.tool.asset2.value = "AAA.MI", "BBB.MI"
+    tab.tool.calculate_button.on_click(None)
+    assert len(started) == 1
+    started.pop()()
+
+    simple_card.content.on_click(None)
+    assert (tab.tool.rolling_fields.visible, tab.tool.start.value) == (False, date(2024, 1, 2))
 
 
 def test_allocation_recalculates_when_another_split_is_picked(app, page, state, monkeypatch):
