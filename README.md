@@ -66,13 +66,13 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
   </tr>
   <tr>
     <td align="center"><br><b>Lista movimenti</b></td>
-    <td align="center"><br><b>Andamento Portafoglio</b></td>
+    <td align="center"><br><b>Performance Portafoglio</b></td>
     <td align="center"><br><b>Value at Risk</b></td>
     <td align="center"><br><b>Impostazioni</b></td>
   </tr>
   <tr>
     <td align="center"><img src="./assets/readme/transac.png" alt="image" width="200"/></td>
-    <td align="center"><img src="./assets/readme/statistics.png" alt="image" width="200"/></td>
+    <td align="center"><img src="./assets/readme/performance.png" alt="image" width="200"/></td>
     <td align="center"><img src="./assets/readme/var.png" alt="image" width="200"/></td>
     <td align="center"><img src="./assets/readme/settings.png" alt="image" width="200"/></td>
   </tr>
