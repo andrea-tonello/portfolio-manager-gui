@@ -16,6 +16,10 @@ COLUMNS = [
     "committed_cash",
 ]
 
+# The id of the journal operation that built each row (see domain/journal.py). Not one of
+# COLUMNS: it is internal, so it isn't shown in Transactions or exported.
+OP_ID = "op_id"
+
 # Maps internal English operation values → locale keys for export.
 OPERATION_LOCALE_KEYS = {
     "Deposit": "values.op_deposit",

@@ -128,6 +128,11 @@ def opening_row(broker_name: str) -> dict:
     return row
 
 
+def opening_ledger(broker_name: str) -> pd.DataFrame:
+    """Return the ledger of a new account called `broker_name`: its opening row alone (see opening_row)."""
+    return pd.DataFrame({k: [v] for k, v in opening_row(broker_name).items()})
+
+
 def get_pf_date(account: Account, dt: DateLike, ref_date: DateLike) -> tuple[pd.DataFrame, pd.Timestamp | None]:
     """Returns (account's rows up to `ref_date`, date of its first operation).
 

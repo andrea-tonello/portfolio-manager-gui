@@ -294,6 +294,15 @@
   },
 
 
+  "journal": {
+    "refused": {
+      "sell": "The sale of {ticker} on {date} would no longer be possible: {reason}",
+      "split": "The split of {ticker} on {date} would no longer be possible: {reason}",
+      "transfer_out": "The transfer to {account} on {date} would no longer be possible: {reason}"
+    }
+  },
+
+
   "settings": {
     "new_acc": "Hello, {username}.\n\nPlease add a representative alias for each of your accounts",
     "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",

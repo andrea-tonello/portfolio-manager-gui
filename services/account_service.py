@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 from domain.account import Account
-from domain.ledger import opening_row
+from domain.ledger import opening_ledger
 from utils.columns import COLUMNS
 from utils.constants import REPORT_PREFIX
 
@@ -23,7 +23,7 @@ def create_defaults(save_folder: str, broker_name: str) -> None:
     Does nothing if the file already exists: it holds the user's transactions.
     """
     path_rep = report_path(save_folder, broker_name)
-    df_template = pd.DataFrame({k: [v] for k, v in opening_row(broker_name).items()})
+    df_template = opening_ledger(broker_name)
 
     if not os.path.isfile(path_rep):
         df_template.to_csv(path_rep, index=False)

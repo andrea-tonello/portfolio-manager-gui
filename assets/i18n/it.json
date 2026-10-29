@@ -294,6 +294,15 @@
   },
 
 
+  "journal": {
+    "refused": {
+      "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
+      "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",
+      "transfer_out": "Il trasferimento verso {account} del {date} non sarebbe più possibile: {reason}"
+    }
+  },
+
+
   "settings": {
     "new_acc": "Ciao, {username}.\n\nSi prega di aggiungere un alias per ciascuno dei propri conti",
     "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",

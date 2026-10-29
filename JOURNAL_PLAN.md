@@ -10,7 +10,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 
 **Status**
 - [x] 0. Decisions (see "Decisions" at the end)
-- [ ] 1. Journal model and rebuild engine (no app change)
+- [x] 1. Journal model and rebuild engine (no app change)
 - [ ] 2. Price provider for rebuilds
 - [ ] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
 - [ ] 4. Migration of existing ledgers, backups, account deletion
@@ -119,28 +119,28 @@ In code:
 - **Every operation builds exactly one row in its account** (a transfer: one in each). So row `k + 1` of the ledger (after the opening row) belongs to the `k`-th operation in `(date, seq)` order.
 - **A new CSV column, `op_id`, records which operation built the row.** Transactions uses it for delete and edit.
   - It's internal: it's not shown in the Transactions table or exported.
-  - So it is *not* added to `utils/columns.py`'s `COLUMNS`, which drives both. It gets its own constant, and `load_single_account` keeps it.
+  - So it is *not* added to `utils/columns.py`'s `COLUMNS`, which drives both. It has its own constant there, `OP_ID` (phase 1); `load_single_account` will keep it (phase 3).
 
 ### Rebuilding
 
-A new pure module, **`domain/journal.py`** (no files, no network):
+A new module, **`domain/journal.py`** (no files; no network once phase 2 provides the prices):
 - **The schema:**
-  - `Operation` (a frozen dataclass, or a dict validated against the table above);
-  - `operation_to_dict` / `operation_from_dict`;
-  - `sort_key`.
-- **`apply(df, op, broker, prices) -> df`:** dispatches to the `newrow_*` call in the table and returns `df` with one more row, carrying `op_id`.
-- **`rebuild(broker, operations, prices, ledger=None, from_index=0) -> df`:**
+  - `Kind` (a StrEnum of the kinds above) and `KIND_FIELDS` (each kind's fields);
+  - `Operation`, a frozen dataclass: id, seq, date, kind, and every kind's fields defaulting to None. It refuses a missing field of its kind, a field of another kind, or an amount that isn't positive;
+  - `new_id`, `sort_key`, `operation_to_dict` / `operation_from_dict`.
+- **`apply(df, op, broker) -> df`:** calls the `newrow_*` builder as in the table and returns `df` with one more row, carrying `op_id`. Phase 2 adds `prices`.
+- **`rebuild(broker, operations, ledger=None, from_index=0) -> df`:**
   - sorts the operations;
-  - keeps the opening row plus the first `from_index` rows of `ledger` unchanged;
+  - keeps the opening row plus the first `from_index` rows of `ledger` unchanged (without `ledger`, starts from `opening_ledger(broker)`, shared with `create_defaults`);
   - applies the rest in order.
 
   An operation added in the past only rebuilds from its own position.
-- **Checks while rebuilding:** any `ValidationError` raised by `apply` is re-raised naming the operation. The checks are the domain ones that exist today:
+- **Checks while rebuilding:** any `ValidationError` raised by `apply` is re-raised as `OperationRefused(operation, reason)`, naming the operation. The checks are the domain ones that exist today:
   - a sale exceeding the quantity held (`sell_asset`);
   - a split of a ticker not held (`newrow_split`);
-  - a transfer out exceeding the cash held. Today only `parse_transfer` checks this, at input time; `apply` must check it too.
+  - a transfer out exceeding the cash held. Today only `parse_transfer` checks this, at input time; `apply` checks it too.
 
-  Example of the new message: `journal.later_operation_invalid` = "La vendita di ISP.MI del 05-06-2025 non sarebbe più possibile: {reason}". Withdrawals and buys aren't checked against cash today, and stay unchecked (decision 5).
+  Each of these kinds has its message, `journal.refused.<kind>`, e.g. "La vendita di AAA.MI del 03-06-2024 non sarebbe più possibile: {reason}". `components.snack.error_message` translates the `reason` inside it. When the refused operation is the one being recorded, the caller (`record`, phase 3) shows the `reason` alone. Withdrawals and buys aren't checked against cash today, and stay unchecked (decision 5).
 
 A service, **`services/journal_service.py`**, does the files and the use cases:
 - **Reading and writing journals:** `load_journal(folder, account_name)`, `save_journal(...)`.
@@ -229,14 +229,14 @@ Every account is migrated; no old in-order code path is kept (decision 3).
 
 ## Phases
 
-### Phase 1: journal model and rebuild engine
-- `domain/journal.py`: schema, `apply`, `rebuild`, the error naming the operation. For now, prices go through today's `priced_positions` (Yahoo, or the fake market in tests).
+### Phase 1: journal model and rebuild engine (done)
+- `domain/journal.py`: schema, `apply`, `rebuild`, `OperationRefused` with its `journal.refused.*` messages. For now, prices go through today's `priced_positions` (Yahoo, or the fake market in tests).
 - `tests/test_journal.py`:
-  - **Round trip:** each snapshot scenario (`STOCKS_EUR`, `ETFS_AND_USD`), written as a journal, rebuilds a ledger identical to `tests/snapshots/*.csv` (ignoring `op_id`).
-  - **Order independence:** take each operation out and add it last (the same date, the highest `seq`). The rebuilt ledger is identical.
-  - **Refusal:** adding a sale before a later sale that then exceeds the quantity raises, naming the later sale.
-- Test helpers: the `deposit` / `buy` / … step builders can produce journal operations, so scenarios are defined once.
-- **Done when:** the round trip is byte-identical on both scenarios. **About 250–350 lines** with tests.
+  - **Round trip:** each snapshot scenario (`STOCKS_EUR`, `ETFS_AND_USD`), written as a JSON journal and read back, rebuilds the same CSV text as recording its steps (ignoring `op_id`), and each row's `op_id` names its operation.
+  - **Entered late:** one operation entered after all the others (the highest `seq`, its own date), rebuilt with `from_index` from the ledger of the others, gives the same ledger. Cases: STOCKS_EUR's first deposit (every row's cash changes); ETFS_AND_USD's EEE.MI sale (its fee loss lowers the later UUU sale's tax).
+  - **Refusal:** a sale added before a later sale that then exceeds the quantity is refused, naming the later sale; a withdrawal added before a transfer out that then exceeds the cash is refused, naming the transfer.
+- Test helpers: the `deposit` / `buy` / … helpers of `test_ledger_snapshots.py` return a `Step`. It is called as before, and its `fields` give the same operation for the journal, so scenarios are defined once.
+- **Done when:** the round trip is byte-identical on both scenarios.
 
 ### Phase 2: price provider
 - `PriceBook`, threaded through as described.
@@ -283,7 +283,7 @@ Every account is migrated; no old in-order code path is kept (decision 3).
 - **The app behaves exactly as today.** About 100–150 lines changed.
 
 ### Phase 6: out-of-order insertion
-- Relaxed date check and pickers, the confirmation with the count, the refusal message. Locale keys: `journal.*`.
+- Relaxed date check and pickers, the confirmation with the count, the refusal message. Locale keys: `journal.*` (the refusal messages, `journal.refused.*`, exist since phase 1).
 - **Tests:**
   - a deposit inserted before a trade changes the later rows' cash;
   - a sale inserted early makes a later one impossible: refused, files untouched;

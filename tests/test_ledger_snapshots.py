@@ -10,6 +10,8 @@ regenerate with `uv run pytest --update-snapshots` and review the diff in git.
 """
 
 import io
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date
 
 import numpy as np
@@ -31,25 +33,47 @@ NAMES = {
 
 
 # ── Operations ───────────────────────────────────────────────────────
-# Each helper returns a step `(df) -> df`, calling the builders
-# with the same arguments services/operations_service.py passes.
+# Each helper returns a Step: called as `step(df) -> df`, it calls the
+# builders with the same arguments services/operations_service.py passes.
+
+@dataclass(frozen=True)
+class Step:
+    """One operation of a scenario, in the two forms the tests need.
+
+    Calling it records the operation the way the app does today: one newrow_*
+    call, returning the ledger with one more row. `fields` is the same
+    operation as the journal stores it (domain/journal.py), without the id and
+    order of entry that each journal gives it, e.g.
+    {"kind": "withdrawal", "date": date(2024, 9, 2), "amount": 500}.
+    """
+
+    record: Callable[[pd.DataFrame], pd.DataFrame]
+    fields: dict
+
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return the ledger `df` with this operation's row added."""
+        return self.record(df)
+
 
 def deposit(day, amount):
     """Step that deposits `amount` EUR of cash into the account."""
-    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
-                                     "Deposit", "Cash", np.nan, np.nan)
+    return Step(lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
+                                       "Deposit", "Cash", np.nan, np.nan),
+                {"kind": "deposit", "date": day, "amount": amount})
 
 
 def withdrawal(day, amount):
     """Step that withdraws `amount` EUR of cash. Pass a positive amount; it is stored as negative."""
-    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, -amount,
-                                     "Withdrawal", "Cash", np.nan, np.nan)
+    return Step(lambda df: newrow_cash(df, _fmt(day), day, BROKER, -amount,
+                                       "Withdrawal", "Cash", np.nan, np.nan),
+                {"kind": "withdrawal", "date": day, "amount": amount})
 
 
 def dividend(day, ticker, amount):
     """Step that records a dividend of `amount` EUR received from `ticker`."""
-    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
-                                     "Dividend", "Dividend", ticker, NAMES[ticker])
+    return Step(lambda df: newrow_cash(df, _fmt(day), day, BROKER, amount,
+                                       "Dividend", "Dividend", ticker, NAMES[ticker]),
+                {"kind": "dividend", "date": day, "ticker": ticker, "asset_name": NAMES[ticker], "amount": amount})
 
 
 def charge(day, amount, description):
@@ -58,8 +82,9 @@ def charge(day, amount, description):
     Pass a positive amount; it is stored as negative. `description` becomes
     the row's product, as in the app.
     """
-    return lambda df: newrow_cash(df, _fmt(day), day, BROKER, -abs(amount),
-                                     "Tax", description, np.nan, np.nan)
+    return Step(lambda df: newrow_cash(df, _fmt(day), day, BROKER, -abs(amount),
+                                       "Tax", description, np.nan, np.nan),
+                {"kind": "charge", "date": day, "amount": abs(amount), "description": description})
 
 
 def buy(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
@@ -68,9 +93,10 @@ def buy(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
 
     `conv_rate` is the USD→EUR rate; `ter` and `fee_mode` only matter for ETFs.
     """
-    return lambda df: newrow_etf_stock(
+    return Step(lambda df: newrow_etf_stock(
         df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
-        conv_rate, ter, fee, is_buy=True, asset_name=NAMES[ticker], fee_mode=fee_mode)
+        conv_rate, ter, fee, is_buy=True, asset_name=NAMES[ticker], fee_mode=fee_mode),
+        _trade_fields("buy", day, ticker, qty, price, fee, product, currency, conv_rate, ter, fee_mode, 0.26))
 
 
 def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
@@ -80,15 +106,24 @@ def sell(day, ticker, qty, price, fee, *, product="Stock", currency="EUR",
     `tax_rate` is applied to the taxable gain: 0.26 by default; in the app the
     user can enter a different rate only for money-market ETFs.
     """
-    return lambda df: newrow_etf_stock(
+    return Step(lambda df: newrow_etf_stock(
         df, _fmt(day), day, BROKER, currency, product, ticker, qty, price,
         conv_rate, ter, fee, is_buy=False, asset_name=NAMES[ticker],
-        tax_rate=tax_rate, fee_mode=fee_mode)
+        tax_rate=tax_rate, fee_mode=fee_mode),
+        _trade_fields("sell", day, ticker, qty, price, fee, product, currency, conv_rate, ter, fee_mode, tax_rate))
 
 
 def split(day, ticker, ratio):
     """Step that records a stock split of `ticker` (ratio 2.0 = 2:1, 0.5 = 1:2)."""
-    return lambda df: newrow_split(df, _fmt(day), day, BROKER, ticker, ratio)
+    return Step(lambda df: newrow_split(df, _fmt(day), day, BROKER, ticker, ratio),
+                {"kind": "split", "date": day, "ticker": ticker, "ratio": ratio})
+
+
+def _trade_fields(kind, day, ticker, qty, price, fee, product, currency, conv_rate, ter, fee_mode, tax_rate):
+    """Return the journal fields of a buy or sell step; a TER left NaN (not given) is None in the journal."""
+    return {"kind": kind, "date": day, "ticker": ticker, "asset_name": NAMES[ticker], "product": product,
+            "currency": currency, "conv_rate": conv_rate, "quantity": qty, "price": price, "fee": fee,
+            "fee_mode": fee_mode, "tax_rate": tax_rate, "ter": None if pd.isna(ter) else ter}
 
 
 def _fmt(day):
