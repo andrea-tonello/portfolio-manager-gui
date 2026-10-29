@@ -13,8 +13,11 @@ from datetime import date
 import pytest
 
 from components.snack import error_message
+from conftest import fake_download_close
 from domain.journal import Operation, OperationRefused, operation_from_dict, operation_to_dict, rebuild
-from test_ledger_snapshots import BROKER, ETFS_AND_USD, SCENARIOS, STOCKS_EUR, _replay, deposit, sell, withdrawal
+from services import market_data
+from test_ledger_snapshots import (BROKER, ETFS_AND_USD, SCENARIOS, STOCKS_EUR, _replay, buy, deposit, sell,
+                                   withdrawal)
 from utils.columns import OP_ID
 
 
@@ -67,6 +70,56 @@ def test_an_operation_entered_after_later_ones_takes_its_place_by_date(steps, la
     after = rebuild(BROKER, others + [entered_late], ledger=before, from_index=late)
 
     assert csv_text(after) == _replay(steps, tmp_path).to_csv(index=False)
+
+
+@pytest.mark.parametrize("steps, from_index, downloads", [
+    (STOCKS_EUR, 0, [(["AAA.MI", "BBB.MI"], False), (["AAA.MI", "BBB.MI"], True)]),
+    (ETFS_AND_USD, 0, [(["EEE.MI", "MMM.MI", "UUU"], False), (["EEE.MI", "MMM.MI", "UUU"], True),
+                       (["USDEUR=X"], False)]),
+    # From the last operation (a withdrawal): AAA.MI is sold out by then, only BBB.MI is held.
+    (STOCKS_EUR, 11, [(["BBB.MI"], False), (["BBB.MI"], True)]),
+])
+def test_a_rebuild_downloads_the_prices_once_for_all_its_rows(steps, from_index, downloads, tmp_path, fake_market,
+                                                              monkeypatch):
+    """Rebuilding downloads the closes of the assets its rows can hold once, and the USD->EUR rates once if needed.
+
+    Recording the steps one by one downloads for every row instead: on a
+    phone, rebuilding a few hundred rows that way would take minutes. Only
+    the assets held at `from_index`, or traded after, are downloaded. The
+    ledger is the same: each row still gets its own day's closes. Each
+    download is (tickers, adjusted closes or not).
+    """
+    expected = _replay(steps, tmp_path).to_csv(index=False)
+    operations = journal_of(steps)
+    ledger = rebuild(BROKER, operations)
+    asked = []
+
+    def counting_download_close(tickers, **kwargs):
+        """Record which tickers were asked for, then answer like the fake market."""
+        asked.append((sorted([tickers] if isinstance(tickers, str) else tickers), kwargs.get("adjusted", False)))
+        return fake_download_close(tickers, **kwargs)
+
+    monkeypatch.setattr(market_data, "download_close", counting_download_close)
+
+    rebuilt = rebuild(BROKER, operations, ledger=ledger, from_index=from_index)
+
+    assert asked == downloads
+    assert csv_text(rebuilt) == expected
+
+
+def test_a_sale_in_usd_of_an_asset_bought_in_eur_is_valued_with_the_exchange_rate(tmp_path, fake_market):
+    """A rebuild values a sale in USD of an asset bought in EUR as recording it does: with the USD->EUR rate.
+
+    The row's currency is the sale's, so the shares still held are converted
+    at the rate, which the rebuild must download although no buy is in USD.
+    """
+    steps = [deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "AAA.MI", 10, price=100.0, fee=2.0),
+             sell(date(2024, 2, 1), "AAA.MI", 5, price=120.0, fee=1.0, currency="USD", conv_rate=0.9),
+             withdrawal(date(2024, 3, 1), 500)]
+
+    ledger = rebuild(BROKER, journal_of(steps))
+
+    assert csv_text(ledger) == _replay(steps, tmp_path).to_csv(index=False)
 
 
 def test_a_sale_that_leaves_a_later_sale_short_is_refused_naming_the_later_one(fake_market, translator):

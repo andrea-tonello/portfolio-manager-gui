@@ -25,6 +25,8 @@ import pandas as pd
 from domain.errors import ValidationError
 from domain.ledger import Op, Product, opening_ledger
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
+from domain.positions import holdings
+from services.market_data import PriceBook
 from utils.columns import OP_ID
 from utils.constants import DATE_FORMAT
 from utils.formatting import fmt_eur
@@ -63,6 +65,12 @@ KIND_FIELDS = {
 # Fields that can be None even in the kinds that have them: a charge with no
 # description of its own, an ETF whose TER wasn't given (and every stock).
 _OPTIONAL_FIELDS = {"description", "ter"}
+
+# Fields that must be above 0 when set; the kind gives the row its sign.
+_POSITIVE_FIELDS = {"amount", "quantity", "price", "conv_rate", "ratio"}
+
+# How a trade's fee counts for taxes (see buy_asset).
+_FEE_MODES = ("abp", "loss", "pending")
 
 
 @dataclass(frozen=True)
@@ -111,20 +119,33 @@ class Operation:
     ratio: float | None = None
 
     def __post_init__(self):
-        """Refuse an operation that couldn't build its row: unknown kind, a field of its kind missing, another kind's present.
+        """Raise ValueError for an operation that couldn't build its row, e.g. read from a damaged journal file.
 
-        Also stores `kind` as a Kind, so "deposit" and Kind.DEPOSIT give the same operation.
+        Refused: an unknown kind, a field of its kind missing or another
+        kind's present, and values the row builders can't take (a split
+        ratio of 0 would divide by zero). Also stores `kind` as a Kind, so
+        "deposit" and Kind.DEPOSIT give the same operation.
         """
         object.__setattr__(self, "kind", Kind(self.kind))  # raises ValueError for an unknown kind
         own = KIND_FIELDS[self.kind]
         for field in fields(self)[4:]:  # past id, seq, date and kind
             value = getattr(self, field.name)
             if field.name in own and value is None and field.name not in _OPTIONAL_FIELDS:
-                raise ValueError(f"{self.kind} operation {self.id} has no {field.name}")
+                self._refuse(f"no {field.name}")
             if field.name not in own and value is not None:
-                raise ValueError(f"{self.kind} operation {self.id} can't have a {field.name}")
-        if self.amount is not None and self.amount <= 0:
-            raise ValueError(f"{self.kind} operation {self.id}: amounts are positive, got {self.amount}")
+                self._refuse(f"it can't have a {field.name}")
+            if field.name in _POSITIVE_FIELDS and value is not None and not value > 0:  # `not >` refuses NaN too
+                self._refuse(f"{field.name} must be above 0, got {value}")
+        if self.fee is not None and not self.fee >= 0:
+            self._refuse(f"fee can't be negative, got {self.fee}")
+        if self.tax_rate is not None and not 0 <= self.tax_rate <= 1:
+            self._refuse(f"tax_rate must be between 0 and 1, got {self.tax_rate}")
+        if self.fee_mode is not None and self.fee_mode not in _FEE_MODES:
+            self._refuse(f"fee_mode must be one of {_FEE_MODES}, got {self.fee_mode!r}")
+
+    def _refuse(self, problem: str):
+        """Raise the ValueError of __post_init__, naming the operation and its `problem`."""
+        raise ValueError(f"{self.kind} operation {self.id}: {problem}")
 
 
 def new_id() -> str:
@@ -150,9 +171,12 @@ def operation_to_dict(op: Operation) -> dict:
 def operation_from_dict(stored: dict) -> Operation:
     """Return the operation the journal file stores as `stored` (the reverse of operation_to_dict).
 
-    Raises ValueError when it isn't a valid operation, TypeError when it has a field no kind has.
+    Raises ValueError when it isn't a valid operation (e.g. a date that isn't
+    ISO), TypeError when a field is missing (id, seq, date or kind) or no kind has it.
     """
-    return Operation(**{**stored, "date": date.fromisoformat(stored["date"])})
+    if "date" in stored:
+        stored = {**stored, "date": date.fromisoformat(stored["date"])}
+    return Operation(**stored)
 
 
 class OperationRefused(ValidationError):
@@ -190,11 +214,12 @@ def _cash_row(op: Operation) -> tuple[int, Op, str, str | float, str | float]:
     }[op.kind]
 
 
-def apply(df: pd.DataFrame, op: Operation, broker: str) -> pd.DataFrame:
+def apply(df: pd.DataFrame, op: Operation, broker: str, prices: PriceBook | None = None) -> pd.DataFrame:
     """Return the ledger `df` of the account `broker` with the row of `op` added, holding op.id in its op_id column.
 
     The row is built from the totals of the last row of `df`, as when the
-    user records the operation today. Raises ValidationError when the account
+    user records the operation today, and values the assets held with
+    `prices` (from Yahoo when not given). Raises ValidationError when the account
     can't take it: selling more than is held, splitting a ticker not held,
     or sending more cash than is held (a check the Operations form makes
     when the transfer is entered, and that must hold after a rebuild too).
@@ -204,15 +229,15 @@ def apply(df: pd.DataFrame, op: Operation, broker: str) -> pd.DataFrame:
         ter = np.nan if op.ter is None else op.ter
         new = newrow_etf_stock(df, date_str, day, broker, op.currency, op.product, op.ticker, op.quantity, op.price,
                                op.conv_rate, ter, op.fee, is_buy=op.kind == Kind.BUY, asset_name=op.asset_name,
-                               tax_rate=op.tax_rate, fee_mode=op.fee_mode)
+                               tax_rate=op.tax_rate, fee_mode=op.fee_mode, prices=prices)
     elif op.kind == Kind.SPLIT:
-        new = newrow_split(df, date_str, day, broker, op.ticker, op.ratio)
+        new = newrow_split(df, date_str, day, broker, op.ticker, op.ratio, prices=prices)
     else:
         available = float(df["cash_held"].iloc[-1])
         if op.kind == Kind.TRANSFER_OUT and op.amount > available:
             raise ValidationError("operations.transfer.not_enough_cash", available=fmt_eur(available))
         sign, operation, product, ticker, name = _cash_row(op)
-        new = newrow_cash(df, date_str, day, broker, sign * op.amount, operation, product, ticker, name)
+        new = newrow_cash(df, date_str, day, broker, sign * op.amount, operation, product, ticker, name, prices=prices)
 
     # Text with NaN on rows built before the journal; the column is created on the first row it tags.
     ids = new[OP_ID] if OP_ID in new else pd.Series(np.nan, index=new.index)
@@ -221,14 +246,35 @@ def apply(df: pd.DataFrame, op: Operation, broker: str) -> pd.DataFrame:
     return new
 
 
+def _assets_to_value(ledger: pd.DataFrame, operations: list[Operation]) -> list[tuple[str, str]]:
+    """Return (ticker, currency) of every asset the rows of `operations`, built after `ledger`, can hold.
+
+    Those held at the end of `ledger`, in the currency of their last row,
+    and those `operations` buy or sell: a row in another currency than EUR
+    is valued with the USD->EUR rate, even a sale in USD of an asset bought
+    in EUR. Assets sold out before are left out: their prices aren't needed.
+
+    Example: a ledger holding UUU (bought in USD) and operations buying AAA.MI
+    -> [("AAA.MI", "EUR"), ("UUU", "USD")], in no particular order.
+    """
+    _, held = holdings(ledger)
+    assets = set(zip(held["ticker"], held["curr"]))
+    assets |= {(op.ticker, op.currency) for op in operations if op.kind in (Kind.BUY, Kind.SELL)}
+    return list(assets)
+
+
 def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | None = None,
-            from_index: int = 0) -> pd.DataFrame:
+            from_index: int = 0, prices: PriceBook | None = None) -> pd.DataFrame:
     """Return the ledger of the account `broker`, built from its journal `operations` in order of (date, seq).
 
     Without `ledger`, it starts from a new account's opening row. With the
     account's current `ledger`, its opening row and the rows of the first
     `from_index` operations are kept as they are and only the rest are built
     again: an operation added in the past changes nothing before its position.
+
+    The rows built are valued with `prices`. Without it, the closes of the
+    assets they can hold are downloaded once, from the first row built to
+    the last, instead of once for each row.
 
     Raises OperationRefused for the first operation that can't be applied.
     The caller decides whether that is the operation being recorded or a
@@ -242,9 +288,12 @@ def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | Non
     if ledger is None and from_index:
         raise ValueError("rebuilding from an operation past the first needs the ledger holding the ones before it")
     df = opening_ledger(broker) if ledger is None else ledger.iloc[:from_index + 1]
-    for op in sorted(operations, key=sort_key)[from_index:]:
+    to_build = sorted(operations, key=sort_key)[from_index:]
+    if prices is None and to_build:
+        prices = PriceBook.download(_assets_to_value(df, to_build), start=to_build[0].date, end=to_build[-1].date)
+    for op in to_build:
         try:
-            df = apply(df, op, broker)
+            df = apply(df, op, broker, prices)
         except ValidationError as ex:
             raise OperationRefused(op, ex) from ex
     return df

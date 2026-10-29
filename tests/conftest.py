@@ -78,23 +78,17 @@ def fake_download_close(tickers, start=None, end=None, period=None, adjusted=Fal
     return df, names
 
 
-def fake_fetch_exchange_rate(ref_date=None) -> float:
-    """Offline stand-in for services.market_data.fetch_exchange_rate: always FAKE_USDEUR."""
-    return FAKE_USDEUR
-
-
 @pytest.fixture
 def fake_market(monkeypatch):
     """Make the domain code (positions, history) use the fake prices and exchange rate above during a test.
 
     Request this fixture in any test that builds account rows or values
-    positions. It replaces the functions in services.market_data, which the
-    domain modules call as market_data.download_close(...). Code that imported
-    them by name (analysis_service, home_view) is not affected. The originals
-    are restored automatically when the test ends.
+    positions. It replaces download_close in services.market_data, which the
+    domain modules call as market_data.download_close(...), as does PriceBook.
+    Code that imported it by name (analysis_service, home_view) is not
+    affected. The original is restored automatically when the test ends.
     """
     monkeypatch.setattr(market_data, "download_close", fake_download_close)
-    monkeypatch.setattr(market_data, "fetch_exchange_rate", fake_fetch_exchange_rate)
 
 
 # ── Translator ───────────────────────────────────────────────────────

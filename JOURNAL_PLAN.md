@@ -11,7 +11,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 **Status**
 - [x] 0. Decisions (see "Decisions" at the end)
 - [x] 1. Journal model and rebuild engine (no app change)
-- [ ] 2. Price provider for rebuilds
+- [x] 2. Price provider for rebuilds
 - [ ] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
 - [ ] 4. Migration of existing ledgers, backups, account deletion
 - [ ] 5. Write path: every operation goes through the journal (same behaviour as today)
@@ -123,13 +123,13 @@ In code:
 
 ### Rebuilding
 
-A new module, **`domain/journal.py`** (no files; no network once phase 2 provides the prices):
+A new module, **`domain/journal.py`** (no files; the prices come from one download per rebuild):
 - **The schema:**
   - `Kind` (a StrEnum of the kinds above) and `KIND_FIELDS` (each kind's fields);
-  - `Operation`, a frozen dataclass: id, seq, date, kind, and every kind's fields defaulting to None. It refuses a missing field of its kind, a field of another kind, or an amount that isn't positive;
+  - `Operation`, a frozen dataclass: id, seq, date, kind, and every kind's fields defaulting to None. It refuses (ValueError) a missing field of its kind, a field of another kind, and values its row couldn't be built from: amount, quantity, price, conv_rate or ratio not above 0, a negative fee, a tax_rate outside 0–1, an unknown fee_mode;
   - `new_id`, `sort_key`, `operation_to_dict` / `operation_from_dict`.
-- **`apply(df, op, broker) -> df`:** calls the `newrow_*` builder as in the table and returns `df` with one more row, carrying `op_id`. Phase 2 adds `prices`.
-- **`rebuild(broker, operations, ledger=None, from_index=0) -> df`:**
+- **`apply(df, op, broker, prices=None) -> df`:** calls the `newrow_*` builder as in the table and returns `df` with one more row, carrying `op_id`.
+- **`rebuild(broker, operations, ledger=None, from_index=0, prices=None) -> df`:**
   - sorts the operations;
   - keeps the opening row plus the first `from_index` rows of `ledger` unchanged (without `ledger`, starts from `opening_ledger(broker)`, shared with `create_defaults`);
   - applies the rest in order.
@@ -152,11 +152,25 @@ A service, **`services/journal_service.py`**, does the files and the use cases:
 
 **The problem:** `priced_positions` downloads closes (raw and adjusted) for every row, plus the USD→EUR rate for USD assets. A rebuild of 200 rows that way would mean hundreds of requests.
 
-**The fix:** a small **`PriceBook`** (`services/market_data.py`, or a new module):
-- built once per rebuild, with one `download_close` for all the journal's tickers (raw + adjusted) and the USD→EUR series, from the earliest date rebuilt minus 10 days to today;
-- it answers "close of T on or before D" and "previous close" locally.
+**The fix:** a small **`PriceBook`** in `services/market_data.py`:
+- **`PriceBook.download(tickers_with_currency, start, end)`:**
+  - one `download_close` for all the tickers (raw) and one for their adjusted closes;
+  - one for the USD→EUR series, only when a currency isn't EUR. That is the same rule `priced_positions` uses to convert.
+  - It covers `LOOKBACK` (10 days) before `start` to the day after `end`.
+- **Lookups:**
+  - `close`, `previous_close` and `usd_eur` (to 6 decimals) take the last value on or before day D, at most `LOOKBACK` older. Otherwise they raise `LookupError`, rather than using an old price (a ticker no longer quoted, a day outside the book).
+  - `name` gives Yahoo's name.
+  - Each ticker's series is cleaned once, and lookups use `searchsorted`.
+- **`rebuild`** downloads a book when it isn't given `prices`. The book covers the assets the rebuilt rows can hold: those held where the rebuild starts, plus those bought or sold after. A sale in USD of an asset bought in EUR therefore brings the rates in.
 
-It is threaded as an optional `prices=None` argument through `priced_positions`, `newrow_*`, `buy_asset` and `sell_asset`. When it's None, they fetch from Yahoo as today, so Home and Analysis are untouched.
+It is threaded as an optional `prices=None` argument through `priced_positions`, `newrow_*`, `buy_asset`, `sell_asset` and `apply`. When it's None, `priced_positions` downloads a book for its own day, so recording and rebuilding value rows the same way.
+- **Home and Analysis:** the USD→EUR rate now comes from the daily series: one request per valuation instead of one per USD asset. Today's daily bar matches the 1-minute rate.
+- **Removed:** `fetch_exchange_rate`, which nothing uses any more.
+- **VaR snapshot:** updated. Its fake market has a varying rate in the downloaded series but had a constant one in `fetch_exchange_rate`.
+
+Checked on live Yahoo data:
+- ISP.MI, AAPL and VWCE.DE closes and the USD→EUR rate, on six days of 2025–2026 including summer Fridays, are identical from a book and from the per-row downloads.
+- Today's USD→EUR from the daily series equals the 1-minute chart's.
 
 This keeps everything explicit and testable, rather than hiding a cache inside `market_data`.
 
@@ -184,7 +198,7 @@ Every account is migrated; no old in-order code path is kept (decision 3).
   - **Pairing:** each pair gets a shared `transfer_id`, using today's matching rule (`_other_side`'s conditions) across all accounts of the user.
   - **Half without a partner** (the account was deleted): it gets a `transfer_id` of its own.
 - **Buy / Sell rows:**
-  - **Fields from columns:** quantity from `qt_exch`, price = `abs(price)`, `conv_rate = float(conv_rate)`, `tax_rate = tax_bracket / 100`. The price comes back rounded to 4 decimals: lossy, but it's all there is.
+  - **Fields from columns:** quantity from `qt_exch`, price = `abs(price)`, `conv_rate = float(conv_rate)`, `tax_rate = tax_bracket / 100`. The price comes back rounded to 4 decimals: lossy, but it's all there is. A price that rounds to 0 (under 0.00005) can't make an `Operation`, which refuses values its row couldn't be built from: the migration reports that row.
   - **The fee mode is found by trial:**
     - stocks are always "abp";
     - for ETFs, rebuild that one row with each mode ("abp", "loss", "pending") and keep the one that reproduces the stored `abp`, `generated_loss`, `carryforward` and `pending_fees`.
@@ -238,10 +252,12 @@ Every account is migrated; no old in-order code path is kept (decision 3).
 - Test helpers: the `deposit` / `buy` / … helpers of `test_ledger_snapshots.py` return a `Step`. It is called as before, and its `fields` give the same operation for the journal, so scenarios are defined once.
 - **Done when:** the round trip is byte-identical on both scenarios.
 
-### Phase 2: price provider
+### Phase 2: price provider (done)
 - `PriceBook`, threaded through as described.
-- **Test:** a rebuild of a scenario downloads each ticker once (count the calls to the fake `download_close`), with the same ledger as phase 1.
-- **About 100–150 lines.**
+- **Tests:**
+  - A rebuild of each scenario downloads its tickers once (raw and adjusted), plus the USD→EUR rates once for ETFS_AND_USD. The ledger is the same as recording the steps one by one. From the last STOCKS_EUR operation, only BBB.MI (still held) is downloaded.
+  - A sale in USD of an asset bought in EUR rebuilds like recording it.
+  - `PriceBook` lookups (in `test_market_data.py`): each day's own last close and rate, the split-adjusted previous close, and `LookupError` without a price in the last 10 days.
 
 ### Phase 3: persistence
 - **File names:**

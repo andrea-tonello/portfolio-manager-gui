@@ -5,7 +5,7 @@ import threading
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
 import pandas as pd
 
@@ -219,6 +219,115 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     return prices
 
 
+class PriceBook:
+    """Daily closes of some tickers and USD->EUR rates, downloaded once to value one or many ledger rows.
+
+    Valuing a row (domain/positions.priced_positions) needs each asset's
+    close on the row's day, the close before it, and the USD->EUR rate.
+    Recording one operation downloads them around its own day. Rebuilding an
+    account's ledger from its journal (domain/journal.rebuild) values every
+    row it builds again, so it downloads what they all need at once, and
+    each row looks it up here.
+
+    Each lookup takes the last value on or before the day, at most LOOKBACK
+    days older: a day with none (outside what was downloaded, or a ticker
+    no longer quoted) raises LookupError rather than using an old price.
+
+    Example: a book downloaded for ISP.MI from 02-01-2024 to 31-12-2024 values
+    the rows of 05-03-2024 and 05-06-2024 with one download of its closes.
+    """
+
+    # How old the last close (or rate) of a day can be, e.g. the Friday's for a
+    # Sunday; also how many days before the first row a download starts.
+    LOOKBACK = pd.Timedelta(days=10)
+
+    def __init__(self, closes: pd.DataFrame, adjusted: pd.DataFrame, names: dict[str, str],
+                 usdeur: pd.Series | None = None):
+        """Keep the closes as download_close returns them (one column per ticker), and the USD->EUR rates by day.
+
+        `adjusted` are the adjusted closes, used only for the previous close
+        (see previous_close); a ticker without them uses its plain closes.
+        Without `usdeur`, asking for a rate raises LookupError.
+        """
+        self._closes = {ticker: closes[ticker].dropna() for ticker in closes.columns}
+        self._adjusted = {ticker: adjusted[ticker].dropna() for ticker in adjusted.columns}
+        self._names = names
+        self._usdeur = None if usdeur is None else usdeur.dropna()
+
+    @classmethod
+    def download(cls, tickers_with_currency: list[tuple[str, str]], start: DateLike, end: DateLike) -> "PriceBook":
+        """Download what valuing rows from `start` to `end` needs: closes, adjusted closes, and USD->EUR rates.
+
+        `tickers_with_currency` are (ticker, currency) pairs. The rates are
+        downloaded only when a currency isn't "EUR": priced_positions converts
+        every such asset. The closes start LOOKBACK days before `start`, so
+        the first rows have a close before theirs too.
+
+        Example: [("AAA.MI", "EUR"), ("UUU", "USD")] -> three downloads: the
+        closes of both, their adjusted closes, and the rates.
+        """
+        tickers = sorted({ticker for ticker, _ in tickers_with_currency})
+        if not tickers:
+            return cls(pd.DataFrame(), pd.DataFrame(), {})
+        first = pd.Timestamp(start) - cls.LOOKBACK
+        last = pd.Timestamp(end) + pd.Timedelta(days=1)
+        closes, names = download_close(tickers, start=first, end=last)
+        adjusted, _ = download_close(tickers, start=first, end=last, adjusted=True)
+        usdeur = None
+        if any(currency != "EUR" for _, currency in tickers_with_currency):
+            rates, _ = download_close(USDEUR_TICKER, start=first, end=last)
+            usdeur = rates.get(USDEUR_TICKER)  # None when Yahoo has none: asking for a rate then raises
+        return cls(closes, adjusted, names, usdeur)
+
+    def _last(self, values: pd.Series | None, day: pd.Timestamp, what: str) -> int:
+        """Return the position in `values` (by day) of the last one on or before `day`, at most LOOKBACK older.
+
+        Raises LookupError naming `what` when there is none.
+        """
+        if values is not None:
+            position = values.index.searchsorted(day, side="right") - 1
+            if position >= 0 and values.index[position] >= day - self.LOOKBACK:
+                return position
+        raise LookupError(f"No {what} in the {self.LOOKBACK.days} days up to {day:%d-%m-%Y}")
+
+    def close(self, ticker: str, day: pd.Timestamp) -> float:
+        """Return the last close of `ticker` on or before `day`, in the ticker's own currency.
+
+        Each ticker's own last close: Yahoo sometimes has no close for one
+        ticker on a day, and skipping that day for all of them would price
+        the others on an older one.
+        """
+        closes = self._closes.get(ticker)
+        position = self._last(closes, day, f"close of {ticker}")
+        return closes.iloc[position]
+
+    def previous_close(self, ticker: str, day: pd.Timestamp) -> float:
+        """Return the close of `ticker` before its last one on or before `day`, adjusted for splits and dividends.
+
+        Adjusted, the change from it to close() (the day's P&L) isn't broken
+        by a split on `day`. Only for this: adjusted closes also bake in
+        dividends, which the ledger records as Dividend rows of their own.
+        With only one close so far, returns that close.
+
+        Example: a stock closing at 100 on Monday splits 2:1 on Tuesday and
+        closes at 52. Monday's adjusted close is 50, so Tuesday's previous
+        close is 50 (a 4% gain), not 100 (a 48% loss).
+        """
+        last = self.close(ticker, day)
+        adjusted = self._adjusted.get(ticker, self._closes[ticker])
+        count = adjusted.index.searchsorted(day, side="right")  # adjusted closes on or before `day`
+        return adjusted.iloc[count - 2] if count >= 2 else last
+
+    def usd_eur(self, day: pd.Timestamp) -> float:
+        """Return the USD->EUR rate of `day`, or of the last day before it with one, to 6 decimals."""
+        position = self._last(self._usdeur, day, "USD->EUR rate")
+        return round_half_up(self._usdeur.iloc[position], decimal="0.000001")
+
+    def name(self, ticker: str) -> str:
+        """Return the full name of `ticker` as Yahoo gives it, or the ticker itself when unknown."""
+        return self._names.get(ticker, ticker)
+
+
 def fetch_ticker_name(ticker: str) -> str:
     """Fetch the long name for a ticker symbol (e.g. "ISP.MI" -> "Intesa Sanpaolo S.p.A.").
 
@@ -233,33 +342,6 @@ def fetch_ticker_name(ticker: str) -> str:
     except _NO_DATA_ERRORS as e:
         logger.warning("No name for %s: %s", ticker, e)
     raise TickerNotFound(ticker)
-
-
-def fetch_exchange_rate(ref_date: str | None = None) -> float:
-    """Fetch the USDEUR exchange rate for a given date."""
-    if ref_date is None:
-        ref_date = date.today().strftime("%Y-%m-%d")
-
-    ref_dt = datetime.strptime(ref_date, "%Y-%m-%d").date()
-
-    if ref_dt == date.today():
-        chart = _fetch_chart(USDEUR_TICKER, period="2d", interval="1m")
-    else:
-        # Widen window to cover weekends and holidays
-        start_day = (ref_dt - timedelta(days=5)).strftime("%Y-%m-%d")
-        next_day = (ref_dt + timedelta(days=1)).strftime("%Y-%m-%d")
-        chart = _fetch_chart(USDEUR_TICKER, start=start_day, end=next_day)
-
-    closes = chart.get("indicators", {}).get("quote", [{}])[0].get("close", [])
-    if not closes:
-        raise RuntimeError("No exchange rate data available")
-
-    # Filter out None values and take last valid
-    valid = [c for c in closes if c is not None]
-    if not valid:
-        raise RuntimeError("No valid exchange rate data")
-
-    return round_half_up(valid[-1], decimal="0.000001")
 
 
 def fetch_splits(ticker: str, start: DateLike, end: DateLike) -> list[tuple[date, float]]:

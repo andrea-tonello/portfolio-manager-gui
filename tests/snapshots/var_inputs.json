@@ -1,9 +1,9 @@
 {
-  "best_return": 0.0241670012,
+  "best_return": 0.02433096657,
   "days": 10,
   "returns_count": 261,
-  "returns_mean": 0.0007980360323,
-  "returns_std": 0.02004488498,
-  "value": 1924.65,
-  "worst_return": -0.1680223453
+  "returns_mean": 0.0008097589807,
+  "returns_std": 0.02007617823,
+  "value": 1951.95,
+  "worst_return": -0.1654809991
 }
