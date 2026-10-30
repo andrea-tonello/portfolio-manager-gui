@@ -136,13 +136,19 @@ class FakePage:
         """Ignore async background work."""
 
     def show_dialog(self, dialog):
-        """Record the dialog instead of displaying it."""
+        """Record the dialog instead of displaying it, marked open as Flet does."""
+        dialog.open = True
         self.dialogs.append(dialog)
 
     def pop_dialog(self):
-        """Close the most recent dialog, if any."""
-        if self.dialogs:
-            self.dialogs.pop()
+        """Close the most recent dialog still open, if any, as Flet does, and forget it.
+
+        A dialog closed by setting its `open` to False stays recorded, closed.
+        """
+        dialog = next((d for d in reversed(self.dialogs) if d.open), None)
+        if dialog is not None:
+            dialog.open = False
+            self.dialogs.remove(dialog)
 
 
 @pytest.fixture

@@ -8,9 +8,15 @@ package or looking up callbacks in page.data.
 import flet as ft
 
 from app_state import AppState
+from components.journal_migration import migrate_accounts, needs_migration
 from components.theme import apply_theme
 from components.update_check import check_for_update
 from views import onboarding_view, shell
+
+# Whether each start moves the accounts recorded before the journal to it (components/journal_migration.py).
+# Off until the screens record operations through the journal (JOURNAL_PLAN.md, phase 5): until then
+# they can't record in an account that has one.
+MIGRATE_TO_JOURNAL = False
 
 
 class AppController:
@@ -76,12 +82,19 @@ class AppController:
             return
 
         self.state.load_all_accounts()
+        if MIGRATE_TO_JOURNAL and needs_migration(self.state):
+            migrate_accounts(self, then=self._show_home)
+        else:
+            self._show_home()
+
+    def _show_home(self) -> None:
+        """Show Home, the first screen once set up, and once per launch look for a newer release."""
         self.show_tab(shell.HOME_TAB)
         # Once per launch, on reaching Home: not during the setup, nor again on
         # later restarts (e.g. switching user).
         if not self.checked_for_update:
             self.checked_for_update = True
-            check_for_update(page, self.state.translator)
+            check_for_update(self.page, self.state.translator)
 
     def show_tab(self, index: int) -> None:
         """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions)."""

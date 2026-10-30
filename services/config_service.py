@@ -6,7 +6,8 @@ import zipfile
 from dataclasses import dataclass, field
 
 from domain.errors import ValidationError
-from services.account_service import export_filename, ledger_filename
+from services.account_service import export_filename, journal_filename, ledger_filename
+from services.journal_service import journal_from_json
 from utils.constants import DEFAULT_TX_FILTER
 
 
@@ -244,9 +245,11 @@ def _check_backup_contents(zf):
 
     A backup holds config.ini listing [Users] and, for each user,
     users/<name>/config.ini (with the [Brokers] accounts) and each account's
-    ledger, users/<name>/resources/report-<account>.csv. A backup made
-    before the journal names it "Report <account>.csv": it is renamed when
-    the account is loaded.
+    ledger, users/<name>/resources/report-<account>.csv, and its journal,
+    journal-<account>.json. A backup made before the journal names the
+    ledger "Report <account>.csv" (renamed when the account is loaded) and
+    has no journals (the accounts are moved to the journal after the
+    import). A journal that is there must be one this version can read.
     """
     names = zf.namelist()
 
@@ -281,6 +284,12 @@ def _check_backup_contents(zf):
                        for filename in (ledger_filename, export_filename)}
             if not ledgers & set(names):
                 raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
+            journal = f"users/{username}/resources/{journal_filename(broker_name)}"
+            if journal in names:
+                try:
+                    journal_from_json(zf.read(journal).decode("utf-8"))
+                except ValueError:  # UnicodeDecodeError included
+                    raise ValidationError("settings.backup.invalid_journal", account=broker_name, username=username)
         csv_names = [n for n in names
                      if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
         _check_csv_headers(zf, csv_names)

@@ -10,6 +10,8 @@ DATE_FORMAT = "%d-%m-%Y"
 # operations as entered), and its ledger, report-<account>.csv (rebuilt from the journal).
 JOURNAL_PREFIX = "journal-"
 LEDGER_PREFIX = "report-"
+# A copy of an account's ledger as it was before the journal: before-journal-<account>.csv.
+BEFORE_JOURNAL_PREFIX = "before-journal-"
 # The CSVs the user exports from Transactions: "Report <account>.csv" and "Report All Accounts.csv".
 # Ledgers were saved under this name too, before the journal.
 REPORT_PREFIX = "Report "

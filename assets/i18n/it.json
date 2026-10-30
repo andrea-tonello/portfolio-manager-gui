@@ -299,6 +299,16 @@
       "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
       "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",
       "transfer_out": "Il trasferimento verso {account} del {date} non sarebbe più possibile: {reason}"
+    },
+    "migration": {
+      "title": "Aggiornamento dei conti",
+      "working": "I tuoi conti passano a un nuovo formato. Succede una volta sola.",
+      "differences_title": "Alcuni valori sono stati ricalcolati",
+      "differences_intro": "Ricalcolando ogni operazione dall'inizio si ottengono questi valori, leggermente diversi da quelli salvati. D'ora in poi si usano i valori ricalcolati. Una copia dei vecchi dati di ogni conto resta nei file dell'app (before-journal-<conto>.csv).",
+      "more": "…e altri {count}",
+      "continue": "Continua",
+      "failed": "Non è stato possibile aggiornare i conti ora (sei offline?). L'app riproverà al prossimo avvio.",
+      "row_failed": "L'operazione del {date} in {account} non può essere convertita nel nuovo formato: {reason}. I conti restano come sono; per favore segnala il problema."
     }
   },
 
@@ -360,7 +370,8 @@
       "user_no_accounts": "L'utente '{username}' non ha conti.",
       "missing_user_csv": "CSV mancante per il conto '{account}' (utente '{username}').",
       "unreadable_header": "Impossibile leggere l'intestazione di {file}.",
-      "missing_columns": "In {file} mancano le colonne: {columns}"
+      "missing_columns": "In {file} mancano le colonne: {columns}",
+      "invalid_journal": "Impossibile leggere le operazioni del conto '{account}' (utente '{username}'): il backup potrebbe provenire da una versione più recente dell'app."
     },
     "user": "Utente",
     "user_mgmt": {

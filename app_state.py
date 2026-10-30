@@ -9,6 +9,7 @@ from domain.account import Account
 from domain.errors import ValidationError
 from services import account_service, config_service
 from services.journal_service import Changes
+from services.migration_service import Migration
 from utils.translator import Translator
 from utils.constants import DEFAULT_LANG, I18N_DIR
 
@@ -162,6 +163,25 @@ class AppState:
         for idx, (journal, ledger) in changes.items():
             self.accounts[idx].journal, self.accounts[idx].df = journal, ledger
         self.home_cache = None
+
+    def commit_migration(self, migrations: dict[int, Migration]) -> bool:
+        """Save the journal and rebuilt ledger of each account moved to the journal (migration_service.migrate).
+
+        Each account's old ledger is first kept as before-journal-<name>.csv,
+        then all the accounts are saved together, as commit_changes does.
+        Returns False, saving nothing, when an account no longer has the
+        ledger its migration was worked out from (e.g. an operation was
+        recorded meanwhile): saving would lose that change, so the
+        migration must be worked out again.
+        """
+        for idx, migration in migrations.items():
+            account = self.accounts.get(idx)
+            if account is None or account.journal is not None or account.df is not migration.source:
+                return False
+        for idx in migrations:
+            account_service.keep_before_journal(self.config_res_folder, self.accounts[idx].name)
+        self.commit_changes({idx: (migration.journal, migration.ledger) for idx, migration in migrations.items()})
+        return True
 
     def add_broker(self, name: str) -> int:
         """Add an account called `name` (spaces trimmed), save it with an empty CSV, and return its number.

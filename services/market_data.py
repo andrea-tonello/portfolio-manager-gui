@@ -219,6 +219,16 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     return prices
 
 
+def _midnight(day: DateLike) -> pd.Timestamp:
+    """Return the start of `day`, the time a daily close is stamped with, e.g. 2026-10-30 17:20:43.12 -> 2026-10-30.
+
+    Looked up by it, a time of day (Home values the positions "now") can't
+    upset the lookup: Yahoo's days are stamped to the second, and pandas
+    refuses to search them for a time with microseconds.
+    """
+    return pd.Timestamp(day).normalize()
+
+
 class PriceBook:
     """Daily closes of some tickers and USD->EUR rates, downloaded once to value one or many ledger rows.
 
@@ -232,6 +242,9 @@ class PriceBook:
     Each lookup takes the last value on or before the day, at most LOOKBACK
     days older: a day with none (outside what was downloaded, or a ticker
     no longer quoted) raises LookupError rather than using an old price.
+    Unless the book was given `known` prices (a rebuild, which must not stop
+    because Yahoo lacks one): then a close falls back to the latest price
+    known, see close.
 
     Example: a book downloaded for ISP.MI from 02-01-2024 to 31-12-2024 values
     the rows of 05-03-2024 and 05-06-2024 with one download of its closes.
@@ -242,33 +255,38 @@ class PriceBook:
     LOOKBACK = pd.Timedelta(days=10)
 
     def __init__(self, closes: pd.DataFrame, adjusted: pd.DataFrame, names: dict[str, str],
-                 usdeur: pd.Series | None = None):
+                 usdeur: pd.Series | None = None, known: dict[str, pd.Series] | None = None):
         """Keep the closes as download_close returns them (one column per ticker), and the USD->EUR rates by day.
 
         `adjusted` are the adjusted closes, used only for the previous close
         (see previous_close); a ticker without them uses its plain closes.
-        Without `usdeur`, asking for a rate raises LookupError.
+        Without `usdeur`, asking for a rate raises LookupError. `known` are
+        other prices of some tickers, by day, in their own currency: the
+        prices of the account's own trades (see close).
         """
         self._closes = {ticker: closes[ticker].dropna() for ticker in closes.columns}
         self._adjusted = {ticker: adjusted[ticker].dropna() for ticker in adjusted.columns}
         self._names = names
         self._usdeur = None if usdeur is None else usdeur.dropna()
+        self._known = known
 
     @classmethod
-    def download(cls, tickers_with_currency: list[tuple[str, str]], start: DateLike, end: DateLike) -> "PriceBook":
+    def download(cls, tickers_with_currency: list[tuple[str, str]], start: DateLike, end: DateLike,
+                 known: dict[str, pd.Series] | None = None) -> "PriceBook":
         """Download what valuing rows from `start` to `end` needs: closes, adjusted closes, and USD->EUR rates.
 
         `tickers_with_currency` are (ticker, currency) pairs. The rates are
         downloaded only when a currency isn't "EUR": priced_positions converts
         every such asset. The closes start LOOKBACK days before `start`, so
-        the first rows have a close before theirs too.
+        the first rows have a close before theirs too. `known` goes to the
+        book as it is (see __init__).
 
         Example: [("AAA.MI", "EUR"), ("UUU", "USD")] -> three downloads: the
         closes of both, their adjusted closes, and the rates.
         """
         tickers = sorted({ticker for ticker, _ in tickers_with_currency})
         if not tickers:
-            return cls(pd.DataFrame(), pd.DataFrame(), {})
+            return cls(pd.DataFrame(), pd.DataFrame(), {}, known=known)
         first = pd.Timestamp(start) - cls.LOOKBACK
         last = pd.Timestamp(end) + pd.Timedelta(days=1)
         closes, names = download_close(tickers, start=first, end=last)
@@ -277,7 +295,7 @@ class PriceBook:
         if any(currency != "EUR" for _, currency in tickers_with_currency):
             rates, _ = download_close(USDEUR_TICKER, start=first, end=last)
             usdeur = rates.get(USDEUR_TICKER)  # None when Yahoo has none: asking for a rate then raises
-        return cls(closes, adjusted, names, usdeur)
+        return cls(closes, adjusted, names, usdeur, known)
 
     def _last(self, values: pd.Series | None, day: pd.Timestamp, what: str) -> int:
         """Return the position in `values` (by day) of the last one on or before `day`, at most LOOKBACK older.
@@ -285,7 +303,7 @@ class PriceBook:
         Raises LookupError naming `what` when there is none.
         """
         if values is not None:
-            position = values.index.searchsorted(day, side="right") - 1
+            position = values.index.searchsorted(_midnight(day), side="right") - 1
             if position >= 0 and values.index[position] >= day - self.LOOKBACK:
                 return position
         raise LookupError(f"No {what} in the {self.LOOKBACK.days} days up to {day:%d-%m-%Y}")
@@ -296,10 +314,36 @@ class PriceBook:
         Each ticker's own last close: Yahoo sometimes has no close for one
         ticker on a day, and skipping that day for all of them would price
         the others on an older one.
+
+        With none in the LOOKBACK days up to `day` (e.g. a ticker since
+        delisted or renamed, or a gap in Yahoo's history), a book given
+        `known` prices uses the latest price on or before `day`, of Yahoo's
+        or of the known ones, however old: a row valued at an old price
+        beats an account that can't be rebuilt. Raises LookupError when
+        there is no price at all. Example: a stock delisted in May, bought at
+        12.40 in March, is valued at its last close in May, or at 12.40 if
+        Yahoo has none.
         """
         closes = self._closes.get(ticker)
-        position = self._last(closes, day, f"close of {ticker}")
+        try:
+            position = self._last(closes, day, f"close of {ticker}")
+        except LookupError:
+            if self._known is None:
+                raise
+            return self._latest(ticker, day)
         return closes.iloc[position]
+
+    def _latest(self, ticker: str, day: pd.Timestamp) -> float:
+        """Return the latest price of `ticker` on or before `day`, Yahoo's or a known one, however old.
+
+        Raises LookupError when there is none.
+        """
+        prices = [values[values.index <= day] for values in (self._closes.get(ticker), self._known.get(ticker))
+                  if values is not None]
+        prices = [values for values in prices if not values.empty]
+        if not prices:
+            raise LookupError(f"No price of {ticker} up to {day:%d-%m-%Y}")
+        return max(prices, key=lambda values: values.index[-1]).iloc[-1]
 
     def previous_close(self, ticker: str, day: pd.Timestamp) -> float:
         """Return the close of `ticker` before its last one on or before `day`, adjusted for splits and dividends.
@@ -314,8 +358,10 @@ class PriceBook:
         close is 50 (a 4% gain), not 100 (a 48% loss).
         """
         last = self.close(ticker, day)
-        adjusted = self._adjusted.get(ticker, self._closes[ticker])
-        count = adjusted.index.searchsorted(day, side="right")  # adjusted closes on or before `day`
+        adjusted = self._adjusted.get(ticker, self._closes.get(ticker))
+        if adjusted is None:  # a ticker Yahoo doesn't know, valued at a known price
+            return last
+        count = adjusted.index.searchsorted(_midnight(day), side="right")  # adjusted closes on or before `day`
         return adjusted.iloc[count - 2] if count >= 2 else last
 
     def usd_eur(self, day: pd.Timestamp) -> float:

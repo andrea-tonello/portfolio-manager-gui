@@ -288,10 +288,11 @@ def apply(df: pd.DataFrame, op: Operation, broker: str, prices: PriceBook | None
         sign, operation, product, ticker, name = _cash_row(op)
         new = newrow_cash(df, date_str, day, broker, sign * op.amount, operation, product, ticker, name, prices=prices)
 
-    # Text with NaN on rows built before the journal; each column is created on the first row it tags.
+    # Text, with NaN on rows built before the journal. Each column is made text once, on the first
+    # row it tags (created if missing); after that each row only sets its own cell.
     for column, value in ((OP_ID, op.id), (OP_HASH, fingerprint(op))):
-        cells = new[column] if column in new else pd.Series(np.nan, index=new.index)
-        new[column] = cells.astype("str")
+        if column not in new or new[column].dtype != "str":
+            new[column] = (new[column] if column in new else pd.Series(np.nan, index=new.index)).astype("str")
         new.loc[new.index[-1], column] = value
     return new
 
@@ -313,6 +314,19 @@ def _assets_to_value(ledger: pd.DataFrame, operations: list[Operation]) -> list[
     return list(assets)
 
 
+def trade_prices(trades: list[tuple[str, date, float]]) -> dict[str, pd.Series]:
+    """Return the prices of `trades`, (ticker, day, price) each, by ticker and day: the `known` prices of a PriceBook.
+
+    A rebuild values an asset at them when Yahoo has no price for it (see
+    PriceBook.close). The last trade of a day gives its price.
+    Example: [("AAA.MI", date(2024, 3, 1), 12.4)] -> {"AAA.MI": a Series holding 12.4 on 2024-03-01}.
+    """
+    by_ticker = {}
+    for ticker, day, price in trades:
+        by_ticker.setdefault(ticker, {})[pd.Timestamp(day)] = price
+    return {ticker: pd.Series(prices, dtype=float).sort_index() for ticker, prices in by_ticker.items()}
+
+
 def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | None = None,
             from_index: int = 0, prices: PriceBook | None = None) -> pd.DataFrame:
     """Return the ledger of the account `broker`, built from its journal `operations` in order of (date, seq).
@@ -324,7 +338,8 @@ def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | Non
 
     The rows built are valued with `prices`. Without it, the closes of the
     assets they can hold are downloaded once, from the first row built to
-    the last, instead of once for each row.
+    the last, instead of once for each row; an asset Yahoo has no price for
+    is valued at the latest price known, possibly that of its own trades.
 
     Raises OperationRefused for the first operation that can't be applied.
     The caller decides whether that is the operation being recorded or a
@@ -340,7 +355,9 @@ def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | Non
     df = opening_ledger(broker) if ledger is None else ledger.iloc[:from_index + 1]
     to_build = sorted(operations, key=sort_key)[from_index:]
     if prices is None and to_build:
-        prices = PriceBook.download(_assets_to_value(df, to_build), start=to_build[0].date, end=to_build[-1].date)
+        known = trade_prices([(op.ticker, op.date, op.price) for op in operations if op.kind in (Kind.BUY, Kind.SELL)])
+        prices = PriceBook.download(_assets_to_value(df, to_build), start=to_build[0].date, end=to_build[-1].date,
+                                    known=known)
     for op in to_build:
         try:
             df = apply(df, op, broker, prices)

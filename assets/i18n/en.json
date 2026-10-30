@@ -299,6 +299,16 @@
       "sell": "The sale of {ticker} on {date} would no longer be possible: {reason}",
       "split": "The split of {ticker} on {date} would no longer be possible: {reason}",
       "transfer_out": "The transfer to {account} on {date} would no longer be possible: {reason}"
+    },
+    "migration": {
+      "title": "Updating your accounts",
+      "working": "Your accounts are moving to a new format. This happens only once.",
+      "differences_title": "Some values were recalculated",
+      "differences_intro": "Recalculating every operation from the start gives these values, slightly different from the saved ones. From now on the recalculated values are used. A copy of each account's old data is kept in the app's files (before-journal-<account>.csv).",
+      "more": "…and {count} more",
+      "continue": "Continue",
+      "failed": "Your accounts couldn't be updated now (are you offline?). The app will try again the next time it starts.",
+      "row_failed": "The operation of {date} in {account} can't be converted to the new format: {reason}. Your accounts stay as they are; please report this problem."
     }
   },
 
@@ -360,7 +370,8 @@
       "user_no_accounts": "User '{username}' has no accounts.",
       "missing_user_csv": "Missing CSV for account '{account}' (user '{username}').",
       "unreadable_header": "Cannot read the header of {file}.",
-      "missing_columns": "{file} is missing columns: {columns}"
+      "missing_columns": "{file} is missing columns: {columns}",
+      "invalid_journal": "Cannot read the operations of account '{account}' (user '{username}'): the backup may come from a newer version of the app."
     },
     "user": "User",
     "user_mgmt": {

@@ -259,6 +259,20 @@ def test_a_price_book_gives_each_days_last_close_and_rate(book, day, aaa, bbb, r
     assert (book.close("AAA.MI", day), book.close("BBB.MI", day), book.usd_eur(day)) == (aaa, bbb, rate)
 
 
+def test_a_price_book_is_looked_up_at_a_time_of_day():
+    """Home values the positions "now", a time with microseconds: the lookup gives that day's close and rate.
+
+    download_close stamps Yahoo's days to the second, and pandas refused to
+    search those for such a time: Home showed no values at all.
+    """
+    seconds = BOOK_DAYS.as_unit("s")
+    book = PriceBook(pd.DataFrame({"AAA.MI": [10, 11, 12, 6.2]}, index=seconds), pd.DataFrame(), {},
+                     pd.Series([0.90, 0.91, 0.92, 0.93], index=seconds))
+    now = pd.Timestamp("2024-01-08 17:20:43.123456")
+
+    assert (book.close("AAA.MI", now), book.previous_close("AAA.MI", now), book.usd_eur(now)) == (12, 11, 0.92)
+
+
 def test_a_price_books_previous_close_is_adjusted_for_a_split(book):
     """The close before a split day is the adjusted one, so the day's change isn't the split's.
 
@@ -285,6 +299,26 @@ def test_a_price_book_without_a_recent_price_raises(book, lookup):
     assert book.close("AAA.MI", pd.Timestamp("2024-01-19")) == 6.2
     with pytest.raises(LookupError):
         lookup(book)
+
+
+@pytest.mark.parametrize("ticker, day, price", [
+    ("AAA.MI", "2024-01-25", 6.2),   # Yahoo's last close (09-01) is later than the known price (05-01)
+    ("AAA.MI", "2024-02-20", 7.0),   # the known price of 15-02 is later than Yahoo's last close
+    ("ZZZ.MI", "2024-01-25", 21.0),  # a ticker Yahoo doesn't have: its known price
+], ids=["yahoo-later", "known-later", "known-only"])
+def test_a_rebuilds_price_book_falls_back_to_the_latest_price_known(ticker, day, price):
+    """Given known prices (a rebuild's), a close missing for over 10 days is the latest price known, Yahoo's or its own.
+
+    A row valued at an old price beats an account that can't be rebuilt
+    because Yahoo lacks a price (e.g. a delisted stock). Yahoo's closes are
+    those of BOOK_DAYS, the last 6.2 on 09-01.
+    """
+    closes = pd.DataFrame({"AAA.MI": [10, 11, 12, 6.2]}, index=BOOK_DAYS)
+    known = {"AAA.MI": pd.Series([5.5, 7.0], index=pd.to_datetime(["2024-01-05", "2024-02-15"])),
+             "ZZZ.MI": pd.Series([21.0], index=pd.to_datetime(["2024-01-03"]))}
+    book = PriceBook(closes, pd.DataFrame(), {}, known=known)
+
+    assert book.close(ticker, pd.Timestamp(day)) == price
 
 
 # ── When Yahoo can't answer ──────────────────────────────────────────

@@ -13,7 +13,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 1. Journal model and rebuild engine (no app change)
 - [x] 2. Price provider for rebuilds
 - [x] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
-- [ ] 4. Migration of existing ledgers, backups, account deletion
+- [x] 4. Migration of existing ledgers, backups, account deletion
 - [ ] 5. Write path: every operation goes through the journal (same behaviour as today)
 - [ ] 6. Out-of-order insertion in Operations: **the feature**
 - [ ] 7. Delete any operation in Transactions
@@ -174,9 +174,10 @@ A service, **`services/journal_service.py`**, does the journal file format and t
   - It covers `LOOKBACK` (10 days) before `start` to the day after `end`.
 - **Lookups:**
   - `close`, `previous_close` and `usd_eur` (to 6 decimals) take the last value on or before day D, at most `LOOKBACK` older. Otherwise they raise `LookupError`, rather than using an old price (a ticker no longer quoted, a day outside the book).
+  - **Except in a book given `known` prices** (a rebuild's, which must not stop for one missing price): `close` then falls back to the latest price on or before D, Yahoo's or a known one, however old. The known prices are the trade prices of the journal (`journal.trade_prices`), or of the ledger being migrated. Only with no price at all does it raise. A known price from before a split would value the asset wrongly after it, but only as a last resort.
   - `name` gives Yahoo's name.
   - Each ticker's series is cleaned once, and lookups use `searchsorted`.
-- **`rebuild`** downloads a book when it isn't given `prices`. The book covers the assets the rebuilt rows can hold: those held where the rebuild starts, plus those bought or sold after. A sale in USD of an asset bought in EUR therefore brings the rates in.
+- **`rebuild`** downloads a book, with the journal's trade prices as known prices, when it isn't given `prices`. The book covers the assets the rebuilt rows can hold: those held where the rebuild starts, plus those bought or sold after. A sale in USD of an asset bought in EUR therefore brings the rates in.
 
 It is threaded as an optional `prices=None` argument through `priced_positions`, `newrow_*`, `buy_asset`, `sell_asset` and `apply`. When it's None, `priced_positions` downloads a book for its own day, so recording and rebuilding value rows the same way.
 - **Home and Analysis:** the USD→EUR rate now comes from the daily series: one request per valuation instead of one per USD asset. Today's daily bar matches the 1-minute rate.
@@ -218,37 +219,61 @@ Rows after the point of a change get today's Yahoo prices, so their `assets_valu
 
 Every account is migrated; no old in-order code path is kept (decision 3).
 
-`services/journal_service.migrate_account(ledger_df, accounts)` turns each row after the opening row into an operation, in the CSV's order (`seq` = position):
+**`services/migration_service.migrate(accounts) -> {acc_idx: Migration}`** handles every account without a journal and saves nothing. A `Migration` holds the account's journal, its rebuilt ledger, and the `Difference`s found. Each row after the opening row becomes an operation, in the CSV's order (`seq` = position):
 
 - **Deposit / Withdrawal / Dividend / Tax rows:** straightforward (table above, reversed). The charge description comes from `product`, unless it is `Product.TAX`.
 - **Transfer In / Out rows:**
-  - **Pairing:** each pair gets a shared `transfer_id`, using today's matching rule (`_other_side`'s conditions) across all accounts of the user.
+  - **Pairing:** each pair gets a shared `transfer_id`, using today's matching rule (`_other_side`'s conditions) across the accounts being migrated. Equal transfers on one day pair in order.
+  - **A half already in a journal** whose own other half isn't there (that account was migrated first) gives its `transfer_id` to the matching half being migrated.
   - **Half without a partner** (the account was deleted): it gets a `transfer_id` of its own.
 - **Buy / Sell rows:**
-  - **Fields from columns:** quantity from `qt_exch`, price = `abs(price)`, `conv_rate = float(conv_rate)`, `tax_rate = tax_bracket / 100`. The price comes back rounded to 4 decimals: lossy, but it's all there is. A price that rounds to 0 (under 0.00005) can't make an `Operation`, which refuses values its row couldn't be built from: the migration reports that row.
+  - **Fields from columns:**
+    - quantity from `qt_exch`, `conv_rate = float(conv_rate)`, `tax_rate = tax_bracket / 100`;
+    - empty cells get the value they meant: `tax_bracket` 26, `conv_rate` 1, `fee` 0, currency EUR;
+    - **the price:** `abs(price)` is rounded to 4 decimals. When it doesn't give the stored `nominal_amount`, the amount divided by the shares does (in USD, the amount before conversion, to the cent): that one is used. 1,000 shares at 100.12345 come back at 100.12345, not 100.1235, so a later transfer of all the cash left still fits.
   - **The fee mode is found by trial:**
     - stocks are always "abp";
-    - for ETFs, rebuild that one row with each mode ("abp", "loss", "pending") and keep the one that reproduces the stored `abp`, `generated_loss`, `carryforward` and `pending_fees`.
-- **Split rows:** `ratio = float(qt_exch)`.
+    - for ETFs, each mode the trade can have (buys "abp", "loss", "pending"; sales "abp", "loss", since "pending" works as "abp" on a sale) goes through `buy_asset` / `sell_asset` on the CSV's rows before it (not a whole row);
+    - the one reproducing the most of the stored `abp`, `generated_loss`, `carryforward` and `pending_fees` is kept, the likelier on a tie (with no fee, all match).
+- **Split rows:** `qt_exch` keeps the ratio to 6 significant digits ("0.333333" for 1:3, which would leave 9.99999 shares of 30 and refuse a later sale of 10). So the ratio is the first that gives the stored `qt_held` from the shares held before: the nearest fraction of small numbers (1/3), the shares after over before, or `qt_exch`.
+- **A row dated before the row above it** (Home records a split found on Yahoo with its own date, possibly the day before the first trade) keeps its place, taking that row's date. Moved by its date it would split no shares, and the migration could never finish. The new date shows as a difference.
+- **Any row that can't become an operation, or be rebuilt** (an unknown operation, a later operation refused), raises `MigrationError` naming the account, the row's date and why.
+
+One `PriceBook` for all the accounts' assets and history serves the trials and the rebuilds. Its known prices are the accounts' own trade prices, so an asset Yahoo no longer has (delisted, renamed) is valued at the latest price known (see "Prices for a rebuild") instead of blocking the migration.
 
 **Check:** rebuild from the new journal and compare with the original CSV. Every column must match, except the valuations (`assets_value`, `nav`), which depend on Yahoo's data today.
-- **If they match:** save the journal and the rebuilt CSV (now with `op_id`).
-- **If they don't** (decision 2):
-  - Show the differences for that account: the first rows and columns that differ, and by how much (e.g. "riga del 05-03-2025, importo effettivo: -3901.25 → -3901.26").
-  - The user accepts the rebuilt values.
-  - Before the CSV is replaced, the original is kept next to it as `report-<account>.before-journal.csv`, as a safety copy.
+- Each rebuilt row is compared with the row its operation came from (by `op_id` and `seq`), wherever the rebuild placed it.
+- Numbers match to a millionth, so 10 read back matches "+10" as written.
 
-**When:** at startup, for every account with a CSV but no journal, in the background with a spinner. It runs once. After a backup restore it runs again if the backup had no journals.
+An empty `pending_fees` or `tax_bracket` cell (rows written before those columns existed) matches the rebuilt row's 0 or 26. That is what it meant, and those were the only differences in the user's real data.
+- **If they match:** save the journals and the rebuilt CSVs (now with `op_id` and `op_hash`).
+- **If they don't** (decision 2):
+  - A dialog lists the differences for each account, at most 10 then "…and N more". Each line reads like "05-03-2025 · Buy ISP.MI · Eff. Value: -3901.25 → -3901.26", with the column's name and the operation in the user's language.
+  - The user continues (the only button; the dialog can't be dismissed), and the rebuilt values are kept.
+- **Either way, `AppState.commit_migration` saves:**
+  - It first checks that each account still has the ledger its migration was worked out from (`Migration.source`). If one changed meanwhile, it saves nothing and returns False, and the migration is worked out again.
+  - It then copies each migrated account's CSV, as it is now, to `before-journal-<account>.csv`. The name can't be an account's ledger, which starts with `report-`. The copy is written under a temporary name first and replaces any copy from an earlier attempt that saved nothing.
+  - Finally it saves every account in one `save_accounts` call: all or none.
+
+Saves, and finishing or cleaning one up, share a lock (`account_service._save_lock`), so a save from the migration's thread and one from the screen never delete each other's temporary files.
+
+**When:** at startup, for every account with a CSV but no journal: `AppController.restart` calls `components/journal_migration.migrate_accounts(app, then=show Home)` before Home is shown.
+- **Before Home:** nothing else can open a dialog over it or record an operation meanwhile; Home's split prompt and the update notice come after. The dialogs are closed by reference, never with `page.pop_dialog()`, which closes whichever was opened last.
+- **While it works:** a modal dialog with a spinner says the accounts are being updated.
+- **If it fails,** nothing is saved, Home is shown and the next start tries again. After a backup restore it runs again if the backup had no journals.
+  - **Most likely offline:** a message says so ("are you offline?").
+  - **A `MigrationError`,** which comes back at every start, gets a dialog naming the account, the operation's date and why, asking to report it.
+- **Switched off until phase 5:** `MIGRATE_TO_JOURNAL = False` in `app_controller.py`. Until then, the old write path can't record in a migrated account.
 
 ### Backups and accounts
 
 - **`export_backup`** zips the whole config folder: journals are included with no change.
 - **`validate_backup`:**
   - **File names:** each account must have `report-<account>.csv`, or the old `Report <account>.csv` (an old backup; it is renamed at load).
-  - **Journals** are optional (old backups). When present, each must be valid JSON with a supported `version` (new `settings.backup.*` messages).
+  - **Journals** are optional (old backups). When present, each must be one `journal_from_json` reads, or the backup is refused with `settings.backup.invalid_journal` ("…the backup may come from a newer version of the app").
 - **Account deletion** (`AppState.remove_broker` → `account_service.delete_account_files`):
-  - deletes `report-<account>.csv` and `journal-<account>.json`;
-  - also deletes the old-name CSV and the `before-journal` copy, if present.
+  - deletes `report-<account>.csv`, `journal-<account>.json` and the `before-journal` copy, if present;
+  - no old-name CSV is left by then: `prepare_files` renamed it at load.
 - **No account rename exists today.** If one is added, its two files are renamed, and the `counterpart` of transfers in other journals with them.
 
 ### User interface
@@ -324,21 +349,38 @@ Every account is migrated; no old in-order code path is kept (decision 3).
 
 **Running this branch on real data** renames each `Report <account>.csv` to `report-<account>.csv`. A version of the app from before it would no longer find them. Use a copy of the data, or a separate folder (`FLET_APP_STORAGE_DATA`), until the branch is released.
 
-### Phase 4: migration, backups, accounts
-- `migrate_account`, with the fee mode found by trial and the transfer pairing.
-- The startup migration: spinner, the differences dialog with acceptance, the `before-journal` copy.
-- Journal checks in `validate_backup`; account deletion of all the account's files.
-- **Tests:**
-  - each snapshot CSV migrates to a journal that rebuilds it identically (with the fee mode found for every ETF row of `ETFS_AND_USD`);
-  - a CSV whose price had more than 4 decimals reports its difference;
-  - transfers are paired across two accounts;
-  - an old backup without journals still validates and migrates.
-- **Manually:** migrate a copy of your real data (the `portfolio_backup_*` folders) and read the differences.
-- **About 250–350 lines.**
+### Phase 4: migration, backups, accounts (done)
+- `services/migration_service.py`: `migrate`, with the fee mode found by trial and the transfer pairing.
+- `components/journal_migration.py`: the startup migration (spinner, the differences dialog, the failure message) and `AppState.commit_migration` with the `before-journal` copy. It is called from `AppController.restart`, behind `MIGRATE_TO_JOURNAL` (off until phase 5).
+- `validate_backup`: a journal present must be readable (`settings.backup.invalid_journal`). `delete_account_files` also deletes the `before-journal` copy.
+- **Tests** (`test_migration.py`, `test_errors.py`, `test_market_data.py`):
+  - each snapshot scenario, recorded row by row and read back from its file, migrates to the very operations it was recorded from, with the "loss" / "abp" fee modes of `ETFS_AND_USD`, and rebuilds the same CSV;
+  - recovered values:
+    - a price with more than 4 decimals comes back as typed, so a later transfer of all the cash still fits;
+    - a 1:3 split comes back as 1/3, so a later sale of all the shares still fits;
+  - a split recorded after a later-dated buy keeps its place, its new date the only difference;
+  - an asset Yahoo no longer has is valued at its trade price, not blocking the migration. A rebuild's `PriceBook` falls back to the latest price known, Yahoo's or a trade's;
+  - transfer pairing:
+    - across two accounts, equal ones on one day one to one;
+    - a half whose account was deleted gets its own id;
+    - a half joins its other half already in a journal;
+  - an account changed meanwhile isn't saved over;
+  - the differences dialog lists the changed values ("…and N more" on its own line), and continuing saves the journal, the rebuilt ledger and the `before-journal` copy, then shows Home;
+  - the working dialog closes even with another dialog opened above it;
+  - failures:
+    - an operation that can't be converted is named in a dialog, not blamed on the connection;
+    - a failed (offline) migration saves nothing and says so;
+  - a backup with an unreadable journal is refused. One without journals still validates (phase 3's test).
+- **Done manually** on copies of the three `portfolio_backup_*.zip` (live Yahoo prices):
+  - every account migrates with no differences, once the empty `pending_fees` / `tax_bracket` cells count as what they meant;
+  - the ETF fee modes found: "loss", "pending" and "abp" buys, "loss" sales;
+  - through `AppState`, the files are saved with their `before-journal` copies, a fresh start loads them without rebuilding, and a backup with journals validates;
+  - the oldest backup's last NAV moves slightly (6271.08 → 6274.34): a valuation, re-priced (decision 7).
 
 ### Phase 5: write path through the journal
 - `operations_view` (cash, transfer, split, trade), `home_view` (split) and `transactions_view` (remove last) call `record(accounts, account, kind, day, **fields)` / `delete` instead of `execute_*`, then `AppState.commit_changes`. Dates are still checked as today.
 - `AppState.commit(acc_idx, df)` is removed. `create_defaults` also creates an empty journal for a new account.
+- `MIGRATE_TO_JOURNAL` in `app_controller.py` is switched on, so every start migrates the accounts still without a journal.
 - The `execute_*` functions remain only as `apply`'s building blocks, or are removed.
 - **Tests:** the existing Operations, transfer and transactions tests pass. Their assertions are on the resulting ledgers, which don't change.
 - **The app behaves exactly as today.** About 100–150 lines changed.
@@ -374,7 +416,7 @@ All decided; each is referred to by its number above.
 2. **Migration mismatch:** when an account's rebuilt ledger doesn't match its CSV (e.g. a price typed with more than 4 decimals moves an amount by a cent):
    - the differences are shown;
    - the user accepts the rebuilt values;
-   - the original CSV is kept as `report-<account>.before-journal.csv`.
+   - the original CSV is kept as `before-journal-<account>.csv`.
 3. **Migration is required.** With decision 2 every account can be migrated, so there's no old in-order code path to maintain.
 4. **Same-day position:** a new operation goes after the existing ones on that day.
 5. **Cash checks while rebuilding:** today's rules. Only transfers check the cash held; withdrawals and buys don't.

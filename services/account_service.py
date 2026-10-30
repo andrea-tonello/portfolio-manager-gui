@@ -6,6 +6,8 @@ An account has two files:
   services/journal_service.py), from which the ledger is rebuilt. An
   account recorded before the journal existed has none until it is
   migrated: its ledger is then the only record.
+A migrated account also keeps its ledger from before, as
+before-journal-<account>.csv (see keep_before_journal).
 
 Ledgers used to be saved as "Report <account>.csv", the name now kept for
 the CSVs the user exports from Transactions (export_filename). prepare_files
@@ -15,6 +17,8 @@ renames them before the accounts are loaded.
 import json
 import logging
 import os
+import shutil
+import threading
 
 import pandas as pd
 
@@ -24,7 +28,7 @@ from domain.journal import Operation, rebuild, rows_up_to_date
 from domain.ledger import opening_ledger
 from services.journal_service import journal_to_json, read_journal
 from utils.columns import COLUMNS, INTERNAL_COLUMNS
-from utils.constants import JOURNAL_PREFIX, LEDGER_PREFIX, REPORT_PREFIX
+from utils.constants import BEFORE_JOURNAL_PREFIX, JOURNAL_PREFIX, LEDGER_PREFIX, REPORT_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +37,10 @@ logger = logging.getLogger(__name__)
 # finished at the next load (see save_accounts).
 _PENDING_SAVE = "pending-save.json"
 _TEMPORARY = ".tmp"  # added to a file's name while it is being written
+
+# Held by every save, and by finishing or cleaning up one, so a save made from a background
+# thread (e.g. the migration) and one made from the screen never touch each other's files.
+_save_lock = threading.RLock()
 
 
 def ledger_filename(broker_name: str) -> str:
@@ -53,6 +61,31 @@ def journal_filename(broker_name: str) -> str:
 def journal_path(folder: str, broker_name: str) -> str:
     """Return the path of an account's journal inside `folder`, e.g. <folder>/journal-Fineco.json."""
     return os.path.join(folder, journal_filename(broker_name))
+
+
+def before_journal_path(folder: str, broker_name: str) -> str:
+    """Return where an account's ledger from before the journal is kept, e.g. <folder>/before-journal-Fineco.csv.
+
+    A copy kept for safety when the account moves to the journal (see
+    keep_before_journal). Its name can't be any account's ledger, which
+    always starts with "report-".
+    """
+    return os.path.join(folder, f"{BEFORE_JOURNAL_PREFIX}{broker_name}.csv")
+
+
+def keep_before_journal(folder: str, broker_name: str) -> None:
+    """Copy the account's ledger, as it is now, to its before-journal file (see before_journal_path).
+
+    Called right before the ledger is replaced by the one rebuilt from the
+    journal, which happens once: an earlier copy, from an attempt that
+    saved nothing, may miss operations recorded since, so it is replaced.
+    The copy is written under a temporary name first, so a stop halfway
+    leaves no partial copy (finish_interrupted_save deletes the temporary file).
+    """
+    copy = before_journal_path(folder, broker_name)
+    with _save_lock:
+        shutil.copyfile(ledger_path(folder, broker_name), copy + _TEMPORARY)
+        os.replace(copy + _TEMPORARY, copy)
 
 
 def export_filename(broker_name: str) -> str:
@@ -172,27 +205,28 @@ def save_accounts(folder: str, changes: dict[str, tuple[list[Operation] | None, 
     Example: save_accounts(folder, {"Fineco": (journal, ledger)}) replaces
     journal-Fineco.json and report-Fineco.csv.
     """
-    finish_interrupted_save(folder)
     files = {}  # final path -> text, all made before any file is written
     for name, (journal, ledger) in changes.items():
         if journal is not None:
             files[journal_path(folder, name)] = journal_to_json(journal)
         files[ledger_path(folder, name)] = ledger.to_csv(index=False)
     marker = os.path.join(folder, _PENDING_SAVE)
-    try:
-        for path, text in files.items():
-            _write_fully(path + _TEMPORARY, text)
-        _write_fully(marker + _TEMPORARY, json.dumps([os.path.basename(path) for path in files]))
-        os.replace(marker + _TEMPORARY, marker)
-    except BaseException:
-        for path in [*files, marker]:
-            if os.path.exists(path + _TEMPORARY):
-                os.remove(path + _TEMPORARY)
-        raise
-    try:
-        _finish_save(folder)
-    except OSError:
-        logger.warning("A saved file couldn't replace the old one yet; it will be tried again", exc_info=True)
+    with _save_lock:
+        finish_interrupted_save(folder)
+        try:
+            for path, text in files.items():
+                _write_fully(path + _TEMPORARY, text)
+            _write_fully(marker + _TEMPORARY, json.dumps([os.path.basename(path) for path in files]))
+            os.replace(marker + _TEMPORARY, marker)
+        except BaseException:
+            for path in [*files, marker]:
+                if os.path.exists(path + _TEMPORARY):
+                    os.remove(path + _TEMPORARY)
+            raise
+        try:
+            _finish_save(folder)
+        except OSError:
+            logger.warning("A saved file couldn't replace the old one yet; it will be tried again", exc_info=True)
 
 
 def _finish_save(folder: str) -> None:
@@ -228,15 +262,18 @@ def finish_interrupted_save(folder: str) -> None:
     that point, which changed nothing: it is deleted. Raises OSError when a
     file still can't be replaced.
     """
-    if os.path.exists(os.path.join(folder, _PENDING_SAVE)):
-        _finish_save(folder)
-    for name in os.listdir(folder):
-        if name.endswith(_TEMPORARY):
-            os.remove(os.path.join(folder, name))
+    with _save_lock:  # no save is writing its temporary files meanwhile
+        if os.path.exists(os.path.join(folder, _PENDING_SAVE)):
+            _finish_save(folder)
+        for name in os.listdir(folder):
+            if name.endswith(_TEMPORARY):
+                os.remove(os.path.join(folder, name))
 
 
 def delete_account_files(broker_name: str, save_folder: str):
-    """Delete the files of the account `broker_name`: its ledger and its journal."""
-    for path in (ledger_path(save_folder, broker_name), journal_path(save_folder, broker_name)):
-        if os.path.exists(path):
-            os.remove(path)
+    """Delete the files of the account `broker_name`: its ledger, its journal, and its ledger from before the journal."""
+    with _save_lock:
+        for path in (ledger_path(save_folder, broker_name), journal_path(save_folder, broker_name),
+                     before_journal_path(save_folder, broker_name)):
+            if os.path.exists(path):
+                os.remove(path)

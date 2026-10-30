@@ -261,6 +261,9 @@ BROKEN_BACKUPS = {
                               "settings.backup.unreadable_header", {"file": USER_CSV}),
     "csv-columns-missing": (_zip({**MULTI_USER, USER_CSV: "date,account\n"}),
                             "settings.backup.missing_columns", {"file": USER_CSV, "columns": "operation, product"}),
+    # A journal this version can't read, e.g. from a newer one. A backup without journals is fine.
+    "journal-unreadable": (_zip({**MULTI_USER, "users/Tester/resources/journal-Main.json": '{"version": 2}'}),
+                           "settings.backup.invalid_journal", {"account": "Main", "username": "Tester"}),
 }
 
 
