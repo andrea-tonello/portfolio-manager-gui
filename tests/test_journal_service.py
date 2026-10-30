@@ -9,27 +9,18 @@ import json
 from dataclasses import replace
 from datetime import date
 
+import pandas as pd
 import pytest
-from test_journal import csv_text, journal_of
-from test_ledger_snapshots import BROKER, STOCKS_EUR, deposit
+from conftest import account_of, applied
+from test_journal import csv_text
+from test_ledger_snapshots import BROKER, STOCKS_EUR, deposit, journal_of
 
+from components.snack import error_message
 from domain.account import Account
 from domain.errors import ValidationError
 from domain.journal import Kind, OperationRefused, rebuild
-from services import journal_service
+from services import journal_service, market_data
 from utils.columns import OP_ID
-
-
-def account_of(idx, name, steps):
-    """Return an account called `name`, numbered `idx`, whose journal holds `steps`, with the ledger rebuilt from it."""
-    journal = journal_of(steps)
-    return Account(idx, name, path="", df=rebuild(name, journal), journal=journal)
-
-
-def applied(accounts, changes):
-    """Make `changes` the accounts' journals and ledgers, as AppState.commit_changes does, without saving them."""
-    for idx, (journal, ledger) in changes.items():
-        accounts[idx].journal, accounts[idx].df = journal, ledger
 
 
 def test_an_operation_recorded_in_the_past_takes_its_place_by_date(fake_market):
@@ -90,6 +81,50 @@ def test_a_damaged_journal_file_is_refused_when_read(fake_market, damage):
 
     with pytest.raises(ValueError):
         journal_service.journal_from_json(json.dumps(stored))
+
+
+def test_an_account_not_yet_moved_to_the_journal_cant_change(fake_market, translator):
+    """An account whose migration hasn't succeeded yet (e.g. the app started offline) refuses changes, saying why.
+
+    Recorded the old way, its ledger would be rebuilt without them once it gets its journal.
+    """
+    journal = journal_of([deposit(date(2024, 1, 2), 1000)])
+    accounts = {1: Account(1, BROKER, path="", df=rebuild(BROKER, journal))}
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.record(accounts, accounts[1], Kind.DEPOSIT, date(2024, 2, 1), amount=10.0)
+
+    assert error_message(translator, refused.value).startswith("Test Broker hasn't been updated to the new format yet")
+
+
+def test_recording_offline_is_refused_rather_than_valued_at_old_trade_prices(fake_market, monkeypatch, translator):
+    """With no answer from Yahoo at all, recording in an account holding shares fails, saying so.
+
+    Valued at the shares' own trade prices instead, the new rows would look
+    up to date and never be priced again. A ticker Yahoo no longer has,
+    while it answers for others, does fall back to its trade price.
+    """
+    accounts = {1: account_of(1, BROKER, STOCKS_EUR)}
+    monkeypatch.setattr(market_data, "download_close", lambda tickers, **kwargs: (pd.DataFrame(), {}))
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.record(accounts, accounts[1], Kind.DEPOSIT, date(2024, 10, 1), amount=10.0)
+
+    assert error_message(translator, refused.value) == translator.get("misc_errors.prices_unavailable")
+
+
+def test_a_transfer_whose_other_account_isnt_migrated_yet_isnt_removed_by_half(fake_market):
+    """Removing a transfer whose other account has no journal yet is refused: its half would be left for good."""
+    accounts = {1: account_of(1, "Fineco", [deposit(date(2024, 1, 2), 1000)]),
+                2: account_of(2, "Directa", [deposit(date(2024, 1, 2), 100)])}
+    applied(accounts, journal_service.record(accounts, accounts[1], Kind.TRANSFER_OUT, date(2024, 1, 10),
+                                             amount=300.0, counterpart="Directa"))
+    accounts[2].journal = None  # as if Directa's migration hadn't succeeded
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.delete(accounts, accounts[1], accounts[1].journal[-1].id)
+
+    assert (refused.value.key, refused.value.params) == ("journal.partner_unavailable", {"account": "Directa"})
 
 
 def test_an_operation_that_cant_be_recorded_raises_and_changes_nothing(fake_market):

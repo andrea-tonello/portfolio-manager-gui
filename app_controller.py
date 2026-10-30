@@ -13,11 +13,6 @@ from components.theme import apply_theme
 from components.update_check import check_for_update
 from views import onboarding_view, shell
 
-# Whether each start moves the accounts recorded before the journal to it (components/journal_migration.py).
-# Off until the screens record operations through the journal (JOURNAL_PLAN.md, phase 5): until then
-# they can't record in an account that has one.
-MIGRATE_TO_JOURNAL = False
-
 
 class AppController:
     """Owns the page's navigation and the current AppState.
@@ -82,7 +77,8 @@ class AppController:
             return
 
         self.state.load_all_accounts()
-        if MIGRATE_TO_JOURNAL and needs_migration(self.state):
+        # Accounts recorded before the journal are moved to it first: they can't change without one.
+        if needs_migration(self.state):
             migrate_accounts(self, then=self._show_home)
         else:
             self._show_home()

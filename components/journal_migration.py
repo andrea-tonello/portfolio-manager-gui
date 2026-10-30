@@ -5,8 +5,10 @@ record an operation meanwhile (Home's split prompt, the update notice come
 after). While migration_service works out each account's journal (it
 downloads prices), a dialog that can't be closed says the accounts are
 being updated. Then the accounts are saved, after showing the values that
-came out different, if any, and Home is shown. If it fails, nothing is
-saved, the user is told, and the next start tries again.
+came out different, if any, and Home is shown. An account that can't be
+migrated is named, with why, after the others are saved. If there are no
+prices (e.g. offline), nothing is saved and the user is told. Either way the
+next start tries again for the accounts left.
 """
 
 import logging
@@ -15,7 +17,6 @@ import flet as ft
 
 from components.dialogs import show_info_dialog
 from components.snack import error_message, show_snack
-from domain.errors import ValidationError
 from services import migration_service
 from utils.columns import export_headers, localized_value_maps
 
@@ -47,13 +48,7 @@ def migrate_accounts(app, then) -> None:
     def worker():
         """Work out the journals off the screen's thread, then save them or first show what differs."""
         try:
-            migrations = migration_service.migrate(state.accounts)
-        except ValidationError as ex:  # an operation that can't be converted: the same at every start
-            logger.exception("Could not move the accounts to the journal")
-            _close(page, working)
-            then()
-            show_info_dialog(page, t.get("journal.migration.title"), error_message(t, ex))
-            return
+            migrations, failures = migration_service.migrate(state.accounts)
         except Exception:  # most likely offline: no prices
             logger.exception("Could not move the accounts to the journal")
             _close(page, working)
@@ -61,10 +56,25 @@ def migrate_accounts(app, then) -> None:
             show_snack(page, t.get("journal.migration.failed"), error=True)
             return
         _close(page, working)
-        if any(migration.differences for migration in migrations.values()):
-            _show_differences(app, migrations, then)
+
+        def done():
+            """Show what comes next, then name the accounts that couldn't be migrated, if any."""
+            then()
+            if failures:  # each comes back at every start, so it is named, with why
+                logger.error("Accounts not moved to the journal: %s", [f.params for f in failures])
+                show_info_dialog(page, t.get("journal.migration.title"),
+                                 "\n\n".join(error_message(t, failure) for failure in failures))
+
+        def again():
+            """Work the migrations out once more: an account changed while they were worked out."""
+            migrate_accounts(app, then)
+
+        if not migrations:
+            done()
+        elif any(migration.differences for migration in migrations.values()):
+            _show_differences(app, migrations, done, again)
         else:
-            _save(app, migrations, then)
+            _save(app, migrations, done, again)
 
     page.run_thread(worker)
 
@@ -75,8 +85,8 @@ def _close(page, dialog) -> None:
     page.update()
 
 
-def _save(app, migrations, then) -> None:
-    """Save the migrated accounts, then call `then`. Work them out again if an account changed meanwhile."""
+def _save(app, migrations, then, again) -> None:
+    """Save the migrated accounts, then call `then`; call `again` instead if an account changed meanwhile."""
     try:
         saved = app.state.commit_migration(migrations)
     except OSError:
@@ -85,7 +95,7 @@ def _save(app, migrations, then) -> None:
         show_snack(app.page, app.state.translator.get("journal.migration.failed"), error=True)
         return
     if not saved:
-        migrate_accounts(app, then)
+        again()
         return
     then()
 
@@ -121,8 +131,8 @@ def _shown(value) -> str:
     return str(round(value, 6)) if isinstance(value, float) else str(value)
 
 
-def _show_differences(app, migrations, then) -> None:
-    """Show the values that came out different, and save the accounts when the user continues."""
+def _show_differences(app, migrations, then, again) -> None:
+    """Show the values that came out different, and save the accounts when the user continues (see _save)."""
     page, t = app.page, app.state.translator
     dialog = ft.AlertDialog(
         modal=True,
@@ -134,7 +144,7 @@ def _show_differences(app, migrations, then) -> None:
     def on_continue(_):
         """Close the dialog and save the accounts with their recalculated values."""
         _close(page, dialog)
-        _save(app, migrations, then)
+        _save(app, migrations, then, again)
 
     dialog.actions = [ft.TextButton(t.get("journal.migration.continue"), on_click=on_continue)]
     page.show_dialog(dialog)

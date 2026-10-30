@@ -30,6 +30,7 @@
   },
 
   "misc_errors": {
+    "prices_unavailable": "Impossibile scaricare i prezzi (sei offline?): riprova quando sei connesso.",
     "nodate": "Data mancante, inserire data",
     "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
     "date_sequential": "La data non può essere precedente all'ultima registrata",
@@ -287,7 +288,6 @@
     "transfer_undo_one": "Verrà rimosso solo da {account}: l'altra metà del trasferimento non c'è più.",
     "transfer_undo_confirm": "Rimuovi",
     "transfer_removed": "Trasferimento rimosso",
-    "transfer_newer_ops": "{account} ha operazioni successive al trasferimento: rimuovile prima",
     "empty": "Nessun dato disponibile",
     "filters": "Filtri",
     "filter_columns": "Filtra colonne"
@@ -295,6 +295,8 @@
 
 
   "journal": {
+    "not_migrated": "{account} non è ancora stato aggiornato al nuovo formato, quindi non può essere modificato. L'app riprova a ogni avvio.",
+    "partner_unavailable": "{account} non è disponibile ora, quindi il trasferimento non può essere rimosso da entrambi i conti. Riavvia l'app e riprova.",
     "refused": {
       "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
       "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",

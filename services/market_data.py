@@ -9,7 +9,7 @@ from datetime import datetime, date
 
 import pandas as pd
 
-from domain.errors import TickerNotFound
+from domain.errors import TickerNotFound, ValidationError
 from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
@@ -107,50 +107,79 @@ def download_close(tickers: str | list[str], start: DateLike | None = None, end:
     split continuity matters and dividends are not separately accounted for
     (e.g. prev_close lookup across a split boundary).
     """
+    charts = _download_charts(tickers, start, end, period)
+    prices = _by_day({ticker: chart[2 if adjusted else 1] for ticker, chart in charts.items()})
+    return prices, {ticker: chart[0] for ticker, chart in charts.items()}
+
+
+def download_closes(tickers: list[str], start: DateLike, end: DateLike) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str]]:
+    """Fetch the daily closes and the adjusted closes of `tickers` together: one request to Yahoo per ticker.
+
+    Returns (closes, adjusted closes, names), each DataFrame as download_close
+    returns it. Asking download_close for each would download every chart twice.
+    """
+    charts = _download_charts(tickers, start, end, None)
+    names = {ticker: chart[0] for ticker, chart in charts.items()}
+    return (_by_day({ticker: chart[1] for ticker, chart in charts.items()}),
+            _by_day({ticker: chart[2] for ticker, chart in charts.items()}), names)
+
+
+def _download_charts(tickers: str | list[str], start, end, period) -> dict[str, tuple[str, pd.Series, pd.Series]]:
+    """Fetch each ticker's daily chart, several at once; return {ticker: (name, closes, adjusted closes)}.
+
+    Tickers Yahoo has no prices for (unknown, or it can't be reached) are left out.
+    """
     if isinstance(tickers, str):
         tickers = [tickers]
-
-    def _fetch_one(ticker):
-        try:
-            chart = _fetch_chart(ticker, start=start, end=end, period=period)
-            meta = chart.get("meta", {})
-            name = meta.get("longName") or meta.get("shortName") or ticker
-            timestamps = chart.get("timestamp", [])
-            indicators = chart.get("indicators", {})
-            if adjusted:
-                adj = indicators.get("adjclose", [{}])
-                closes = adj[0].get("adjclose", []) if adj else []
-                if not closes:
-                    closes = indicators.get("quote", [{}])[0].get("close", [])
-            else:
-                closes = indicators.get("quote", [{}])[0].get("close", [])
-            if not timestamps or not closes:
-                return None
-            # Each day as the exchange's own clock tells it, not UTC's: Yahoo stamps the USD->EUR rate at
-            # midnight London time, which in British summer time is 23:00 UTC of the day before.
-            timezone = meta.get("exchangeTimezoneName") or "UTC"
-            dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_convert(timezone).tz_localize(None).normalize()
-            s = pd.Series(closes, index=dates, name=ticker, dtype=float)
-            s = s[~s.index.duplicated(keep="last")]
-            return (ticker, s, name)
-        except _NO_DATA_ERRORS as e:
-            logger.warning("No prices for %s: %s", ticker, e)
-            return None
-
-    all_series = {}
-    names = {}
+    if not tickers:
+        return {}
+    charts = {}
     with ThreadPoolExecutor(max_workers=min(len(tickers), 8)) as pool:
-        for result in pool.map(_fetch_one, tickers):
-            if result is not None:
-                all_series[result[0]] = result[1]
-                names[result[0]] = result[2]
+        for ticker, chart in zip(tickers, pool.map(lambda ticker: _chart(ticker, start, end, period), tickers)):
+            if chart is not None:
+                charts[ticker] = chart
+    return charts
 
-    if not all_series:
-        return pd.DataFrame(), names
 
-    df = pd.DataFrame(all_series)
+def _chart(ticker: str, start, end, period) -> tuple[str, pd.Series, pd.Series] | None:
+    """Fetch `ticker`'s daily chart once: (its name, its closes, its adjusted closes) by day, or None without prices.
+
+    Its adjusted closes are its plain ones when Yahoo gives none.
+    """
+    try:
+        chart = _fetch_chart(ticker, start=start, end=end, period=period)
+        meta = chart.get("meta", {})
+        name = meta.get("longName") or meta.get("shortName") or ticker
+        timestamps = chart.get("timestamp", [])
+        indicators = chart.get("indicators", {})
+        closes = indicators.get("quote", [{}])[0].get("close", [])
+        adj = indicators.get("adjclose", [{}])
+        adjusted = (adj[0].get("adjclose", []) if adj else []) or closes
+        if not timestamps or not closes:
+            return None
+        # Each day as the exchange's own clock tells it, not UTC's: Yahoo stamps the USD->EUR rate at
+        # midnight London time, which in British summer time is 23:00 UTC of the day before.
+        timezone = meta.get("exchangeTimezoneName") or "UTC"
+        dates = pd.to_datetime(timestamps, unit="s", utc=True).tz_convert(timezone).tz_localize(None).normalize()
+
+        def by_day(values):
+            """The values as a Series by day, keeping the last of a day given twice."""
+            series = pd.Series(values, index=dates, name=ticker, dtype=float)
+            return series[~series.index.duplicated(keep="last")]
+
+        return name, by_day(closes), by_day(adjusted)
+    except _NO_DATA_ERRORS as e:
+        logger.warning("No prices for %s: %s", ticker, e)
+        return None
+
+
+def _by_day(series: dict[str, pd.Series]) -> pd.DataFrame:
+    """Return the series as one DataFrame, a column per ticker, its index named "Date"; empty without any."""
+    if not series:
+        return pd.DataFrame()
+    df = pd.DataFrame(series)
     df.index.name = "Date"
-    return df, names
+    return df
 
 
 def fetch_quotes(tickers: list[str]) -> dict[str, tuple[float, float | None, str]]:
@@ -219,6 +248,14 @@ def download_prices_eur(tickers_with_currency: list[tuple[str, str]], start: Dat
     return prices
 
 
+class PricesUnavailable(ValidationError):
+    """Yahoo gave no prices at all, so ledger rows can't be valued: most likely the device is offline."""
+
+    def __init__(self):
+        """Point at the message asking to try again once online."""
+        super().__init__("misc_errors.prices_unavailable")
+
+
 def _midnight(day: DateLike) -> pd.Timestamp:
     """Return the start of `day`, the time a daily close is stamped with, e.g. 2026-10-30 17:20:43.12 -> 2026-10-30.
 
@@ -281,20 +318,28 @@ class PriceBook:
         the first rows have a close before theirs too. `known` goes to the
         book as it is (see __init__).
 
-        Example: [("AAA.MI", "EUR"), ("UUU", "USD")] -> three downloads: the
-        closes of both, their adjusted closes, and the rates.
+        Raises PricesUnavailable when a book given `known` prices gets nothing
+        at all from Yahoo, not even the USD->EUR rate: Yahoo can't be reached
+        (e.g. offline), and falling back to the known prices would value every
+        row at an old trade price for good. Only tickers Yahoo no longer has,
+        while it answers for others, fall back to them.
+
+        Example: [("AAA.MI", "EUR"), ("UUU", "USD")] -> two downloads: the
+        closes and adjusted closes of both (one chart each), and the rates.
         """
         tickers = sorted({ticker for ticker, _ in tickers_with_currency})
         if not tickers:
             return cls(pd.DataFrame(), pd.DataFrame(), {}, known=known)
         first = pd.Timestamp(start) - cls.LOOKBACK
         last = pd.Timestamp(end) + pd.Timedelta(days=1)
-        closes, names = download_close(tickers, start=first, end=last)
-        adjusted, _ = download_close(tickers, start=first, end=last, adjusted=True)
+        closes, adjusted, names = download_closes(tickers, start=first, end=last)
         usdeur = None
-        if any(currency != "EUR" for _, currency in tickers_with_currency):
+        # The rates also tell, when no ticker answered, whether Yahoo answers at all.
+        if any(currency != "EUR" for _, currency in tickers_with_currency) or (known is not None and closes.empty):
             rates, _ = download_close(USDEUR_TICKER, start=first, end=last)
             usdeur = rates.get(USDEUR_TICKER)  # None when Yahoo has none: asking for a rate then raises
+        if known is not None and closes.empty and usdeur is None:
+            raise PricesUnavailable()
         return cls(closes, adjusted, names, usdeur, known)
 
     def _last(self, values: pd.Series | None, day: pd.Timestamp, what: str) -> int:

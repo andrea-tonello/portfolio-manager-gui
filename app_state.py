@@ -3,7 +3,6 @@ import configparser
 import logging
 
 import flet as ft
-import pandas as pd
 
 from domain.account import Account
 from domain.errors import ValidationError
@@ -59,7 +58,7 @@ class AppState:
         self.home_values_hidden: bool = False
         self.home_pnl_mode: int = 0
         # Home's last computed values, as (selection, Snapshot); None makes Home fetch fresh
-        # ones. Cleared whenever an account changes (commit, add_broker, remove_broker).
+        # ones. Cleared whenever an account changes (commit_changes, commit_migration, add_broker, remove_broker).
         self.home_cache: tuple | None = None
         self.home_nav_count: int = 0  # tab switches since Home last fetched live values
 
@@ -134,22 +133,6 @@ class AppState:
 
     # ── Changes to accounts, brokers and users ───────────────────────
 
-    def commit(self, acc_idx: int, df: pd.DataFrame) -> None:
-        """Make `df` the ledger of account `acc_idx`, after recording an operation, and save it.
-
-        Only for accounts without a journal, recorded row by row as before it.
-        An account with one must change through journal_service and
-        commit_changes: saving its ledger alone would be undone at the next
-        load, rebuilt from the journal. Also clears Home's cached values,
-        which were computed from the old ledger.
-        """
-        account = self.accounts[acc_idx]
-        if account.journal is not None:
-            raise ValueError(f"account {account.name} has a journal: record through journal_service")
-        account_service.save_accounts(self.config_res_folder, {account.name: (None, df)})
-        account.df = df
-        self.home_cache = None
-
     def commit_changes(self, changes: Changes) -> None:
         """Save the new journal and ledger of each account in `changes`, then make them the accounts' own.
 
@@ -184,7 +167,7 @@ class AppState:
         return True
 
     def add_broker(self, name: str) -> int:
-        """Add an account called `name` (spaces trimmed), save it with an empty CSV, and return its number.
+        """Add an account called `name` (spaces trimmed), save it with no operations yet, and return its number.
 
         Raises ValidationError("settings.account.duplicate") if the name is
         already used, ignoring capitals: "Fineco" and "fineco" would share one

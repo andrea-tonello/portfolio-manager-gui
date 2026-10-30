@@ -12,8 +12,8 @@ from types import SimpleNamespace
 import flet as ft
 import flet_charts as fch
 import pytest
-from conftest import find_controls, snack_texts
-from test_ledger_snapshots import _replay, deposit
+from conftest import find_controls, set_operations, snack_texts
+from test_ledger_snapshots import deposit
 
 from services import analysis_service
 from views.analysis_view import AllocationTool, AnalysisView, CorrelationTool, DrawdownTool, SummaryTool, VarTool
@@ -65,7 +65,7 @@ def test_analysis_refuses_invalid_inputs(app, page, tool, inputs, message):
     (1, date(2023, 6, 1), date(2024, 1, 2)),
     (2, date.today() - timedelta(days=5), None),
 ], ids=["all-accounts", "one-account", "under-20-days"])
-def test_default_dates(app, state, tmp_path, selection, second_deposit, first_day):
+def test_default_dates(app, state, selection, second_deposit, first_day):
     """Periods run from the first operation of the accounts analysed to today.
 
     A second account makes its first deposit on `second_deposit`. On
@@ -76,7 +76,7 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
     starts on 01-01-2000, as far back as prices go: its two tickers needn't be held.
     """
     idx = state.add_broker("Second Broker")
-    state.commit(idx, _replay([deposit(second_deposit, 1000)], tmp_path / "second"))
+    set_operations(state, idx, [deposit(second_deposit, 1000)])
     state.analysis_acc_idx = selection
     view = AnalysisView(app)
     view.build()
@@ -93,7 +93,7 @@ def test_default_dates(app, state, tmp_path, selection, second_deposit, first_da
     assert (correlation.start.value, correlation.end.value) == (date(2000, 1, 1), today)
 
 
-def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state, tmp_path):
+def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, page, state):
     """The Performance and Drawdown start calendars offer no day before the first operation, here five days ago.
 
     Under 20 days of history the Drawdown start is left empty (too short a
@@ -101,7 +101,7 @@ def test_date_pickers_start_at_the_first_operation_even_in_a_short_history(app, 
     """
     first = date.today() - timedelta(days=5)
     idx = state.add_broker("Second Broker")
-    state.commit(idx, _replay([deposit(first, 1000)], tmp_path / "second"))
+    set_operations(state, idx, [deposit(first, 1000)])
     state.analysis_acc_idx = idx
     view = AnalysisView(app)
     view.build()
@@ -266,7 +266,7 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
     assert len(downloads) == 3
 
 
-def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, state, tmp_path, monkeypatch):
+def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, state, monkeypatch):
     """The figures say which accounts they are for, and show only theirs.
 
     With all accounts picked, only their total is shown, not each account's
@@ -275,7 +275,7 @@ def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, stat
     """
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     idx = state.add_broker("Second Broker")
-    state.commit(idx, _replay([deposit(date(2024, 1, 2), 1000)], tmp_path / "second"))
+    set_operations(state, idx, [deposit(date(2024, 1, 2), 1000)])
 
     def figures(selection):
         """Show the figures on 31-12-2024 with `selection` picked (None: all accounts); return (header, figures)."""

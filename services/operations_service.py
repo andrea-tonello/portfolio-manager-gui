@@ -1,19 +1,22 @@
+"""Checking what the user typed in the Operations forms, before the operation is recorded through the journal.
+
+Each parse_* function turns a form's text into the values of an operation,
+or raises ValidationError with the message of the first problem found. The
+screens then record the operation with journal_service.record.
+"""
+
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-import numpy as np
 import pandas as pd
 
-from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.market_data import fetch_splits
-from services.market_data import fetch_ticker_name as fetch_name
 from services.validation import parse_positive, validate_date
-from utils.constants import CURRENCIES
 from utils.formatting import fmt_eur
 from utils.other_utils import round_half_up
 from domain.account import Account
 from domain.errors import ValidationError
-from domain.ledger import ETF_PRODUCTS, Op, Product, TextCell
+from domain.ledger import ETF_PRODUCTS, Product
 from domain.positions import first_trade_date, unrecorded_splits
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 
@@ -26,16 +29,38 @@ _CASH_AMOUNT_ERRORS = {
     "charge": "operations.cash.error_charge",
 }
 
+# The split ratios accepted: from a 1:1000 reverse split to a 1000:1 split.
+_SPLIT_RATIOS = (0.001, 1000)
+
 
 def parse_cash_amount(kind: str, text: str | None) -> float:
-    """Return the amount typed for a cash operation of `kind`: negative for a withdrawal, positive otherwise.
+    """Return the amount typed for a cash operation of `kind`, always positive: the kind gives it its sign.
 
-    The user always types a positive number. Raises ValidationError with the
-    message for that kind when it isn't one.
-    Example: parse_cash_amount("withdrawal", "100") -> -100.0.
+    Raises ValidationError with the message for that kind when it isn't a
+    number above 0. Example: parse_cash_amount("withdrawal", "100") -> 100.0,
+    stored as -100 by the withdrawal's row.
     """
-    amount = parse_positive(text, _CASH_AMOUNT_ERRORS[kind])
-    return -amount if kind == "withdrawal" else amount
+    return parse_positive(text, _CASH_AMOUNT_ERRORS[kind])
+
+
+def parse_split_ratio(text: str | None) -> float:
+    """Return the split ratio typed: how many new shares replace one, e.g. 2.0 for 2:1, 0.5 for a 1:2 reverse split.
+
+    Raises ValidationError("operations.split.ratio_error") for anything but
+    a number from 0.001 to 1000.
+    """
+    return check_split_ratio(parse_positive(text, "operations.split.ratio_error"))
+
+
+def check_split_ratio(ratio: float) -> float:
+    """Return `ratio` if it is a split ratio the app accepts, from 0.001 to 1000; else raise ValidationError.
+
+    Also for the splits found on Yahoo: a bad event there (e.g. 1 for 5000)
+    would otherwise cut the holding 5000-fold in every row after it.
+    """
+    if not _SPLIT_RATIOS[0] <= ratio <= _SPLIT_RATIOS[1]:
+        raise ValidationError("operations.split.ratio_error")
+    return ratio
 
 
 @dataclass(frozen=True)
@@ -50,7 +75,7 @@ class TradeInput:
     currency: str      # "EUR" or "USD"
     conv_rate: float   # USD -> EUR rate; 1.0 for EUR
     fee: float         # in EUR, even when paid in USD
-    ter: str | float   # an ETF's yearly cost, e.g. "0.2%"; NaN when not given
+    ter: str | None    # an ETF's yearly cost, e.g. "0.2%"; None when not given
     product: str       # the product code stored in the CSV, a Product value such as "ETF-M"
     tax_rate: float    # on capital gains, e.g. 0.26
     fee_mode: str      # how the fee is accounted for: "abp", "loss" or "pending" (see buy_asset)
@@ -88,7 +113,7 @@ def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | N
             fee = round_half_up(fee * conv_rate, decimal="0.000001")
 
     is_etf = product in ETF_PRODUCTS
-    ter_value = ter.strip().rstrip("%") + "%" if is_etf and ter else np.nan
+    ter_value = ter.strip().rstrip("%") + "%" if is_etf and ter else None
 
     tax_rate = DEFAULT_CAPITAL_GAINS_TAX_RATE
     if product == Product.ETF_MM:
@@ -104,31 +129,6 @@ def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | N
 
     return TradeInput(is_buy, day, ticker, quantity, price, currency, conv_rate, fee,
                       ter_value, product, tax_rate, fee_mode)
-
-
-def execute_cash_operation(df: pd.DataFrame, broker: str, op_kind: str, date_str: str, ref_date: date,
-                           amount: float, ticker: str | None = None, description: str | None = None,
-                           asset_name: str | None = None) -> pd.DataFrame:
-    if op_kind == "deposit_withdrawal":
-        op_type = Op.DEPOSIT if amount > 0 else Op.WITHDRAWAL
-        product, tk, name = Product.CASH, np.nan, np.nan
-
-    elif op_kind == "dividend":
-        if asset_name is None:
-            asset_name = fetch_name(ticker)
-        op_type, product, tk, name = Op.DIVIDEND, Product.DIVIDEND, ticker, asset_name
-
-    elif op_kind == "charge":
-        amount = -abs(amount)
-        op_type = Op.TAX
-        product = description if description else Product.TAX
-        tk, name = np.nan, np.nan
-
-    else:
-        raise ValueError(f"Unknown op_kind: {op_kind}")
-
-    return newrow_cash(df, date_str, ref_date, broker, amount,
-                       op_type, product, tk, name)
 
 
 def parse_transfer(source_df: pd.DataFrame, recipient: Account | None, day: date, text: str | None) -> float:
@@ -153,99 +153,6 @@ def parse_transfer(source_df: pd.DataFrame, recipient: Account | None, day: date
     if amount > available:
         raise ValidationError("operations.transfer.not_enough_cash", available=fmt_eur(available))
     return amount
-
-
-def execute_transfer(source: Account, recipient: Account, date_str: str, ref_date: date,
-                     amount: float) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Record `amount` EUR of cash moving from `source` to `recipient`: return both ledgers, each with its new row.
-
-    The source gets a Transfer Out row (-amount), the recipient a Transfer In
-    row (+amount), each naming the other account in its asset_name. For each
-    account it is money going out or coming in (its committed cash changes);
-    across all accounts the two rows cancel out.
-
-    Example: 500 from Fineco to Directa -> Fineco's cash -500 ("Transfer Out",
-    "Directa"), Directa's cash +500 ("Transfer In", "Fineco").
-    """
-    source_df = newrow_cash(source.df, date_str, ref_date, source.name, -amount,
-                            Op.TRANSFER_OUT, Product.CASH, np.nan, recipient.name)
-    recipient_df = newrow_cash(recipient.df, date_str, ref_date, recipient.name, amount,
-                               Op.TRANSFER_IN, Product.CASH, np.nan, source.name)
-    return source_df, recipient_df
-
-
-def _other_side(row, account: Account, accounts: dict[int, Account]) -> tuple[Account | None, int | None]:
-    """Find the other half of the transfer recorded in `row`, the last row of `account`.
-
-    Returns (the other account, the position of its matching row), or (None, None)
-    when there is none: that account was deleted, or its row was already removed.
-    The match is the opposite operation, on the same day, for the same amount,
-    naming `account`: rows can't tell more apart, and two equal ones are interchangeable.
-    """
-    other = next((acc for acc in accounts.values() if acc.name == row["asset_name"] and acc.idx != account.idx), None)
-    if other is None:
-        return None, None
-    opposite = Op.TRANSFER_IN if row["operation"] == Op.TRANSFER_OUT else Op.TRANSFER_OUT
-    rows = other.df
-    matches = rows.index[(rows["operation"] == opposite) & (rows["date"] == row["date"])
-                         & (rows["asset_name"] == account.name) & (rows["effective_amount"] == -row["effective_amount"])]
-    return (other, matches[-1]) if len(matches) else (None, None)
-
-
-def remove_last_operation(account: Account, accounts: dict[int, Account]) -> dict[int, pd.DataFrame]:
-    """Return {account number: ledger} for every account changed by undoing `account`'s last operation.
-
-    Usually that is `account` alone, without its last row. A transfer was
-    recorded in two accounts, so its other half goes too: the account named
-    in the row, if that row is still its last. If that account has newer
-    operations, raises ValidationError("transactions.transfer_newer_ops"):
-    removing a row from the middle would break its running totals, so those
-    must be undone first. With no other half left (account deleted, row removed
-    already), `account`'s row goes alone. `accounts` are all the loaded accounts, by number.
-
-    Example: Fineco's last row is "Transfer Out" 500 to Directa, and Directa's
-    last row the matching "Transfer In" -> {Fineco: without it, Directa: without it}.
-    """
-    changed = {account.idx: account.df.iloc[:-1]}
-    row = account.df.iloc[-1]
-    if row["operation"] not in (Op.TRANSFER_OUT, Op.TRANSFER_IN):
-        return changed
-    other, position = _other_side(row, account, accounts)
-    if other is None:
-        return changed
-    if position != other.df.index[-1]:
-        raise ValidationError("transactions.transfer_newer_ops", account=other.name)
-    changed[other.idx] = other.df.iloc[:-1]
-    return changed
-
-
-def execute_etf_stock(df: pd.DataFrame, broker: str, date_str: str, ref_date: date,
-                      currency: str, conv_rate: float, ticker: str, quantity: int, price: float,
-                      fee: float, ter: TextCell, product_type: str, *, is_buy: bool, asset_name: str | None = None,
-                      tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp") -> pd.DataFrame:
-    """Record a buy (`is_buy=True`) or a sell of a stock or ETF; `price` is always positive.
-
-    `currency` is the trade's currency code, "EUR" or "USD"; `conv_rate` converts
-    it to EUR (1.0 for EUR). Looks up the ticker's name on Yahoo Finance unless
-    `asset_name` is given.
-    """
-    if currency not in CURRENCIES:
-        raise ValueError(f"currency must be one of {CURRENCIES}, got {currency!r}")
-
-    if asset_name is None:
-        asset_name = fetch_name(ticker)
-
-    return newrow_etf_stock(df, date_str, ref_date, broker,
-                            currency, product_type, ticker, quantity,
-                            price, conv_rate, ter, fee, is_buy=is_buy,
-                            asset_name=asset_name, tax_rate=tax_rate, fee_mode=fee_mode)
-
-
-def execute_split(df: pd.DataFrame, broker: str, date_str: str, ref_date: date, ticker: str,
-                  ratio: float) -> pd.DataFrame:
-    if not isinstance(ratio, (int, float)) or not (0.001 <= ratio <= 1000):
-        raise ValidationError("operations.split.ratio_error")
-    return newrow_split(df, date_str, ref_date, broker, ticker, float(ratio))
 
 
 def detect_unrecorded_splits(df: pd.DataFrame | None, ticker: str) -> list[tuple[str, float]]:

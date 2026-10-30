@@ -1,36 +1,46 @@
-"""Tests for transfers of cash between two of the user's accounts (services/operations_service.py).
+"""Tests for transfers of cash between two of the user's accounts (services/journal_service.py, operations_service).
 
 A transfer writes a Transfer Out row in the account sending and a Transfer In
 row in the one receiving, on the same day. For each account it is money going
 out or coming in, like a withdrawal or a deposit; across all accounts the two
-rows cancel out, so the portfolio's figures don't change.
+rows cancel out, so the portfolio's figures don't change. In the journal its
+two halves share a transfer_id, so undoing it from either account undoes both.
 """
 
 from datetime import date
 
 import pytest
-from test_ledger_snapshots import _replay, buy, deposit
+from conftest import account_of, applied
+from test_ledger_snapshots import buy, deposit
 
-from domain.account import Account
 from domain.errors import ValidationError
-from domain.newrow import newrow_cash
+from domain.journal import Kind
+from services import journal_service
 from services.analysis_service import compute_summary
-from services.operations_service import execute_transfer, parse_transfer, remove_last_operation
+from services.operations_service import parse_transfer
+from utils.columns import OP_ID
 
 DAY = date(2024, 6, 3)
 
 
 @pytest.fixture
-def accounts(tmp_path, fake_market):
-    """Fineco (10,000 deposited, 1,000 of it in BBB.MI) and Directa (1,000 deposited), as (fineco, directa).
+def accounts(fake_market):
+    """Fineco (10,000 deposited, 1,000 of it in BBB.MI) and Directa (1,000 deposited), by account number."""
+    return {1: account_of(1, "Fineco", [deposit(date(2024, 1, 2), 10_000),
+                                        buy(date(2024, 1, 3), "BBB.MI", 20, price=50.0, fee=0.0)]),
+            2: account_of(2, "Directa", [deposit(date(2024, 1, 2), 1_000)])}
 
-    Each ledger names its own account in every row, as real ones do: the
-    portfolio's history tells the accounts apart by it.
-    """
-    fineco_df = _replay([deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "BBB.MI", 20, price=50.0, fee=0.0)],
-                        tmp_path / "fineco").assign(account="Fineco")
-    directa_df = _replay([deposit(date(2024, 1, 2), 1_000)], tmp_path / "directa").assign(account="Directa")
-    return Account(1, "Fineco", "", fineco_df), Account(2, "Directa", "", directa_df)
+
+def transfer(accounts, amount=2_000, day=DAY):
+    """Record `amount` sent from Fineco to Directa on `day`, as the Operations screen does."""
+    applied(accounts, journal_service.record(accounts, accounts[1], Kind.TRANSFER_OUT, day,
+                                             amount=float(amount), counterpart="Directa"))
+
+
+def undo_last(accounts, idx=1):
+    """Remove the operation recorded last in account `idx`, as Transactions does: both halves of a transfer."""
+    account = accounts[idx]
+    applied(accounts, journal_service.delete(accounts, account, journal_service.last_entered(account).id))
 
 
 def test_a_transfer_moves_cash_between_the_two_accounts(accounts):
@@ -38,11 +48,9 @@ def test_a_transfer_moves_cash_between_the_two_accounts(accounts):
 
     Each new row says which way the cash went and names the other account.
     """
-    fineco, directa = accounts
+    transfer(accounts)
 
-    fineco_df, directa_df = execute_transfer(fineco, directa, DAY.strftime("%d-%m-%Y"), DAY, 2_000)
-
-    sent, received = fineco_df.iloc[-1], directa_df.iloc[-1]
+    sent, received = accounts[1].df.iloc[-1], accounts[2].df.iloc[-1]
     assert (sent["operation"], sent["asset_name"], sent["cash_held"], sent["committed_cash"]) == \
         ("Transfer Out", "Directa", 7_000, 8_000)
     assert (received["operation"], received["asset_name"], received["cash_held"], received["committed_cash"]) == \
@@ -54,12 +62,9 @@ def test_a_transfer_leaves_the_portfolio_figures_unchanged(accounts):
 
     The two rows are a cash flow of their own account each, but cancel out in the portfolio.
     """
-    fineco, directa = accounts
-    fineco_df, directa_df = execute_transfer(fineco, directa, DAY.strftime("%d-%m-%Y"), DAY, 2_000)
-    after = [Account(1, "Fineco", "", fineco_df), Account(2, "Directa", "", directa_df)]
-
-    without = compute_summary([fineco, directa], date(2024, 12, 31), "31-12-2024")["portfolio"]
-    with_transfer = compute_summary(after, date(2024, 12, 31), "31-12-2024")["portfolio"]
+    without = compute_summary(list(accounts.values()), date(2024, 12, 31), "31-12-2024")["portfolio"]
+    transfer(accounts)
+    with_transfer = compute_summary(list(accounts.values()), date(2024, 12, 31), "31-12-2024")["portfolio"]
 
     for figure in ("nav", "historic_liq", "xirr_full", "twrr_full"):
         assert with_transfer[figure] == pytest.approx(without[figure]), figure
@@ -71,10 +76,9 @@ def test_cash_sent_away_is_not_a_loss_for_the_account(accounts):
     Transfers are cash flows of each account, like withdrawals and deposits.
     Counted as nothing, the 2,000 gone would make Fineco's return about -16%.
     """
-    fineco, directa = accounts
-    fineco_df, _ = execute_transfer(fineco, directa, DAY.strftime("%d-%m-%Y"), DAY, 2_000)
+    transfer(accounts)
 
-    summary = compute_summary([Account(1, "Fineco", "", fineco_df)], date(2024, 12, 31), "31-12-2024")
+    summary = compute_summary([accounts[1]], date(2024, 12, 31), "31-12-2024")
 
     assert summary["accounts"][0]["xirr_full"] == pytest.approx(0.0412, abs=0.001)
 
@@ -88,61 +92,53 @@ def test_cash_sent_away_is_not_a_loss_for_the_account(accounts):
 def test_a_transfer_is_refused_with_its_reason(accounts, recipient, day, amount, key, params):
     """Each problem gives its own message: no recipient, a date before the recipient's last operation,
     an amount that isn't above 0, or more than the 9,000 of cash Fineco holds."""
-    fineco, directa = accounts
-
     with pytest.raises(ValidationError) as info:
-        parse_transfer(fineco.df, directa if recipient else None, day, amount)
+        parse_transfer(accounts[1].df, accounts[2] if recipient else None, day, amount)
 
     assert (info.value.key, info.value.params) == (key, params)
 
 
 # ── Undoing a transfer ───────────────────────────────────────────────
 
-def _transfer(fineco, directa, amount=500):
-    """Record `amount` from Fineco to Directa on DAY; return both accounts with their new rows."""
-    fineco_df, directa_df = execute_transfer(fineco, directa, DAY.strftime("%d-%m-%Y"), DAY, amount)
-    return Account(1, "Fineco", "", fineco_df), Account(2, "Directa", "", directa_df)
-
-
 def test_two_equal_transfers_on_the_same_day_are_undone_one_pair_at_a_time(accounts):
-    """Each undo removes the last transfer from both accounts; after two, both are as before.
+    """Each undo removes the last transfer from both accounts; after two, both are as before."""
+    before = {idx: len(account.df) for idx, account in accounts.items()}
+    transfer(accounts, 500)
+    transfer(accounts, 500)
 
-    The two transfers are identical, so either pairing of their halves gives the same accounts.
+    for remaining in (1, 0):
+        undo_last(accounts)
+        assert len(accounts[2].df) == before[2] + remaining
+
+    assert {idx: len(account.df) for idx, account in accounts.items()} == before
+    assert (accounts[1].last("cash_held"), accounts[2].last("cash_held")) == (9_000, 1_000)
+
+
+def test_a_transfer_is_undone_from_both_accounts_though_the_other_has_newer_operations(accounts):
+    """With a deposit in Directa after the transfer, undoing it from Fineco removes both halves and rebuilds the deposit.
+
+    Before the journal, this was refused until Directa's newer operations were
+    undone first: removing a row from the middle broke the totals after it.
     """
-    before = accounts
-    fineco, directa = _transfer(*_transfer(*accounts))
+    transfer(accounts, 500)
+    applied(accounts, journal_service.record(accounts, accounts[2], Kind.DEPOSIT, date(2024, 6, 4), amount=100.0))
 
-    for _ in range(2):
-        changed = remove_last_operation(fineco, {1: fineco, 2: directa})
-        assert set(changed) == {1, 2}
-        fineco, directa = Account(1, "Fineco", "", changed[1]), Account(2, "Directa", "", changed[2])
+    undo_last(accounts)
 
-    assert (len(fineco.df), len(directa.df)) == (len(before[0].df), len(before[1].df))
-    assert (fineco.last("cash_held"), directa.last("cash_held")) == (9_000, 1_000)
-
-
-def test_a_transfer_waits_while_the_other_account_has_newer_operations(accounts):
-    """With a deposit in Directa after the transfer, undoing it from Fineco is refused, naming Directa.
-
-    Directa's transfer row is no longer its last: removing it would break the totals of the rows after it.
-    """
-    fineco, directa = _transfer(*accounts)
-    directa = Account(2, "Directa", "", newrow_cash(directa.df, "04-06-2024", date(2024, 6, 4), "Directa", 100,
-                                                    "Deposit", "Cash", float("nan"), float("nan")))
-
-    with pytest.raises(ValidationError) as info:
-        remove_last_operation(fineco, {1: fineco, 2: directa})
-
-    assert (info.value.key, info.value.params) == ("transactions.transfer_newer_ops", {"account": "Directa"})
+    assert [op.kind for op in accounts[2].journal] == ["deposit", "deposit"]
+    assert accounts[2].last("cash_held") == 1_100
 
 
 @pytest.mark.parametrize("other_half", ["account-deleted", "row-already-removed"])
 def test_a_transfer_whose_other_half_is_gone_is_removed_alone(accounts, other_half):
     """If Directa was deleted, or its half already removed, undoing from Fineco removes Fineco's row only."""
-    fineco, directa = _transfer(*accounts)
-    others = {1: fineco} if other_half == "account-deleted" else {1: fineco, 2: accounts[1]}
+    transfer(accounts, 500)
+    if other_half == "account-deleted":
+        del accounts[2]
+    else:
+        accounts[2] = account_of(2, "Directa", [deposit(date(2024, 1, 2), 1_000)])
 
-    changed = remove_last_operation(fineco, others)
+    changes = journal_service.delete(accounts, accounts[1], accounts[1].df.iloc[-1][OP_ID])
 
-    assert set(changed) == {1}
-    assert changed[1].iloc[-1]["operation"] == "Buy"
+    assert set(changes) == {1}
+    assert changes[1][1].iloc[-1]["operation"] == "Buy"

@@ -76,8 +76,8 @@ def show_transfer_counterparts(df, translator):
     """Return a copy of `df` where each transfer's asset_name says which way the cash went, in the user's language.
 
     The ledger keeps the other account's bare name: it doesn't depend on the
-    language, and it identifies the account (removing a transfer finds its
-    other half by it). The direction is only added to show it.
+    language, and it identifies the account (the journal's transfers name it
+    as their counterpart). The direction is only added to show it.
     Example in Italian: "Directa" on a Transfer Out row -> "verso: Directa"; on a Transfer In row -> "da: Directa".
     """
     out = df.copy()

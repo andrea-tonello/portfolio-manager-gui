@@ -9,11 +9,11 @@ from components.buttons import squircle_add_btn
 from components.inputs import account_selector
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
+from domain.journal import Kind
 from domain.positions import held_tickers, split_ratio_label
-from services import config_service, operations_service
+from services import config_service, journal_service, operations_service
 from services.market_data import fetch_quotes
 from services.portfolio_service import compute_snapshot
-from utils.constants import DATE_FORMAT
 from utils.formatting import HIDDEN_MASK, LOADING, fmt_eur, fmt_pct
 
 logger = logging.getLogger(__name__)
@@ -516,20 +516,21 @@ class HomeView:
         self._check_splits_async()
 
     def _record_detected_split(self, acc_idx, ticker, ev_date, ratio):
+        """Record the split of `ticker` Yahoo reported, on its date `ev_date` ("YYYY-MM-DD"), in account `acc_idx`."""
         s = self.state
         t = s.translator
         account = s.get_account(acc_idx)
         if account is None:
             return
-        ref_date = datetime.strptime(ev_date, "%Y-%m-%d").date()
-        date_str = ref_date.strftime(DATE_FORMAT)
+        day = datetime.strptime(ev_date, "%Y-%m-%d").date()
 
         def save():
-            """Record the split, save the account and refresh Home's values."""
-            new_df = operations_service.execute_split(
-                account.df, account.name, date_str, ref_date, ticker, ratio,
-            )
-            s.commit(acc_idx, new_df)
+            """Record the split on its own date, save the account and refresh Home's values.
+
+            In the journal it takes its place by date, before any later operation.
+            """
+            checked = operations_service.check_split_ratio(ratio)
+            s.commit_changes(journal_service.record(s.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=checked))
             show_snack(self.page, t.get("operations.added_transaction"))
             self._fetch_live_values()
 

@@ -14,7 +14,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 2. Price provider for rebuilds
 - [x] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
 - [x] 4. Migration of existing ledgers, backups, account deletion
-- [ ] 5. Write path: every operation goes through the journal (same behaviour as today)
+- [x] 5. Write path: every operation goes through the journal (same behaviour as today)
 - [ ] 6. Out-of-order insertion in Operations: **the feature**
 - [ ] 7. Delete any operation in Transactions
 - [ ] 8. Edit any operation
@@ -169,12 +169,14 @@ A service, **`services/journal_service.py`**, does the journal file format and t
 
 **The fix:** a small **`PriceBook`** in `services/market_data.py`:
 - **`PriceBook.download(tickers_with_currency, start, end)`:**
-  - one `download_close` for all the tickers (raw) and one for their adjusted closes;
+  - one `download_closes` for all the tickers: one chart per ticker gives both its closes and its adjusted closes;
   - one for the USD→EUR series, only when a currency isn't EUR. That is the same rule `priced_positions` uses to convert.
   - It covers `LOOKBACK` (10 days) before `start` to the day after `end`.
 - **Lookups:**
   - `close`, `previous_close` and `usd_eur` (to 6 decimals) take the last value on or before day D, at most `LOOKBACK` older. Otherwise they raise `LookupError`, rather than using an old price (a ticker no longer quoted, a day outside the book).
-  - **Except in a book given `known` prices** (a rebuild's, which must not stop for one missing price): `close` then falls back to the latest price on or before D, Yahoo's or a known one, however old. The known prices are the trade prices of the journal (`journal.trade_prices`), or of the ledger being migrated. Only with no price at all does it raise. A known price from before a split would value the asset wrongly after it, but only as a last resort.
+  - **Except in a book given `known` prices** (a rebuild's, which must not stop for one missing price):
+    - `close` then falls back to the latest price on or before D, Yahoo's or a known one, however old. The known prices are the trade prices of the journal (`journal.trade_prices`), or of the ledger being migrated. Only with no price at all does it raise. A known price from before a split would value the asset wrongly after it, but only as a last resort.
+    - **Only when Yahoo answers.** If no ticker gets a close and not even the USD→EUR rate comes back, Yahoo can't be reached (e.g. offline), and `download` raises `PricesUnavailable` ("Prices couldn't be downloaded (are you offline?)…"). Otherwise every row rebuilt offline would be valued at an old trade price, and look up to date for good.
   - `name` gives Yahoo's name.
   - Each ticker's series is cleaned once, and lookups use `searchsorted`.
 - **`rebuild`** downloads a book, with the journal's trade prices as known prices, when it isn't given `prices`. The book covers the assets the rebuilt rows can hold: those held where the rebuild starts, plus those bought or sold after. A sale in USD of an asset bought in EUR therefore brings the rates in.
@@ -236,10 +238,15 @@ Every account is migrated; no old in-order code path is kept (decision 3).
     - for ETFs, each mode the trade can have (buys "abp", "loss", "pending"; sales "abp", "loss", since "pending" works as "abp" on a sale) goes through `buy_asset` / `sell_asset` on the CSV's rows before it (not a whole row);
     - the one reproducing the most of the stored `abp`, `generated_loss`, `carryforward` and `pending_fees` is kept, the likelier on a tie (with no fee, all match).
 - **Split rows:** `qt_exch` keeps the ratio to 6 significant digits ("0.333333" for 1:3, which would leave 9.99999 shares of 30 and refuse a later sale of 10). So the ratio is the first that gives the stored `qt_held` from the shares held before: the nearest fraction of small numbers (1/3), the shares after over before, or `qt_exch`.
-- **A row dated before the row above it** (Home records a split found on Yahoo with its own date, possibly the day before the first trade) keeps its place, taking that row's date. Moved by its date it would split no shares, and the migration could never finish. The new date shows as a difference.
-- **Any row that can't become an operation, or be rebuilt** (an unknown operation, a later operation refused), raises `MigrationError` naming the account, the row's date and why.
+- **A row dated before the row above it:** only a split found on Yahoo, which Home recorded after the last operation with its own date. `_late_date` places it:
+  - **Normally, on its own date,** before the later operations. Home then finds it near Yahoo's date and doesn't offer it again; moved to a later date, it would be offered and recorded twice.
+  - **If its ticker wasn't held yet then** (a split of the day before the first buy): on the day of the first buy, still within a day of Yahoo's.
+  - **If rebuilding then refuses an operation** (e.g. a reverse split leaving too few shares for a sale recorded before it): the account is converted again with every such row keeping its place, on the date of the row above, as it was recorded.
 
-One `PriceBook` for all the accounts' assets and history serves the trials and the rebuilds. Its known prices are the accounts' own trade prices, so an asset Yahoo no longer has (delisted, renamed) is valued at the latest price known (see "Prices for a rebuild") instead of blocking the migration.
+  A changed date shows as a difference.
+- **Any row that can't become an operation, or be rebuilt** (an unknown operation, a later operation refused), raises `MigrationError` naming the account, the row's date and why. It fails that account alone: `migrate` returns `(migrations, failures)`, and the other accounts are migrated (their transfers to it join its halves when it is migrated later).
+
+One `PriceBook` for all the accounts' assets and history serves the trials and the rebuilds. Its known prices are the accounts' own trade prices, so an asset Yahoo no longer has (delisted, renamed) is valued at the latest price known (see "Prices for a rebuild") instead of blocking the migration. Offline, the book raises `PricesUnavailable` and nothing is migrated.
 
 **Check:** rebuild from the new journal and compare with the original CSV. Every column must match, except the valuations (`assets_value`, `nav`), which depend on Yahoo's data today.
 - Each rebuilt row is compared with the row its operation came from (by `op_id` and `seq`), wherever the rebuild placed it.
@@ -260,10 +267,10 @@ Saves, and finishing or cleaning one up, share a lock (`account_service._save_lo
 **When:** at startup, for every account with a CSV but no journal: `AppController.restart` calls `components/journal_migration.migrate_accounts(app, then=show Home)` before Home is shown.
 - **Before Home:** nothing else can open a dialog over it or record an operation meanwhile; Home's split prompt and the update notice come after. The dialogs are closed by reference, never with `page.pop_dialog()`, which closes whichever was opened last.
 - **While it works:** a modal dialog with a spinner says the accounts are being updated.
-- **If it fails,** nothing is saved, Home is shown and the next start tries again. After a backup restore it runs again if the backup had no journals.
-  - **Most likely offline:** a message says so ("are you offline?").
-  - **A `MigrationError`,** which comes back at every start, gets a dialog naming the account, the operation's date and why, asking to report it.
-- **Switched off until phase 5:** `MIGRATE_TO_JOURNAL = False` in `app_controller.py`. Until then, the old write path can't record in a migrated account.
+- **If it fails,** Home is shown and the next start tries again for the accounts left. After a backup restore it runs again if the backup had no journals.
+  - **No prices (offline):** nothing is saved, and a message says so ("are you offline?").
+  - **An account's `MigrationError`,** which comes back at every start: the other accounts are saved, then a dialog names that account, the operation's date and why, asking to report it.
+- **Since phase 5 it always runs.** Until it succeeds, an account without a journal refuses changes (`journal.not_migrated`).
 
 ### Backups and accounts
 
@@ -345,13 +352,13 @@ Saves, and finishing or cleaning one up, share a lock (`account_service._save_lo
     - a ledger whose rows were built before an operation was edited is rebuilt from that row when the next operation is recorded;
     - a damaged journal file (another version, a text `seq`, a number id, repeated ids, no date) is refused when read.
 
-**Phases 4 and 5 go out together.** Once phase 4 migrates the accounts, they all have a journal, and only phase 5's write path can record in them. Until phase 5 is done, the migration is built and tested but not run at startup.
+**Phases 4 and 5 go out together.** Once phase 4 migrates the accounts, they all have a journal, and only phase 5's write path can record in them. Until phase 5 was done, the migration was built and tested but not run at startup.
 
 **Running this branch on real data** renames each `Report <account>.csv` to `report-<account>.csv`. A version of the app from before it would no longer find them. Use a copy of the data, or a separate folder (`FLET_APP_STORAGE_DATA`), until the branch is released.
 
 ### Phase 4: migration, backups, accounts (done)
 - `services/migration_service.py`: `migrate`, with the fee mode found by trial and the transfer pairing.
-- `components/journal_migration.py`: the startup migration (spinner, the differences dialog, the failure message) and `AppState.commit_migration` with the `before-journal` copy. It is called from `AppController.restart`, behind `MIGRATE_TO_JOURNAL` (off until phase 5).
+- `components/journal_migration.py`: the startup migration (spinner, the differences dialog, the failure message) and `AppState.commit_migration` with the `before-journal` copy. It is called from `AppController.restart`, behind `MIGRATE_TO_JOURNAL`, which stayed off until phase 5 removed it.
 - `validate_backup`: a journal present must be readable (`settings.backup.invalid_journal`). `delete_account_files` also deletes the `before-journal` copy.
 - **Tests** (`test_migration.py`, `test_errors.py`, `test_market_data.py`):
   - each snapshot scenario, recorded row by row and read back from its file, migrates to the very operations it was recorded from, with the "loss" / "abp" fee modes of `ETFS_AND_USD`, and rebuilds the same CSV;
@@ -377,13 +384,59 @@ Saves, and finishing or cleaning one up, share a lock (`account_service._save_lo
   - through `AppState`, the files are saved with their `before-journal` copies, a fresh start loads them without rebuilding, and a backup with journals validates;
   - the oldest backup's last NAV moves slightly (6271.08 → 6274.34): a valuation, re-priced (decision 7).
 
-### Phase 5: write path through the journal
-- `operations_view` (cash, transfer, split, trade), `home_view` (split) and `transactions_view` (remove last) call `record(accounts, account, kind, day, **fields)` / `delete` instead of `execute_*`, then `AppState.commit_changes`. Dates are still checked as today.
-- `AppState.commit(acc_idx, df)` is removed. `create_defaults` also creates an empty journal for a new account.
-- `MIGRATE_TO_JOURNAL` in `app_controller.py` is switched on, so every start migrates the accounts still without a journal.
-- The `execute_*` functions remain only as `apply`'s building blocks, or are removed.
-- **Tests:** the existing Operations, transfer and transactions tests pass. Their assertions are on the resulting ledgers, which don't change.
-- **The app behaves exactly as today.** About 100–150 lines changed.
+### Phase 5: write path through the journal (done)
+- **The screens record through the journal.** Each calls `journal_service.record(accounts, account, kind, day, **fields)` or `delete`, then `AppState.commit_changes`:
+  - `operations_view`: cash operations, transfers, splits and trades. A dividend's and a trade's asset name is still asked of Yahoo;
+  - `home_view`: a split found on Yahoo;
+  - `transactions_view`: remove last, which deletes the operation entered last (`journal_service.last_entered`, the highest `seq`), whatever its date. A split found on Yahoo goes on its own past date, and is still the one "remove last" undoes. A second tap while a removal is saving is ignored.
+
+  Dates are still checked as today.
+- **`operations_service` only parses forms now:**
+  - the `execute_*` functions, `remove_last_operation` and `_other_side` are gone;
+  - `parse_cash_amount` returns the amount positive, since the kind gives the sign;
+  - `parse_split_ratio` keeps the 0.001–1000 check;
+  - `TradeInput.ter` is None when not given.
+- **`Operation` checks the currency** (EUR or USD), as `execute_etf_stock` did.
+- **`AppState.commit(acc_idx, df)` is removed.**
+- **`create_defaults` gives a new account an empty journal.** It never does for an existing ledger without one, since loading would rebuild that ledger from the empty journal, losing it: the migration gives it its journal. With a journal but no ledger, it creates only the ledger.
+- **The migration always runs:** the `MIGRATE_TO_JOURNAL` flag is gone, and `restart` migrates whenever an account has no journal.
+- **An account whose migration hasn't succeeded** (e.g. the app started offline) refuses changes with `journal.not_migrated`: "… hasn't been updated to the new format yet … The app tries again each time it starts".
+- **A transfer whose other account isn't usable** is refused with `journal.partner_unavailable` rather than removed from one account only:
+  - the other account isn't migrated (`_other_half`);
+  - or it couldn't be loaded (Transactions checks the configured accounts).
+- **Splits found on Yahoo** go through `operations_service.check_split_ratio` (0.001–1000), as the form's do.
+- **The dividend's ticker** is read when the form is submitted, not later in the background.
+- **`create_defaults`** writes a new account's two files on its own, not through `save_accounts`, so another account's stuck save can't stop it. `prepare_files` goes on with the other accounts when one fails.
+- **Recording offline** in an account holding assets fails with `PricesUnavailable`, as it did before the journal, instead of saving rows valued at old trade prices (see "Prices for a rebuild").
+- **Behaviour that changed, for the better:**
+  - **Removing a transfer** whose other half has newer operations in its account is no longer refused (`transactions.transfer_newer_ops` is gone). Both halves go, and the other account's later rows are rebuilt.
+  - **A split found on Yahoo** goes on its own date, before any later operation, which is rebuilt. Before, it went after the last operation, out of date order.
+- **Tests:**
+  - the existing ones, moved to the journal:
+    - `test_transfer.py` records and undoes through `record` / `delete`;
+    - `test_buy_sell.py` and `test_general_form.py` check the operation each form records (kind, day, fields);
+    - `test_split_validation.py` checks `parse_split_ratio`;
+    - `conftest.state` holds a journal;
+    - `set_operations(state, idx, steps)` replaces `state.commit(idx, ledger)`;
+    - `test_migration.py` turns the account back into one from before the journal where it needs one;
+  - new ones:
+    - `restart` migrates an old-named CSV before Home;
+    - `create_defaults` creates an empty journal for a new account, none next to an existing ledger, and keeps a journal whose ledger is missing;
+    - an account not migrated can't change;
+    - a transfer is undone from both accounts though the other has newer operations;
+    - a split found on Yahoo goes on its own date;
+  - after the review:
+    - a split recorded late keeps its own date (Home doesn't offer it again), or goes on its first buy's day, or keeps its place when its date is refused;
+    - one account that can't be migrated doesn't hold back the others;
+    - recording offline is refused instead of valued at old trade prices;
+    - a transfer whose other account isn't migrated isn't removed by half;
+    - "remove last" undoes the operation entered last;
+    - a Yahoo split with a wrong ratio is refused;
+    - a new account is created though another account's save is stuck.
+- **Checked in the app** (web, on a copy of `portfolio_backup_23-10-2026.zip`):
+  - the first start migrates silently (no differences) and writes the journals and `before-journal` copies;
+  - a deposit and a transfer Fineco → BG Saxo are recorded in the journals (the transfer's halves sharing a `transfer_id`), and undone from Transactions (the confirmation naming both accounts);
+  - the accounts end exactly as migrated, and a fresh start loads them without rebuilding.
 
 ### Phase 6: out-of-order insertion
 - Relaxed date check and pickers, the confirmation with the count, the refusal message. Locale keys: `journal.*` (the refusal messages, `journal.refused.*`, exist since phase 1).

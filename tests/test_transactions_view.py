@@ -11,10 +11,12 @@ from datetime import date
 
 import pandas as pd
 import pytest
+from conftest import set_operations
 from test_exports import FakeFilePicker
-from test_ledger_snapshots import _replay, deposit
+from test_ledger_snapshots import deposit
 
-from services import operations_service
+from domain.journal import Kind
+from services import journal_service
 from utils.columns import export_headers
 from views.transactions_view import TransactionsView
 
@@ -30,9 +32,9 @@ CASH_HELD_NEWEST_FIRST = [1650.0, 1600.0, 1300.0, 1100.0, 1000.0]
 
 
 @pytest.fixture
-def view(app, state, tmp_path):
+def view(app, state):
     """The Transactions screen showing an account that holds only the deposits above."""
-    state.commit(1, _replay(SAME_DAY, tmp_path / "same_day"))
+    set_operations(state, 1, SAME_DAY)
     state.tx_selection = "1"
     view = TransactionsView(app)
     view.build()
@@ -75,21 +77,38 @@ def test_an_accounts_export_is_named_report_and_leaves_out_the_operation_ids(app
     assert header == list(export_headers(state.translator).values())
 
 
-def _transfer_to_second_broker(state, tmp_path):
+def test_remove_last_undoes_the_operation_entered_last_whatever_its_date(app, page, state, monkeypatch):
+    """A split found on Yahoo goes on its own past date; "remove last" then removes it, not the latest-dated operation.
+
+    The test account's last operation is a withdrawal on 02-09-2024; the
+    split of 15-08-2024 is entered after it.
+    """
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
+    state.commit_changes(journal_service.record(state.accounts, state.get_account(1), Kind.SPLIT, date(2024, 8, 15),
+                                                ticker="BBB.MI", ratio=2.0))
+    view = TransactionsView(app)
+    view.build()
+
+    view._on_remove_row(None, 1)
+
+    ledger = state.get_account(1).df
+    assert [op.kind for op in state.get_account(1).journal][-2:] == ["sell", "withdrawal"]
+    assert ledger[(ledger["operation"] == "Split") & (ledger["ticker"] == "BBB.MI")].empty
+
+
+def _transfer_to_second_broker(state):
     """Open "Second Broker" and send it 500 from Test Broker (account 1); return its index."""
     second = state.add_broker("Second Broker")
-    state.commit(second, _replay([deposit(date(2024, 1, 2), 1_000)], tmp_path / "second").assign(account="Second Broker"))
-    sent, received = operations_service.execute_transfer(state.get_account(1), state.get_account(second),
-                                                         "10-01-2025", date(2025, 1, 10), 500)
-    state.commit(1, sent)
-    state.commit(second, received)
+    set_operations(state, second, [deposit(date(2024, 1, 2), 1_000)])
+    state.commit_changes(journal_service.record(state.accounts, state.get_account(1), Kind.TRANSFER_OUT,
+                                                date(2025, 1, 10), amount=500.0, counterpart="Second Broker"))
     return second
 
 
-def test_a_transfer_shows_which_way_the_cash_went(view, state, tmp_path):
+def test_a_transfer_shows_which_way_the_cash_went(view, state):
     """The export names the other account with its direction, "to: Second Broker" and "from: Test Broker",
-    while the ledger keeps the bare name, which removing a transfer looks its other half up by."""
-    second = _transfer_to_second_broker(state, tmp_path)
+    while the ledger keeps the bare name, which doesn't depend on the language."""
+    second = _transfer_to_second_broker(state)
     asset_name = export_headers(state.translator)["asset_name"]
 
     sent = pd.read_csv(io.BytesIO(view._prepare_export_csv(state.get_account(1).transactions)))
@@ -99,9 +118,10 @@ def test_a_transfer_shows_which_way_the_cash_went(view, state, tmp_path):
     assert state.get_account(1).df.iloc[-1]["asset_name"] == "Second Broker"
 
 
-def test_removing_a_transfer_asks_first_then_removes_it_from_both_accounts(app, page, state, tmp_path):
+def test_removing_a_transfer_asks_first_then_removes_it_from_both_accounts(app, page, state, monkeypatch):
     """The last row being a transfer, Remove asks first, naming both accounts: Cancel keeps them, Remove takes both halves."""
-    second = _transfer_to_second_broker(state, tmp_path)
+    second = _transfer_to_second_broker(state)
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     rows = (len(state.get_account(1).df), len(state.get_account(second).df))
     state.tx_selection = "1"
     view = TransactionsView(app)

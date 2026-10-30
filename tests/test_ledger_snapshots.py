@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from domain.journal import Operation
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from services.account_service import create_defaults, ledger_path
 from utils.constants import DATE_FORMAT
@@ -34,7 +35,8 @@ NAMES = {
 
 # ── Operations ───────────────────────────────────────────────────────
 # Each helper returns a Step: called as `step(df) -> df`, it calls the
-# builders with the same arguments services/operations_service.py passes.
+# builders with the same arguments the Operations screen passed before the
+# journal, which journal.apply passes now.
 
 @dataclass(frozen=True)
 class Step:
@@ -124,6 +126,11 @@ def _trade_fields(kind, day, ticker, qty, price, fee, product, currency, conv_ra
     return {"kind": kind, "date": day, "ticker": ticker, "asset_name": NAMES[ticker], "product": product,
             "currency": currency, "conv_rate": conv_rate, "quantity": qty, "price": price, "fee": fee,
             "fee_mode": fee_mode, "tax_rate": tax_rate, "ter": None if pd.isna(ter) else ter}
+
+
+def journal_of(steps):
+    """Return the journal of a scenario: one operation per step, entered in the scenario's order (seq 1, 2, ...)."""
+    return [Operation(id=f"op{seq}", seq=seq, **step.fields) for seq, step in enumerate(steps, start=1)]
 
 
 def _fmt(day):

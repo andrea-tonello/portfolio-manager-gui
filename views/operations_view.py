@@ -9,13 +9,14 @@ from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dr
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
+from domain.journal import Kind
 from domain.ledger import ETF_PRODUCTS, Product, holding_rows
 from domain.positions import held_rows, held_tickers
 from domain.tax import pending_fees
-from services import operations_service
-from services.market_data import search_tickers
-from services.validation import last_operation_date, parse_positive, validate_date
-from utils.constants import CURRENCIES, DATE_FORMAT
+from services import journal_service, operations_service
+from services.market_data import fetch_ticker_name, search_tickers
+from services.validation import last_operation_date, validate_date
+from utils.constants import CURRENCIES
 from utils.formatting import fmt_eur
 
 # Height of the fee cards on a buy and of the panel replacing them on a sale.
@@ -387,11 +388,11 @@ class GeneralForm:
         try:
             day = validate_date(self.date.value, ledger_df=account.df)
             if self.kind == "split":
-                build_ledgers = self._checked_split(account, day)
+                build_changes = self._checked_split(account, day)
             elif self.kind == "transfer":
-                build_ledgers = self._checked_transfer(account, day)
+                build_changes = self._checked_transfer(account, day)
             else:
-                build_ledgers = self._checked_cash_operation(account, day)
+                build_changes = self._checked_cash_operation(account, day)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
@@ -399,57 +400,56 @@ class GeneralForm:
         def save():
             """Record the operation (in both accounts for a transfer), save them and show the tab again.
 
-            Every new ledger is built before any is saved, so a failure while
-            building (e.g. no prices) leaves no account half-changed.
+            Every account changed is rebuilt before any is saved, so a failure
+            while rebuilding (e.g. no prices) leaves no account half-changed.
             """
-            for acc_idx, df in build_ledgers().items():
-                s.commit(acc_idx, df)
+            s.commit_changes(build_changes())
             show_snack(self.page, t.get("operations.added_transaction"))
             self.app.refresh()
 
         run_in_background(self.page, t, save, loading=self.loading)
 
     def _checked_cash_operation(self, account, day):
-        """Check the amount of a cash operation or dividend; return a function building the ledger with it.
+        """Check the amount of a cash operation or dividend; return a function recording it in the journal.
 
-        The function returns {account number: new ledger}, as for every operation (see submit).
+        The function returns journal_service.record's changes, as for every
+        operation (see submit). A dividend looks up its ticker's name on Yahoo.
         """
-        kind = self.kind
-        amount = operations_service.parse_cash_amount(kind, self.amount.value)
-        service_kind = "deposit_withdrawal" if kind in ("deposit", "withdrawal") else kind
-        ticker = self.ticker.value if kind == "dividend" else None
-        description = self.description.value if kind == "charge" else None
-        df = account.df
-        return lambda: {account.idx: operations_service.execute_cash_operation(
-            df, account.name, service_kind, day.strftime(DATE_FORMAT), day, amount,
-            ticker=ticker, description=description,
-        )}
+        kind = Kind(self.kind)
+        fields = {"amount": operations_service.parse_cash_amount(self.kind, self.amount.value)}
+        if kind == Kind.CHARGE:
+            fields["description"] = self.description.value or None
+        if kind == Kind.DIVIDEND:
+            fields["ticker"] = self.ticker.value  # as submitted, whatever is typed while it is recorded
+
+        def record():
+            """Record the operation, asking Yahoo for a dividend's asset name first."""
+            if kind == Kind.DIVIDEND:
+                fields["asset_name"] = fetch_ticker_name(fields["ticker"])
+            return journal_service.record(self.state.accounts, account, kind, day, **fields)
+
+        return record
 
     def _checked_transfer(self, account, day):
-        """Check the recipient and amount of a transfer; return a function building both accounts' ledgers with it.
+        """Check the recipient and amount of a transfer; return a function recording it in both accounts' journals.
 
-        The function returns {account number: new ledger} for the account sending and the one receiving.
+        The function returns journal_service.record's changes, for the account sending and the one receiving.
         """
         recipient = self._recipients.get(int(self.recipient.value)) if self.recipient.value else None
         amount = operations_service.parse_transfer(account.df, recipient, day, self.amount.value)
-        return lambda: dict(zip(
-            (account.idx, recipient.idx),
-            operations_service.execute_transfer(account, recipient, day.strftime(DATE_FORMAT), day, amount),
-        ))
+        return lambda: journal_service.record(self.state.accounts, account, Kind.TRANSFER_OUT, day,
+                                              amount=amount, counterpart=recipient.name)
 
     def _checked_split(self, account, day):
-        """Check the ticker and ratio of a split; return a function building the ledger with it.
+        """Check the ticker and ratio of a split; return a function recording it in the journal.
 
-        The function returns {account number: new ledger}, as for every operation (see submit).
+        The function returns journal_service.record's changes, as for every operation (see submit).
         """
         ticker = self.split_ticker.value
         if not ticker:
             raise ValidationError("operations.stock.ticker_error")
-        ratio = parse_positive(self.split_ratio.value, "operations.split.ratio_error")
-        df = account.df
-        return lambda: {account.idx: operations_service.execute_split(
-            df, account.name, day.strftime(DATE_FORMAT), day, ticker, ratio,
-        )}
+        ratio = operations_service.parse_split_ratio(self.split_ratio.value)
+        return lambda: journal_service.record(self.state.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=ratio)
 
 
 class EtfStockForm:
@@ -922,8 +922,6 @@ class EtfStockForm:
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
-        df = account.df
-        acc_idx = s.ops_acc_idx
         expected_type = "etf" if self.product_type == "ETF" else "equity"
 
         def save():
@@ -934,13 +932,13 @@ class EtfStockForm:
                 show_snack(self.page, t.get("operations.stock.ticker_wrong_type"), error=True)
                 return
 
-            new_df = operations_service.execute_etf_stock(
-                df, account.name, trade.date.strftime(DATE_FORMAT), trade.date,
-                trade.currency, trade.conv_rate, trade.ticker, trade.quantity, trade.price,
-                trade.fee, trade.ter, trade.product,
-                is_buy=trade.is_buy, tax_rate=trade.tax_rate, fee_mode=trade.fee_mode,
+            changes = journal_service.record(
+                s.accounts, account, Kind.BUY if trade.is_buy else Kind.SELL, trade.date,
+                ticker=trade.ticker, asset_name=fetch_ticker_name(trade.ticker), product=trade.product,
+                currency=trade.currency, conv_rate=trade.conv_rate, quantity=trade.quantity, price=trade.price,
+                fee=trade.fee, fee_mode=trade.fee_mode, tax_rate=trade.tax_rate, ter=trade.ter,
             )
-            s.commit(acc_idx, new_df)
+            s.commit_changes(changes)
             show_snack(self.page, t.get("operations.added_transaction"))
             self.app.refresh()
 

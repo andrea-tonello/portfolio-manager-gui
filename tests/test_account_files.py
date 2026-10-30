@@ -13,8 +13,7 @@ from datetime import date
 
 import pandas as pd
 import pytest
-from test_journal import journal_of
-from test_ledger_snapshots import STOCKS_EUR, _replay, deposit
+from test_ledger_snapshots import STOCKS_EUR, _replay, deposit, journal_of
 
 from domain.journal import Kind, Operation, rebuild
 from services import account_service, journal_service

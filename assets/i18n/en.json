@@ -30,6 +30,7 @@
   },
 
   "misc_errors": {
+    "prices_unavailable": "Prices couldn't be downloaded (are you offline?): try again when connected.",
     "nodate": "Date is missing",
     "nodates": "No dates available in DataFrame prior to {dt}",
     "date_sequential": "The date cannot be earlier than the last one recorded",
@@ -287,7 +288,6 @@
     "transfer_undo_one": "It will be removed from {account} only: the other half of the transfer no longer exists.",
     "transfer_undo_confirm": "Remove",
     "transfer_removed": "Transfer removed",
-    "transfer_newer_ops": "{account} has operations after the transfer: remove them first",
     "empty": "No data",
     "filters": "Filters",
     "filter_columns": "Filter columns"
@@ -295,6 +295,8 @@
 
 
   "journal": {
+    "not_migrated": "{account} hasn't been updated to the new format yet, so it can't change. The app tries again each time it starts.",
+    "partner_unavailable": "{account} isn't available now, so the transfer can't be removed from both accounts. Restart the app and try again.",
     "refused": {
       "sell": "The sale of {ticker} on {date} would no longer be possible: {reason}",
       "split": "The split of {ticker} on {date} would no longer be possible: {reason}",

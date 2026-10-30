@@ -16,7 +16,7 @@ from conftest import find_controls, snack_texts
 
 from components.dialogs import show_user_manager
 from domain.errors import ValidationError
-from services import account_service
+from services import account_service, journal_service
 from services.portfolio_service import Snapshot
 from views import onboarding_view
 from views.home_view import HomeView
@@ -32,27 +32,30 @@ def read_section(folder, section):
     return dict(config.items(section)) if config.has_section(section) else {}
 
 
-# ── commit ───────────────────────────────────────────────────────────
+# ── commit_changes ───────────────────────────────────────────────────
 
-def test_commit_stores_and_saves_the_new_ledger(state):
-    """commit makes the new ledger the account's, and writes it to the account's CSV."""
+def test_commit_changes_stores_and_saves_the_new_journal_and_ledger(state):
+    """commit_changes makes the new journal and ledger the account's, and writes both to its files."""
     account = state.get_account(1)
-    new_df = account.df.iloc[:-1]
+    changes = journal_service.delete(state.accounts, account, account.df.iloc[-1]["op_id"])
+    journal, ledger = changes[1]
 
-    state.commit(1, new_df)
+    state.commit_changes(changes)
 
-    assert state.get_account(1).df is new_df
-    assert len(pd.read_csv(account.path)) == len(new_df)
+    assert (state.get_account(1).journal, state.get_account(1).df) == (journal, ledger)
+    assert len(pd.read_csv(account.path)) == len(ledger)
+    assert journal_service.read_journal(account_service.journal_path(state.config_res_folder, account.name)) == journal
 
 
-def test_commit_makes_home_fetch_fresh_values(app, state, monkeypatch):
-    """After a commit, Home recomputes its totals instead of showing the cached ones from before.
+def test_commit_changes_makes_home_fetch_fresh_values(app, state, monkeypatch):
+    """After a change, Home recomputes its totals instead of showing the cached ones from before.
 
     It used to keep showing the old NAV and P&L until the user tapped refresh
     (REFACTORING.md, Appendix A item 1).
     """
     state.home_cache = STALE_CACHE
-    state.commit(1, state.get_account(1).df.iloc[:-1])
+    account = state.get_account(1)
+    state.commit_changes(journal_service.delete(state.accounts, account, account.df.iloc[-1]["op_id"]))
     fetched = []
     monkeypatch.setattr(HomeView, "_fetch_live_values", lambda self: fetched.append(True))
     monkeypatch.setattr(HomeView, "_render", lambda self, snapshot: pytest.fail("used stale cache"))

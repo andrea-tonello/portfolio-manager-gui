@@ -13,8 +13,8 @@ from datetime import date, datetime
 
 import flet as ft
 import pytest
-from conftest import find_controls
-from test_ledger_snapshots import _replay, buy, deposit
+from conftest import find_controls, set_operations, snack_texts
+from test_ledger_snapshots import buy, deposit
 
 import services.portfolio_service
 import views.home_view
@@ -49,7 +49,7 @@ def _offline(*args, **kwargs):
 
 
 @pytest.mark.parametrize("selection", ["overview", "1"])
-def test_home_shows_the_values_of_the_accounts(selection, app, page, state, monkeypatch, tmp_path, snapshot):
+def test_home_shows_the_values_of_the_accounts(selection, app, page, state, monkeypatch, snapshot):
     """NAV, assets and cash, the three P&L modes and the position rows match tests/snapshots/home_<selection>.json.
 
     Prices are the fake ones, on a fixed day. The overview adds the second account
@@ -57,7 +57,7 @@ def test_home_shows_the_values_of_the_accounts(selection, app, page, state, monk
     the USD stock is valued through the exchange rate.
     """
     idx = state.add_broker("Second Broker")
-    state.commit(idx, _replay(SECOND_ACCOUNT, tmp_path / "second"))
+    set_operations(state, idx, SECOND_ACCOUNT)
     state.home_selection = selection
     state.split_checked_session = True  # skip the split check that follows a refresh
     monkeypatch.setattr(views.home_view, "datetime", _FrozenNow)
@@ -101,6 +101,38 @@ def home(app, page, monkeypatch):
     view.build()
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     return view
+
+
+def test_a_split_found_on_yahoo_is_recorded_on_its_own_date(home, state, monkeypatch):
+    """A split Yahoo reports with a past date takes its place by date: the operations after it are built again.
+
+    The test account holds 20 BBB.MI from 02-05-2024 and withdraws cash on
+    02-09-2024. A 2:1 split of 15-08-2024 goes before the withdrawal, whose
+    row is built again after it. Before the journal it went after the last
+    operation, out of date order.
+    """
+    monkeypatch.setattr(HomeView, "_fetch_live_values", lambda self: None)
+
+    home._record_detected_split(1, "BBB.MI", "2024-08-15", 2.0)
+
+    ledger = state.get_account(1).df
+    assert ledger["operation"].iloc[-2:].tolist() == ["Split", "Withdrawal"]
+    assert ledger["date"].iloc[-2] == "15-08-2024"
+    assert [op.kind for op in state.get_account(1).journal][-1] == "split"
+
+
+def test_a_split_found_on_yahoo_with_a_wrong_ratio_is_refused(home, page, state, monkeypatch):
+    """A split event Yahoo reports with a ratio outside 0.001-1000 (e.g. 1 for 5000) is refused, not recorded.
+
+    Recorded, it would cut the holding 5000-fold in every row after it.
+    """
+    monkeypatch.setattr(HomeView, "_fetch_live_values", lambda self: None)
+    journal = list(state.get_account(1).journal)
+
+    home._record_detected_split(1, "BBB.MI", "2024-08-15", 1 / 5000)
+
+    assert state.get_account(1).journal == journal
+    assert snack_texts(page) == ["The ratio must be a positive number"]
 
 
 def test_failed_live_refresh_is_logged(home, state, monkeypatch, caplog):

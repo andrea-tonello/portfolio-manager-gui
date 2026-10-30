@@ -13,15 +13,17 @@ import flet as ft
 import numpy as np
 import pytest
 from conftest import FAKE_BASE_PRICES, snack_texts
-from test_journal import csv_text, journal_of
-from test_ledger_snapshots import BROKER, NAMES, SCENARIOS, _replay, buy, deposit, sell, split
+from test_journal import csv_text
+from test_ledger_snapshots import (BROKER, NAMES, SCENARIOS, STOCKS_EUR, _replay, buy, deposit, journal_of, sell, split,
+                                   withdrawal)
 
 from components.journal_migration import differences_text, migrate_accounts
 from domain.account import Account
 from domain.journal import Operation, operation_to_dict
 from domain.ledger import Op, Product
 from domain.newrow import newrow_cash, newrow_split
-from services import account_service, migration_service, operations_service
+from domain.positions import unrecorded_splits
+from services import account_service, migration_service
 from services.migration_service import Difference, Migration, migrate
 
 
@@ -30,6 +32,13 @@ def legacy_account(idx, name, ledger, folder):
     os.makedirs(folder, exist_ok=True)
     ledger.to_csv(account_service.ledger_path(str(folder), name), index=False)
     return account_service.load_single_account({idx: name}, str(folder), idx)
+
+
+def migrated(accounts):
+    """Return the migrations of `accounts`, by account number, checking that none of them failed."""
+    migrations, failures = migrate(accounts)
+    assert failures == []
+    return migrations
 
 
 def entered(operations):
@@ -48,7 +57,7 @@ def test_a_ledger_migrates_to_the_operations_it_was_recorded_from(name, steps, t
     ledger = _replay(steps, tmp_path / "recorded")
     account = legacy_account(1, BROKER, ledger, tmp_path / "resources")
 
-    migration = migrate({1: account})[1]
+    migration = migrated({1: account})[1]
 
     assert entered(migration.journal) == entered(journal_of(steps))
     assert migration.differences == []
@@ -67,7 +76,7 @@ def test_a_price_saved_rounded_is_recovered_from_its_amount(tmp_path, fake_marke
     ledger = newrow_cash(ledger, "04-01-2024", date(2024, 1, 4), BROKER, -99_874.55, Op.TRANSFER_OUT, Product.CASH,
                          np.nan, "Old Broker")
 
-    migration = migrate({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
+    migration = migrated({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
 
     assert migration.journal[1].price == 100.12345
     assert migration.differences == []
@@ -81,7 +90,7 @@ def test_a_split_ratio_saved_rounded_is_recovered(tmp_path, fake_market):
     steps = [deposit(date(2024, 1, 2), 10_000), buy(date(2024, 1, 3), "AAA.MI", 30, price=100.0, fee=2.0),
              split(date(2024, 2, 1), "AAA.MI", 1 / 3), sell(date(2024, 3, 1), "AAA.MI", 10, price=300.0, fee=2.0)]
 
-    migration = migrate({1: legacy_account(1, BROKER, _replay(steps, tmp_path / "recorded"), tmp_path / "resources")})[1]
+    migration = migrated({1: legacy_account(1, BROKER, _replay(steps, tmp_path / "recorded"), tmp_path / "resources")})[1]
 
     assert migration.journal[2].ratio == 1 / 3
     assert migration.differences == []
@@ -99,16 +108,70 @@ def split_recorded_late(tmp_path, fake_market):
     return newrow_split(ledger, "02-01-2024", date(2024, 1, 2), BROKER, "AAA.MI", 2.0)
 
 
-def test_a_row_recorded_after_later_dated_ones_keeps_its_place(split_recorded_late, tmp_path):
-    """An operation dated before the row above it stays after it, taking its date: the only change reported.
+def test_a_split_dated_before_its_first_buy_goes_on_the_day_of_the_buy(split_recorded_late, tmp_path):
+    """A split recorded after its ticker's first buy but dated the day before goes on the buy's day: the only change.
 
     By its own date the split would come before the buy, with no shares to
-    split, and the migration could never finish.
+    split, and the migration could never finish. A day apart, Home still
+    finds it recorded.
     """
-    migration = migrate({1: legacy_account(1, BROKER, split_recorded_late, tmp_path / "resources")})[1]
+    migration = migrated({1: legacy_account(1, BROKER, split_recorded_late, tmp_path / "resources")})[1]
 
     assert [op.kind for op in migration.journal] == ["deposit", "buy", "split"]
     assert migration.differences == [Difference("02-01-2024", "Split", "AAA.MI", "date", "02-01-2024", "03-01-2024")]
+    assert unrecorded_splits(migration.ledger, "AAA.MI", [(date(2024, 1, 2), 2.0)]) == []
+
+
+def test_a_split_recorded_after_later_operations_keeps_its_own_date(tmp_path, fake_market):
+    """A split Home recorded after operations dated later keeps its date, before them: Home doesn't offer it again.
+
+    BBB.MI, bought on 02-05, splits 2:1 on 15-08, recorded after a
+    withdrawal of 02-09. Moved to 02-09 instead, Home would find no split
+    near Yahoo's date, offer it again, and recording it would double the
+    shares once more.
+    """
+    ledger = _replay([deposit(date(2024, 1, 2), 5000), buy(date(2024, 5, 2), "BBB.MI", 20, price=50.0, fee=1.0),
+                      withdrawal(date(2024, 9, 2), 100)], tmp_path / "recorded")
+    ledger = newrow_split(ledger, "15-08-2024", date(2024, 8, 15), BROKER, "BBB.MI", 2.0)
+
+    migration = migrated({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
+
+    assert migration.ledger["operation"].tolist()[1:] == ["Deposit", "Buy", "Split", "Withdrawal"]
+    assert unrecorded_splits(migration.ledger, "BBB.MI", [(date(2024, 8, 15), 2.0)]) == []
+
+
+def test_a_late_split_that_cant_go_on_its_date_keeps_its_place(tmp_path, fake_market):
+    """If a split recorded late can't be applied on its own date, it keeps its place, as it was recorded.
+
+    A 1:10 reverse split of AAA.MI on 01-02, recorded after a sale of 15 of
+    its 20 shares on 01-03: on its date it would leave 2 shares, too few for
+    that sale. Kept after the sale, the account migrates as it was.
+    """
+    ledger = _replay([deposit(date(2024, 1, 2), 5000), buy(date(2024, 1, 3), "AAA.MI", 20, price=100.0, fee=1.0),
+                      sell(date(2024, 3, 1), "AAA.MI", 15, price=110.0, fee=1.0)], tmp_path / "recorded")
+    ledger = newrow_split(ledger, "01-02-2024", date(2024, 2, 1), BROKER, "AAA.MI", 0.1)
+
+    migration = migrated({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
+
+    assert [op.kind for op in migration.journal][-2:] == ["sell", "split"]
+    assert migration.differences == [Difference("01-02-2024", "Split", "AAA.MI", "date", "01-02-2024", "01-03-2024")]
+
+
+def test_an_account_that_cant_be_migrated_doesnt_hold_back_the_others(tmp_path, fake_market):
+    """One account with an operation that can't be converted fails alone, named; the others are migrated.
+
+    Otherwise every account would stay unchangeable while that one does.
+    """
+    good = _replay([deposit(date(2024, 1, 2), 1000)], tmp_path / "good").assign(account="Fineco")
+    bad = _replay([deposit(date(2024, 1, 2), 100)], tmp_path / "bad").assign(account="Directa")
+    bad.loc[1, "operation"] = "Bonus"
+    accounts = {1: legacy_account(1, "Fineco", good, tmp_path / "resources"),
+                2: legacy_account(2, "Directa", bad, tmp_path / "resources")}
+
+    migrations, failures = migrate(accounts)
+
+    assert list(migrations) == [1]
+    assert [failure.params["account"] for failure in failures] == ["Directa"]
 
 
 def test_a_ticker_yahoo_no_longer_has_doesnt_block_the_migration(tmp_path, fake_market, monkeypatch):
@@ -123,7 +186,7 @@ def test_a_ticker_yahoo_no_longer_has_doesnt_block_the_migration(tmp_path, fake_
                      tmp_path / "recorded")
     monkeypatch.delitem(FAKE_BASE_PRICES, "ZZZ.MI")  # delisted since
 
-    migration = migrate({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
+    migration = migrated({1: legacy_account(1, BROKER, ledger, tmp_path / "resources")})[1]
 
     assert migration.differences == []
     assert migration.ledger["assets_value"].iloc[-1] == 210.0
@@ -137,14 +200,17 @@ def test_transfers_are_paired_across_accounts(tmp_path, fake_market):
     """
     fineco = Account(1, "Fineco", "", _replay([deposit(date(2024, 1, 2), 1000)], tmp_path / "f").assign(account="Fineco"))
     directa = Account(2, "Directa", "", _replay([deposit(date(2024, 1, 2), 100)], tmp_path / "d").assign(account="Directa"))
-    for _ in range(2):
-        fineco.df, directa.df = operations_service.execute_transfer(fineco, directa, "10-01-2024", date(2024, 1, 10), 100)
+    for _ in range(2):  # recorded as before the journal: a row in each account
+        fineco.df = newrow_cash(fineco.df, "10-01-2024", date(2024, 1, 10), "Fineco", -100, Op.TRANSFER_OUT,
+                                Product.CASH, np.nan, "Directa")
+        directa.df = newrow_cash(directa.df, "10-01-2024", date(2024, 1, 10), "Directa", 100, Op.TRANSFER_IN,
+                                 Product.CASH, np.nan, "Fineco")
     fineco.df = newrow_cash(fineco.df, "11-01-2024", date(2024, 1, 11), "Fineco", -50, Op.TRANSFER_OUT, Product.CASH,
                             np.nan, "Old Broker")
     accounts = {idx: legacy_account(idx, account.name, account.df, tmp_path / "resources")
                 for idx, account in ((1, fineco), (2, directa))}
 
-    migrations = migrate(accounts)
+    migrations = migrated(accounts)
 
     sent = [op.transfer_id for op in migrations[1].journal if op.kind == "transfer_out"]
     received = [op.transfer_id for op in migrations[2].journal if op.kind == "transfer_in"]
@@ -165,18 +231,38 @@ def test_a_transfer_half_takes_the_id_of_its_other_half_already_in_a_journal(tmp
                          counterpart="Fineco", transfer_id="already-there")
     directa = Account(2, "Directa", "", None, journal=[received])
 
-    migration = migrate({1: legacy_account(1, "Fineco", fineco.df, tmp_path / "resources"), 2: directa})[1]
+    migration = migrated({1: legacy_account(1, "Fineco", fineco.df, tmp_path / "resources"), 2: directa})[1]
 
     assert [op.transfer_id for op in migration.journal if op.kind == "transfer_out"] == ["already-there"]
 
 
-def test_a_migration_isnt_saved_over_an_account_changed_meanwhile(state, fake_market):
-    """If an operation was recorded while the migration was worked out, nothing is saved: it would be lost.
+@pytest.fixture
+def legacy_state(state, tmp_path):
+    """Return a function turning the `state` fixture's account into one recorded before the journal, holding a ledger.
+
+    As an existing install has it: the ledger's CSV alone, loaded again. The
+    ledger defaults to the STOCKS_EUR history the account holds.
+    """
+    def make_legacy(ledger=None):
+        """Give the account `ledger` (or its own history) and no journal, and load it again."""
+        folder = state.config_res_folder
+        os.remove(account_service.journal_path(folder, BROKER))
+        ledger = _replay(STOCKS_EUR, tmp_path / "legacy") if ledger is None else ledger
+        ledger.to_csv(account_service.ledger_path(folder, BROKER), index=False)
+        state.load_all_accounts()
+        return state
+
+    return make_legacy
+
+
+def test_a_migration_isnt_saved_over_an_account_changed_meanwhile(legacy_state, tmp_path):
+    """If the account's ledger changed while the migration was worked out, nothing is saved: the change would be lost.
 
     The migration is then worked out again, from the account as it is now.
     """
-    migrations = migrate(state.accounts)
-    state.commit(1, _replay([deposit(date(2024, 1, 2), 5)], Path(state.base_path) / "other"))
+    state = legacy_state()
+    migrations = migrated(state.accounts)
+    state.get_account(1).df = _replay([deposit(date(2024, 1, 2), 5)], tmp_path / "other")
 
     assert state.commit_migration(migrations) is False
     assert state.get_account(1).journal is None
@@ -203,14 +289,14 @@ def _open(page):
     return [dialog for dialog in page.dialogs if dialog.open]
 
 
-def test_values_that_changed_are_shown_and_the_accounts_saved_on_continue(app, page, state, split_recorded_late):
+def test_values_that_changed_are_shown_and_the_accounts_saved_on_continue(app, page, legacy_state, split_recorded_late):
     """The user sees what differs, and continuing saves the journal, the rebuilt ledger and a copy of the old one.
 
     Until then nothing is saved: the dialog can't be dismissed otherwise.
     Home is shown once the accounts are saved.
     """
+    state = legacy_state(split_recorded_late)
     folder = state.config_res_folder
-    state.commit(1, split_recorded_late)
     old_ledger = Path(account_service.ledger_path(folder, BROKER)).read_text(encoding="utf-8")
     shown = []
     _run_now(page)
@@ -242,8 +328,9 @@ def test_the_working_dialog_closes_though_another_opened_above_it(app, page, sta
     assert other.open and not working.open
 
 
-def test_an_operation_that_cant_be_converted_is_named_not_blamed_on_the_connection(app, page, state):
+def test_an_operation_that_cant_be_converted_is_named_not_blamed_on_the_connection(app, page, legacy_state):
     """A row that can never be converted is named, with its account, instead of "are you offline?" at every start."""
+    state = legacy_state()
     state.get_account(1).df.loc[1, "operation"] = "Bonus"
     shown = []
     _run_now(page)
@@ -255,8 +342,9 @@ def test_an_operation_that_cant_be_converted_is_named_not_blamed_on_the_connecti
     assert snack_texts(page) == [] and shown == ["Home"]
 
 
-def test_a_migration_that_fails_saves_nothing_and_says_so(app, page, state, monkeypatch):
+def test_a_migration_that_fails_saves_nothing_and_says_so(app, page, legacy_state, monkeypatch):
     """Offline, the migration can't price the rows: the user is told, Home is shown, and every file stays as it was."""
+    state = legacy_state()
     folder = state.config_res_folder
     before = sorted(os.listdir(folder))
     shown = []

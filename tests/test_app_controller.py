@@ -6,12 +6,15 @@ importing navigation functions from the views package.
 """
 
 import asyncio
+import os
+from datetime import date
 from types import SimpleNamespace
 
 import flet as ft
 import pytest
 from conftest import find_controls
 from test_errors import FakeImportPicker
+from test_ledger_snapshots import _replay, deposit
 
 from app_controller import AppController
 from services import config_service
@@ -65,6 +68,27 @@ def test_restart_continues_the_setup_where_it_stopped(tmp_path, page, saved, exp
 
     assert _shown(page) == expected
     assert app.state.base_path == str(tmp_path)
+
+
+def test_restart_moves_an_account_from_before_the_journal_to_it_before_home(tmp_path, page, fake_market):
+    """An account saved before the journal (its CSV alone, under its old name) gets its journal, then Home is shown.
+
+    Until it has one, nothing can be recorded in it: this runs at every
+    start until it succeeds, before Home. The old CSV is kept as a copy.
+    """
+    _write(tmp_path, ACCOUNTS)
+    resources = tmp_path / "config" / "users" / "Ann" / "resources"
+    resources.mkdir(parents=True)
+    _replay([deposit(date(2024, 1, 2), 1000)], tmp_path / "recorded").assign(account="Main").to_csv(
+        resources / "Report Main.csv", index=False)
+    page.run_thread = lambda fn, *args: fn(*args)
+    app = AppController(page, base_path=str(tmp_path))
+
+    app.restart()
+
+    assert _shown(page) == "tab 0"
+    assert [op.kind for op in app.state.get_account(1).journal] == ["deposit"]
+    assert sorted(os.listdir(resources)) == ["before-journal-Main.csv", "journal-Main.json", "report-Main.csv"]
 
 
 def test_choosing_a_language_moves_on_to_the_backup_import_in_that_language(tmp_path, page):

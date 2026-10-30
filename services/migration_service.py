@@ -15,7 +15,7 @@ Nothing is saved here: AppState.commit_migration saves the result.
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime
 from fractions import Fraction
 
 import pandas as pd
@@ -85,39 +85,56 @@ class Migration:
     source: pd.DataFrame
 
 
-def migrate(accounts: dict[int, Account]) -> dict[int, Migration]:
-    """Return the migration of every account in `accounts` without a journal, by account number. Nothing is saved.
+def migrate(accounts: dict[int, Account]) -> tuple[dict[int, Migration], list[MigrationError]]:
+    """Return the migrations of the accounts in `accounts` without a journal, by account number, and the failures.
 
-    The two halves of each transfer share a transfer_id, also with a half
-    already in another account's journal. One download of prices serves
-    every account. Raises LookupError when the prices can't be had (e.g.
-    offline), and MigrationError for an operation that can't be converted
-    or rebuilt.
+    Each account is migrated on its own: one that can't be (MigrationError,
+    naming the account and the operation) doesn't hold back the others. The
+    two halves of each transfer share a transfer_id, also with a half already
+    in another account's journal, so an account migrated later joins them.
+    One download of prices serves every account: if it fails (e.g.
+    PricesUnavailable offline), it is raised and nothing is migrated.
+    Nothing is saved.
     """
     legacy = {idx: account for idx, account in accounts.items() if account.journal is None}
     if not legacy:
-        return {}
+        return {}, []
     journaled = [account for account in accounts.values() if account.journal is not None]
     transfer_ids = _pair_transfers({account.name: account.df for account in legacy.values()}, journaled)
     prices = _prices(list(legacy.values()))
-    migrations = {}
+    migrations, failures = {}, []
     for idx, account in legacy.items():
-        journal = _journal(account, transfer_ids, prices)
+        try:
+            migrations[idx] = _migrate_account(account, transfer_ids, prices)
+        except MigrationError as ex:
+            failures.append(ex)
+    return migrations, failures
+
+
+def _migrate_account(account: Account, transfer_ids: dict[tuple[str, int], str], prices: PriceBook) -> Migration:
+    """Return the migration of `account`, or raise MigrationError naming the operation that prevents it.
+
+    Rows recorded after later-dated ones are first moved to their own date
+    where they can be (see _late_date). If rebuilding then refuses an
+    operation, every such row keeps its place in the ledger instead, which
+    gives the values the ledger was recorded with.
+    """
+    for keep_order in (False, True):
+        journal = _journal(account, transfer_ids, prices, keep_order)
         try:
             ledger = rebuild(account.name, journal, prices=prices)
         except OperationRefused as ex:
-            raise MigrationError(account.name, ex.operation.date.strftime(DATE_FORMAT), ex.reason) from ex
-        migrations[idx] = Migration(journal, ledger, _differences(account.df, ledger, journal), account.df)
-    return migrations
+            refused = ex
+            continue
+        return Migration(journal, ledger, _differences(account.df, ledger, journal), account.df)
+    raise MigrationError(account.name, refused.operation.date.strftime(DATE_FORMAT), refused.reason) from refused
 
 
-def _journal(account: Account, transfer_ids: dict[tuple[str, int], str], prices: PriceBook) -> list[Operation]:
+def _journal(account: Account, transfer_ids: dict[tuple[str, int], str], prices: PriceBook,
+             keep_order: bool) -> list[Operation]:
     """Return the operations of `account`'s ledger, one per row, in the ledger's order.
 
-    A row dated before the row above it (e.g. a split found later, recorded
-    with its own earlier date) keeps its place, taking that row's date:
-    moved by its date, it would be applied to other holdings than when it
-    was recorded, or to none. The rebuilt row shows the new date.
+    A row dated before the row above it gets the date _late_date gives it.
     Raises MigrationError naming the first row that can't be converted.
     """
     journal = []
@@ -125,7 +142,7 @@ def _journal(account: Account, transfer_ids: dict[tuple[str, int], str], prices:
         try:
             op = _operation(account.df, position, transfer_ids.get((account.name, position)))
             if journal and op.date < journal[-1].date:
-                op = replace(op, date=journal[-1].date)
+                op = replace(op, date=_late_date(account.df, position, op, journal[-1].date, keep_order))
             journal.append(_with_fee_mode(account, position, op, prices))
         except (ValueError, TypeError, ValidationError) as ex:
             reason = ex if isinstance(ex, ValidationError) else str(ex)
@@ -133,13 +150,36 @@ def _journal(account: Account, transfer_ids: dict[tuple[str, int], str], prices:
     return journal
 
 
+def _late_date(ledger: pd.DataFrame, position: int, op: Operation, previous_day: date, keep_order: bool) -> date:
+    """Return the date of the operation `op`, at `position` of `ledger` but dated before the row above it.
+
+    Only a split found on Yahoo is recorded so (Home recorded it after the
+    last operation, with its own date). It keeps that date, so Home finds
+    it recorded and doesn't offer it again, unless its ticker wasn't held
+    yet then (a split of the day before the first buy): it goes to the day
+    of the first buy instead, still within a day of Yahoo's. With
+    `keep_order` (the first try was refused), or for any other operation, it
+    takes `previous_day`, the date of the row above, keeping its place.
+
+    Example: a 2:1 split of 15-08 recorded after a withdrawal of 02-09 keeps
+    15-08; one of 02-01 recorded after the first buy, on 03-01, gets 03-01.
+    """
+    if keep_order or op.kind != Kind.SPLIT:
+        return previous_day
+    held = holding_rows(ledger.iloc[1:position], op.ticker)
+    if held.empty:
+        return previous_day
+    first_held = min(datetime.strptime(day, DATE_FORMAT).date() for day in held["date"])
+    return max(op.date, first_held)
+
+
 def _pair_transfers(ledgers: dict[str, pd.DataFrame], journaled: list[Account]) -> dict[tuple[str, int], str]:
     """Return the transfer_id of every transfer row of `ledgers`, by (account name, row position).
 
-    A transfer's two halves share it. They match as they do when one is
-    removed today (see operations_service._other_side): out of one account
-    and into the other, on the same day, for the same amount, each naming
-    the other account. Equal transfers on the same day pair in order. A half
+    A transfer's two halves share it. They match as removing a transfer
+    matched them before the journal: out of one account and into the
+    other, on the same day, for the same amount, each naming the other
+    account. Equal transfers on the same day pair in order. A half
     can also match one already in a `journaled` account whose own other
     half isn't there (e.g. that account was moved to the journal first): it
     takes that one's transfer_id. A half whose account was deleted gets an

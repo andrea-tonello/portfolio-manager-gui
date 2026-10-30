@@ -14,6 +14,7 @@ from datetime import date
 import pandas as pd
 
 from domain.account import Account
+from domain.errors import ValidationError
 from domain.journal import (
     Kind, Operation, OperationRefused, new_id, operation_from_dict, operation_to_dict, rebuild, rows_up_to_date,
 )
@@ -166,10 +167,36 @@ def _rebuilt(accounts: dict[int, Account], journals: dict[int, list[Operation]],
 
 
 def _journal_of(account: Account) -> list[Operation]:
-    """Return `account`'s journal; ValueError for an account recorded before the journal and not migrated yet."""
+    """Return `account`'s journal.
+
+    Raises ValidationError("journal.not_migrated") for an account recorded
+    before the journal whose migration hasn't succeeded yet (e.g. the app
+    started offline): it can't change until then.
+    """
     if account.journal is None:
-        raise ValueError(f"account {account.name} has no journal yet")
+        raise ValidationError("journal.not_migrated", account=account.name)
     return account.journal
+
+
+def last_entered(account: Account) -> Operation:
+    """Return the operation recorded last in `account`, whatever its date: what "remove last" undoes.
+
+    E.g. a split found on Yahoo and recorded today on its date of last
+    month, before newer operations. Raises ValidationError for an account not
+    migrated yet (see _journal_of); the account must have an operation.
+    """
+    return max(_journal_of(account), key=lambda op: op.seq)
+
+
+def transfer_partner(accounts: dict[int, Account], account: Account, op_id: str) -> Account | None:
+    """Return the account holding the other half of the transfer `op_id` of `account`, or None.
+
+    None when the operation isn't a transfer, or its other account was
+    deleted. Lets a screen say which accounts deleting a transfer changes,
+    before deleting it.
+    """
+    half = _other_half(accounts, account, _find(account, op_id))
+    return None if half is None else half[0]
 
 
 def _next_seq(account: Account) -> int:
@@ -197,10 +224,16 @@ def _other_half(accounts: dict[int, Account], account: Account, op: Operation) -
     """Return (the other account, its half) of the transfer `op` of `account`, or None.
 
     None when `op` isn't a transfer, or the other account was deleted.
-    The half is found by the transfer_id both share.
+    The half is found by the transfer_id both share. Raises
+    ValidationError("journal.partner_unavailable") when the other account is
+    there but not migrated yet: changing one half alone would leave the
+    other for good.
     """
     if op.transfer_id is None:
         return None
+    for other in accounts.values():
+        if other.idx != account.idx and other.name == op.counterpart and other.journal is None:
+            raise ValidationError("journal.partner_unavailable", account=other.name)
     for other in accounts.values():
         if other.idx != account.idx and other.journal is not None:
             half = next((o for o in other.journal if o.transfer_id == op.transfer_id), None)

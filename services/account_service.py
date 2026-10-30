@@ -104,27 +104,47 @@ def prepare_files(folder: str, broker_names: list[str]) -> None:
     logged and tried again later). Renames each ledger still saved as
     "Report <account>.csv", from before the journal, to report-<account>.csv,
     unless that exists. Then creates the ledger of an account that has none
-    (create_defaults): after the renaming, or it would hide the user's operations.
+    (create_defaults): after the renaming, or it would hide the user's
+    operations. An account whose files can't be prepared is logged, and the
+    others are still prepared.
     """
     try:
         finish_interrupted_save(folder)
     except OSError:
         logger.warning("Could not finish an interrupted save yet", exc_info=True)
     for name in broker_names:
-        old, new = os.path.join(folder, export_filename(name)), ledger_path(folder, name)
-        if os.path.isfile(old) and not os.path.exists(new):
-            os.replace(old, new)
-        create_defaults(folder, name)
+        try:
+            old, new = os.path.join(folder, export_filename(name)), ledger_path(folder, name)
+            if os.path.isfile(old) and not os.path.exists(new):
+                os.replace(old, new)
+            create_defaults(folder, name)
+        except OSError:
+            logger.warning("Could not prepare the files of %s", name, exc_info=True)
 
 
 def create_defaults(save_folder: str, broker_name: str) -> None:
-    """Create the ledger of a new account `broker_name` in `save_folder`, holding only its opening row.
+    """Create the files of a new account `broker_name` in `save_folder`: a ledger of its opening row, an empty journal.
 
-    Does nothing if the account already has one: it holds the user's transactions.
+    Does nothing if the account already has a ledger: it holds the user's
+    transactions (without a journal, the account is migrated at the next
+    start). With a journal but no ledger, only the ledger is created, and
+    loading the account rebuilds it from the journal: an empty journal
+    there would lose every operation.
+
+    Each file is written in full, then put in place, without finishing any
+    earlier save first (as save_accounts does): a file of another account
+    that can't be replaced yet mustn't stop a new account. A stop between
+    the two files is harmless: next time the missing one is created.
     """
-    path = ledger_path(save_folder, broker_name)
-    if not os.path.isfile(path):
-        opening_ledger(broker_name).to_csv(path, index=False)
+    files = {ledger_path(save_folder, broker_name): opening_ledger(broker_name).to_csv(index=False)}
+    if os.path.isfile(next(iter(files))):
+        return
+    if not os.path.isfile(journal_path(save_folder, broker_name)):
+        files[journal_path(save_folder, broker_name)] = journal_to_json([])
+    with _save_lock:
+        for path, text in files.items():
+            _write_fully(path + _TEMPORARY, text)
+            os.replace(path + _TEMPORARY, path)
 
 
 def _read_ledger(path: str) -> pd.DataFrame:

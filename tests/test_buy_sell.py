@@ -1,10 +1,10 @@
-"""Tests for how buys and sells are passed to the account builder (REFACTORING.md, D2 points 1-2).
+"""Tests for how buys and sells are recorded (REFACTORING.md, D2 points 1-2).
 
-Callers say which side the trade is on with `is_buy` and always pass the
-price as a positive number. The account CSV keeps its long-standing format:
-a buy row stores a negative price and negative amounts (money leaving the
-account), a sell row positive ones. The conversion happens in one place,
-newrow_etf_stock.
+Callers say which side the trade is on with the operation's kind, buy or
+sell, and always pass the price as a positive number. The account CSV keeps
+its long-standing format: a buy row stores a negative price and negative
+amounts (money leaving the account), a sell row positive ones. The
+conversion happens in one place, newrow_etf_stock.
 
 The currency is passed as its code, "EUR" or "USD", from the Operations
 screen's dropdown down to the CSV's `curr` column.
@@ -12,30 +12,31 @@ screen's dropdown down to the CSV's `curr` column.
 
 from datetime import date, timedelta
 
-import numpy as np
 import pytest
-from conftest import snack_texts
+from conftest import account_of, applied, snack_texts
 from test_ledger_snapshots import BROKER, NAMES, _replay, buy, deposit
 
 import views.operations_view
-from services import operations_service
-from services.operations_service import execute_etf_stock
-from utils.constants import DATE_FORMAT
+from domain.journal import Kind
+from services import journal_service
 from views.operations_view import OperationsView
 
 
-def _trade(df, day, quantity, price, fee, *, is_buy, currency="EUR"):
-    """Record a trade of AAA.MI through execute_etf_stock, the function the Operations screen calls."""
-    return execute_etf_stock(
-        df, BROKER, day.strftime(DATE_FORMAT), day, currency, 1.0, "AAA.MI",
-        quantity, price, fee, np.nan, "Stock", is_buy=is_buy, asset_name=NAMES["AAA.MI"],
-    )
+def _trade(account, day, quantity, price, fee, *, is_buy, currency="EUR"):
+    """Record a trade of AAA.MI through journal_service.record, as the Operations screen does; return the new ledger."""
+    accounts = {account.idx: account}
+    applied(accounts, journal_service.record(
+        accounts, account, Kind.BUY if is_buy else Kind.SELL, day,
+        ticker="AAA.MI", asset_name=NAMES["AAA.MI"], product="Stock", currency=currency, conv_rate=1.0,
+        quantity=quantity, price=price, fee=fee, fee_mode="abp", tax_rate=0.26, ter=None,
+    ))
+    return account.df
 
 
 @pytest.fixture
-def account(tmp_path, fake_market):
+def account(fake_market):
     """A new account holding 5000 EUR of cash, deposited on 2 January 2024."""
-    return _replay([deposit(date(2024, 1, 2), 5000)], tmp_path)
+    return account_of(1, BROKER, [deposit(date(2024, 1, 2), 5000)])
 
 
 def test_buy_is_stored_with_negative_price_and_amounts(account):
@@ -52,12 +53,9 @@ def test_buy_is_stored_with_negative_price_and_amounts(account):
 
 
 def test_sell_is_stored_with_positive_price_and_amounts(account):
-    """Selling 5 of those shares at 120 EUR minus a 2 EUR fee stores price 120 and amounts 600 / 598.
-
-    No tax rate is passed, so the standard 26% capital gains tax applies.
-    """
-    df = _trade(account, date(2024, 1, 3), 10, 100.0, 2.0, is_buy=True)
-    df = _trade(df, date(2024, 3, 1), 5, 120.0, 2.0, is_buy=False)
+    """Selling 5 of those shares at 120 EUR minus a 2 EUR fee stores price 120 and amounts 600 / 598, taxed at 26%."""
+    _trade(account, date(2024, 1, 3), 10, 100.0, 2.0, is_buy=True)
+    df = _trade(account, date(2024, 3, 1), 5, 120.0, 2.0, is_buy=False)
 
     row = df.iloc[-1]
     assert row["operation"] == "Sell"
@@ -92,19 +90,20 @@ def test_unknown_currency_is_refused(account, currency):
 def open_trade_form(monkeypatch, app, page, state):
     """Return a function that opens one of the Operations screen's trade forms, filled in, with submitted trades recorded.
 
-    Background work runs straight away instead of in a thread, the ticker
-    check against Yahoo is skipped, and execute_etf_stock only records its
-    arguments.
+    Background work runs straight away instead of in a thread, the checks
+    against Yahoo (the ticker's kind and name) are skipped, and
+    journal_service.record only records its arguments.
     """
     calls = []
 
-    def record_trade(*args, **kwargs):
-        """Stand-in for execute_etf_stock: remember the arguments and leave the account unchanged."""
-        calls.append((args, kwargs))
-        return args[0]
+    def record(accounts, account, kind, day, **fields):
+        """Stand-in for journal_service.record: remember the operation and change no account."""
+        calls.append((kind, fields))
+        return {}
 
-    monkeypatch.setattr(operations_service, "execute_etf_stock", record_trade)
+    monkeypatch.setattr(journal_service, "record", record)
     monkeypatch.setattr(views.operations_view, "search_tickers", lambda *args, **kwargs: [])
+    monkeypatch.setattr(views.operations_view, "fetch_ticker_name", lambda ticker: NAMES[ticker])
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
 
     state.ops_acc_idx = 1
@@ -133,16 +132,24 @@ def stock_form(open_trade_form):
     return open_trade_form("Stock")
 
 
+def _sent(calls, *names):
+    """The values of the fields `names` of the one trade recorded."""
+    [(_, fields)] = calls
+    return tuple(fields[name] for name in names)
+
+
 def test_form_sends_eur_by_default(stock_form):
-    """With the default currency, the trade goes out as "EUR" with exchange rate 1 and the fee unchanged."""
+    """With the default currency, the trade goes out as a buy in "EUR" with exchange rate 1 and the fee unchanged.
+
+    The asset's name comes from Yahoo.
+    """
     form, submit, calls = stock_form
 
     submit()
 
-    args, kwargs = calls[0]
-    currency, conv_rate, ticker, quantity, price, fee = args[4:10]
-    assert (currency, conv_rate, ticker, quantity, price, fee) == ("EUR", 1.0, "UUU", 5, 200.0, 2.0)
-    assert kwargs["is_buy"] is True
+    assert calls[0][0] == Kind.BUY
+    assert _sent(calls, "currency", "conv_rate", "ticker", "asset_name", "quantity", "price", "fee") == (
+        "EUR", 1.0, "UUU", "Uniform Corp", 5, 200.0, 2.0)
 
 
 def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
@@ -157,9 +164,7 @@ def test_form_sends_usd_and_converts_a_usd_fee_to_eur(stock_form):
 
     submit()
 
-    args, _ = calls[0]
-    currency, conv_rate, _, _, _, fee = args[4:10]
-    assert (currency, conv_rate, fee) == ("USD", 0.9, 1.8)
+    assert _sent(calls, "currency", "conv_rate", "fee") == ("USD", 0.9, 1.8)
 
 
 @pytest.mark.parametrize("picked, tax_bracket, tax_rate", [
@@ -181,8 +186,7 @@ def test_etf_form_sends_the_product_code_picked(open_trade_form, picked, tax_bra
 
     submit()
 
-    args, kwargs = calls[0]
-    assert (args[11], kwargs["tax_rate"]) == (picked, tax_rate)
+    assert _sent(calls, "product", "tax_rate") == (picked, tax_rate)
 
 
 @pytest.mark.parametrize("is_sell, card, fee_mode", [
@@ -206,8 +210,7 @@ def test_etf_form_sends_the_tax_carryforward_choice(open_trade_form, is_sell, ca
 
     submit()
 
-    _, kwargs = calls[0]
-    assert kwargs["fee_mode"] == fee_mode
+    assert _sent(calls, "fee_mode") == (fee_mode,)
 
 
 def _flip_to_sell(form):
@@ -266,8 +269,7 @@ def test_a_blank_fee_is_recorded_as_zero(stock_form):
 
     submit()
 
-    args, _ = calls[0]
-    assert args[9] == 0.0
+    assert _sent(calls, "fee") == (0.0,)
 
 
 @pytest.mark.parametrize("tab, changes, message", [

@@ -31,7 +31,7 @@ from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from domain.positions import holdings
 from services.market_data import PriceBook
 from utils.columns import OP_HASH, OP_ID
-from utils.constants import DATE_FORMAT
+from utils.constants import CURRENCIES, DATE_FORMAT
 from utils.formatting import fmt_eur
 
 
@@ -132,7 +132,8 @@ class Operation:
         Refused: an unknown kind, a value of the wrong type (e.g. a seq of
         "3", which couldn't be ordered), a field of its kind missing or
         another kind's present, and values the row builders can't take (a
-        split ratio of 0 would divide by zero). Also stores `kind` as a Kind,
+        split ratio of 0 would divide by zero, a currency other than EUR or
+        USD has no exchange rate). Also stores `kind` as a Kind,
         so "deposit" and Kind.DEPOSIT give the same operation.
         """
         object.__setattr__(self, "kind", Kind(self.kind))  # raises ValueError for an unknown kind
@@ -160,6 +161,8 @@ class Operation:
             self._refuse(f"tax_rate must be between 0 and 1, got {self.tax_rate}")
         if self.fee_mode is not None and self.fee_mode not in _FEE_MODES:
             self._refuse(f"fee_mode must be one of {_FEE_MODES}, got {self.fee_mode!r}")
+        if self.currency is not None and self.currency not in CURRENCIES:
+            self._refuse(f"currency must be one of {CURRENCIES}, got {self.currency!r}")
 
     def _refuse(self, problem: str):
         """Raise the ValueError of __post_init__, naming the operation and its `problem`."""
@@ -250,7 +253,8 @@ class OperationRefused(ValidationError):
 def _cash_row(op: Operation) -> tuple[int, Op, str, str | float, str | float]:
     """Return what a cash operation's row stores: (sign of the amount, operation, product, ticker, asset_name).
 
-    The same values services/operations_service.py passes to newrow_cash.
+    The same values the Operations screen passed to newrow_cash before the
+    journal, so rebuilt rows match those recorded then.
     Example: a transfer of 500 to "Directa" -> (-1, "Transfer Out", "Cash", NaN, "Directa").
     """
     return {

@@ -2,15 +2,18 @@ import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
 
+from components.background import run_in_background
 from components.buttons import action_card_btn
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
 from components.repaint_boundary import repaint_boundary
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
-from domain.ledger import Op
-from services import account_service, config_service, operations_service
-from utils.columns import COLUMNS, export_headers, localized_value_maps, rename_for_export, show_transfer_counterparts
+from domain.journal import Kind
+from services import account_service, config_service, journal_service
+from utils.columns import (
+    COLUMNS, export_headers, localized_value_maps, rename_for_export, show_transfer_counterparts,
+)
 from utils.constants import DEFAULT_TX_FILTER
 
 _DEFAULT_DISPLAY_COLS = [
@@ -44,6 +47,11 @@ class TransactionsView:
         self.app = app
         self.page = app.page
         self.state = app.state
+        self._removing = False  # True while a removal is being saved: another tap waits for it
+
+    def _unloaded_accounts(self) -> set[str]:
+        """Return the names of the user's accounts that couldn't be loaded (e.g. a journal from a newer version)."""
+        return set(self.state.brokers.values()) - {account.name for account in self.state.accounts.values()}
 
     def build(self) -> ft.Control:
         t = self.state.translator
@@ -370,37 +378,54 @@ class TransactionsView:
         await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
-        """Remove account `idx`'s last operation. A transfer is in two accounts: ask first, then remove both halves.
+        """Remove the operation recorded last in account `idx`. A transfer is in two accounts: ask first, then remove both.
 
-        See operations_service.remove_last_operation for which rows go, and
-        when a transfer can't be removed yet.
+        The operation is the one entered last, whatever its date (a split
+        found on Yahoo goes on its own past date), and is deleted from the
+        journal (journal_service.delete), which rebuilds what follows it: the
+        other half of a transfer can come before newer operations of its
+        account. Another removal is ignored while one is being saved.
         """
         s = self.state
         t = s.translator
         account = s.get_account(idx)
+        if self._removing:
+            return
         if not (account and account.has_transactions):
             show_snack(self.page, t.get("transactions.no_rows"), error=True)
             return
         try:
-            changed = operations_service.remove_last_operation(account, s.accounts)
-        except ValidationError as ex:
+            op = journal_service.last_entered(account)
+            partner = journal_service.transfer_partner(s.accounts, account, op.id)
+            if op.transfer_id and partner is None and op.counterpart in self._unloaded_accounts():
+                raise ValidationError("journal.partner_unavailable", account=op.counterpart)
+        except ValidationError as ex:  # an account not moved to the journal, or not loaded
             show_snack(self.page, error_message(t, ex), error=True)
             return
 
         def remove(message_key):
-            """Save the accounts without the operation, say so, and show the tab again."""
-            for acc_idx, df in changed.items():
-                s.commit(acc_idx, df)
-            show_snack(self.page, t.get(message_key))
-            self.app.refresh()
+            """Delete the operation in the background, save the accounts, say so, and show the tab again."""
+            if self._removing:
+                return
+            self._removing = True
 
-        if account.df.iloc[-1]["operation"] not in (Op.TRANSFER_OUT, Op.TRANSFER_IN):
+            def work():
+                """Delete the operation (both halves of a transfer) and save the accounts it changes."""
+                try:
+                    s.commit_changes(journal_service.delete(s.accounts, account, op.id))
+                    show_snack(self.page, t.get(message_key))
+                    self.app.refresh()
+                finally:
+                    self._removing = False
+
+            run_in_background(self.page, t, work)
+
+        if op.kind not in (Kind.TRANSFER_OUT, Kind.TRANSFER_IN):
             remove("transactions.row_removed")
             return
 
-        names = [s.accounts[acc_idx].name for acc_idx in changed]
-        text = (t.get("transactions.transfer_undo_both", first=names[0], second=names[1]) if len(names) == 2
-                else t.get("transactions.transfer_undo_one", account=names[0]))
+        text = (t.get("transactions.transfer_undo_both", first=account.name, second=partner.name) if partner
+                else t.get("transactions.transfer_undo_one", account=account.name))
 
         def confirm(_):
             """Close the question and remove the transfer."""

@@ -16,14 +16,9 @@ from components.snack import error_message
 from conftest import fake_download_close
 from domain.journal import Operation, OperationRefused, operation_from_dict, operation_to_dict, rebuild
 from services import market_data
-from test_ledger_snapshots import (BROKER, ETFS_AND_USD, SCENARIOS, STOCKS_EUR, _replay, buy, deposit, sell,
-                                   withdrawal)
+from test_ledger_snapshots import (BROKER, ETFS_AND_USD, SCENARIOS, STOCKS_EUR, _replay, buy, deposit, journal_of,
+                                   sell, withdrawal)
 from utils.columns import INTERNAL_COLUMNS, OP_ID
-
-
-def journal_of(steps):
-    """Return the journal of a scenario: one operation per step, entered in the scenario's order (seq 1, 2, ...)."""
-    return [Operation(id=f"op{seq}", seq=seq, **step.fields) for seq, step in enumerate(steps, start=1)]
 
 
 def csv_text(ledger):
@@ -73,11 +68,10 @@ def test_an_operation_entered_after_later_ones_takes_its_place_by_date(steps, la
 
 
 @pytest.mark.parametrize("steps, from_index, downloads", [
-    (STOCKS_EUR, 0, [(["AAA.MI", "BBB.MI"], False), (["AAA.MI", "BBB.MI"], True)]),
-    (ETFS_AND_USD, 0, [(["EEE.MI", "MMM.MI", "UUU"], False), (["EEE.MI", "MMM.MI", "UUU"], True),
-                       (["USDEUR=X"], False)]),
+    (STOCKS_EUR, 0, [["AAA.MI", "BBB.MI"]]),
+    (ETFS_AND_USD, 0, [["EEE.MI", "MMM.MI", "UUU"], ["USDEUR=X"]]),
     # From the last operation (a withdrawal): AAA.MI is sold out by then, only BBB.MI is held.
-    (STOCKS_EUR, 11, [(["BBB.MI"], False), (["BBB.MI"], True)]),
+    (STOCKS_EUR, 11, [["BBB.MI"]]),
 ])
 def test_a_rebuild_downloads_the_prices_once_for_all_its_rows(steps, from_index, downloads, tmp_path, fake_market,
                                                               monkeypatch):
@@ -85,9 +79,9 @@ def test_a_rebuild_downloads_the_prices_once_for_all_its_rows(steps, from_index,
 
     Recording the steps one by one downloads for every row instead: on a
     phone, rebuilding a few hundred rows that way would take minutes. Only
-    the assets held at `from_index`, or traded after, are downloaded. The
-    ledger is the same: each row still gets its own day's closes. Each
-    download is (tickers, adjusted closes or not).
+    the assets held at `from_index`, or traded after, are downloaded, one
+    chart each for their closes and adjusted closes. The ledger is the same:
+    each row still gets its own day's closes. Each download lists its tickers.
     """
     expected = _replay(steps, tmp_path).to_csv(index=False)
     operations = journal_of(steps)
@@ -96,7 +90,7 @@ def test_a_rebuild_downloads_the_prices_once_for_all_its_rows(steps, from_index,
 
     def counting_download_close(tickers, **kwargs):
         """Record which tickers were asked for, then answer like the fake market."""
-        asked.append((sorted([tickers] if isinstance(tickers, str) else tickers), kwargs.get("adjusted", False)))
+        asked.append(sorted([tickers] if isinstance(tickers, str) else tickers))
         return fake_download_close(tickers, **kwargs)
 
     monkeypatch.setattr(market_data, "download_close", counting_download_close)

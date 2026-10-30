@@ -11,6 +11,8 @@ import pytest
 
 from app_controller import AppController
 from app_state import AppState
+from domain.account import Account
+from domain.journal import rebuild
 from services import account_service, config_service, market_data
 from utils.constants import I18N_DIR
 from utils.translator import Translator
@@ -78,17 +80,26 @@ def fake_download_close(tickers, start=None, end=None, period=None, adjusted=Fal
     return df, names
 
 
+def fake_download_closes(tickers, start=None, end=None):
+    """Offline stand-in for services.market_data.download_closes: the fake closes, also as the adjusted ones."""
+    prices, names = market_data.download_close(tickers, start=start, end=end)
+    return prices, prices, names
+
+
 @pytest.fixture
 def fake_market(monkeypatch):
     """Make the domain code (positions, history) use the fake prices and exchange rate above during a test.
 
     Request this fixture in any test that builds account rows or values
-    positions. It replaces download_close in services.market_data, which the
-    domain modules call as market_data.download_close(...), as does PriceBook.
-    Code that imported it by name (analysis_service, home_view) is not
-    affected. The original is restored automatically when the test ends.
+    positions. It replaces download_close and download_closes in
+    services.market_data, which the domain modules and PriceBook call as
+    market_data.download_close(...). download_closes goes through whatever
+    download_close is then, so a test replacing that one sees every request.
+    Code that imported them by name (analysis_service, home_view) is not
+    affected. The originals are restored automatically when the test ends.
     """
     monkeypatch.setattr(market_data, "download_close", fake_download_close)
+    monkeypatch.setattr(market_data, "download_closes", fake_download_closes)
 
 
 # ── Translator ───────────────────────────────────────────────────────
@@ -162,9 +173,10 @@ def state(tmp_path, fake_market):
     """An AppState for user "Tester" with one account holding the STOCKS_EUR history.
 
     Built the same way the app stores data: config.ini files for language,
-    users and brokers, and the account CSV in the user's resources folder.
+    users and brokers, and the account's journal and ledger in the user's
+    resources folder.
     """
-    from test_ledger_snapshots import STOCKS_EUR, _replay  # the account history used by the snapshots
+    from test_ledger_snapshots import STOCKS_EUR, journal_of  # the account history used by the snapshots
 
     config = str(tmp_path / "config")
     os.makedirs(config)
@@ -175,14 +187,47 @@ def state(tmp_path, fake_market):
     resources = config_service.get_user_res_folder(config, "Tester")
     os.makedirs(resources)
     config_service.save_brokers(user_folder, {1: "Test Broker"}, reset=True)
-    df = _replay(STOCKS_EUR, Path(resources))
-    df.to_csv(account_service.ledger_path(resources, "Test Broker"), index=False)
+    journal = journal_of(STOCKS_EUR)
+    account_service.save_accounts(resources, {"Test Broker": (journal, rebuild("Test Broker", journal))})
 
     app_state = AppState(base_path=str(tmp_path))
     app_state.load_config()
     app_state.load_all_accounts()
     assert app_state.accounts, "the test account should have loaded"
     return app_state
+
+
+def account_of(idx, name, steps):
+    """Return an account in memory called `name`, numbered `idx`, whose journal holds `steps`, with its rebuilt ledger.
+
+    `steps` are those of test_ledger_snapshots.py. Nothing is saved: for
+    an account with files, see set_operations.
+    """
+    from test_ledger_snapshots import journal_of
+
+    journal = journal_of(steps)
+    return Account(idx, name, "", rebuild(name, journal), journal=journal)
+
+
+def applied(accounts, changes):
+    """Make `changes` (what journal_service.record, delete or edit return) the accounts' journals and ledgers.
+
+    As AppState.commit_changes does, without saving them.
+    """
+    for idx, (journal, ledger) in changes.items():
+        accounts[idx].journal, accounts[idx].df = journal, ledger
+
+
+def set_operations(state, idx, steps):
+    """Make the steps of test_ledger_snapshots.py the operations of account `idx` of `state`, saved as the app does.
+
+    Replaces whatever the account held. Example: set_operations(state, 2, [deposit(date(2024, 1, 2), 1000)]).
+    """
+    from test_ledger_snapshots import journal_of
+
+    name = state.get_account(idx).name
+    journal = journal_of(steps)
+    state.commit_changes({idx: (journal, rebuild(name, journal))})
 
 
 @pytest.fixture
