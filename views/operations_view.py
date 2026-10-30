@@ -3,21 +3,22 @@ from datetime import date
 import flet as ft
 
 from components.buttons import action_card_btn, mark_card_selected, pill_btn, pill_style
-from components.background import run_in_background
 from components.date_field import DateField
 from components.dialogs import show_info_dialog, show_text_dialog
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
+from components.journal_change import change_accounts, recalculated_text
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
 from domain.journal import Kind
-from domain.ledger import ETF_PRODUCTS, LEDGER_START_DATE, Product, get_pf_date, holding_rows
+from domain.ledger import ETF_PRODUCTS, LEDGER_START_DATE, Product, holding_rows
 from domain.positions import held_rows, held_tickers
 from domain.tax import pending_fees
 from services import journal_service, operations_service
 from services.market_data import fetch_ticker_name, search_tickers
 from services.validation import validate_date
+from utils.columns import OP_ID, operation_title
 from utils.constants import CURRENCIES
 from utils.formatting import fmt_eur
 
@@ -45,102 +46,91 @@ _SIDE_BUTTONS = {
 }
 
 
+def _account_idx(state):
+    """The number of the account Operations shows: the one picked at its top, or the edited operation's while editing.
+
+    Editing leaves the account picked as it was, for when Operations shows again without an edit.
+    """
+    return state.editing[0] if state.editing is not None else state.ops_acc_idx
+
+
 def _selected_account(state):
-    """The account picked at the top of Operations, or None when none is picked (or its file isn't loaded)."""
-    idx = state.ops_acc_idx
+    """The account Operations shows (_account_idx), or None when none is picked (or its file isn't loaded)."""
+    idx = _account_idx(state)
     return None if idx is None else state.get_account(idx)
 
 
-def _ledger_until(account, day):
-    """The rows of `account`'s ledger that an operation on `day` comes after: those up to `day`.
+def _ledger_until(account, day, edited=None):
+    """The rows of `account`'s ledger that an operation on `day` comes after (operations_service.rows_before).
 
-    All of them while no valid date is typed (none, or one before the
-    account's opening day). A new operation goes after those of its own day.
+    A new operation goes after those of its own day; `edited`, one being
+    edited, keeps its place among them, its own row left out. All the rows
+    while no valid date is typed (none, or one before the account's opening day).
     """
     if day is None or day < LEDGER_START_DATE.date():
         return account.df
-    return get_pf_date(account, day, day)[0]
+    return operations_service.rows_before(account, day, edited)
 
 
-def _record(form, later, build_changes):
-    """Record the operation typed in `form` (the General, ETF or Stock form) in the background, asking first if others come after it.
+def _save_operation(form, later, work_out):
+    """Record `form`'s new operation, or save its edit, in the background (see change_accounts).
 
-    `build_changes` works out its changes (journal_service.record's, after
-    any check with Yahoo), or returns None once it has said why it can't
-    (e.g. a ticker of the wrong kind). They are worked out before asking,
-    so only an operation that can be recorded is asked about: a refusal,
-    its own or that of a later operation it makes impossible, is shown
-    instead. When `later` operations come after it
-    (journal_service.later_operations), the question names how many will be
-    recalculated; Cancel saves nothing. Saving is refused if an account
-    changed meanwhile (AppState.commit_changes).
-
-    While the changes are worked out or saved, the form ignores Add (see
-    its submit): a second tap would record the operation twice.
+    `work_out` returns journal_service.record's or edit's changes. When
+    `later` other operations will be recalculated, the user is asked first,
+    naming how many. Once saved, a new operation leaves the tab shown again,
+    empty; an edit goes back to Transactions, where the operation was picked.
     """
-    page, state = form.page, form.state
-    t = state.translator
-
-    def in_background(work):
-        """Run `work` in the background with the form's spinner, the form ignoring Add until it ends."""
-        def guarded():
-            """Run `work`, then let the form record again."""
-            try:
-                work()
-            finally:
-                form._recording = False
-
-        form._recording = True
-        run_in_background(page, t, guarded, loading=form.loading)
-
-    def save(changes, built_from):
-        """Save the changes, say so and show the tab again."""
-        state.commit_changes(changes, built_from=built_from)
-        show_snack(page, t.get("operations.added_transaction"))
-        form.app.refresh()
-
-    def work_out():
-        """Work out the changes, then save them, or ask first when later operations will be recalculated."""
-        built_from = state.journals()
-        changes = build_changes()
-        if changes is None:
-            return
-        if later:
-            _ask_to_recalculate(page, t, later, lambda: in_background(lambda: save(changes, built_from)))
-        else:
-            save(changes, built_from)
-
-    in_background(work_out)
+    t = form.state.translator
+    group = "journal.edit" if form.editing else "journal.insert"
+    confirm = t.get("journal.edit.save" if form.editing else "journal.insert.confirm")
+    question = (t.get(f"{group}.title"), recalculated_text(t, later, group), confirm) if later else None
+    change_accounts(form.app, work_out, question=question, loading=form.loading,
+                    saved_message=t.get("journal.edit.saved" if form.editing else "operations.added_transaction"),
+                    then=form.app.stop_editing if form.editing else None)
 
 
-def _ask_to_recalculate(page, t, later, record):
-    """Ask whether to record an operation dated before `later` others, which will be recalculated: `record` on Record.
+def _edited_operation(state):
+    """The operation Operations is editing (state.editing, picked in Transactions), or None.
 
-    The question says they are rebuilt with their taxes, Tax Carryforward
-    and market values, naming the count. Cancel records nothing. It is
-    closed by reference (another dialog may open above it) and answered
-    once: a second tap on Record does nothing.
+    The edit is given up (state.editing forgotten) when it can no longer be
+    shown: the operation is gone from its account's journal (e.g. removed
+    meanwhile), its ledger has no row for it (a ledger left out of step by a
+    rebuild that failed offline), or it is a transfer whose other account
+    is gone or not usable (e.g. deleted in Settings meanwhile).
     """
-    def close():
-        """Close the question."""
-        dialog.open = False
-        page.update()
+    if state.editing is None:
+        return None
+    idx, op_id = state.editing
+    account = state.get_account(idx)
+    op = next((op for op in account.journal or [] if op.id == op_id), None) if account else None
+    try:
+        if op is not None and (not (account.df[OP_ID] == op_id).any()
+                               or op.transfer_id and journal_service.transfer_half(state.accounts, account, op_id) is None):
+            op = None
+    except ValidationError:  # the transfer's other account isn't migrated
+        op = None
+    if op is None:
+        state.editing = None
+    return op
 
-    def confirm(_):
-        """Close the question and record the operation, unless it was already answered."""
-        if dialog.open:
-            close()
-            record()
 
-    dialog = ft.AlertDialog(
-        title=ft.Text(t.get("journal.insert.title")),
-        content=ft.Text(t.get("journal.insert.one" if later == 1 else "journal.insert.many", count=later)),
-        actions=[
-            ft.TextButton(t.get("components.cancel"), on_click=lambda _: close()),
-            ft.TextButton(t.get("journal.insert.confirm"), on_click=confirm),
-        ],
-    )
-    page.show_dialog(dialog)
+def _show_save_button(button, translator):
+    """Turn a form's Add button into the one saving an edit: "Save changes", with the theme's colours."""
+    button.content = translator.get("journal.edit.save")
+    button.icon = ft.Icons.SAVE
+    button.style = pill_style()
+
+
+def _tab_of(op):
+    """The Operations tab whose form records `op`: 0 General, 1 ETF, 2 Stock."""
+    if op.kind not in (Kind.BUY, Kind.SELL):
+        return 0
+    return 2 if op.product == Product.STOCK else 1
+
+
+def _typed(number):
+    """A stored number as the user would type it: 100.0 -> "100", 3.905 -> "3.905" (every digit kept)."""
+    return str(int(number)) if float(number).is_integer() else repr(float(number))
 
 
 def _number(text):
@@ -202,22 +192,31 @@ def _show_fee_help(page, t):
 
 class OperationsView:
     def __init__(self, app):
-        """Build the Operations tab for the controller's page and current state."""
+        """Build the Operations tab for the controller's page and current state.
+
+        While an operation picked in Transactions is edited (state.editing),
+        only the form that records it is shown, filled in with its values.
+        """
         self.app = app
         self.page = app.page
         self.state = app.state
-        self.general = GeneralForm(app)
-        self.etf = EtfStockForm(app, "ETF")
-        self.stock = EtfStockForm(app, "Stock")
+        self.editing = _edited_operation(self.state)
+        tab = None if self.editing is None else _tab_of(self.editing)
+        self.general = GeneralForm(app, self.editing if tab == 0 else None)
+        self.etf = EtfStockForm(app, "ETF", self.editing if tab == 1 else None)
+        self.stock = EtfStockForm(app, "Stock", self.editing if tab == 2 else None)
 
     def build(self) -> ft.Control:
         t = self.state.translator
         if not self.state.brokers:
             return ft.Text(t.get("home.no_account"), size=16)
 
-        has_account = self.state.ops_acc_idx is not None
-        form_container = ft.Container(
-            content=ft.Tabs(
+        has_account = _account_idx(self.state) is not None
+        if self.editing is not None:
+            form = (self.general, self.etf, self.stock)[_tab_of(self.editing)]
+            content = ft.Column([self._build_edit_banner(), ft.Container(form.build(), expand=True)], expand=True)
+        else:
+            content = ft.Tabs(
                 length=3,
                 selected_index=0,
                 content=ft.Column([
@@ -232,9 +231,8 @@ class OperationsView:
                     ),
                 ], expand=True),
                 expand=True, adaptive=True
-            ),
-            disabled=not has_account, expand=True, width=800,
-        )
+            )
+        form_container = ft.Container(content=content, disabled=not has_account, expand=True, width=800)
 
         return ft.Row(
             controls=[
@@ -251,9 +249,31 @@ class OperationsView:
 
     def _build_account_dropdown(self) -> ft.Control:
         t = self.state.translator
-        idx = self.state.ops_acc_idx
-        return account_selector(self.state, None if idx is None else str(idx), self._on_account_selected,
-                                hint_text=t.get("operations.select_account"))
+        idx = _account_idx(self.state)
+        selector = account_selector(self.state, None if idx is None else str(idx), self._on_account_selected,
+                                    hint_text=t.get("operations.select_account"))
+        selector.disabled = self.editing is not None  # an operation stays in its account
+        return selector
+
+    def _build_edit_banner(self) -> ft.Control:
+        """The line above the form of an operation being edited: which one it is, and an X to give up the edit.
+
+        Example: "Editing: Buy ISP.MI of 05-03-2025". Giving up goes back to Transactions.
+        The operation has its ledger row (see _edited_operation), which names it.
+        """
+        t = self.state.translator
+        account = _selected_account(self.state)
+        row = account.df[account.df[OP_ID] == self.editing.id].iloc[0]
+        text = t.get("journal.edit.banner", what=operation_title(row, t), date=row["date"])
+        return ft.Container(
+            ft.Row([
+                ft.Icon(ft.Icons.EDIT),
+                ft.Text(text, size=15, weight=ft.FontWeight.BOLD, expand=True),
+                ft.IconButton(ft.Icons.CLOSE, tooltip=t.get("components.cancel"),
+                              on_click=lambda _: self.app.stop_editing()),
+            ]),
+            padding=ft.Padding.only(left=20, right=10, top=10),
+        )
 
     def _on_account_selected(self, e):
         idx = int(e.control.value)
@@ -264,18 +284,21 @@ class OperationsView:
 class GeneralForm:
     """The General tab of Operations: cash movements (deposit, withdrawal, transfer), charges, dividends and splits."""
 
-    def __init__(self, app):
-        """Keep what the form needs; build() creates its controls."""
+    def __init__(self, app, editing=None):
+        """Keep what the form needs; build() creates its controls.
+
+        `editing` is the operation the form edits, filled in with its values, or None to record a new one.
+        """
         self.app = app
         self.page = app.page
         self.state = app.state
-        self._recording = False  # True while an operation is worked out: Add is ignored (see _record)
+        self.editing = editing
         self._date_shown = None  # the date the cash available was last shown for (_on_date_change)
 
     def build(self) -> ft.Control:
         """Create the form's controls (kept as attributes, e.g. self.amount) and return its layout."""
         t = self.state.translator
-        no_account = self.state.ops_acc_idx is None
+        no_account = _account_idx(self.state) is None
         account = _selected_account(self.state)
         holdings = _held_tickers(account.df if account else None)
         header_color = ft.Colors.with_opacity(0.6, ft.Colors.ON_SURFACE)
@@ -286,7 +309,7 @@ class GeneralForm:
 
         # The accounts cash can be transferred to: every other one loaded, by number.
         self._recipients = {idx: acc for idx, acc in sorted(self.state.accounts.items())
-                            if idx != self.state.ops_acc_idx}
+                            if idx != _account_idx(self.state)}
         # With none, Transfer is greyed out but still tappable, so _select_kind can say why
         # (a disabled segment would ignore the tap).
         transfer_label = ft.Text(t.get("operations.cash.op_transfer"),
@@ -335,10 +358,11 @@ class GeneralForm:
 
 
 
+        # Hidden while an operation is edited: its kind can't change, and the banner above names it.
         kind_section = ft.Column([
             ft.ResponsiveRow([cash_column, corporate_column,], spacing=20),
             ft.Container(height=30),
-        ], spacing=0, opacity=0.4 if no_account else 1.0,
+        ], spacing=0, opacity=0.4 if no_account else 1.0, visible=self.editing is None,
            horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
         self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
         self.date.on_change = self._on_date_change
@@ -414,19 +438,44 @@ class GeneralForm:
             ],),
             ft.Container(height=20),
         ], spacing=15)
+        if self.editing is not None:
+            self._fill_in(self.editing)
 
         return scrolling_form(col, [
             self.date.field, self.amount, self.ticker.field, self.description, self.split_ratio,
         ], prefix="cash", padding=20, button=self._add_btn, loading=self.loading)
 
-    def _select_kind(self, kind):
-        """Make `kind` the operation chosen, in the segmented button that offers it, emptying the other.
+    def _fill_in(self, op):
+        """Show the operation `op` being edited: the fields of its kind (which can't change), its date and values.
 
-        Shows the fields it needs, the split's "?" for a split, the cash
-        available for a transfer, and its name and colour on the button. A
-        split needs something held to split: without, the form goes back to a
-        deposit. A transfer needs another account to send to: without, it goes
-        back to the operation chosen before.
+        A transfer keeps its recipient (loaded: see _edited_operation), a
+        split its ticker even if no longer held. The button saves the changes.
+        """
+        self.date.value = op.date
+        self._show_kind({Kind.TRANSFER_OUT: "transfer"}.get(op.kind, str(op.kind)))
+        if op.amount is not None:
+            self.amount.value = _typed(op.amount)
+        if op.kind == Kind.TRANSFER_OUT:
+            self.recipient.value = next((str(idx) for idx, acc in self._recipients.items() if acc.name == op.counterpart),
+                                        None)
+            self.recipient.disabled = True
+        elif op.kind == Kind.DIVIDEND:
+            self.ticker.value = op.ticker
+        elif op.kind == Kind.CHARGE:
+            self.description.value = op.description or ""
+        elif op.kind == Kind.SPLIT:
+            if op.ticker not in [option.key for option in self.split_ticker.options]:
+                self.split_ticker.options.append(_held_asset_option(op.ticker, op.ticker))
+            self.split_ticker.value = op.ticker
+            self.split_ratio.value = _typed(op.ratio)
+        _show_save_button(self._add_btn, self.state.translator)
+
+    def _select_kind(self, kind):
+        """Make `kind` the operation chosen, as tapped in either segmented button (see _show_kind).
+
+        A split needs something held to split: without, the form goes back to
+        a deposit. A transfer needs another account to send to: without, it
+        goes back to the operation chosen before.
         """
         t = self.state.translator
         account = _selected_account(self.state)
@@ -437,7 +486,16 @@ class GeneralForm:
         if kind == "transfer" and not self._recipients:
             show_snack(self.page, t.get("operations.transfer.no_other_account"), error=True)
             kind = self.kind
+        self._show_kind(kind)
+        self.page.update()
 
+    def _show_kind(self, kind):
+        """Show `kind` as the operation chosen, in the segmented button that offers it, emptying the other.
+
+        Shows the fields it needs, the split's "?" for a split, the cash
+        available for a transfer, and its name and colour on the button.
+        """
+        t = self.state.translator
         self.kind = kind
         for buttons in (self.cash_kind, self.corporate_kind):
             offers = any(segment.value == kind for segment in buttons.segments)
@@ -462,21 +520,21 @@ class GeneralForm:
         label_key, bgcolor = _KIND_BUTTONS[kind]
         self._add_btn.content = t.get(label_key)
         self._add_btn.style = pill_style(bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE)
-        self.page.update()
 
     def _show_cash_available(self):
         """Under the amount of a transfer, say how much cash it can send on the date typed (today's, without one).
 
         That is operations_service.cash_available_on, which the transfer is
-        checked against. Other operations, and a date before the account's
-        opening day, show nothing there.
+        checked against: for a transfer being edited, as if it weren't there.
+        Other operations, and a date before the account's opening day, show
+        nothing there.
         """
         account = _selected_account(self.state)
         day = self.date.value or date.today()
         if self.kind != "transfer" or account is None or day < LEDGER_START_DATE.date():
             self.amount.helper = None
             return
-        available = operations_service.cash_available_on(account, day)
+        available = operations_service.cash_available_on(account, day, self.editing)
         self.amount.helper = self.state.translator.get("operations.transfer.available", available=fmt_eur(available))
 
     def _on_date_change(self):
@@ -492,19 +550,19 @@ class GeneralForm:
             self.page.update()
 
     def submit(self, e):
-        """Check the operation typed and record it in the background (see _record), or show what is wrong.
+        """Check the operation typed and record it, or save the edit, in the background (see _save_operation).
 
-        Ignored while the last one is still being worked out.
+        Shows what is wrong instead, if anything. An edited transfer keeps
+        its recipient: only its date and amount change, in both accounts.
         """
         s = self.state
         t = s.translator
         account = _selected_account(s)
-        if self._recording:
-            return
         if account is None:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
+        edited = self.editing
         try:
             day = validate_date(self.date.value)
             if self.kind == "split":
@@ -513,18 +571,26 @@ class GeneralForm:
                 kind, fields = self._checked_transfer(account, day)
             else:
                 kind, fields = self._checked_cash_operation()
-            later = journal_service.later_operations(s.accounts, account, kind, day, **fields)
+            if edited is None:
+                later = journal_service.later_operations(s.accounts, account, kind, day, **fields)
+            else:
+                if kind == Kind.TRANSFER_OUT:
+                    fields = {"amount": fields["amount"]}
+                later = journal_service.later_operations_editing(s.accounts, account, edited.id, date=day, **fields)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
 
-        def build_changes():
-            """Work out the operation's changes (in both accounts for a transfer), asking Yahoo for a dividend's asset name first."""
+        def work_out():
+            """Work out the changes (in both accounts for a transfer), asking Yahoo for a dividend's new asset name first."""
             if kind == Kind.DIVIDEND:
-                fields["asset_name"] = fetch_ticker_name(fields["ticker"])
-            return journal_service.record(s.accounts, account, kind, day, **fields)
+                same = edited is not None and edited.ticker == fields["ticker"]
+                fields["asset_name"] = edited.asset_name if same else fetch_ticker_name(fields["ticker"])
+            if edited is None:
+                return journal_service.record(s.accounts, account, kind, day, **fields)
+            return journal_service.edit(s.accounts, account, edited.id, date=day, **fields)
 
-        _record(self, later, build_changes)
+        _save_operation(self, later, work_out)
 
     def _checked_cash_operation(self):
         """Check the amount of a cash operation, charge or dividend; return its (kind, fields) for journal_service.record.
@@ -543,10 +609,12 @@ class GeneralForm:
     def _checked_transfer(self, account, day):
         """Check the recipient and amount of a transfer on `day`; return its (kind, fields) for journal_service.record.
 
-        Recorded as a transfer out of `account`, which also records its other half in the recipient.
+        Recorded as a transfer out of `account`, which also records its other
+        half in the recipient. The cash a transfer being edited sends now is
+        available to it again.
         """
         recipient = self._recipients.get(int(self.recipient.value)) if self.recipient.value else None
-        amount = operations_service.parse_transfer(account, recipient, day, self.amount.value)
+        amount = operations_service.parse_transfer(account, recipient, day, self.amount.value, self.editing)
         return Kind.TRANSFER_OUT, {"amount": amount, "counterpart": recipient.name}
 
     def _checked_split(self):
@@ -565,21 +633,24 @@ class EtfStockForm:
     aren't supported yet: picking them shows a "coming soon" note instead of the form.
     """
 
-    def __init__(self, app, product_type):
-        """Keep what the form needs; `product_type` is "ETF" or "Stock". build() creates the controls."""
+    def __init__(self, app, product_type, editing=None):
+        """Keep what the form needs; `product_type` is "ETF" or "Stock". build() creates the controls.
+
+        `editing` is the trade the form edits, filled in with its values, or None to record a new one.
+        """
         self.app = app
         self.page = app.page
         self.state = app.state
         self.product_type = product_type
+        self.editing = editing
         self.etf_subtype = None  # the ETF type picked (a SegmentedButton of product codes); ETF tab only
-        self._recording = False  # True while a trade is worked out: Add is ignored (see _record)
         self._date_shown = None  # the date the fee section was last drawn for (_on_date_change)
 
     def build(self) -> ft.Control:
         """Create the form's controls (kept as attributes, e.g. self.quantity) and return its layout."""
         t = self.state.translator
         is_etf = self.product_type == "ETF"
-        no_account = self.state.ops_acc_idx is None
+        no_account = _account_idx(self.state) is None
 
         self._buy_label = ft.Text(t.get("operations.stock.op_buy"), weight=ft.FontWeight.BOLD)
         self._sell_label = ft.Text(t.get("operations.stock.op_sell"))
@@ -792,6 +863,8 @@ class EtfStockForm:
         scrolling_fields = [self.date.field, self.exch_rate, self.ticker.field, self.quantity, self.price,
                             self.fee, self.ter, self.tax_bracket]
         if not is_etf:
+            if self.editing is not None:
+                self._fill_in(self.editing)
             return scrolling_form(self._trade_fields, scrolling_fields, prefix=self.product_type, padding=20,
                                   button=self._add_btn, loading=self.loading)
 
@@ -845,16 +918,48 @@ class EtfStockForm:
             self._trade_fields,
             self._bond_placeholder,
         ], spacing=12)
+        if self.editing is not None:
+            self._fill_in(self.editing)
 
         return scrolling_form(outer, scrolling_fields, prefix=self.product_type, padding=20,
                               button=self._add_btn, loading=self.loading)
 
-    def _on_side_change(self, e):
-        """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).
+    def _fill_in(self, op):
+        """Show the trade `op` being edited: its side (which can't change), date and values.
 
-        The button takes the side's name and colour. A sale needs something to
-        sell: when the account holds nothing of this tab's kind, it says so and
-        goes back to buy.
+        A sale keeps its ticker even if no longer held. The fee is shown in
+        EUR, as stored, and the fee mode as chosen: "pending" on a buy is the
+        Tax Carryforward option's card for later. The button saves the changes.
+        """
+        is_sell = op.kind == Kind.SELL
+        self.side_switch.value, self.side_switch.disabled = is_sell, True
+        self._show_side()
+        self.date.value = op.date
+        if is_sell:
+            if op.ticker not in self._sellable:
+                self.sell_ticker.options.append(_held_asset_option(op.ticker, op.asset_name))
+            self.sell_ticker.value = op.ticker
+        else:
+            self.ticker.value = op.ticker
+        if self.etf_subtype is not None:
+            self.etf_subtype.selected = [op.product]
+            self._show_etf_subtype()
+            self.ter.value = (op.ter or "").rstrip("%")
+            self.tax_bracket.value = _typed(round(op.tax_rate * 100, 6))
+            self.fee_mode.value = "abp" if op.fee_mode == "abp" or (is_sell and op.fee_mode == "pending") else "loss"
+            self._buy_fee_choice = op.fee_mode if self.fee_mode.value == "loss" and not is_sell else None
+        self.currency.value = op.currency
+        self.exch_rate.value = _typed(op.conv_rate) if op.currency == "USD" else ""
+        self._show_currency()
+        self.quantity.value, self.price.value, self.fee.value = _typed(op.quantity), _typed(op.price), _typed(op.fee)
+        self._refresh_fee_section()
+        _show_save_button(self._add_btn, self.state.translator)
+
+    def _on_side_change(self, e):
+        """The switch was moved to buy or sell: show that side (see _show_side).
+
+        A sale needs something to sell: when the account holds nothing of
+        this tab's kind, it says so and goes back to buy.
         """
         t = self.state.translator
         if self.side_switch.value and not self._sellable:
@@ -862,6 +967,15 @@ class EtfStockForm:
             message = t.get("operations.stock.sell_no_etf") if is_etf else t.get("operations.stock.sell_no_stock")
             show_snack(self.page, message, error=True)
             self.side_switch.value = False
+        self._show_side()
+        self.page.update()
+
+    def _show_side(self):
+        """Bold the side picked, show + or - on the switch, and swap the ticker search (buy) for the assets held (sell).
+
+        The button takes the side's name and colour.
+        """
+        t = self.state.translator
         is_sell = self.side_switch.value
         self._buy_label.weight = ft.FontWeight.NORMAL if is_sell else ft.FontWeight.BOLD
         self._sell_label.weight = ft.FontWeight.BOLD if is_sell else ft.FontWeight.NORMAL
@@ -872,15 +986,17 @@ class EtfStockForm:
         self._add_btn.content = t.get(label_key)
         self._add_btn.style = pill_style(bgcolor=bgcolor, color=ft.Colors.WHITE)
         self._refresh_fee_section()
-        self.page.update()
 
     def _on_sell_ticker_select(self, e):
         """Set the form to the asset picked for a sale: its ETF type and its currency, as last recorded.
 
         Both stay editable. Changing the currency also redraws the fee section,
-        which depends on the ticker.
+        which depends on the ticker. A sale being edited of an asset no longer
+        held keeps the values it has.
         """
-        held = self._sellable[self.sell_ticker.value]
+        held = self._sellable.get(self.sell_ticker.value)
+        if held is None:
+            return
         if self.etf_subtype is not None and held["product"] in (Product.ETF_STOCK, Product.ETF_MM):
             self.etf_subtype.selected = [held["product"]]
             self._on_etf_subtype_change(None)
@@ -893,12 +1009,16 @@ class EtfStockForm:
         return (self.sell_ticker.value if self.side_switch.value else self.ticker.value) or ""
 
     def _on_currency_change(self, e):
+        """The currency picked changed: see _show_currency."""
+        self._show_currency()
+        self.page.update()
+
+    def _show_currency(self):
         """Ask for the exchange rate and the fee's currency only for trades in USD."""
         is_usd = (self.currency.value == "USD")
         self.exch_rate.visible = is_usd
         self.fee_currency.visible = is_usd
         self._refresh_fee_section()
-        self.page.update()
 
     def _on_fee_inputs_change(self, e=None):
         """Redraw the fee section when something it shows changes: the mode, the side, the ticker, the amounts."""
@@ -965,14 +1085,16 @@ class EtfStockForm:
 
         Uses sell_asset's rule: the pending fees are added only if the sale is
         at a gain, i.e. its price in EUR is above the average buy price. Both
-        are the asset's on the sale's date, which can come before later buys.
+        are the asset's on the sale's date, which can come before later buys;
+        for a sale being edited, just before it, not after it as its own row says.
         Example: 3 EUR pending, a 2 EUR fee and no price typed yet ->
         "2.00€ + 3.00€ will be added to the Tax Carryforward, if the sale is at a gain".
         """
         t = self.state.translator
         account = _selected_account(self.state)
         ticker = self._trade_ticker()
-        asset_rows = holding_rows(_ledger_until(account, self.date.value), ticker) if account and ticker else None
+        asset_rows = (holding_rows(_ledger_until(account, self.date.value, self.editing), ticker)
+                      if account and ticker else None)
         pending = pending_fees(asset_rows) if asset_rows is not None else 0.0
         if not pending:
             return t.get("operations.stock.fee_added", fee=fee)
@@ -986,6 +1108,11 @@ class EtfStockForm:
         return t.get(f"operations.stock.{key}", fee=fee, pending=fmt_eur(pending))
 
     def _on_etf_subtype_change(self, e):
+        """The ETF type picked changed: see _show_etf_subtype."""
+        self._show_etf_subtype()
+        self.page.update()
+
+    def _show_etf_subtype(self):
         """Show the trade fields and the button (with the tax bracket for money-market ETFs).
 
         For bond ETFs, show instead their maturity choice (beside the type on a
@@ -997,7 +1124,6 @@ class EtfStockForm:
         self._bond_placeholder.visible = self._bond_maturity_row.visible = is_bond
         self._etf_type_row.col = {"xs": 12, "md": 6 if is_bond else 12}
         self._tax_row.visible = val == Product.ETF_MM
-        self.page.update()
 
     def _on_bond_maturity_change(self, e):
         """Switch the bond ETF note between rolling and fixed maturity."""
@@ -1007,17 +1133,16 @@ class EtfStockForm:
         self.page.update()
 
     def submit(self, e):
-        """Check the trade typed and record it in the background (see _record), or show what is wrong.
+        """Check the trade typed and record it, or save the edit, in the background (see _save_operation).
 
-        Before recording, Yahoo is asked what kind of security the ticker is, so
-        an ETF can't be bought from the Stock tab or the other way round.
-        Ignored while the last trade is still being worked out.
+        Shows what is wrong instead, if anything. Before saving, Yahoo is
+        asked what kind of security the ticker is, so an ETF can't be bought
+        from the Stock tab or the other way round.
         """
         s = self.state
         t = s.translator
         account = _selected_account(s)
-        if self._recording:
-            return
+        edited = self.editing
         if account is None:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
@@ -1043,24 +1168,32 @@ class EtfStockForm:
                 fee_mode=fee_mode,
             )
             kind = Kind.BUY if trade.is_buy else Kind.SELL
-            later = journal_service.later_operations(s.accounts, account, kind, trade.date)
+            fields = {"ticker": trade.ticker, "product": trade.product, "currency": trade.currency,
+                      "conv_rate": trade.conv_rate, "quantity": trade.quantity, "price": trade.price, "fee": trade.fee,
+                      "fee_mode": trade.fee_mode, "tax_rate": trade.tax_rate, "ter": trade.ter}
+            if edited is None:
+                later = journal_service.later_operations(s.accounts, account, kind, trade.date)
+            else:
+                later = journal_service.later_operations_editing(s.accounts, account, edited.id, date=trade.date)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
         expected_type = "etf" if self.product_type == "ETF" else "equity"
 
-        def build_changes():
-            """Check the ticker's kind with Yahoo, then work out the trade's changes; None, saying so, for the wrong kind."""
+        def work_out():
+            """Check the ticker's kind with Yahoo, then work out the trade's changes; None, saying so, for the wrong kind.
+
+            The asset's name is asked of Yahoo too, unless an edit keeps the ticker.
+            """
             results = search_tickers(trade.ticker, quotes_count=1)
             if (results and results[0]["symbol"].upper() == trade.ticker.upper()
                     and results[0]["quote_type"] != expected_type):
                 show_snack(self.page, t.get("operations.stock.ticker_wrong_type"), error=True)
                 return None
-            return journal_service.record(
-                s.accounts, account, kind, trade.date,
-                ticker=trade.ticker, asset_name=fetch_ticker_name(trade.ticker), product=trade.product,
-                currency=trade.currency, conv_rate=trade.conv_rate, quantity=trade.quantity, price=trade.price,
-                fee=trade.fee, fee_mode=trade.fee_mode, tax_rate=trade.tax_rate, ter=trade.ter,
-            )
+            same = edited is not None and edited.ticker == trade.ticker
+            fields["asset_name"] = edited.asset_name if same else fetch_ticker_name(trade.ticker)
+            if edited is None:
+                return journal_service.record(s.accounts, account, kind, trade.date, **fields)
+            return journal_service.edit(s.accounts, account, edited.id, date=trade.date, **fields)
 
-        _record(self, later, build_changes)
+        _save_operation(self, later, work_out)

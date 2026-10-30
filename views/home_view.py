@@ -4,9 +4,9 @@ import flet as ft
 import pandas as pd
 from datetime import datetime
 
-from components.background import run_in_background
 from components.buttons import squircle_add_btn
 from components.inputs import account_selector
+from components.journal_change import change_accounts
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from domain.journal import Kind
@@ -524,19 +524,13 @@ class HomeView:
             return
         day = datetime.strptime(ev_date, "%Y-%m-%d").date()
 
-        def save():
-            """Record the split on its own date, save the account and refresh Home's values.
-
-            In the journal it takes its place by date, before any later operation.
-            """
+        def work_out():
+            """Work out the changes of recording the split on its own date, before any later operation."""
             checked = operations_service.check_split_ratio(ratio)
-            built_from = s.journals()
-            s.commit_changes(journal_service.record(s.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=checked),
-                             built_from=built_from)
-            show_snack(self.page, t.get("operations.added_transaction"))
-            self._fetch_live_values()
+            return journal_service.record(s.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=checked)
 
-        run_in_background(self.page, t, save)
+        change_accounts(self.app, work_out, saved_message=t.get("operations.added_transaction"),
+                        then=self._fetch_live_values)
 
     # ── Shared Components ─────────────────────────────────────────────
 

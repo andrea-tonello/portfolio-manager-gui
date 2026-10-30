@@ -297,6 +297,9 @@
     "not_migrated": "{account} non è ancora stato aggiornato al nuovo formato, quindi non può essere modificato. L'app riprova a ogni avvio.",
     "partner_unavailable": "{account} non è disponibile ora, quindi il trasferimento non può essere rimosso da entrambi i conti. Riavvia l'app e riprova.",
     "changed_meanwhile": "Un conto è cambiato mentre veniva salvata l'operazione, quindi non è stato salvato nulla. Riprova.",
+    "short_of_cash": "Così {account} resterebbe senza liquidità sufficiente: {cash} il {date}.",
+    "busy": "Un'altra modifica è in corso di salvataggio: riprova tra un momento.",
+    "row_outdated": "Questa transazione non è più tra le operazioni del conto.",
     "refused": {
       "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
       "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",
@@ -307,6 +310,21 @@
       "one": "Questa operazione precede 1 operazione successiva, che verrà ricalcolata (imposte, Zainetto Fiscale e valori di mercato compresi).",
       "many": "Questa operazione precede {count} operazioni successive, che verranno ricalcolate (imposte, Zainetto Fiscale e valori di mercato compresi).",
       "confirm": "Registra"
+    },
+    "edit": {
+      "action": "Modifica",
+      "banner": "Modifica: {what} del {date}",
+      "title": "Ricalcolare le altre operazioni?",
+      "one": "La modifica ricalcola 1 altra operazione (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "La modifica ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "save": "Salva modifiche",
+      "saved": "Modifiche salvate"
+    },
+    "delete": {
+      "title": "Rimuovere la transazione?",
+      "one": "La rimozione ricalcola 1 altra operazione (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "La rimozione ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "confirm": "Rimuovi"
     },
     "migration": {
       "title": "Aggiornamento dei conti",

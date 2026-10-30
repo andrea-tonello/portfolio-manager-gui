@@ -297,6 +297,9 @@
     "not_migrated": "{account} hasn't been updated to the new format yet, so it can't change. The app tries again each time it starts.",
     "partner_unavailable": "{account} isn't available now, so the transfer can't be removed from both accounts. Restart the app and try again.",
     "changed_meanwhile": "An account changed while this was being saved, so nothing was saved. Please try again.",
+    "short_of_cash": "This would leave {account} short of cash: {cash} on {date}.",
+    "busy": "Another change is being saved: try again in a moment.",
+    "row_outdated": "This transaction is no longer among the account's operations.",
     "refused": {
       "sell": "The sale of {ticker} on {date} would no longer be possible: {reason}",
       "split": "The split of {ticker} on {date} would no longer be possible: {reason}",
@@ -307,6 +310,21 @@
       "one": "This operation comes before 1 later operation, which will be recalculated (taxes, Tax Carryforward and market values included).",
       "many": "This operation comes before {count} later operations, which will be recalculated (taxes, Tax Carryforward and market values included).",
       "confirm": "Record"
+    },
+    "edit": {
+      "action": "Edit",
+      "banner": "Editing: {what} of {date}",
+      "title": "Recalculate other operations?",
+      "one": "The change recalculates 1 other operation (taxes, Tax Carryforward and market values included).",
+      "many": "The change recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
+      "save": "Save changes",
+      "saved": "Changes saved"
+    },
+    "delete": {
+      "title": "Remove the transaction?",
+      "one": "Removing it recalculates 1 other operation (taxes, Tax Carryforward and market values included).",
+      "many": "Removing it recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
+      "confirm": "Remove"
     },
     "migration": {
       "title": "Updating your accounts",

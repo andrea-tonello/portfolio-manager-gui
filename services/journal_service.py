@@ -17,7 +17,10 @@ from domain.account import Account
 from domain.errors import ValidationError
 from domain.journal import (
     Kind, Operation, OperationRefused, new_id, operation_from_dict, operation_to_dict, rebuild, rows_up_to_date,
+    sort_key,
 )
+from utils.columns import OP_ID
+from utils.formatting import fmt_eur
 
 # The version written in every journal file; a file with another one can't be read.
 JOURNAL_VERSION = 1
@@ -27,6 +30,13 @@ Changes = dict[int, tuple[list[Operation], pd.DataFrame]]
 
 # Fields an edit can't change: what identifies the operation, and which accounts a transfer joins.
 _FIXED_FIELDS = {"id", "seq", "kind", "counterpart", "transfer_id"}
+
+# How far below zero a row's cash may be and still count as zero (float noise on cash rounded to the cent).
+_CASH_TOLERANCE = 1e-6
+
+# The kinds of operation that bring cash into their account: an edit lowering one must not leave even its own row
+# short of cash (edit).
+_CASH_IN = {Kind.DEPOSIT, Kind.DIVIDEND, Kind.SELL, Kind.TRANSFER_IN}
 
 
 def journal_to_json(operations: list[Operation]) -> str:
@@ -103,15 +113,17 @@ def delete(accounts: dict[int, Account], account: Account, op_id: str) -> Change
     operation with the same transfer_id in another account, if that account
     still exists. Each changed ledger is rebuilt from the deleted
     operation's position on. Raises OperationRefused when a later operation
-    becomes impossible, e.g. a sale of shares whose buy is deleted.
+    becomes impossible, e.g. a sale of shares whose buy is deleted, and
+    ValidationError("journal.short_of_cash") when one is left short of
+    cash, e.g. a buy paid with the deposit deleted.
     """
-    deleted = _find(account, op_id)
+    deleted = find_operation(account, op_id)
     journals = {account.idx: [op for op in _journal_of(account) if op.id != op_id]}
     half = _other_half(accounts, account, deleted)
     if half is not None:
         other, other_op = half
         journals[other.idx] = [op for op in _journal_of(other) if op.id != other_op.id]
-    return _rebuilt(accounts, journals)
+    return _rebuilt(accounts, journals, keep_cash=True)
 
 
 def edit(accounts: dict[int, Account], account: Account, op_id: str, **new_fields) -> Changes:
@@ -122,14 +134,18 @@ def edit(accounts: dict[int, Account], account: Account, op_id: str, **new_field
     the earlier of the operation's old and new positions. Raises ValueError
     for a field that can't change (id, seq, kind, counterpart, transfer_id:
     delete the operation and record another instead), and ValidationError or
-    OperationRefused as record does.
+    OperationRefused as record does. Unlike record, it also refuses leaving
+    an operation short of cash, as delete does. The edited operation's own
+    row may go below zero when it spends cash (a buy, a withdrawal, a
+    charge), as when recording it; one bringing cash in (a deposit, a
+    dividend, a sale, a transfer in) is checked like the others.
 
     Example: edit(accounts, fineco, deposit_id, amount=1500.0) raises the
     cash of every row from the deposit on by the 500 EUR added.
     """
     if _FIXED_FIELDS & new_fields.keys():
         raise ValueError(f"an edit can't change {sorted(_FIXED_FIELDS & new_fields.keys())}")
-    old = _find(account, op_id)
+    old = find_operation(account, op_id)
     edited = {account.idx: replace(old, **new_fields)}
     half = _other_half(accounts, account, old)
     if half is not None:
@@ -137,11 +153,12 @@ def edit(accounts: dict[int, Account], account: Account, op_id: str, **new_field
         edited[other.idx] = replace(other_op, **{k: v for k, v in new_fields.items() if k in ("date", "amount")})
     journals = {idx: [op if op.id != after.id else after for op in _journal_of(accounts[idx])]
                 for idx, after in edited.items()}
-    return _rebuilt(accounts, journals, changed={after.id for after in edited.values()})
+    return _rebuilt(accounts, journals, changed={after.id for after in edited.values()}, keep_cash=True,
+                    own_rows={after.id for after in edited.values() if after.kind not in _CASH_IN})
 
 
 def _rebuilt(accounts: dict[int, Account], journals: dict[int, list[Operation]],
-             changed: set[str] | None = None) -> Changes:
+             changed: set[str] | None = None, keep_cash: bool = False, own_rows: set[str] = frozenset()) -> Changes:
     """Return the changes for the accounts in `journals` (account number -> its new journal), each ledger rebuilt.
 
     Each ledger keeps the rows of its current one that the new journal
@@ -150,7 +167,9 @@ def _rebuilt(accounts: dict[int, Account], journals: dict[int, list[Operation]],
     step with its journal. When rebuilding refuses one of the operations in
     `changed` (those being recorded or edited), its own error is raised, not
     OperationRefused: "Quantity sold (5) exceeds...", not "The sale of ...
-    would no longer be possible".
+    would no longer be possible". With `keep_cash` (a removal or an edit),
+    no operation but those in `own_rows` may be left short of cash (see
+    _refuse_short_of_cash).
     """
     changes = {}
     for idx, journal in journals.items():
@@ -162,8 +181,33 @@ def _rebuilt(accounts: dict[int, Account], journals: dict[int, list[Operation]],
             if changed and ex.operation.id in changed:
                 raise ex.reason from ex
             raise
+        if keep_cash:
+            _refuse_short_of_cash(account, ledger, besides=own_rows)
         changes[idx] = (journal, ledger)
     return changes
+
+
+def _refuse_short_of_cash(account: Account, ledger: pd.DataFrame, besides: set[str]) -> None:
+    """Raise ValidationError("journal.short_of_cash") when `ledger`, rebuilt after a removal or an edit, leaves an operation short of cash.
+
+    That is a row, other than those of the operations `besides`, whose cash
+    is now below zero but wasn't in `account`'s current ledger. A row
+    already below zero doesn't count, however the change moves it: buys
+    and withdrawals aren't checked when recorded, so a history can be short
+    somewhere already, and undoing a deposit just recorded must still put
+    it back as it was. The error names the first such row.
+
+    Example: removing the deposit of 10,000 that a buy of 1,002 on
+    03-01-2024 spent -> "This would leave Test Broker short of cash: -1,002.00€ on 03-01-2024".
+    """
+    cash = ledger["cash_held"].astype(float)
+    before = ledger[OP_ID].map(account.df.set_index(OP_ID)["cash_held"]).astype(float)
+    # A row the current ledger lacks has no cash before (NaN, which compares False): it counts as not short before.
+    short = (cash < -_CASH_TOLERANCE) & ~(before < -_CASH_TOLERANCE) & ~ledger[OP_ID].isin(besides)
+    if short.any():
+        row = ledger[short].iloc[0]
+        raise ValidationError("journal.short_of_cash", account=account.name, cash=fmt_eur(float(row["cash_held"])),
+                              date=row["date"])
 
 
 def _journal_of(account: Account) -> list[Operation]:
@@ -203,18 +247,52 @@ def later_operations(accounts: dict[int, Account], account: Account, kind: Kind,
     counted: they are only brought back to what the journal says.
     """
     changed = [account, _other_account_recorded(accounts, account, kind, fields)]
-    return sum(op.date > day for each in changed if each is not None for op in _journal_of(each))
+    return sum(_count_after(_journal_of(each), (day, _next_seq(each))) for each in changed if each is not None)
 
 
-def transfer_partner(accounts: dict[int, Account], account: Account, op_id: str) -> Account | None:
-    """Return the account holding the other half of the transfer `op_id` of `account`, or None.
+def later_operations_deleting(accounts: dict[int, Account], account: Account, op_id: str) -> int:
+    """Return how many operations deleting `op_id` from `account` recalculates: those after it.
+
+    For a transfer, in both accounts. Example: deleting the second of three
+    deposits on 02-01, 03-01 and 05-01 recalculates 1. Raises
+    ValidationError as delete does, before deleting anything.
+    """
+    return sum(_count_after(_journal_of(each), sort_key(op), besides=op.id)
+               for each, op in _with_other_half(accounts, account, find_operation(account, op_id)))
+
+
+def later_operations_editing(accounts: dict[int, Account], account: Account, op_id: str, **new_fields) -> int:
+    """Return how many other operations giving `op_id` of `account` the values `new_fields` recalculates.
+
+    Those after the earlier of its place before and after the edit: a new
+    date moves it among the others. For a transfer, in both accounts.
+    Example: with deposits on 02-01, 03-01 and 05-01, moving the last to
+    01-01 recalculates the other 2. Raises ValidationError as edit does.
+    """
+    day = new_fields.get("date")
+    return sum(_count_after(_journal_of(each), min(sort_key(op), (day or op.date, op.seq)), besides=op.id)
+               for each, op in _with_other_half(accounts, account, find_operation(account, op_id)))
+
+
+def _count_after(journal: list[Operation], place: tuple[date, int], besides: str | None = None) -> int:
+    """Return how many operations of `journal`, other than `besides`, come after `place`, a (date, order of entry)."""
+    return sum(sort_key(op) > place and op.id != besides for op in journal)
+
+
+def transfer_half(accounts: dict[int, Account], account: Account, op_id: str) -> tuple[Account, Operation] | None:
+    """Return (the other account, its half) of the transfer `op_id` of `account`, or None.
 
     None when the operation isn't a transfer, or its other account was
     deleted. Lets a screen say which accounts deleting a transfer changes,
-    before deleting it.
+    before deleting it, and edit a transfer in from the account sending it.
+    Raises ValidationError("journal.partner_unavailable") when the other
+    account is there but not migrated yet (see _other_half).
+
+    Example: for Directa's transfer in of 300 from Fineco ->
+    (fineco, Operation(kind="transfer_out", amount=300.0, counterpart="Directa", ...));
+    for a deposit -> None.
     """
-    half = _other_half(accounts, account, _find(account, op_id))
-    return None if half is None else half[0]
+    return _other_half(accounts, account, find_operation(account, op_id))
 
 
 def _next_seq(account: Account) -> int:
@@ -222,12 +300,26 @@ def _next_seq(account: Account) -> int:
     return max((op.seq for op in _journal_of(account)), default=0) + 1
 
 
-def _find(account: Account, op_id: str) -> Operation:
-    """Return the operation `op_id` of `account`'s journal; ValueError when it has none."""
+def find_operation(account: Account, op_id: str) -> Operation:
+    """Return the operation `op_id` of `account`'s journal (the op_id of its ledger row); ValueError when it has none.
+
+    Raises ValidationError for an account not migrated yet (see _journal_of).
+    """
     found = next((op for op in _journal_of(account) if op.id == op_id), None)
     if found is None:
         raise ValueError(f"account {account.name} has no operation {op_id}")
     return found
+
+
+def _with_other_half(accounts: dict[int, Account], account: Account, op: Operation) -> list[tuple[Account, Operation]]:
+    """Return the operations a change of `op` touches, each with its account: [(account, op)], and its other half.
+
+    The other half only for a transfer whose other account is still there.
+    Example: Fineco's transfer out of 300 to Directa ->
+    [(fineco, the transfer out), (directa, its transfer in)]; a deposit -> [(fineco, the deposit)].
+    """
+    half = _other_half(accounts, account, op)
+    return [(account, op)] if half is None else [(account, op), half]
 
 
 def _other_account_recorded(accounts: dict[int, Account], account: Account, kind: Kind, fields: dict) -> Account | None:

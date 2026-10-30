@@ -93,8 +93,32 @@ class AppController:
             check_for_update(self.page, self.state.translator)
 
     def show_tab(self, index: int) -> None:
-        """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions)."""
+        """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions).
+
+        Leaving Operations gives up the edit of an operation, if one was under way.
+        """
+        if index != shell.OPERATIONS_TAB:
+            self.state.editing = None
         shell.show_tab(self, index)
+
+    def edit_operation(self, idx: int, op_id: str) -> None:
+        """Show Operations editing the operation `op_id` of account `idx`: its form, filled in with its values.
+
+        The account picked in Operations stays as it was, for when the edit is over.
+        """
+        self.state.editing = (idx, op_id)
+        self.show_tab(shell.OPERATIONS_TAB)
+
+    def stop_editing(self) -> None:
+        """Leave the edit of an operation, saved or given up, for Transactions, where it was picked.
+
+        If the user already left Operations meanwhile (e.g. while a slow save
+        ran), the edit is over already: the tab shown is only refreshed.
+        """
+        if self.state.editing is None:
+            self.refresh()
+        else:
+            self.show_tab(shell.TRANSACTIONS_TAB)
 
     def refresh(self) -> None:
         """Re-render the tab currently shown, e.g. after the user picks another account in it."""

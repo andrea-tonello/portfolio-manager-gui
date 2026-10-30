@@ -15,7 +15,7 @@ import logging
 
 import flet as ft
 
-from components.dialogs import show_info_dialog
+from components.dialogs import close_dialog, show_info_dialog
 from components.snack import error_message, show_snack
 from services import migration_service
 from utils.columns import export_headers, localized_value_maps
@@ -51,11 +51,11 @@ def migrate_accounts(app, then) -> None:
             migrations, failures = migration_service.migrate(state.accounts)
         except Exception:  # most likely offline: no prices
             logger.exception("Could not move the accounts to the journal")
-            _close(page, working)
+            close_dialog(page, working)
             then()
             show_snack(page, t.get("journal.migration.failed"), error=True)
             return
-        _close(page, working)
+        close_dialog(page, working)
 
         def done():
             """Show what comes next, then name the accounts that couldn't be migrated, if any."""
@@ -77,12 +77,6 @@ def migrate_accounts(app, then) -> None:
             _save(app, migrations, done, again)
 
     page.run_thread(worker)
-
-
-def _close(page, dialog) -> None:
-    """Close `dialog` itself: page.pop_dialog() would close whichever dialog was opened last."""
-    dialog.open = False
-    page.update()
 
 
 def _save(app, migrations, then, again) -> None:
@@ -143,7 +137,7 @@ def _show_differences(app, migrations, then, again) -> None:
 
     def on_continue(_):
         """Close the dialog and save the accounts with their recalculated values."""
-        _close(page, dialog)
+        close_dialog(page, dialog)
         _save(app, migrations, then, again)
 
     dialog.actions = [ft.TextButton(t.get("journal.migration.continue"), on_click=on_continue)]

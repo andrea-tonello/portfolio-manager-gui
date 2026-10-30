@@ -12,10 +12,12 @@ import pandas as pd
 
 from services.market_data import fetch_splits
 from services.validation import parse_positive, validate_date
+from utils.columns import OP_ID
 from utils.formatting import fmt_eur
 from utils.other_utils import round_half_up
 from domain.account import Account
 from domain.errors import ValidationError
+from domain.journal import Operation
 from domain.ledger import ETF_PRODUCTS, Product, get_pf_date
 from domain.positions import first_trade_date, unrecorded_splits
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
@@ -130,13 +132,15 @@ def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | N
                       ter_value, product, tax_rate, fee_mode)
 
 
-def parse_transfer(source: Account, recipient: Account | None, day: date, text: str | None) -> float:
+def parse_transfer(source: Account, recipient: Account | None, day: date, text: str | None,
+                   edited: Operation | None = None) -> float:
     """Check a transfer of cash on `day` from the account `source` to `recipient`; return its amount.
 
     `day` must already be checked, as for every operation. Raises
     ValidationError for the first problem: no recipient chosen; an amount
     that isn't a number above 0; more than the cash `source` can send on
-    `day` (cash_available_on).
+    `day` (cash_available_on). `edited` is the transfer out being edited,
+    if it is one: the cash it sends now is available again.
 
     Example: with 4,584.10 EUR available on `day`, "5000" raises
     ValidationError("operations.transfer.not_enough_cash", available="4,584.10€").
@@ -144,13 +148,13 @@ def parse_transfer(source: Account, recipient: Account | None, day: date, text: 
     if recipient is None:
         raise ValidationError("operations.transfer.no_recipient")
     amount = parse_positive(text, "operations.cash.error_cash")
-    available = cash_available_on(source, day)
+    available = cash_available_on(source, day, edited)
     if amount > available:
         raise ValidationError("operations.transfer.not_enough_cash", available=fmt_eur(available))
     return amount
 
 
-def cash_available_on(account: Account, day: date) -> float:
+def cash_available_on(account: Account, day: date, edited: Operation | None = None) -> float:
     """Return the cash a transfer out of `account` on `day` can send: the least it holds from `day` on.
 
     The transfer lowers the cash of every row after it, and later buys and
@@ -160,12 +164,39 @@ def cash_available_on(account: Account, day: date) -> float:
     cash after that day's operations, since a new one goes after them.
     `day` can't be before 01-01-2000, the account's opening row.
 
+    With `edited`, a transfer out of `account` being edited, the cash is
+    counted as if it weren't there (its amount added back from its row on),
+    and the transfer keeps its place among the operations of `day` (see
+    rows_before), as rebuilding it will.
+
     Example: 1,000 deposited on 02-01-2024 and 501 spent on a buy on
     02-05-2024: on 01-03-2024 the account holds 1,000, but only 499 can be
     sent. Sending 1,000 would leave it 501 below zero after the buy.
     """
-    rows_until_day, _ = get_pf_date(account, day, day)  # the ledger is in date order: its first rows
-    return float(account.df["cash_held"].iloc[len(rows_until_day) - 1:].min())
+    before = rows_before(account, day, edited).index
+    cash = account.df["cash_held"].astype(float)
+    if edited is not None:
+        cash = (cash + edited.amount * (account.df[OP_ID] == edited.id).cumsum())[account.df[OP_ID] != edited.id]
+    return float(min([cash[before[-1]], *cash.drop(index=before)]))
+
+
+def rows_before(account: Account, day: date, edited: Operation | None = None) -> pd.DataFrame:
+    """Return the rows of `account`'s ledger that an operation on `day` comes after, in order, their dates parsed.
+
+    The opening row and those up to `day`: a new operation goes after the
+    operations of its own day. One being edited (`edited`) keeps its order
+    of entry among them instead, and its own row is left out. `day` can't
+    be before 01-01-2000, the account's opening row.
+
+    Example: with a sale and a deposit on 03-06-2024, entered in that order,
+    a new operation on 03-06-2024 comes after both; the sale, being edited,
+    after neither.
+    """
+    rows, _ = get_pf_date(account, day, day)
+    if edited is not None:
+        seqs = rows[OP_ID].map({op.id: op.seq for op in account.journal})
+        rows = rows[~((rows["date"] == pd.Timestamp(day)) & (seqs >= edited.seq)) & (rows[OP_ID] != edited.id)]
+    return rows
 
 
 def detect_unrecorded_splits(df: pd.DataFrame | None, ticker: str) -> list[tuple[str, float]]:

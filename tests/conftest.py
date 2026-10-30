@@ -1,6 +1,7 @@
 """Shared test fixtures: network guard, fake market data, a real Translator, app state and
 page stand-ins for building screens, snapshot comparison."""
 
+import asyncio
 import os
 import urllib.request
 from pathlib import Path
@@ -166,6 +167,17 @@ class FakePage:
 def page():
     """A fresh FakePage (desktop platform by default; set `page.platform` to simulate others)."""
     return FakePage()
+
+
+@pytest.fixture
+def immediately(page, monkeypatch):
+    """Make `page` run its background work straight away, in order: threads, and tasks on the event loop.
+
+    E.g. a change of the operations is worked out in a thread, which then
+    opens its question on the event loop (components/journal_change.ask).
+    """
+    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
+    monkeypatch.setattr(page, "run_task", lambda fn, *args: asyncio.run(fn(*args)))
 
 
 @pytest.fixture

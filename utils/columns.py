@@ -89,6 +89,18 @@ def show_transfer_counterparts(df, translator):
     return out
 
 
+def operation_title(row, translator):
+    """Name the operation of a ledger `row` in the user's language, with the asset or account it concerns.
+
+    Examples in English: "Buy ISP.MI", "Transfer Out to: BG Saxo", "Deposit".
+    """
+    operation = row["operation"]
+    key = TRANSFER_COUNTERPART_KEYS.get(operation)
+    subject = translator.get(key, account=row["asset_name"]) if key else row.get("ticker")
+    name = localized_value_maps(translator)["operation"].get(operation, operation)
+    return f"{name} {subject}" if isinstance(subject, str) and subject else name
+
+
 def _translate_values(df, translator):
     """Translate operation and product column values to locale strings."""
     for col, mapping in localized_value_maps(translator).items():

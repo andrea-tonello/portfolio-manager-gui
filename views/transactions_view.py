@@ -2,17 +2,19 @@ import flet as ft
 import pandas as pd
 from datetime import datetime, timedelta
 
-from components.background import run_in_background
 from components.buttons import action_card_btn
+from components.dialogs import close_dialog
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import account_selector, rounded_text_field
+from components.journal_change import change_accounts, recalculated_text
 from components.repaint_boundary import repaint_boundary
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from domain.journal import Kind
 from services import account_service, config_service, journal_service
 from utils.columns import (
-    COLUMNS, export_headers, localized_value_maps, rename_for_export, show_transfer_counterparts,
+    COLUMNS, OP_ID, export_headers, localized_value_maps, operation_title, rename_for_export,
+    show_transfer_counterparts,
 )
 from utils.constants import DEFAULT_TX_FILTER
 
@@ -47,7 +49,6 @@ class TransactionsView:
         self.app = app
         self.page = app.page
         self.state = app.state
-        self._removing = False  # True while a removal is being saved: another tap waits for it
 
     def _unloaded_accounts(self) -> set[str]:
         """Return the names of the user's accounts that couldn't be loaded (e.g. a journal from a newer version)."""
@@ -336,7 +337,11 @@ class TransactionsView:
                     val = str(val)
                     val = value_maps.get(col, {}).get(val, val)
                 cells.append(ft.DataCell(ft.Text(val, size=10)))
-            rows.append(ft.DataRow(cells=cells))
+            # A tap on a row offers to edit or remove its operation, named by the row's op_id.
+            op_id = row.get(OP_ID)
+            on_tap = (lambda e, name=row["account"], op_id=op_id: self._on_row_tap(name, op_id)) \
+                if isinstance(op_id, str) and op_id else None
+            rows.append(ft.DataRow(cells=cells, on_select_change=on_tap))
 
         # Inside the horizontal scroll, the repaint boundary spares redrawing every cell at each frame of
         # a scroll in either direction.
@@ -378,67 +383,108 @@ class TransactionsView:
         await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
-        """Remove the operation recorded last in account `idx`. A transfer is in two accounts: ask first, then remove both.
+        """Remove the operation recorded last in account `idx` (see _remove).
 
-        The operation is the one entered last, whatever its date (a split
-        found on Yahoo goes on its own past date), and is deleted from the
-        journal (journal_service.delete), which rebuilds what follows it: the
-        other half of a transfer can come before newer operations of its
-        account. Another removal is ignored while one is being saved.
+        That is the one entered last, whatever its date: a split found on
+        Yahoo goes on its own past date, and is still the one undone.
         """
         s = self.state
         t = s.translator
         account = s.get_account(idx)
-        if self._removing:
-            return
         if not (account and account.has_transactions):
             show_snack(self.page, t.get("transactions.no_rows"), error=True)
             return
         try:
             op = journal_service.last_entered(account)
-            partner = journal_service.transfer_partner(s.accounts, account, op.id)
-            if op.transfer_id and partner is None and op.counterpart in self._unloaded_accounts():
+        except ValidationError as ex:  # an account not moved to the journal yet
+            show_snack(self.page, error_message(t, ex), error=True)
+            return
+        self._remove(account, op)
+
+    def _on_row_tap(self, account_name, op_id):
+        """Offer what can be done with the operation of a row tapped: edit it (in Operations) or remove it (_remove).
+
+        A transfer in is edited from the account sending it, where its form
+        records it. A transfer whose other account is gone can only be
+        removed. A row whose operation isn't in the journal (just removed,
+        the list not shown again yet; or a ledger left out of step by a
+        rebuild that failed offline) says so, and the list is shown again.
+        """
+        s = self.state
+        t = s.translator
+        account = next((acc for acc in s.accounts.values() if acc.name == account_name), None)
+        if account is None:
+            return
+        try:
+            op = journal_service.find_operation(account, op_id)
+            half = journal_service.transfer_half(s.accounts, account, op_id)
+        except ValidationError as ex:  # an account (or the other of a transfer) not moved to the journal yet
+            show_snack(self.page, error_message(t, ex), error=True)
+            return
+        except ValueError:  # no such operation in the journal
+            show_snack(self.page, t.get("journal.row_outdated"), error=True)
+            self.app.refresh()
+            return
+        if op.kind == Kind.TRANSFER_IN:
+            edited = None if half is None else (half[0].idx, half[1].id)
+        else:
+            edited = None if op.transfer_id and half is None else (account.idx, op.id)
+        row = account.df[account.df[OP_ID] == op_id].iloc[0]
+
+        def edit(_):
+            """Close the dialog and edit the operation in Operations."""
+            close_dialog(self.page, dialog)
+            self.app.edit_operation(*edited)
+
+        def remove(_):
+            """Close the dialog and remove the operation."""
+            close_dialog(self.page, dialog)
+            self._remove(account, op)
+
+        dialog = ft.AlertDialog(
+            title=ft.Text(operation_title(row, t)),
+            content=ft.Text(f"{row['date']} · {account.name}"),
+            actions=[
+                ft.TextButton(t.get("components.cancel"), on_click=lambda _: close_dialog(self.page, dialog)),
+                *([ft.TextButton(t.get("journal.edit.action"), on_click=edit)] if edited else []),
+                ft.TextButton(t.get("journal.delete.confirm"), style=ft.ButtonStyle(color=ft.Colors.RED),
+                              on_click=remove),
+            ],
+        )
+        self.page.show_dialog(dialog)
+
+    def _remove(self, account, op):
+        """Delete `op` from `account` (journal_service.delete) in the background; a transfer from both its accounts.
+
+        The operations after it are rebuilt. When it is a transfer, or others
+        come after it, the user is asked first: which accounts it is removed
+        from, and how many operations will be recalculated. The question
+        comes once the change is worked out (change_accounts), so a removal
+        that would make a later operation impossible (e.g. a sale of shares
+        whose buy it is) or leave it short of cash (a buy paid with the
+        deposit removed) is refused instead, saying which.
+        """
+        s = self.state
+        t = s.translator
+        try:
+            half = journal_service.transfer_half(s.accounts, account, op.id)
+            if op.transfer_id and half is None and op.counterpart in self._unloaded_accounts():
                 raise ValidationError("journal.partner_unavailable", account=op.counterpart)
+            later = journal_service.later_operations_deleting(s.accounts, account, op.id)
         except ValidationError as ex:  # an account not moved to the journal, or not loaded
             show_snack(self.page, error_message(t, ex), error=True)
             return
 
-        def remove(message_key):
-            """Delete the operation in the background, save the accounts, say so, and show the tab again."""
-            if self._removing:
-                return
-            self._removing = True
-
-            def work():
-                """Delete the operation (both halves of a transfer) and save the accounts it changes."""
-                try:
-                    built_from = s.journals()
-                    s.commit_changes(journal_service.delete(s.accounts, account, op.id), built_from=built_from)
-                    show_snack(self.page, t.get(message_key))
-                    self.app.refresh()
-                finally:
-                    self._removing = False
-
-            run_in_background(self.page, t, work)
-
-        if op.kind not in (Kind.TRANSFER_OUT, Kind.TRANSFER_IN):
-            remove("transactions.row_removed")
-            return
-
-        text = (t.get("transactions.transfer_undo_both", first=account.name, second=partner.name) if partner
-                else t.get("transactions.transfer_undo_one", account=account.name))
-
-        def confirm(_):
-            """Close the question and remove the transfer."""
-            self.page.pop_dialog()
-            remove("transactions.transfer_removed")
-
-        self.page.show_dialog(ft.AlertDialog(
-            title=ft.Text(t.get("transactions.transfer_undo_title")),
-            content=ft.Text(text),
-            actions=[
-                ft.TextButton(t.get("components.cancel"), on_click=lambda _: self.page.pop_dialog()),
-                ft.TextButton(t.get("transactions.transfer_undo_confirm"), style=ft.ButtonStyle(color=ft.Colors.RED),
-                              on_click=confirm),
-            ],
-        ))
+        is_transfer = op.transfer_id is not None
+        texts = []
+        if is_transfer:
+            texts.append(t.get("transactions.transfer_undo_both", first=account.name, second=half[0].name) if half
+                         else t.get("transactions.transfer_undo_one", account=account.name))
+        if later:
+            texts.append(recalculated_text(t, later, "journal.delete"))
+        question = None
+        if texts:
+            title = t.get("transactions.transfer_undo_title" if is_transfer else "journal.delete.title")
+            question = (title, " ".join(texts), t.get("journal.delete.confirm"))
+        change_accounts(self.app, lambda: journal_service.delete(s.accounts, account, op.id), question=question,
+                        saved_message=t.get("transactions.transfer_removed" if is_transfer else "transactions.row_removed"))

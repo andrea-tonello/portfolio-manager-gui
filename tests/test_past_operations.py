@@ -23,7 +23,7 @@ from views.operations_view import OperationsView
 
 
 @pytest.fixture
-def open_operations(app, page, state, monkeypatch):
+def open_operations(app, state, monkeypatch, immediately):
     """Return a function that opens the Operations screen on the test account, whose operations are really recorded.
 
     Background work runs straight away, and the checks against Yahoo (the
@@ -31,7 +31,6 @@ def open_operations(app, page, state, monkeypatch):
     """
     monkeypatch.setattr(views.operations_view, "search_tickers", lambda *args, **kwargs: [])
     monkeypatch.setattr(views.operations_view, "fetch_ticker_name", lambda ticker: NAMES[ticker])
-    monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     state.ops_acc_idx = 1
 
     def open_view():

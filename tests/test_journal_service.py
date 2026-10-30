@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 from conftest import account_of, applied
 from test_journal import csv_text
-from test_ledger_snapshots import BROKER, STOCKS_EUR, deposit, journal_of
+from test_ledger_snapshots import BROKER, STOCKS_EUR, buy, deposit, journal_of
 
 from components.snack import error_message
 from domain.account import Account
@@ -152,6 +152,84 @@ def test_an_operation_that_cant_be_recorded_raises_and_changes_nothing(fake_mark
     assert account.df.equals(ledger)
 
 
+def _first_deposit(account):
+    """The first operation of `account`: in STOCKS_EUR, the deposit of 10,000 on 02-01-2024 that pays for every buy."""
+    return account.journal[0]
+
+
+@pytest.mark.parametrize("change, message", [
+    (lambda accounts, account: journal_service.delete(accounts, account, _first_deposit(account).id),
+     "This would leave Test Broker short of cash: -1,002.00€ on 03-01-2024."),
+    (lambda accounts, account: journal_service.edit(accounts, account, _first_deposit(account).id, amount=2_000.0),
+     "This would leave Test Broker short of cash: -104.00€ on 01-02-2024."),
+], ids=["removed", "lowered"])
+def test_a_change_leaving_a_later_operation_short_of_cash_is_refused(fake_market, translator, change, message):
+    """Removing the deposit of 10,000, or lowering it to 2,000, leaves the buys it paid for below zero: refused.
+
+    The message names the first row left short: the buy of 1,002 on
+    03-01-2024 without the deposit, the buy of 1,102 on 01-02-2024 with 2,000
+    (998 - 1,102). Recording a buy beyond the cash is still allowed: only
+    removals and edits are checked, as transfers are.
+    """
+    accounts = {1: account_of(1, BROKER, STOCKS_EUR)}
+
+    with pytest.raises(ValidationError) as refused:
+        change(accounts, accounts[1])
+
+    assert error_message(translator, refused.value) == message
+
+
+# 100 deposited, then a buy of 501: the buy's row is 401 below zero, as recording allows.
+SHORT_ALREADY = [deposit(date(2024, 1, 2), 100), buy(date(2024, 1, 3), "BBB.MI", 10, price=50.0, fee=1.0)]
+
+
+@pytest.mark.parametrize("steps, edited, amount, last_cash", [
+    (SHORT_ALREADY, 0, 200.0, -301),
+    (STOCKS_EUR, -1, 10_000.0, -776.88),
+], ids=["raised-but-still-below-zero", "its-own-row"])
+def test_an_edit_that_takes_no_other_operation_below_zero_is_allowed(fake_market, steps, edited, amount, last_cash):
+    """An edit may leave cash below zero on a row already below zero, and on the own row of an operation spending cash.
+
+    A buy of 501 paid with 100 is already 401 short: raising the deposit to
+    200 leaves it 301 short, which is allowed, so a history short of cash
+    can still be corrected. Raising STOCKS_EUR's last withdrawal from 500 to
+    10,000 takes its own row below zero, as recording it would.
+    """
+    accounts = {1: account_of(1, BROKER, steps)}
+
+    applied(accounts, journal_service.edit(accounts, accounts[1], accounts[1].journal[edited].id, amount=amount))
+
+    assert accounts[1].last("cash_held") == pytest.approx(last_cash)
+
+
+def test_undoing_a_deposit_under_a_row_already_short_is_allowed(fake_market):
+    """A deposit of 50 recorded by mistake under the buy already short can be removed: the buy is back at -401.
+
+    It only puts the account back as it was. Refused, a history short of
+    cash somewhere could never be undone.
+    """
+    accounts = {1: account_of(1, BROKER, SHORT_ALREADY)}
+    applied(accounts, journal_service.record(accounts, accounts[1], Kind.DEPOSIT, date(2024, 1, 2), amount=50.0))
+
+    applied(accounts, journal_service.delete(accounts, accounts[1], journal_service.last_entered(accounts[1]).id))
+
+    assert accounts[1].last("cash_held") == pytest.approx(-401)
+
+
+def test_lowering_the_last_deposit_below_what_was_spent_is_refused(fake_market, translator):
+    """A deposit of 600 that brings the account back to 199 can't be lowered to 100, though no operation follows it.
+
+    Its own row would be 301 below zero. Only an operation spending cash (a
+    buy, a withdrawal) may take its own row below zero, as when recorded.
+    """
+    accounts = {1: account_of(1, BROKER, [*SHORT_ALREADY, deposit(date(2024, 1, 4), 600)])}
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.edit(accounts, accounts[1], accounts[1].journal[-1].id, amount=100.0)
+
+    assert error_message(translator, refused.value) == "This would leave Test Broker short of cash: -301.00€ on 04-01-2024."
+
+
 @pytest.fixture
 def transfer(fake_market):
     """Fineco (1,000 EUR deposited) sends 300 to Directa (100 deposited) on 10-01-2024; return the two accounts."""
@@ -175,6 +253,19 @@ def test_a_transfer_is_recorded_in_both_accounts_and_deleted_from_both(transfer)
 
     assert [op.kind for op in transfer[1].journal + transfer[2].journal] == ["deposit", "deposit"]
     assert (transfer[1].last("cash_held"), transfer[2].last("cash_held")) == (1000, 100)
+
+
+def test_removing_a_transfer_the_receiver_has_spent_is_refused(transfer, translator):
+    """Directa withdraws 350 of the 400 it holds after the transfer: removing the transfer would leave it 250 short.
+
+    Refused, though Fineco, which removes it, gets its 300 back.
+    """
+    applied(transfer, journal_service.record(transfer, transfer[2], Kind.WITHDRAWAL, date(2024, 2, 1), amount=350.0))
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.delete(transfer, transfer[1], transfer[1].journal[-1].id)
+
+    assert error_message(translator, refused.value) == "This would leave Directa short of cash: -250.00€ on 01-02-2024."
 
 
 def test_editing_a_transfer_changes_both_halves(transfer):

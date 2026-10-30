@@ -104,6 +104,23 @@ def test_a_transfer_is_refused_with_its_reason(accounts, recipient, day, amount,
     assert (info.value.key, info.value.params) == (key, params)
 
 
+def test_an_edited_transfer_can_send_only_the_cash_held_before_it_on_its_day(accounts):
+    """Fineco sends 8,000 of its 9,000 on 03-06-2024, then deposits 5,000 that day: edited, the transfer can send 9,000.
+
+    It keeps its order of entry, before the deposit, as its rebuild will
+    check. Counting the deposit, the form would offer 14,000, and the
+    rebuild then refuse with another figure.
+    """
+    transfer(accounts, 8_000)
+    applied(accounts, journal_service.record(accounts, accounts[1], Kind.DEPOSIT, DAY, amount=5_000.0))
+    sent = next(op for op in accounts[1].journal if op.kind == Kind.TRANSFER_OUT)
+
+    with pytest.raises(ValidationError) as info:
+        parse_transfer(accounts[1], accounts[2], DAY, "9000.01", edited=sent)
+
+    assert info.value.params == {"available": "9,000.00€"}
+
+
 # ── Undoing a transfer ───────────────────────────────────────────────
 
 def test_two_equal_transfers_on_the_same_day_are_undone_one_pair_at_a_time(accounts):

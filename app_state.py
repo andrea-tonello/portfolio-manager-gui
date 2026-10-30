@@ -47,10 +47,13 @@ class AppState:
         self.accounts: dict[int, Account] = {}
         # Held while checking that a change still builds on the accounts' journals and saving it (commit_changes)
         self._commit_lock = threading.RLock()
+        # True while a change of the operations is worked out or saved: another isn't started (journal_change)
+        self.changing: bool = False
 
         # Per-page selection
         self.home_selection: str = "overview"  # "overview" or str(broker_idx)
         self.ops_acc_idx: int | None = None
+        self.editing: tuple[int, str] | None = None  # (account, op_id) Operations is editing, picked in Transactions
         self.analysis_acc_idx: int | None = None  # None = all accounts
         self.analysis_tab_index: int = 0  # last selected Analysis tab (0 = first tab)
         self.tx_selection: str = "overview"  # "overview" or str(broker_idx)

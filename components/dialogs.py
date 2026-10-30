@@ -12,6 +12,15 @@ GLOSSARY_STYLE = ft.MarkdownStyleSheet(
 )
 
 
+def close_dialog(page: ft.Page, dialog: ft.AlertDialog) -> None:
+    """Close `dialog` itself: page.pop_dialog() would close whichever dialog was opened last.
+
+    E.g. a question asked from a background thread, while another dialog may have opened above it.
+    """
+    dialog.open = False
+    page.update()
+
+
 def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None, actions=None,
                      md_style_sheet=None):
     """Show a read-only dialog: a title, an explanation and an OK button that closes it.

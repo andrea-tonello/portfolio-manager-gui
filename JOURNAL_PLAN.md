@@ -16,8 +16,8 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 4. Migration of existing ledgers, backups, account deletion
 - [x] 5. Write path: every operation goes through the journal (same behaviour as today)
 - [x] 6. Out-of-order insertion in Operations: **the feature**
-- [ ] 7. Delete any operation in Transactions
-- [ ] 8. Edit any operation
+- [x] 7. Delete any operation in Transactions
+- [x] 8. Edit any operation
 - [ ] 9. Later: recalculate all history; import broker statements
 
 ---
@@ -474,14 +474,101 @@ Saves, and finishing or cleaning one up, share a lock (`account_service._save_lo
     - Cancel leaves both journals unchanged;
     - Record saves it after that day's buy, Fineco's lowest cash from then on becoming 7.77 €.
 
-### Phase 7: delete any operation
-- Transactions: a tap on a row → Delete, with confirmation (transfers: both halves). "Remove last operation" deletes the newest row through the same code.
-- **Test:** deleting a middle deposit rebuilds the later rows. If that makes a later sale impossible, it is refused.
-- **About 100–150 lines**, mostly UI.
+### Phases 7–8, shared: one way to change the operations
+**`components/journal_change.change_accounts(app, work_out, question=, saved_message=, then=, loading=)`** is how every screen changes the operations: Operations recording or editing one, Transactions removing one, Home recording a split found on Yahoo. Phase 6's `_record` became it.
+1. **Work out** the changes in the background (`work_out`, e.g. `journal_service.delete`). A refusal is shown instead of any question.
+2. **Ask `question`, if any:** a (title, text, confirm label).
+   - `ask` opens it on the event loop (`page.run_task`), since it is called from the worker thread, as Home does for its split prompt.
+   - It closes it by reference (`components/dialogs.close_dialog`, shared with the migration and the row dialog).
+   - It is answered once. Dismissing it (tapping outside, Android's back button) cancels.
+3. **Save** with `AppState.commit_changes(changes, built_from=journals())`, show `saved_message`, then run `then` (`app.refresh` by default).
+- **One change at a time:** `AppState.changing` replaces the forms' `_recording` and Transactions' `_removing`. It holds from the tap until the change is saved, refused or cancelled, the question included, across every screen. Another change meanwhile isn't made, and says so ("Another change is being saved: try again in a moment", `journal.busy`): e.g. a split recorded from Home while a removal is saving.
+- **The counts:** `recalculated_text(t, count, group)` words them, with `group` "journal.insert", "journal.edit" or "journal.delete", each with "one" and "many". In `journal_service`, `later_operations` (record), `later_operations_deleting` and `later_operations_editing` count the operations after the change's earliest place, `(date, seq)`, in both accounts for a transfer (`_count_after`, `_with_other_half`).
+- **Public helpers:** `journal_service.find_operation(account, op_id)` (was `_find`), and `transfer_half(accounts, account, op_id)` (was `transfer_partner`, which gave the account only), returning the other account and its half.
+- `utils/columns.operation_title(row, t)` names a ledger row's operation, e.g. "Buy ISP.MI" or "Transfer out to: BG Saxo". It titles the row's dialog and the edit banner.
 
-### Phase 8: edit any operation
-- The Operations forms, pre-filled from the operation, saving through `edit`.
-- **About 150–250 lines**, mostly UI.
+### Phase 7: delete any operation (done)
+- **Transactions:** a tap on a row (`DataRow.on_select_change`, with the row's `op_id`, in one account's view or all of them) opens a dialog. It names the operation, its date and account, and offers Cancel, Edit and Remove.
+  - A row whose operation isn't in the journal says so (`journal.row_outdated`) and the list is shown again. E.g. it was just removed and the list wasn't shown again yet, or the ledger was left out of step by a rebuild that failed offline.
+- **`_remove(account, op)`** is what Remove and "remove last" share; "remove last" still undoes the operation entered last (`last_entered`).
+  - **The question** comes only for a transfer ("It will be removed from both A and B") or when operations come after it ("Removing it recalculates 4 other operations (…)"), or both.
+  - **A removal that makes a later operation impossible** is refused, naming it, with no question: e.g. removing a buy that a later sale needs.
+  - **A transfer** is removed from both accounts. One whose other account isn't loaded is refused (`journal.partner_unavailable`), as in phase 5.
+  - **A removal that leaves a later operation short of cash** is refused too (see "Cash after removals and edits" below), e.g. removing the deposit that paid for a buy.
+- Locale keys: `journal.delete.{title,one,many,confirm}`.
+
+### Phase 8: edit any operation (done)
+- **From Transactions:** Edit on a row's dialog calls `AppController.edit_operation(idx, op_id)`, which sets `AppState.editing` and shows Operations.
+  - A transfer in is edited from the account sending it, through its transfer out.
+  - A transfer whose other account is gone offers no Edit, only Remove.
+  - **Operations shows the edited operation's account** (`_account_idx`), leaving the account picked in `ops_acc_idx` as it was for after the edit.
+  - **An edit that can no longer be shown is given up** (`_edited_operation`). That is when the operation is gone from its journal, its ledger has no row for it, or it is a transfer whose other account is gone or not migrated (e.g. deleted in Settings meanwhile).
+- **Operations while editing:**
+  - only the form recording the operation (`_tab_of`: General, ETF or Stock), under a banner: "Modifica: Acquisto XEON.MI del 16-10-2026", with an X to give up;
+  - the account is locked, and so is the kind: the General form hides its kind buttons, the ETF/Stock forms lock the buy/sell switch. A transfer's recipient is locked too.
+  - **The form is filled in** (`_fill_in`) with the values as recorded (`_typed` keeps every digit):
+    - a sale or split of an asset no longer held gets its ticker added to the list;
+    - the ETF fee mode maps back: "pending" on a buy is the Tax Carryforward option's card for later;
+    - the fee shows in EUR, as stored;
+    - the money-market tax bracket shows as a percentage.
+  - The form's handlers that redraw it were split so filling in doesn't update the page: `_show_kind`, `_show_side`, `_show_currency`, `_show_etf_subtype`.
+- **Saving** goes through `journal_service.edit(accounts, account, op_id, date=…, **fields)`:
+  - for a transfer, only the date and amount (`counterpart` and `transfer_id` can't change);
+  - Yahoo's asset name is asked for again only when the ticker changed;
+  - the question uses `journal.edit.*` ("The change recalculates 1 other operation (…)", "Save changes");
+  - once saved, "Changes saved" shows and Transactions comes back (`AppController.stop_editing`). If the user left Operations while it saved, the tab they went to is only refreshed.
+- **An edited operation keeps its place among those of its day** (its order of entry), as its rebuild does. `operations_service.rows_before(account, day, edited)` gives the rows it comes after, leaving out its own row and those of its day entered after it.
+  - **The transfer's cash check** uses it: `cash_available_on(account, day, edited)` also counts the cash the transfer already sends as available again.
+  - **A sale's fee panel** uses it too: the pending fees and average buy price just before the sale, not after it as the sale's own row says.
+- **Leaving Operations** through the navigation bar gives up the edit (`AppController.show_tab` clears `editing`).
+- Locale keys: `journal.edit.{action,banner,title,one,many,save,saved}` (`save` is both the button and the question's confirmation, set by `_show_save_button`), `journal.busy`, `journal.row_outdated`, and `journal.changed_meanwhile` (phase 6).
+
+### Cash after removals and edits (decided after phase 8)
+**Rule:** a removal or an edit can't leave another operation short of cash, as a transfer out can't (decision 5, extended).
+- **Where:** `journal_service.delete` and `edit` rebuild with `keep_cash=True`, and `_refuse_short_of_cash` compares each rebuilt row's cash with the account's ledger before the change, by `op_id`.
+- **Refused:** a row that ends below zero but wasn't below zero before raises `journal.short_of_cash`. The message names the account, the cash and the date of the first such row: "This would leave Test Broker short of cash: -1,002.00€ on 03-01-2024".
+- **Allowed:**
+  - **Rows already below zero, however the change moves them.** Buys and withdrawals aren't checked when recorded, so a history can be short somewhere already, as Fineco's is. It can still be corrected, and a deposit recorded by mistake above a short row can still be undone (first rule, after review: rows lowered while below zero were refused, which blocked that undo).
+  - **The edited operation's own row, when it spends cash** (a buy, a withdrawal, a charge), as when recording it. One bringing cash in (a deposit, a dividend, a sale, a transfer in: `_CASH_IN`) is checked like the others: lowering the last deposit can't leave its own row short, as it couldn't with an operation after it.
+- **Transfers:** both accounts are checked. Removing or lowering a transfer whose receiver has spent the cash is refused, naming the receiver.
+- **Unchanged:** recording a new operation, even dated before others, keeps decision 5: a past-dated withdrawal or buy can still leave later rows below zero.
+- **Tests** (`test_journal_service.py`):
+  - removing STOCKS_EUR's deposit, or lowering it to 2,000, is refused, naming the first buy left short;
+  - raising a deposit under a buy already short is allowed though the buy stays below zero;
+  - raising the last withdrawal beyond the cash is allowed on its own row;
+  - removing a transfer the receiver has spent is refused, naming the receiver;
+  - after review: undoing a deposit recorded above a buy already short is allowed; lowering the last deposit below what was spent is refused on its own row.
+
+**Fixed after the review of phases 7–8, also tested:**
+- an edited transfer can send only the cash held before it on its day, not a deposit entered after it that day (`test_transfer.py`);
+- a row whose operation is gone says so;
+- no other change starts while one waits for its answer, and it says why (`test_transactions_view.py`);
+- an edited sale's fee panel counts the fees pending before it;
+- an edit whose transfer recipient was deleted is given up instead of failing;
+- leaving an edit for Home while it saves keeps Home shown, and the account picked in Operations stays picked (`test_edit_operations.py`).
+
+Tests where a question opens use the `immediately` fixture (`conftest.py`): the page's threads and event-loop tasks run straight away.
+
+**Checked in the app** (web, on a copy of `portfolio_backup_23-10-2026.zip`):
+- removing a Fineco deposit is refused, naming −125.10 € on 20-10-2026;
+- removing a charge asks about 6 operations, the question opening from the worker thread;
+- dismissing it by tapping outside frees the guard (the question opens again), and confirming removes the charge.
+
+**Tests (phases 7–8):**
+- `test_transactions_view.py`:
+  - a tapped row (the dividend of 15-04-2024) offers Cancel, Edit and Remove; removed, after a question naming 6 operations, their cash drops by its 12.5;
+  - removing a buy a later sale needs is refused, naming that sale, with no question and the account unchanged;
+  - "remove last" of a split recorded on a past date asks first, since the withdrawal after it is recalculated.
+- `test_edit_operations.py`:
+  - **every operation of `STOCKS_EUR`, `ETFS_AND_USD` and an ETF buy with its fee pending, opened for editing and saved unchanged, is the very same operation.** So each form shows every value as recorded;
+  - the dividend, edited from Transactions to 20, keeps its id and order of entry, adds 7.5 to the later cash after the question, and Transactions is shown again;
+  - a buy edited down so a later sale falls short is refused, with no question, and the edit stays open;
+  - a transfer picked from the receiving account is edited from the sending one, its recipient locked. Raised from 8,000 to 8,500 of the 8,723.12 held, it is allowed, its own cash counting again, and both halves change.
+- **Checked in the app** (web, on a copy of `portfolio_backup_23-10-2026.zip`):
+  - a tapped row's dialog: "Acquisto XEON.MI", "16-10-2026 · Fineco", with Annulla, Modifica and Rimuovi;
+  - **the edit:** the ETF form filled in (Monetari, quantity, price, fee, mode); the price changed to 150.6 asked about 1 other operation, and was saved with the same id and order of entry (27), Transactions coming back;
+  - **removing** a Fineco deposit asked about the 4 operations after it, and rebuilt them;
+  - the X gave up an edit, and Operations then opened normally.
 
 ### Phase 9: later
 - **Recalculate history:** a Settings action that rebuilds every ledger from its journal after a rule change. It replaces "Re-record every transaction" in TODO.md.
@@ -500,7 +587,7 @@ All decided; each is referred to by its number above.
    - the original CSV is kept as `before-journal-<account>.csv`.
 3. **Migration is required.** With decision 2 every account can be migrated, so there's no old in-order code path to maintain.
 4. **Same-day position:** a new operation goes after the existing ones on that day.
-5. **Cash checks while rebuilding:** today's rules. Only transfers check the cash held; withdrawals and buys don't.
+5. **Cash checks while rebuilding:** today's rules. Only transfers check the cash held; withdrawals and buys don't. Extended after phase 8: removals and edits can't leave another operation short of cash either (see "Cash after removals and edits").
 6. **"Remove last operation" in Transactions** stays, as a shortcut for deleting the newest row.
 7. **Valuations of rebuilt rows:** rows after a change are re-priced with today's Yahoo data, and the phase-6 confirmation says so.
 
