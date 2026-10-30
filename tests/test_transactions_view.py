@@ -5,11 +5,13 @@ Newest first, and operations of the same day from the last entered to the
 first, so running totals such as the cash held read in sequence.
 """
 
+import asyncio
 import io
 from datetime import date
 
 import pandas as pd
 import pytest
+from test_exports import FakeFilePicker
 from test_ledger_snapshots import _replay, deposit
 
 from services import operations_service
@@ -52,6 +54,25 @@ def test_export_uses_the_screen_order(view, state):
 
     exported = pd.read_csv(io.BytesIO(csv_bytes))
     assert exported[export_headers(state.translator)["cash_held"]].tolist() == CASH_HELD_NEWEST_FIRST
+
+
+def test_an_accounts_export_is_named_report_and_leaves_out_the_operation_ids(app, state):
+    """Exporting an account offers "Report <account>.csv", with only the ledger's own columns.
+
+    The ledger itself is now report-<account>.csv, and carries the internal
+    op_id column (the journal operation of each row), which isn't for the user.
+    """
+    state.load_all_accounts()  # read back from its file, op_id column included
+    view = TransactionsView(app)
+    view.build()
+    view.file_picker = FakeFilePicker("/home/me/Report Test Broker.csv")
+
+    asyncio.run(view._on_export(None, 1))
+
+    saved = view.file_picker.calls[0]
+    assert saved["file_name"] == "Report Test Broker.csv"
+    header = saved["src_bytes"].decode("utf-8").splitlines()[0].split(",")
+    assert header == list(export_headers(state.translator).values())
 
 
 def _transfer_to_second_broker(state, tmp_path):

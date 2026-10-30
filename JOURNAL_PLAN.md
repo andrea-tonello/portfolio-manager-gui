@@ -12,7 +12,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 0. Decisions (see "Decisions" at the end)
 - [x] 1. Journal model and rebuild engine (no app change)
 - [x] 2. Price provider for rebuilds
-- [ ] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
+- [x] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
 - [ ] 4. Migration of existing ledgers, backups, account deletion
 - [ ] 5. Write path: every operation goes through the journal (same behaviour as today)
 - [ ] 6. Out-of-order insertion in Operations: **the feature**
@@ -71,7 +71,7 @@ In code:
   - `export_filename` (today's `report_filename`, renamed) for exports.
 
   `create_defaults`, `load_single_account`, `delete_account_files` and the backup checks move to the internal names.
-- **Existing data:** when an account's internal CSV still has the old name (`Report <account>.csv` in the resources folder) and no `report-<account>.csv` exists, it is renamed at load. That covers existing installs and old backups.
+- **Existing data:** when an account's internal CSV still has the old name (`Report <account>.csv` in the resources folder) and no `report-<account>.csv` exists, it is renamed. `account_service.prepare_files` does this at the start of `AppState.load_all_accounts`, before creating missing ledgers. That covers existing installs and old backups.
 
 ### Journal format
 
@@ -117,9 +117,13 @@ In code:
 ### The ledger as a cache
 
 - **Every operation builds exactly one row in its account** (a transfer: one in each). So row `k + 1` of the ledger (after the opening row) belongs to the `k`-th operation in `(date, seq)` order.
-- **A new CSV column, `op_id`, records which operation built the row.** Transactions uses it for delete and edit.
-  - It's internal: it's not shown in the Transactions table or exported.
-  - So it is *not* added to `utils/columns.py`'s `COLUMNS`, which drives both. It has its own constant there, `OP_ID` (phase 1); `load_single_account` will keep it (phase 3).
+- **Two new CSV columns record which operation built the row, as it was then:**
+  - `op_id`: its id. Transactions uses it for delete and edit;
+  - `op_hash`: its `fingerprint`, a short hash of all its values, which changes when it is edited.
+
+  Together they tell which rows are still what the journal builds (`rows_up_to_date`).
+  - They're internal: not shown in the Transactions table or exported.
+  - So they are *not* in `utils/columns.py`'s `COLUMNS`, which drives both. They have their own constants there: `OP_ID`, `OP_HASH`, `INTERNAL_COLUMNS`. `load_single_account` reads them with the ledger.
 
 ### Rebuilding
 
@@ -142,11 +146,22 @@ A new module, **`domain/journal.py`** (no files; the prices come from one downlo
 
   Each of these kinds has its message, `journal.refused.<kind>`, e.g. "La vendita di AAA.MI del 03-06-2024 non sarebbe più possibile: {reason}". `components.snack.error_message` translates the `reason` inside it. When the refused operation is the one being recorded, the caller (`record`, phase 3) shows the `reason` alone. Withdrawals and buys aren't checked against cash today, and stay unchecked (decision 5).
 
-A service, **`services/journal_service.py`**, does the files and the use cases:
-- **Reading and writing journals:** `load_journal(folder, account_name)`, `save_journal(...)`.
-- **`record(accounts, account, op) -> {acc_idx: (journal, ledger)}`:** adds the operation (a transfer: both halves, in both accounts, sharing a `transfer_id`) and rebuilds from its position. Nothing is saved; the caller commits.
-- **`delete(accounts, account, op_id)`:** for a transfer, both halves.
-- **`edit(accounts, account, op_id, new_fields)`:** keeps `id` and `seq`, and rebuilds from the earlier of the old and new positions.
+A service, **`services/journal_service.py`**, does the journal file format and the use cases:
+- **The file format:**
+  - `journal_to_json(operations)` writes `{"version": 1, "operations": [...]}`, indented, in order of entry;
+  - `journal_from_json(text)` and `read_journal(path)` raise ValueError for another version, an invalid operation, or a repeated id.
+- **The use cases.** Each returns `Changes = {acc_idx: (journal, ledger)}` and saves nothing: the caller passes it to `AppState.commit_changes`.
+  - **`record(accounts, account, kind, day, **fields)`:**
+    - gives the operation a new id and the next `seq`;
+    - a transfer out (fields `amount`, `counterpart`) also gets a `transfer_id`, and adds its transfer-in half to the counterpart's journal.
+  - **`delete(accounts, account, op_id)`:** a transfer's other half, found by `transfer_id` in any other account, goes too.
+  - **`edit(accounts, account, op_id, **new_fields)`:**
+    - keeps `id` and `seq`;
+    - refuses changing `kind`, `counterpart` or `transfer_id` (delete and record instead);
+    - a transfer's new date and amount go to its other half.
+- **How much is rebuilt:** each ledger keeps the rows whose `op_id` and `op_hash` still match the start of the new journal, in order (`rows_up_to_date`). That stops at an operation added, deleted or edited. A ledger out of step with its journal (e.g. one whose rebuild failed offline at load) is rebuilt from where they differ, never trusted further.
+- **Order:** the account acted on is rebuilt first. For a transfer, that is the sender, which can be short of cash; the receiver's rebuild is skipped when the sender's is refused.
+- **Errors:** when rebuilding refuses the operation being recorded or edited, its own error is raised ("Quantity sold (30) exceeds…"). `OperationRefused` is raised only when a later operation is refused.
 
 ### Prices for a rebuild
 
@@ -178,14 +193,26 @@ Rows after the point of a change get today's Yahoo prices, so their `assets_valu
 
 ### Saving both files consistently
 
-`AppState.commit` becomes `commit(changes: {acc_idx: (journal, ledger)})`. For each account:
-1. Write `journal-<account>.json` and `report-<account>.csv` to temporary files.
-2. Rename them over the old ones: the journal first, then the CSV.
+**`AppState.commit_changes(changes)`** saves through `account_service.save_accounts(folder, {name: (journal, ledger)})`, then updates the accounts in memory. A save covers every file of every account it changes, all or none:
+1. **Write:** every file is written in full to `<file>.tmp`, flushed to disk. All the text is made before any file is written. If a write fails (e.g. a full disk), every temporary file is deleted and the error raised: nothing changed, in memory either.
+2. **Decide:** a marker, `pending-save.json`, is written listing the files. From then on the save is decided.
+3. **Replace:** each file replaces its old one, then the marker is deleted.
+   - If the app stops here, `finish_interrupted_save` completes the renames at the next load. So a transfer is never in one account only.
+   - A file that can't be replaced yet (e.g. a ledger open in Excel, on Windows) stays listed in the marker and is retried before the next save or load. The save still counts as done, so memory takes it.
 
-At startup, `load_single_account` rebuilds the ledger (and saves it) when:
-- the CSV is missing;
-- the journal is newer than the CSV (by modification time);
-- the CSV's `op_id`s don't match the journal (e.g. a crash between the two renames).
+`finish_interrupted_save` also deletes temporary files of a save that stopped before deciding.
+
+**`AppState.commit(acc_idx, df)`**, today's, stays only for accounts without a journal (not migrated). It refuses an account that has one, because its ledger saved alone would be rebuilt from the journal at the next load. Phase 5 removes it.
+
+**Loading** (`AppState.load_all_accounts`):
+1. **`account_service.prepare_files`:** finishes an interrupted save, renames ledgers saved under the old name, and creates missing ledgers. This replaces `ensure_defaults`.
+2. **`load_single_account`, for each account:**
+   - It rebuilds the ledger (and saves it) when it doesn't match its journal: missing, or not one row per operation with matching `op_id` and `op_hash`. No file dates are compared, so a restored backup or a wrong clock never triggers a rebuild.
+   - If the rebuild fails (no prices offline, a refused operation), the CSV on file is used. The next operation recorded rebuilds every row that doesn't match, and the next load tries again.
+   - If only saving fails, the rebuilt ledger is used.
+3. **An account that can't be loaded** is left out and logged. That covers a missing ledger, or a journal that can't be read (e.g. written by a newer version). It must not be changed without its journal.
+
+`add_broker` loads only the new account and `remove_broker` drops only the removed one, so neither reloads (or rebuilds) the others.
 
 ### Migration of existing ledgers
 
@@ -259,26 +286,43 @@ Every account is migrated; no old in-order code path is kept (decision 3).
   - A sale in USD of an asset bought in EUR rebuilds like recording it.
   - `PriceBook` lookups (in `test_market_data.py`): each day's own last close and rate, the split-adjusted previous close, and `LookupError` without a price in the last 10 days.
 
-### Phase 3: persistence
+### Phase 3: persistence (done)
 - **File names:**
   - the new constants and `account_service` functions;
   - `create_defaults` / `load_single_account` / `delete_account_files` on `report-<account>.csv`;
-  - the rename of an old `Report <account>.csv` at load;
-  - Transactions exports keep `Report <account>.csv` (`export_filename`);
-  - `validate_backup` accepts both CSV names.
+  - an old `Report <account>.csv` is renamed in `prepare_files` only, before it creates missing ledgers;
+  - Transactions exports, both of an account and of all of them, are named with `export_filename`, still `Report <name>.csv`. `rename_for_export` keeps only `COLUMNS`, leaving the internal columns out;
+  - `validate_backup` accepts both CSV names;
+  - `delete_account_files` deletes the ledger and the journal.
 
-  The tests that build paths with `REPORT_PREFIX` (`test_create_defaults.py`, `_replay` in `test_ledger_snapshots.py`, `test_app_state.py`) move to the internal name.
-- `services/journal_service.py`: load, save, `record`, `delete`, `edit`.
-- The `op_id` column; `AppState.commit` saving both files with temporary files and renames; the startup consistency check.
+  The tests that build paths with `REPORT_PREFIX` (`test_create_defaults.py`, `_replay` in `test_ledger_snapshots.py`, `test_app_state.py`, the `state` fixture) moved to the internal name.
+- `services/journal_service.py`: the file format, `record`, `delete`, `edit`.
+- `Account.journal` (None: not migrated). The `op_id` and `op_hash` columns are read with the ledger.
+- `Operation` also checks its values' types: an id that is text, a whole-number `seq`, a day, numbers or text in the other fields (no numpy integers, which the file can't store). A damaged journal file is refused when read, not later when used.
+- `AppState.commit_changes` with `save_accounts` (all or none, with a marker); `prepare_files` and the startup consistency check.
+- `create_defaults` creates no journal yet: a new account with an empty journal would make the old write path (`commit`) refuse it. New accounts get their journal with phase 4–5.
 - **Tests:**
-  - an old-named CSV is renamed at load;
-  - a backup with old names still validates;
-  - the export is still named `Report <account>.csv`;
-  - the files round-trip;
-  - a missing or stale CSV is rebuilt at load;
-  - a refused operation leaves both files untouched;
-  - transfers are recorded and deleted in both journals by `transfer_id`.
-- **About 250–300 lines.**
+  - `test_account_files.py`:
+    - an old-named CSV is renamed before an empty one could hide it;
+    - the files round-trip without a rebuild or leftover temporary files;
+    - a missing CSV, one built from other operations, or one built before an operation was edited is rebuilt and saved at load, and the next load keeps it;
+    - a transfer whose save stopped after deciding is in both accounts at the next load;
+    - a save failing while writing changes no file;
+    - a ledger that can't be replaced yet is replaced before the next save;
+    - an account whose journal can't be read is left out, its files untouched.
+  - `test_errors.py`: backups with either CSV name validate.
+  - `test_transactions_view.py`: the export is named `Report <account>.csv`, without `op_id`.
+  - `test_journal_service.py`:
+    - an operation recorded in the past takes its place (same ledger as a full rebuild);
+    - a refused operation raises its own error, one breaking a later sale raises `OperationRefused` naming it, and neither changes the account in memory;
+    - transfers are recorded in both journals and deleted from both by `transfer_id`;
+    - editing a transfer changes both halves;
+    - a ledger whose rows were built before an operation was edited is rebuilt from that row when the next operation is recorded;
+    - a damaged journal file (another version, a text `seq`, a number id, repeated ids, no date) is refused when read.
+
+**Phases 4 and 5 go out together.** Once phase 4 migrates the accounts, they all have a journal, and only phase 5's write path can record in them. Until phase 5 is done, the migration is built and tested but not run at startup.
+
+**Running this branch on real data** renames each `Report <account>.csv` to `report-<account>.csv`. A version of the app from before it would no longer find them. Use a copy of the data, or a separate folder (`FLET_APP_STORAGE_DATA`), until the branch is released.
 
 ### Phase 4: migration, backups, accounts
 - `migrate_account`, with the fee mode found by trial and the transfer pairing.
@@ -293,7 +337,8 @@ Every account is migrated; no old in-order code path is kept (decision 3).
 - **About 250–350 lines.**
 
 ### Phase 5: write path through the journal
-- `operations_view` (cash, transfer, split, trade), `home_view` (split) and `transactions_view` (remove last) build an `Operation` and call `record` / `delete` instead of `execute_*`. Dates are still checked as today.
+- `operations_view` (cash, transfer, split, trade), `home_view` (split) and `transactions_view` (remove last) call `record(accounts, account, kind, day, **fields)` / `delete` instead of `execute_*`, then `AppState.commit_changes`. Dates are still checked as today.
+- `AppState.commit(acc_idx, df)` is removed. `create_defaults` also creates an empty journal for a new account.
 - The `execute_*` functions remain only as `apply`'s building blocks, or are removed.
 - **Tests:** the existing Operations, transfer and transactions tests pass. Their assertions are on the resulting ledgers, which don't change.
 - **The app behaves exactly as today.** About 100–150 lines changed.

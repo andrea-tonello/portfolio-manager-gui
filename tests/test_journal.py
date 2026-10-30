@@ -18,7 +18,7 @@ from domain.journal import Operation, OperationRefused, operation_from_dict, ope
 from services import market_data
 from test_ledger_snapshots import (BROKER, ETFS_AND_USD, SCENARIOS, STOCKS_EUR, _replay, buy, deposit, sell,
                                    withdrawal)
-from utils.columns import OP_ID
+from utils.columns import INTERNAL_COLUMNS, OP_ID
 
 
 def journal_of(steps):
@@ -27,8 +27,8 @@ def journal_of(steps):
 
 
 def csv_text(ledger):
-    """Return the ledger as the account CSV would hold it, leaving out the op_id column (new with the journal)."""
-    return ledger.drop(columns=OP_ID).to_csv(index=False)
+    """Return the ledger as the account CSV would hold it, leaving out the columns new with the journal (op_id, op_hash)."""
+    return ledger.drop(columns=INTERNAL_COLUMNS).to_csv(index=False)
 
 
 @SCENARIOS

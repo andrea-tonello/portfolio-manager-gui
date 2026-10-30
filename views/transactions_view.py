@@ -11,7 +11,7 @@ from domain.errors import ValidationError
 from domain.ledger import Op
 from services import account_service, config_service, operations_service
 from utils.columns import COLUMNS, export_headers, localized_value_maps, rename_for_export, show_transfer_counterparts
-from utils.constants import DEFAULT_TX_FILTER, REPORT_PREFIX
+from utils.constants import DEFAULT_TX_FILTER
 
 _DEFAULT_DISPLAY_COLS = [
     "date", "account", "operation", "product", "ticker", "qt_exch",
@@ -353,7 +353,7 @@ class TransactionsView:
         if account is None:
             return
         csv_bytes = self._prepare_export_csv(account.transactions)
-        await self._save_via_picker(account_service.report_filename(account.name), csv_bytes)
+        await self._save_via_picker(account_service.export_filename(account.name), csv_bytes)
 
     async def _on_export_overview(self, e):
         t = self.state.translator
@@ -362,7 +362,7 @@ class TransactionsView:
             show_snack(self.page, t.get("transactions.no_data"), error=True)
             return
         csv_bytes = self._prepare_export_csv(df)
-        await self._save_via_picker(REPORT_PREFIX + "All Accounts.csv", csv_bytes)
+        await self._save_via_picker(account_service.export_filename("All Accounts"), csv_bytes)
 
     async def _save_via_picker(self, file_name, csv_bytes):
         """Let the user save the transactions as `file_name`, confirming once saved."""

@@ -1,21 +1,20 @@
 """Tests for create_defaults: creating a new, empty account CSV.
 
-create_defaults(folder, broker) writes "Report <broker>.csv" containing only
+create_defaults(folder, broker) writes "report-<broker>.csv" containing only
 the opening row (dated 01-01-2000, all totals at zero). It must never touch a
 file that already exists, because that file holds the user's transactions.
 """
 
 import pandas as pd
 
-from services.account_service import create_defaults
-from utils.constants import REPORT_PREFIX
+from services.account_service import create_defaults, ledger_filename
 
 BROKER = "Test Broker"
 
 
 def report_path(folder):
     """Path of the account CSV that create_defaults manages for BROKER inside `folder`."""
-    return folder / f"{REPORT_PREFIX}{BROKER}.csv"
+    return folder / ledger_filename(BROKER)
 
 
 def test_creates_opening_row_in_an_empty_folder(tmp_path):

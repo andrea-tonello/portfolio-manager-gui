@@ -75,7 +75,6 @@ class AppController:
             self.show_broker_onboarding()
             return
 
-        self.state.ensure_defaults()
         self.state.load_all_accounts()
         self.show_tab(shell.HOME_TAB)
         # Once per launch, on reaching Home: not during the setup, nor again on

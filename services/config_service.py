@@ -6,7 +6,7 @@ import zipfile
 from dataclasses import dataclass, field
 
 from domain.errors import ValidationError
-from services.account_service import report_filename
+from services.account_service import export_filename, ledger_filename
 from utils.constants import DEFAULT_TX_FILTER
 
 
@@ -243,8 +243,10 @@ def _check_backup_contents(zf):
     """Raise a ValidationError for the first problem found in the opened backup archive `zf`.
 
     A backup holds config.ini listing [Users] and, for each user,
-    users/<name>/config.ini (with the [Brokers] accounts) and
-    users/<name>/resources/Report <account>.csv.
+    users/<name>/config.ini (with the [Brokers] accounts) and each account's
+    ledger, users/<name>/resources/report-<account>.csv. A backup made
+    before the journal names it "Report <account>.csv": it is renamed when
+    the account is loaded.
     """
     names = zf.namelist()
 
@@ -275,8 +277,9 @@ def _check_backup_contents(zf):
             raise ValidationError("settings.backup.user_no_accounts", username=username)
         for bkey in user_config.options("Brokers"):
             broker_name = user_config.get("Brokers", bkey)
-            expected = f"users/{username}/resources/{report_filename(broker_name)}"
-            if expected not in names:
+            ledgers = {f"users/{username}/resources/{filename(broker_name)}"
+                       for filename in (ledger_filename, export_filename)}
+            if not ledgers & set(names):
                 raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
         csv_names = [n for n in names
                      if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]

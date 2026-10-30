@@ -19,8 +19,8 @@ import pandas as pd
 import pytest
 
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
-from services.account_service import create_defaults
-from utils.constants import DATE_FORMAT, REPORT_PREFIX
+from services.account_service import create_defaults, ledger_path
+from utils.constants import DATE_FORMAT
 
 BROKER = "Test Broker"
 NAMES = {
@@ -195,7 +195,7 @@ def _replay(steps, folder, *, reload_each_step=False) -> pd.DataFrame:
     """
     folder.mkdir(parents=True, exist_ok=True)
     create_defaults(str(folder), BROKER)
-    path = folder / f"{REPORT_PREFIX}{BROKER}.csv"
+    path = ledger_path(str(folder), BROKER)
     df = pd.read_csv(path)
     for step in steps:
         df = step(df)

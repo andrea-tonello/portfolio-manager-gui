@@ -5,8 +5,9 @@ totals computed from the rows before it. The journal keeps the operations
 themselves, with the values the user entered, so the ledger can be built
 again at any time, e.g. after an operation is added before others. Each
 operation builds one row with the same newrow_* builder the Operations
-screen uses (domain/newrow.py), and the row records the operation's id in
-its op_id column.
+screen uses (domain/newrow.py), and the row records the operation's id and
+fingerprint (op_id and op_hash columns): which operation built it, and as
+it was then.
 
 Operations are applied in order of date and, on the same day, of entry
 (`seq`). Example: a deposit dated 10-01-2024, entered (seq 3) after a buy
@@ -14,6 +15,8 @@ on 05-01-2024 (seq 1) and a sale on 20-01-2024 (seq 2), gets the second row
 of the rebuilt ledger, and the sale's row counts its cash.
 """
 
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass, fields
 from datetime import date
@@ -27,7 +30,7 @@ from domain.ledger import Op, Product, opening_ledger
 from domain.newrow import newrow_cash, newrow_etf_stock, newrow_split
 from domain.positions import holdings
 from services.market_data import PriceBook
-from utils.columns import OP_ID
+from utils.columns import OP_HASH, OP_ID
 from utils.constants import DATE_FORMAT
 from utils.formatting import fmt_eur
 
@@ -71,6 +74,11 @@ _POSITIVE_FIELDS = {"amount", "quantity", "price", "conv_rate", "ratio"}
 
 # How a trade's fee counts for taxes (see buy_asset).
 _FEE_MODES = ("abp", "loss", "pending")
+
+# The types a field's value can have when set: numbers for these, text for the others.
+# Not bool, nor numpy's integers, which the journal file couldn't store.
+_NUMBER_TYPES = {"quantity": (int,), **{name: (int, float)
+                                         for name in ("amount", "conv_rate", "price", "fee", "tax_rate", "ratio")}}
 
 
 @dataclass(frozen=True)
@@ -121,12 +129,19 @@ class Operation:
     def __post_init__(self):
         """Raise ValueError for an operation that couldn't build its row, e.g. read from a damaged journal file.
 
-        Refused: an unknown kind, a field of its kind missing or another
-        kind's present, and values the row builders can't take (a split
-        ratio of 0 would divide by zero). Also stores `kind` as a Kind, so
-        "deposit" and Kind.DEPOSIT give the same operation.
+        Refused: an unknown kind, a value of the wrong type (e.g. a seq of
+        "3", which couldn't be ordered), a field of its kind missing or
+        another kind's present, and values the row builders can't take (a
+        split ratio of 0 would divide by zero). Also stores `kind` as a Kind,
+        so "deposit" and Kind.DEPOSIT give the same operation.
         """
         object.__setattr__(self, "kind", Kind(self.kind))  # raises ValueError for an unknown kind
+        if not isinstance(self.id, str) or not self.id:
+            self._refuse(f"its id must be a text, got {self.id!r}")
+        if type(self.seq) is not int:
+            self._refuse(f"seq must be a whole number, got {self.seq!r}")
+        if type(self.date) is not date:
+            self._refuse(f"date must be a day, got {self.date!r}")
         own = KIND_FIELDS[self.kind]
         for field in fields(self)[4:]:  # past id, seq, date and kind
             value = getattr(self, field.name)
@@ -134,6 +149,9 @@ class Operation:
                 self._refuse(f"no {field.name}")
             if field.name not in own and value is not None:
                 self._refuse(f"it can't have a {field.name}")
+            if value is not None and (isinstance(value, bool)
+                                      or not isinstance(value, _NUMBER_TYPES.get(field.name, (str,)))):
+                self._refuse(f"{field.name} has the wrong type: {value!r}")
             if field.name in _POSITIVE_FIELDS and value is not None and not value > 0:  # `not >` refuses NaN too
                 self._refuse(f"{field.name} must be above 0, got {value}")
         if self.fee is not None and not self.fee >= 0:
@@ -156,6 +174,37 @@ def new_id() -> str:
 def sort_key(op: Operation) -> tuple[date, int]:
     """Return what orders `op` in its journal: its date, then its order of entry on that date."""
     return op.date, op.seq
+
+
+def fingerprint(op: Operation) -> str:
+    """Return a short code of everything `op` holds, which changes when any of its values does, e.g. "9c41d0e2a7b3f815".
+
+    Each ledger row keeps the fingerprint of the operation that built it
+    (op_hash column): a row built before the operation was edited no longer
+    matches it, though its id still does.
+    """
+    text = json.dumps(operation_to_dict(op), sort_keys=True)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def rows_up_to_date(ledger: pd.DataFrame, operations: list[Operation]) -> int:
+    """Return how many rows of `ledger`, after its opening row, are still the ones `operations` build, in order.
+
+    Each row names the operation that built it, as it was then (op_id and
+    op_hash). The count stops at the first row whose operation has since
+    been added before it, deleted or edited: from there on the rows must be
+    built again. Example: rows built by A, B, C, and the journal A, X, B, C
+    (X dated before B) -> 1; the journal A, B', C (B edited) -> 1 too.
+    """
+    if OP_HASH not in ledger:
+        return 0
+    built = zip(ledger[OP_ID].iloc[1:], ledger[OP_HASH].iloc[1:])
+    count = 0
+    for row, op in zip(built, sorted(operations, key=sort_key)):
+        if row != (op.id, fingerprint(op)):
+            break
+        count += 1
+    return count
 
 
 def operation_to_dict(op: Operation) -> dict:
@@ -215,7 +264,7 @@ def _cash_row(op: Operation) -> tuple[int, Op, str, str | float, str | float]:
 
 
 def apply(df: pd.DataFrame, op: Operation, broker: str, prices: PriceBook | None = None) -> pd.DataFrame:
-    """Return the ledger `df` of the account `broker` with the row of `op` added, holding op.id in its op_id column.
+    """Return the ledger `df` of the account `broker` with the row of `op` added, naming `op` (op_id and op_hash).
 
     The row is built from the totals of the last row of `df`, as when the
     user records the operation today, and values the assets held with
@@ -239,10 +288,11 @@ def apply(df: pd.DataFrame, op: Operation, broker: str, prices: PriceBook | None
         sign, operation, product, ticker, name = _cash_row(op)
         new = newrow_cash(df, date_str, day, broker, sign * op.amount, operation, product, ticker, name, prices=prices)
 
-    # Text with NaN on rows built before the journal; the column is created on the first row it tags.
-    ids = new[OP_ID] if OP_ID in new else pd.Series(np.nan, index=new.index)
-    new[OP_ID] = ids.astype("str")
-    new.loc[new.index[-1], OP_ID] = op.id
+    # Text with NaN on rows built before the journal; each column is created on the first row it tags.
+    for column, value in ((OP_ID, op.id), (OP_HASH, fingerprint(op))):
+        cells = new[column] if column in new else pd.Series(np.nan, index=new.index)
+        new[column] = cells.astype("str")
+        new.loc[new.index[-1], column] = value
     return new
 
 

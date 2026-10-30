@@ -1,5 +1,6 @@
 import os
 import configparser
+import logging
 
 import flet as ft
 import pandas as pd
@@ -7,8 +8,11 @@ import pandas as pd
 from domain.account import Account
 from domain.errors import ValidationError
 from services import account_service, config_service
+from services.journal_service import Changes
 from utils.translator import Translator
 from utils.constants import DEFAULT_LANG, I18N_DIR
+
+logger = logging.getLogger(__name__)
 
 
 class AppState:
@@ -132,11 +136,31 @@ class AppState:
     def commit(self, acc_idx: int, df: pd.DataFrame) -> None:
         """Make `df` the ledger of account `acc_idx`, after recording an operation, and save it.
 
-        Also clears Home's cached values, which were computed from the old ledger.
+        Only for accounts without a journal, recorded row by row as before it.
+        An account with one must change through journal_service and
+        commit_changes: saving its ledger alone would be undone at the next
+        load, rebuilt from the journal. Also clears Home's cached values,
+        which were computed from the old ledger.
         """
         account = self.accounts[acc_idx]
+        if account.journal is not None:
+            raise ValueError(f"account {account.name} has a journal: record through journal_service")
+        account_service.save_accounts(self.config_res_folder, {account.name: (None, df)})
         account.df = df
-        account_service.save_account(account)
+        self.home_cache = None
+
+    def commit_changes(self, changes: Changes) -> None:
+        """Save the new journal and ledger of each account in `changes`, then make them the accounts' own.
+
+        `changes` is what journal_service.record, delete or edit return:
+        {account number: (journal, ledger)}. Saving comes first, so if it fails
+        the accounts in memory still match their files. Also clears Home's
+        cached values, which were computed from the old ledgers.
+        """
+        account_service.save_accounts(self.config_res_folder,
+                                      {self.accounts[idx].name: change for idx, change in changes.items()})
+        for idx, (journal, ledger) in changes.items():
+            self.accounts[idx].journal, self.accounts[idx].df = journal, ledger
         self.home_cache = None
 
     def add_broker(self, name: str) -> int:
@@ -156,12 +180,12 @@ class AppState:
         self.brokers[idx] = name
         config_service.save_brokers(self.user_config_folder, self.brokers, reset=True)
         account_service.create_defaults(self.config_res_folder, name)
-        self.load_all_accounts()
+        self._load_account(idx)
         self.home_cache = None
         return idx
 
     def remove_broker(self, idx: int) -> None:
-        """Delete account `idx`: its CSV, its config.ini entry and the loaded account.
+        """Delete account `idx`: its files (ledger and journal), its config.ini entry and the loaded account.
 
         Screens that were showing it go back to their default (all accounts,
         or none selected in Operations).
@@ -169,7 +193,7 @@ class AppState:
         account_service.delete_account_files(self.brokers[idx], self.config_res_folder)
         del self.brokers[idx]
         config_service.save_brokers(self.user_config_folder, self.brokers, reset=True)
-        self.load_all_accounts()
+        self.accounts.pop(idx, None)
         self.home_cache = None
         if self.ops_acc_idx == idx:
             self.ops_acc_idx = None
@@ -223,19 +247,28 @@ class AppState:
         del self.users[idx]
         config_service.save_users(self.config_folder, self.users)
 
-    def ensure_defaults(self):
-        """Create default CSV files for each broker if missing."""
-        for broker_name in self.brokers.values():
-            account_service.create_defaults(self.config_res_folder, broker_name)
-
     def load_all_accounts(self):
-        """Load all broker accounts into self.accounts."""
+        """Load every broker's account into self.accounts, after bringing their files up to date.
+
+        account_service.prepare_files finishes an interrupted save, renames
+        ledgers saved before the journal, and creates missing ones. An
+        account that still can't be loaded (e.g. a journal that can't be
+        read) is left out, and logged.
+        """
         self.accounts = {}
-        for idx in sorted(self.brokers.keys()):
-            try:
-                self.accounts[idx] = account_service.load_single_account(self.brokers, self.config_res_folder, idx)
-            except FileNotFoundError:
-                pass
+        try:
+            account_service.prepare_files(self.config_res_folder, list(self.brokers.values()))
+        except OSError:
+            logger.exception("Could not prepare the account files")
+        for idx in sorted(self.brokers):
+            self._load_account(idx)
+
+    def _load_account(self, idx: int) -> None:
+        """Load account `idx` into self.accounts; leave it out, logged, if it can't be loaded."""
+        try:
+            self.accounts[idx] = account_service.load_single_account(self.brokers, self.config_res_folder, idx)
+        except (OSError, ValueError):
+            logger.warning("Could not load the account %s", self.brokers[idx], exc_info=True)
 
     def get_account(self, idx: int) -> Account | None:
         return self.accounts.get(idx)

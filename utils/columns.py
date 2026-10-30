@@ -16,9 +16,12 @@ COLUMNS = [
     "committed_cash",
 ]
 
-# The id of the journal operation that built each row (see domain/journal.py). Not one of
-# COLUMNS: it is internal, so it isn't shown in Transactions or exported.
+# The journal operation that built each row (see domain/journal.py): its id, and its
+# fingerprint as it was then, which changes when the operation is edited. Not in COLUMNS:
+# they are internal, so they aren't shown in Transactions or exported.
 OP_ID = "op_id"
+OP_HASH = "op_hash"
+INTERNAL_COLUMNS = [OP_ID, OP_HASH]
 
 # Maps internal English operation values → locale keys for export.
 OPERATION_LOCALE_KEYS = {
@@ -95,8 +98,12 @@ def _translate_values(df, translator):
 
 
 def rename_for_export(df, translator):
-    """Return a copy of *df* with columns and values translated for export."""
-    out = show_transfer_counterparts(df, translator)  # before the operations are translated: it reads them
+    """Return a copy of *df* with columns and values translated for export.
+
+    Only the columns of COLUMNS are kept: the internal op_id is left out.
+    """
+    out = df[[col for col in COLUMNS if col in df.columns]]
+    out = show_transfer_counterparts(out, translator)  # before the operations are translated: it reads them
     _translate_values(out, translator)
     mapping = export_headers(translator)
     return out.rename(columns=mapping)

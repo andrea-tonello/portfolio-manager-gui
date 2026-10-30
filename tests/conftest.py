@@ -11,7 +11,7 @@ import pytest
 
 from app_controller import AppController
 from app_state import AppState
-from services import config_service, market_data
+from services import account_service, config_service, market_data
 from utils.constants import I18N_DIR
 from utils.translator import Translator
 
@@ -170,7 +170,7 @@ def state(tmp_path, fake_market):
     os.makedirs(resources)
     config_service.save_brokers(user_folder, {1: "Test Broker"}, reset=True)
     df = _replay(STOCKS_EUR, Path(resources))
-    df.to_csv(os.path.join(resources, "Report Test Broker.csv"), index=False)
+    df.to_csv(account_service.ledger_path(resources, "Test Broker"), index=False)
 
     app_state = AppState(base_path=str(tmp_path))
     app_state.load_config()

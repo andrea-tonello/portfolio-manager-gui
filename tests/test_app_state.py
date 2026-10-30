@@ -99,7 +99,7 @@ def test_an_empty_broker_name_is_refused(state):
 def test_remove_broker_deletes_it_everywhere(state):
     """The broker leaves config.ini, its CSV is deleted, its account is unloaded, and Home's cache is cleared."""
     idx = state.add_broker("Directa")
-    path = account_service.report_path(state.config_res_folder, "Directa")
+    path = account_service.ledger_path(state.config_res_folder, "Directa")
     state.home_cache = STALE_CACHE
 
     state.remove_broker(idx)
