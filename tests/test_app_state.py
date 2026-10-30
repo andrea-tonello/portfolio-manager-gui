@@ -8,6 +8,7 @@ files, and forgetting Home's cached values when an account changes.
 import asyncio
 import configparser
 import os
+from datetime import date
 
 import flet as ft
 import pandas as pd
@@ -16,6 +17,7 @@ from conftest import find_controls, snack_texts
 
 from components.dialogs import show_user_manager
 from domain.errors import ValidationError
+from domain.journal import Kind
 from services import account_service, journal_service
 from services.portfolio_service import Snapshot
 from views import onboarding_view
@@ -45,6 +47,27 @@ def test_commit_changes_stores_and_saves_the_new_journal_and_ledger(state):
     assert (state.get_account(1).journal, state.get_account(1).df) == (journal, ledger)
     assert len(pd.read_csv(account.path)) == len(ledger)
     assert journal_service.read_journal(account_service.journal_path(state.config_res_folder, account.name)) == journal
+
+
+def test_a_change_worked_out_before_another_was_saved_is_refused(state):
+    """Two changes worked out from the same journals: the first is saved, the second refused, so it can't undo the first.
+
+    E.g. a deposit of 1 still being saved when a second tap records one of
+    2: saved, the second's journal, which lacks the first deposit, would
+    replace the first's.
+    """
+    account = state.get_account(1)
+    built_from = state.journals()
+    first = journal_service.record(state.accounts, account, Kind.DEPOSIT, date(2024, 10, 1), amount=1.0)
+    second = journal_service.record(state.accounts, account, Kind.DEPOSIT, date(2024, 10, 1), amount=2.0)
+
+    state.commit_changes(first, built_from=built_from)
+    with pytest.raises(ValidationError) as refused:
+        state.commit_changes(second, built_from=built_from)
+
+    assert refused.value.key == "journal.changed_meanwhile"
+    saved = journal_service.read_journal(account_service.journal_path(state.config_res_folder, account.name))
+    assert [op.amount for op in (state.get_account(1).journal[-1], saved[-1])] == [1.0, 1.0]
 
 
 def test_commit_changes_makes_home_fetch_fresh_values(app, state, monkeypatch):

@@ -85,15 +85,21 @@ def test_cash_sent_away_is_not_a_loss_for_the_account(accounts):
 
 @pytest.mark.parametrize("recipient, day, amount, key, params", [
     (None, DAY, "100", "operations.transfer.no_recipient", {}),
-    ("directa", date(2024, 1, 1), "100", "operations.transfer.date_recipient", {"account": "Directa"}),
     ("directa", DAY, "0", "operations.cash.error_cash", {}),
     ("directa", DAY, "9000.01", "operations.transfer.not_enough_cash", {"available": "9,000.00€"}),
-], ids=["no-recipient", "before-the-recipients-last-operation", "zero", "more-than-held"])
+    ("directa", date(2024, 1, 2), "9000.01", "operations.transfer.not_enough_cash", {"available": "9,000.00€"}),
+    ("directa", date(2024, 1, 1), "100", "operations.transfer.not_enough_cash", {"available": "0.00€"}),
+], ids=["no-recipient", "zero", "more-than-held", "more-than-a-later-buy-leaves", "before-the-deposit"])
 def test_a_transfer_is_refused_with_its_reason(accounts, recipient, day, amount, key, params):
-    """Each problem gives its own message: no recipient, a date before the recipient's last operation,
-    an amount that isn't above 0, or more than the 9,000 of cash Fineco holds."""
+    """Each problem gives its own message: no recipient, an amount that isn't above 0, or more than Fineco can send.
+
+    That is the least cash Fineco holds from the transfer's day on: 9,000
+    on 03-06-2024. On 02-01-2024 it holds 10,000, but sending more than
+    9,000 would leave the buy of 03-01-2024 short of cash. On 01-01-2024,
+    before its deposit, it holds nothing.
+    """
     with pytest.raises(ValidationError) as info:
-        parse_transfer(accounts[1].df, accounts[2] if recipient else None, day, amount)
+        parse_transfer(accounts[1], accounts[2] if recipient else None, day, amount)
 
     assert (info.value.key, info.value.params) == (key, params)
 

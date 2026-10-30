@@ -87,8 +87,8 @@ def record(accounts: dict[int, Account], account: Account, kind: Kind, day: date
     if kind == Kind.TRANSFER_OUT:
         fields["transfer_id"] = new_id()
     added = {account.idx: Operation(id=new_id(), seq=_next_seq(account), date=day, kind=kind, **fields)}
-    if kind == Kind.TRANSFER_OUT:
-        other = _account_named(accounts, fields["counterpart"], besides=account)
+    other = _other_account_recorded(accounts, account, kind, fields)
+    if other is not None:
         added[other.idx] = Operation(id=new_id(), seq=_next_seq(other), date=day, kind=Kind.TRANSFER_IN,
                                      amount=fields["amount"], counterpart=account.name,
                                      transfer_id=fields["transfer_id"])
@@ -188,6 +188,24 @@ def last_entered(account: Account) -> Operation:
     return max(_journal_of(account), key=lambda op: op.seq)
 
 
+def later_operations(accounts: dict[int, Account], account: Account, kind: Kind, day: date, **fields) -> int:
+    """Return how many operations recording one of `kind` on `day` in `account` recalculates: those dated after it.
+
+    Takes the same arguments as record, and counts in every account it
+    changes: for a transfer out, the counterpart's too. Those of `day`
+    itself don't count, since a new operation goes after them. Example:
+    with operations on 02-01, 03-01 and 05-01, a deposit on 03-01
+    recalculates 1. Raises ValidationError for an account not migrated yet
+    (see _journal_of).
+
+    A ledger out of step with its journal (its rebuild failed offline at
+    load) also has its rows rebuilt from where they differ. Those aren't
+    counted: they are only brought back to what the journal says.
+    """
+    changed = [account, _other_account_recorded(accounts, account, kind, fields)]
+    return sum(op.date > day for each in changed if each is not None for op in _journal_of(each))
+
+
 def transfer_partner(accounts: dict[int, Account], account: Account, op_id: str) -> Account | None:
     """Return the account holding the other half of the transfer `op_id` of `account`, or None.
 
@@ -210,6 +228,14 @@ def _find(account: Account, op_id: str) -> Operation:
     if found is None:
         raise ValueError(f"account {account.name} has no operation {op_id}")
     return found
+
+
+def _other_account_recorded(accounts: dict[int, Account], account: Account, kind: Kind, fields: dict) -> Account | None:
+    """Return the other account that recording an operation of `kind` and `fields` in `account` changes, or None.
+
+    Only a transfer out has one: the account named `counterpart`, which receives the cash.
+    """
+    return _account_named(accounts, fields["counterpart"], besides=account) if kind == Kind.TRANSFER_OUT else None
 
 
 def _account_named(accounts: dict[int, Account], name: str, besides: Account) -> Account:

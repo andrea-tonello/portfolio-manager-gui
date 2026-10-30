@@ -530,7 +530,9 @@ class HomeView:
             In the journal it takes its place by date, before any later operation.
             """
             checked = operations_service.check_split_ratio(ratio)
-            s.commit_changes(journal_service.record(s.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=checked))
+            built_from = s.journals()
+            s.commit_changes(journal_service.record(s.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=checked),
+                             built_from=built_from)
             show_snack(self.page, t.get("operations.added_transaction"))
             self._fetch_live_values()
 

@@ -412,7 +412,8 @@ class TransactionsView:
             def work():
                 """Delete the operation (both halves of a transfer) and save the accounts it changes."""
                 try:
-                    s.commit_changes(journal_service.delete(s.accounts, account, op.id))
+                    built_from = s.journals()
+                    s.commit_changes(journal_service.delete(s.accounts, account, op.id), built_from=built_from)
                     show_snack(self.page, t.get(message_key))
                     self.app.refresh()
                 finally:

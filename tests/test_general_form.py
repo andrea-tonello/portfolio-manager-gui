@@ -6,7 +6,7 @@ amounts are typed, and passed on, as positive numbers, and the operation's
 kind (deposit or withdrawal, for example) gives the row its sign.
 """
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 from conftest import set_operations, snack_texts
@@ -14,6 +14,7 @@ from test_ledger_snapshots import NAMES, deposit
 
 import views.operations_view
 from domain.journal import Kind
+from domain.ledger import LEDGER_START_DATE
 from services import journal_service
 from views.operations_view import OperationsView
 
@@ -91,18 +92,19 @@ def test_split_is_recorded_with_the_ratio_typed(general_form):
 
 @pytest.mark.parametrize("changes, message", [
     ({"date": None}, "Date is missing"),
-    ({"date": date(2024, 9, 1)}, "The date cannot be earlier than the last one recorded"),
+    ({"date": date(1999, 12, 31)}, "The date cannot be earlier than 01-01-2000"),
     ({"kind": "deposit", "amount": "0"}, "The cash amount must be a number greater than 0"),
     ({"kind": "dividend", "amount": "0"}, "The dividend must be a number greater than 0"),
     ({"kind": "charge", "amount": "0"}, "The tax amount must be a number greater than 0"),
     ({"kind": "split", "split_ratio": "2"}, "Ticker is missing"),
     ({"kind": "split", "split_ticker": "BBB.MI", "split_ratio": ""}, "The ratio must be a positive number"),
-], ids=["no-date", "before-last-operation", "zero-deposit", "zero-dividend", "zero-charge",
+], ids=["no-date", "before-the-accounts-opening", "zero-deposit", "zero-dividend", "zero-charge",
         "split-without-ticker", "split-without-ratio"])
 def test_general_form_refuses_invalid_values(general_form, page, changes, message):
     """Each invalid value shows its own message, and nothing is recorded.
 
-    The account's last operation is on 02-09-2024.
+    A date can come before the account's last operation (02-09-2024), but not
+    before 01-01-2000, the day every account opens on.
     """
     form, submit, calls = general_form
     form.amount.value = "100"
@@ -119,10 +121,10 @@ def test_general_form_refuses_invalid_values(general_form, page, changes, messag
 
 
 @pytest.mark.parametrize("tab", ["general", "etf", "stock"])
-def test_the_date_picker_starts_at_the_accounts_last_operation(app, page, state, tab):
-    """In every Operations tab, the picker offers no day before the selected account's last operation (02-09-2024).
+def test_the_date_picker_offers_every_day_since_the_accounts_opening(app, page, state, tab):
+    """In every Operations tab, the picker offers every day since 01-01-2000, before the account's last operation too.
 
-    A new operation can't be dated earlier: the picker used to offer every day since 2000.
+    An operation dated before others is recorded in its place, and those after it are recalculated.
     """
     state.ops_acc_idx = 1
     view = OperationsView(app)
@@ -130,7 +132,7 @@ def test_the_date_picker_starts_at_the_accounts_last_operation(app, page, state,
 
     getattr(view, tab).date.button.on_click(None)
 
-    assert page.dialogs[-1].first_date == datetime(2024, 9, 2)
+    assert page.dialogs[-1].first_date == LEDGER_START_DATE
 
 
 def test_a_transfer_needs_another_account(general_form, page):

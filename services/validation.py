@@ -7,9 +7,9 @@ checks in the order of its fields, so the user is told about the first problem.
 
 from datetime import date
 
-import pandas as pd
-
 from domain.errors import ValidationError
+from domain.ledger import LEDGER_START_DATE
+from utils.constants import DATE_FORMAT
 
 
 def parse_positive(text: str | None, error_key: str, *, integer: bool = False, allow_zero: bool = False,
@@ -36,32 +36,21 @@ def parse_positive(text: str | None, error_key: str, *, integer: bool = False, a
     return value
 
 
-def last_operation_date(ledger_df: pd.DataFrame | None) -> date | None:
-    """Return the day of the latest row of an account's ledger, or None without a ledger."""
-    
-    if ledger_df is None:
-        return None
-    dates = pd.to_datetime(ledger_df["date"], dayfirst=True, errors="coerce").dropna()
-    return None if dates.empty else dates.max().date()
+def validate_date(day: date | None) -> date:
+    """Return `day`, the date of a new operation, if it is given, not in the future and not before 01-01-2000.
 
+    It can come before operations already recorded: they are then rebuilt
+    after it (journal_service.record). Every account opens on 01-01-2000
+    (LEDGER_START_DATE), so no operation can come before that.
 
-def validate_date(day: date | None, *, ledger_df: pd.DataFrame | None = None) -> date:
-    """Return `day` if it is given and not in the future.
-
-    With `ledger_df` (an account's ledger) it also must not be earlier than the
-    last operation recorded there, since each new row builds on the totals of
-    the row before it. The same day is fine.
-
-    Example: with the last operation on 02-09-2024, 01-09-2024 raises
-    ValidationError("misc_errors.date_sequential") and 02-09-2024 is accepted.
+    Example: 31-12-1999 raises ValidationError("misc_errors.date_too_early", date="01-01-2000").
     """
     if day is None:
         raise ValidationError("misc_errors.nodate")
     if day > date.today():
         raise ValidationError("misc_errors.date_future")
-    last = last_operation_date(ledger_df)
-    if last is not None and day < last:
-        raise ValidationError("misc_errors.date_sequential")
+    if day < LEDGER_START_DATE.date():
+        raise ValidationError("misc_errors.date_too_early", date=LEDGER_START_DATE.strftime(DATE_FORMAT))
     return day
 
 

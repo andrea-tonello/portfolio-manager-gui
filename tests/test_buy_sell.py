@@ -275,7 +275,7 @@ def test_a_blank_fee_is_recorded_as_zero(stock_form):
 @pytest.mark.parametrize("tab, changes, message", [
     ("Stock", {"date": None}, "Date is missing"),
     ("Stock", {"date": date.today() + timedelta(days=1)}, "Cannot insert future dates"),
-    ("Stock", {"date": date(2024, 9, 1)}, "The date cannot be earlier than the last one recorded"),
+    ("Stock", {"date": date(1999, 12, 31)}, "The date cannot be earlier than 01-01-2000"),
     ("Stock", {"ticker": " "}, "Ticker is missing"),
     ("Stock", {"quantity": "5.5"}, "The quantity must be an integer greater than 0"),
     ("Stock", {"quantity": "0"}, "The quantity must be an integer greater than 0"),
@@ -285,14 +285,14 @@ def test_a_blank_fee_is_recorded_as_zero(stock_form):
     ("ETF", {"etf_subtype": "ETF-M", "tax_bracket": "150"}, "The tax bracket must be a number between 0 and 100"),
     ("ETF", {}, "Please select a fee management mode"),
     ("ETF", {"fee_mode": "loss"}, "Please select a fee management mode"),  # a buy, but no card tapped
-], ids=["no-date", "future", "before-last-operation", "no-ticker", "fractional-quantity", "zero-quantity",
+], ids=["no-date", "future", "before-the-accounts-opening", "no-ticker", "fractional-quantity", "zero-quantity",
         "zero-price", "bad-fee", "usd-without-rate", "tax-bracket-over-100", "etf-without-fee-mode",
         "etf-buy-without-fee-card"])
 def test_form_refuses_invalid_values(open_trade_form, page, tab, changes, message):
     """Each invalid value shows its own message, and nothing is recorded.
 
-    The account's last operation is on 02-09-2024, so an earlier date would
-    break the running totals.
+    A date can come before the account's last operation (02-09-2024), but not
+    before 01-01-2000, the day every account opens on.
     """
     form, submit, calls = open_trade_form(tab)
     for field, value in changes.items():

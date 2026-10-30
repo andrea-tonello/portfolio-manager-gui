@@ -1,11 +1,13 @@
 import os
 import configparser
 import logging
+import threading
 
 import flet as ft
 
 from domain.account import Account
 from domain.errors import ValidationError
+from domain.journal import Operation
 from services import account_service, config_service
 from services.journal_service import Changes
 from services.migration_service import Migration
@@ -43,6 +45,8 @@ class AppState:
 
         # The loaded accounts, by broker index
         self.accounts: dict[int, Account] = {}
+        # Held while checking that a change still builds on the accounts' journals and saving it (commit_changes)
+        self._commit_lock = threading.RLock()
 
         # Per-page selection
         self.home_selection: str = "overview"  # "overview" or str(broker_idx)
@@ -133,19 +137,34 @@ class AppState:
 
     # ── Changes to accounts, brokers and users ───────────────────────
 
-    def commit_changes(self, changes: Changes) -> None:
+    def journals(self) -> dict[int, list[Operation] | None]:
+        """Each account's journal as it is now, by number: take it before working out a change (see commit_changes)."""
+        return {idx: account.journal for idx, account in self.accounts.items()}
+
+    def commit_changes(self, changes: Changes, built_from: dict[int, list[Operation] | None] | None = None) -> None:
         """Save the new journal and ledger of each account in `changes`, then make them the accounts' own.
 
         `changes` is what journal_service.record, delete or edit return:
         {account number: (journal, ledger)}. Saving comes first, so if it fails
         the accounts in memory still match their files. Also clears Home's
         cached values, which were computed from the old ledgers.
+
+        `built_from` is journals(), taken before the changes were worked out.
+        If an account they change has another journal since, they are refused
+        with ValidationError("journal.changed_meanwhile"), saving nothing: two
+        changes worked out at once (e.g. a second tap while the first is
+        saved) each miss the other, and saving the second would undo the
+        first. Checking and saving are one step, for every thread.
         """
-        account_service.save_accounts(self.config_res_folder,
-                                      {self.accounts[idx].name: change for idx, change in changes.items()})
-        for idx, (journal, ledger) in changes.items():
-            self.accounts[idx].journal, self.accounts[idx].df = journal, ledger
-        self.home_cache = None
+        with self._commit_lock:
+            if built_from is not None and any(
+                    getattr(self.accounts.get(idx), "journal", None) is not built_from.get(idx) for idx in changes):
+                raise ValidationError("journal.changed_meanwhile")
+            account_service.save_accounts(self.config_res_folder,
+                                          {self.accounts[idx].name: change for idx, change in changes.items()})
+            for idx, (journal, ledger) in changes.items():
+                self.accounts[idx].journal, self.accounts[idx].df = journal, ledger
+            self.home_cache = None
 
     def commit_migration(self, migrations: dict[int, Migration]) -> bool:
         """Save the journal and rebuilt ledger of each account moved to the journal (migration_service.migrate).
@@ -157,14 +176,15 @@ class AppState:
         recorded meanwhile): saving would lose that change, so the
         migration must be worked out again.
         """
-        for idx, migration in migrations.items():
-            account = self.accounts.get(idx)
-            if account is None or account.journal is not None or account.df is not migration.source:
-                return False
-        for idx in migrations:
-            account_service.keep_before_journal(self.config_res_folder, self.accounts[idx].name)
-        self.commit_changes({idx: (migration.journal, migration.ledger) for idx, migration in migrations.items()})
-        return True
+        with self._commit_lock:
+            for idx, migration in migrations.items():
+                account = self.accounts.get(idx)
+                if account is None or account.journal is not None or account.df is not migration.source:
+                    return False
+            for idx in migrations:
+                account_service.keep_before_journal(self.config_res_folder, self.accounts[idx].name)
+            self.commit_changes({idx: (migration.journal, migration.ledger) for idx, migration in migrations.items()})
+            return True
 
     def add_broker(self, name: str) -> int:
         """Add an account called `name` (spaces trimmed), save it with no operations yet, and return its number.

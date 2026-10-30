@@ -16,7 +16,7 @@ from utils.formatting import fmt_eur
 from utils.other_utils import round_half_up
 from domain.account import Account
 from domain.errors import ValidationError
-from domain.ledger import ETF_PRODUCTS, Product
+from domain.ledger import ETF_PRODUCTS, Product, get_pf_date
 from domain.positions import first_trade_date, unrecorded_splits
 from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE
 
@@ -83,8 +83,7 @@ class TradeInput:
 
 def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | None, quantity: str | None,
                 price: str | None, fee: str | None, currency: str, exch_rate: str | None, fee_currency: str,
-                ter: str | None, tax_bracket: str | None, fee_mode: str | None,
-                ledger_df: pd.DataFrame) -> TradeInput:
+                ter: str | None, tax_bracket: str | None, fee_mode: str | None) -> TradeInput:
     """Check the values of an ETF or Stock form, in the order of its fields, and return them ready to record.
 
     The text arguments are what the user typed. `product` is Product.STOCK or
@@ -98,7 +97,7 @@ def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | N
     """
     if product == Product.ETF_BOND:
         raise ValidationError("operations.stock.not_implemented")
-    day = validate_date(day, ledger_df=ledger_df)
+    day = validate_date(day)
     ticker = (ticker or "").strip()
     if not ticker:
         raise ValidationError("operations.stock.ticker_error")
@@ -131,28 +130,42 @@ def parse_trade(*, product: str, is_buy: bool, day: date | None, ticker: str | N
                       ter_value, product, tax_rate, fee_mode)
 
 
-def parse_transfer(source_df: pd.DataFrame, recipient: Account | None, day: date, text: str | None) -> float:
-    """Check a transfer of cash from the account whose ledger is `source_df` to `recipient`; return its amount.
+def parse_transfer(source: Account, recipient: Account | None, day: date, text: str | None) -> float:
+    """Check a transfer of cash on `day` from the account `source` to `recipient`; return its amount.
 
-    `day` must already be checked against the source's ledger, as for every
-    operation. Raises ValidationError for the first problem: no recipient
-    chosen; `day` earlier than the recipient's last operation (its rows must
-    stay in date order too); an amount that isn't a number above 0; more than
-    the cash the source holds, which is its last row's since `day` comes after it.
+    `day` must already be checked, as for every operation. Raises
+    ValidationError for the first problem: no recipient chosen; an amount
+    that isn't a number above 0; more than the cash `source` can send on
+    `day` (cash_available_on).
 
-    Example: with 4,584.10 EUR held, "5000" raises
+    Example: with 4,584.10 EUR available on `day`, "5000" raises
     ValidationError("operations.transfer.not_enough_cash", available="4,584.10€").
     """
     if recipient is None:
         raise ValidationError("operations.transfer.no_recipient")
-    recipient_dates = pd.to_datetime(recipient.df["date"], dayfirst=True, errors="coerce").dropna()
-    if not recipient_dates.empty and day < recipient_dates.max().date():
-        raise ValidationError("operations.transfer.date_recipient", account=recipient.name)
     amount = parse_positive(text, "operations.cash.error_cash")
-    available = float(source_df["cash_held"].iloc[-1])
+    available = cash_available_on(source, day)
     if amount > available:
         raise ValidationError("operations.transfer.not_enough_cash", available=fmt_eur(available))
     return amount
+
+
+def cash_available_on(account: Account, day: date) -> float:
+    """Return the cash a transfer out of `account` on `day` can send: the least it holds from `day` on.
+
+    The transfer lowers the cash of every row after it, and later buys and
+    withdrawals aren't checked against the cash (only transfers are), so it
+    must leave none of them below zero, as the last row's cash did when
+    transfers could only come last. On `day` itself the account holds its
+    cash after that day's operations, since a new one goes after them.
+    `day` can't be before 01-01-2000, the account's opening row.
+
+    Example: 1,000 deposited on 02-01-2024 and 501 spent on a buy on
+    02-05-2024: on 01-03-2024 the account holds 1,000, but only 499 can be
+    sent. Sending 1,000 would leave it 501 below zero after the buy.
+    """
+    rows_until_day, _ = get_pf_date(account, day, day)  # the ledger is in date order: its first rows
+    return float(account.df["cash_held"].iloc[len(rows_until_day) - 1:].min())
 
 
 def detect_unrecorded_splits(df: pd.DataFrame | None, ticker: str) -> list[tuple[str, float]]:

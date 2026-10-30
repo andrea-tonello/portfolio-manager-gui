@@ -15,7 +15,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 3. Persistence: new file names, journal files, `op_id` column, saving both files consistently
 - [x] 4. Migration of existing ledgers, backups, account deletion
 - [x] 5. Write path: every operation goes through the journal (same behaviour as today)
-- [ ] 6. Out-of-order insertion in Operations: **the feature**
+- [x] 6. Out-of-order insertion in Operations: **the feature**
 - [ ] 7. Delete any operation in Transactions
 - [ ] 8. Edit any operation
 - [ ] 9. Later: recalculate all history; import broker statements
@@ -438,13 +438,41 @@ Saves, and finishing or cleaning one up, share a lock (`account_service._save_lo
   - a deposit and a transfer Fineco → BG Saxo are recorded in the journals (the transfer's halves sharing a `transfer_id`), and undone from Transactions (the confirmation naming both accounts);
   - the accounts end exactly as migrated, and a fresh start loads them without rebuilding.
 
-### Phase 6: out-of-order insertion
-- Relaxed date check and pickers, the confirmation with the count, the refusal message. Locale keys: `journal.*` (the refusal messages, `journal.refused.*`, exist since phase 1).
+### Phase 6: out-of-order insertion (done)
+- **Dates:** `validate_date(day)` no longer takes the ledger. It refuses only a missing day, a future one, and one before 01-01-2000 (`LEDGER_START_DATE`, the day every account opens on): `misc_errors.date_too_early` replaces `misc_errors.date_sequential`. `last_operation_date` and `_earliest_new_date` are gone, and the Operations pickers offer every day since 2000. `parse_trade` no longer takes `ledger_df`.
+- **Recording, in `_record` (`views/operations_view.py`), for every form:**
+  1. **Work out the changes** in the background: the ETF/Stock forms' check with Yahoo of the ticker's kind, then `journal_service.record`. So a refusal comes before any question: the operation's own ("Quantity sold … exceeds …"), a later operation it makes impossible (`journal.refused.*`, since phase 1), or a ticker of the wrong kind.
+  2. **Ask, when operations come after it.** The count is `journal_service.later_operations(accounts, account, kind, day, **fields)`, which takes `record`'s arguments: a transfer out also counts its counterpart's. Operations on the same day don't count, since the new one goes after them. Rows of a ledger out of step with its journal, rebuilt too, aren't counted: they're only brought back to what the journal says.
+     - The question is closed by reference, and answered once (a second tap on Record does nothing). Cancel saves nothing.
+     - Locale keys: `journal.insert.{title,one,many,confirm}`, e.g. "Questa operazione precede 20 operazioni successive, che verranno ricalcolate (imposte, Zainetto Fiscale e valori di mercato compresi)". `one` is the singular.
+  3. **Save** with `AppState.commit_changes(changes, built_from=journals())`.
+  - While the changes are worked out or saved, the form ignores Add (`_recording`), so a second tap doesn't record the operation twice.
+- **Two changes at once:** `commit_changes` refuses changes whose accounts have another journal than the one they were worked out from (`built_from`, taken with `AppState.journals()`), with `journal.changed_meanwhile` ("…nothing was saved. Please try again"). Otherwise the second of two changes worked out at once would undo the first, e.g. a deposit recorded while a removal from Transactions is saved. The check and the save hold one lock. Operations, Transactions' "remove last" and Home's splits all pass it.
+- **Transfers:**
+  - the recipient's last-operation check is gone (`operations.transfer.date_recipient` removed);
+  - **the cash a transfer can send** is the least the account holds from its day on (`operations_service.cash_available_on(account, day)`, through `get_pf_date`): on its day, after that day's operations, and on every later row.
+    - Later buys and withdrawals aren't checked against the cash (decision 5). So otherwise a transfer in the past could leave them, and the final cash, below zero, which the old check against the last row's cash prevented.
+    - Example: 1,000 deposited, then a buy of 501. On a day between them only 499 can be sent.
+  - `parse_transfer(source, recipient, day, text)` checks against it. The amount's helper ("Available: …") shows it for the date typed (today's without one), recomputed only when the date changes.
+- **A sale's fee panel** (Tax Carryforward mode) reads the pending fees and the average buy price on the sale's date, not after later buys (`_ledger_until`). It is redrawn when the date changes, and only computed while shown.
+- **Unchanged:** the lists of assets to sell or split are those held after the last operation. In a consistent history that's enough: an asset sold out later can only be sold earlier together with a forgotten buy, which, recorded first, makes it held at the end again. The quantity shown next to it is the current one.
 - **Tests:**
-  - a deposit inserted before a trade changes the later rows' cash;
-  - a sale inserted early makes a later one impossible: refused, files untouched;
-  - a transfer dated in the past rebuilds both accounts.
-- **About 100 lines.**
+  - `test_past_operations.py`, through the forms:
+    - a deposit dated before 8 operations asks first, naming them; Cancel records nothing; recorded, it raises their cash by its amount;
+    - a sale leaving a later one short is refused, naming it, with no question, and with the files, journal and ledger unchanged;
+    - a transfer dated in the past goes before later operations in both accounts, the question counting both, and the helper showing what can be sent then;
+    - a past sale's fee panel uses the pending fees and average buy price of its date;
+  - `test_app_state.py`: a change worked out before another was saved is refused, and the first stays saved;
+  - updated:
+    - a date before 01-01-2000 is refused (`test_general_form`, `test_buy_sell`), and the pickers start at 2000;
+    - a transfer is checked against what the account can send from its day on: before a later buy, at most what the buy leaves (`test_transfer`).
+- **Checked:**
+  - on a copy of `portfolio_backup_23-10-2026.zip` (live prices): a deposit and a transfer in the middle of Fineco's history are recorded (0.3 s and 0.7 s), then deleted, and both ledgers are back as migrated, valuations aside;
+  - in the app (web), a transfer Fineco → BG Saxo on 10-03-2026:
+    - the helper shows 17.77 €, the least Fineco holds from then on (29.51 € on the day, 24.90 € at the end), and 20 € is refused;
+    - for 10 € the question comes once the changes are worked out, about 20 later operations (13 + 7);
+    - Cancel leaves both journals unchanged;
+    - Record saves it after that day's buy, Fineco's lowest cash from then on becoming 7.77 €.
 
 ### Phase 7: delete any operation
 - Transactions: a tap on a row → Delete, with confirmation (transfers: both halves). "Remove last operation" deletes the newest row through the same code.

@@ -33,7 +33,7 @@
     "prices_unavailable": "Impossibile scaricare i prezzi (sei offline?): riprova quando sei connesso.",
     "nodate": "Data mancante, inserire data",
     "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
-    "date_sequential": "La data non può essere precedente all'ultima registrata",
+    "date_too_early": "La data non può essere precedente al {date}",
     "date_future": "Impossibile inserire date future",
     "date_start_end": "La data di inizio deve essere precedente alla data di fine"
   },
@@ -97,8 +97,7 @@
       "available": "Disponibile: {available}",
       "no_other_account": "Non hai un altro conto su cui trasferire liquidità",
       "no_recipient": "Seleziona il conto di destinazione",
-      "not_enough_cash": "Liquidità disponibile insufficiente ({available})",
-      "date_recipient": "La data non può precedere l'ultima operazione di {account}"
+      "not_enough_cash": "Liquidità disponibile insufficiente ({available})"
     },
     "stock": {
       "title_etf": "ETF",
@@ -297,10 +296,17 @@
   "journal": {
     "not_migrated": "{account} non è ancora stato aggiornato al nuovo formato, quindi non può essere modificato. L'app riprova a ogni avvio.",
     "partner_unavailable": "{account} non è disponibile ora, quindi il trasferimento non può essere rimosso da entrambi i conti. Riavvia l'app e riprova.",
+    "changed_meanwhile": "Un conto è cambiato mentre veniva salvata l'operazione, quindi non è stato salvato nulla. Riprova.",
     "refused": {
       "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
       "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",
       "transfer_out": "Il trasferimento verso {account} del {date} non sarebbe più possibile: {reason}"
+    },
+    "insert": {
+      "title": "Ricalcolare le operazioni successive?",
+      "one": "Questa operazione precede 1 operazione successiva, che verrà ricalcolata (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "Questa operazione precede {count} operazioni successive, che verranno ricalcolate (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "confirm": "Registra"
     },
     "migration": {
       "title": "Aggiornamento dei conti",

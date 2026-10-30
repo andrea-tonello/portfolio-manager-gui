@@ -1,3 +1,5 @@
+from datetime import date
+
 import flet as ft
 
 from components.buttons import action_card_btn, mark_card_selected, pill_btn, pill_style
@@ -10,12 +12,12 @@ from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
 from domain.journal import Kind
-from domain.ledger import ETF_PRODUCTS, Product, holding_rows
+from domain.ledger import ETF_PRODUCTS, LEDGER_START_DATE, Product, get_pf_date, holding_rows
 from domain.positions import held_rows, held_tickers
 from domain.tax import pending_fees
 from services import journal_service, operations_service
 from services.market_data import fetch_ticker_name, search_tickers
-from services.validation import last_operation_date, validate_date
+from services.validation import validate_date
 from utils.constants import CURRENCIES
 from utils.formatting import fmt_eur
 
@@ -49,10 +51,96 @@ def _selected_account(state):
     return None if idx is None else state.get_account(idx)
 
 
-def _earliest_new_date(state):
-    """The earliest day a new operation of the selected account can have: its last operation's (None without one)."""
-    account = _selected_account(state)
-    return last_operation_date(account.df) if account else None
+def _ledger_until(account, day):
+    """The rows of `account`'s ledger that an operation on `day` comes after: those up to `day`.
+
+    All of them while no valid date is typed (none, or one before the
+    account's opening day). A new operation goes after those of its own day.
+    """
+    if day is None or day < LEDGER_START_DATE.date():
+        return account.df
+    return get_pf_date(account, day, day)[0]
+
+
+def _record(form, later, build_changes):
+    """Record the operation typed in `form` (the General, ETF or Stock form) in the background, asking first if others come after it.
+
+    `build_changes` works out its changes (journal_service.record's, after
+    any check with Yahoo), or returns None once it has said why it can't
+    (e.g. a ticker of the wrong kind). They are worked out before asking,
+    so only an operation that can be recorded is asked about: a refusal,
+    its own or that of a later operation it makes impossible, is shown
+    instead. When `later` operations come after it
+    (journal_service.later_operations), the question names how many will be
+    recalculated; Cancel saves nothing. Saving is refused if an account
+    changed meanwhile (AppState.commit_changes).
+
+    While the changes are worked out or saved, the form ignores Add (see
+    its submit): a second tap would record the operation twice.
+    """
+    page, state = form.page, form.state
+    t = state.translator
+
+    def in_background(work):
+        """Run `work` in the background with the form's spinner, the form ignoring Add until it ends."""
+        def guarded():
+            """Run `work`, then let the form record again."""
+            try:
+                work()
+            finally:
+                form._recording = False
+
+        form._recording = True
+        run_in_background(page, t, guarded, loading=form.loading)
+
+    def save(changes, built_from):
+        """Save the changes, say so and show the tab again."""
+        state.commit_changes(changes, built_from=built_from)
+        show_snack(page, t.get("operations.added_transaction"))
+        form.app.refresh()
+
+    def work_out():
+        """Work out the changes, then save them, or ask first when later operations will be recalculated."""
+        built_from = state.journals()
+        changes = build_changes()
+        if changes is None:
+            return
+        if later:
+            _ask_to_recalculate(page, t, later, lambda: in_background(lambda: save(changes, built_from)))
+        else:
+            save(changes, built_from)
+
+    in_background(work_out)
+
+
+def _ask_to_recalculate(page, t, later, record):
+    """Ask whether to record an operation dated before `later` others, which will be recalculated: `record` on Record.
+
+    The question says they are rebuilt with their taxes, Tax Carryforward
+    and market values, naming the count. Cancel records nothing. It is
+    closed by reference (another dialog may open above it) and answered
+    once: a second tap on Record does nothing.
+    """
+    def close():
+        """Close the question."""
+        dialog.open = False
+        page.update()
+
+    def confirm(_):
+        """Close the question and record the operation, unless it was already answered."""
+        if dialog.open:
+            close()
+            record()
+
+    dialog = ft.AlertDialog(
+        title=ft.Text(t.get("journal.insert.title")),
+        content=ft.Text(t.get("journal.insert.one" if later == 1 else "journal.insert.many", count=later)),
+        actions=[
+            ft.TextButton(t.get("components.cancel"), on_click=lambda _: close()),
+            ft.TextButton(t.get("journal.insert.confirm"), on_click=confirm),
+        ],
+    )
+    page.show_dialog(dialog)
 
 
 def _number(text):
@@ -181,6 +269,8 @@ class GeneralForm:
         self.app = app
         self.page = app.page
         self.state = app.state
+        self._recording = False  # True while an operation is worked out: Add is ignored (see _record)
+        self._date_shown = None  # the date the cash available was last shown for (_on_date_change)
 
     def build(self) -> ft.Control:
         """Create the form's controls (kept as attributes, e.g. self.amount) and return its layout."""
@@ -250,8 +340,8 @@ class GeneralForm:
             ft.Container(height=30),
         ], spacing=0, opacity=0.4 if no_account else 1.0,
            horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
-        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"),
-                              min_date=lambda: _earliest_new_date(self.state))
+        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
+        self.date.on_change = self._on_date_change
 
         self.amount = rounded_text_field(label=t.get("operations.cash.amount"),
                                          keyboard_type=ft.KeyboardType.NUMBER,
@@ -368,88 +458,103 @@ class GeneralForm:
         self.amount.label = {
             "dividend": t.get("operations.cash.dividend_amount"),
         }.get(kind, t.get("operations.cash.amount"))
-        # A transfer can't move more cash than the account holds: say how much that is.
-        self.amount.helper = (t.get("operations.transfer.available", available=fmt_eur(account.last("cash_held")))
-                              if is_transfer and account else None)
+        self._show_cash_available()
         label_key, bgcolor = _KIND_BUTTONS[kind]
         self._add_btn.content = t.get(label_key)
         self._add_btn.style = pill_style(bgcolor=bgcolor, color=bgcolor and ft.Colors.WHITE)
         self.page.update()
 
+    def _show_cash_available(self):
+        """Under the amount of a transfer, say how much cash it can send on the date typed (today's, without one).
+
+        That is operations_service.cash_available_on, which the transfer is
+        checked against. Other operations, and a date before the account's
+        opening day, show nothing there.
+        """
+        account = _selected_account(self.state)
+        day = self.date.value or date.today()
+        if self.kind != "transfer" or account is None or day < LEDGER_START_DATE.date():
+            self.amount.helper = None
+            return
+        available = operations_service.cash_available_on(account, day)
+        self.amount.helper = self.state.translator.get("operations.transfer.available", available=fmt_eur(available))
+
+    def _on_date_change(self):
+        """A date typed or picked: a transfer's cash available becomes that of the new date.
+
+        Called at each key typed: only a new date, complete and different from the last, changes anything.
+        """
+        if self.date.value == self._date_shown:
+            return
+        self._date_shown = self.date.value
+        if self.kind == "transfer":
+            self._show_cash_available()
+            self.page.update()
+
     def submit(self, e):
-        """Check the operation typed and record it in the background, or show what is wrong."""
+        """Check the operation typed and record it in the background (see _record), or show what is wrong.
+
+        Ignored while the last one is still being worked out.
+        """
         s = self.state
         t = s.translator
         account = _selected_account(s)
+        if self._recording:
+            return
         if account is None:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
 
         try:
-            day = validate_date(self.date.value, ledger_df=account.df)
+            day = validate_date(self.date.value)
             if self.kind == "split":
-                build_changes = self._checked_split(account, day)
+                kind, fields = self._checked_split()
             elif self.kind == "transfer":
-                build_changes = self._checked_transfer(account, day)
+                kind, fields = self._checked_transfer(account, day)
             else:
-                build_changes = self._checked_cash_operation(account, day)
+                kind, fields = self._checked_cash_operation()
+            later = journal_service.later_operations(s.accounts, account, kind, day, **fields)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
 
-        def save():
-            """Record the operation (in both accounts for a transfer), save them and show the tab again.
+        def build_changes():
+            """Work out the operation's changes (in both accounts for a transfer), asking Yahoo for a dividend's asset name first."""
+            if kind == Kind.DIVIDEND:
+                fields["asset_name"] = fetch_ticker_name(fields["ticker"])
+            return journal_service.record(s.accounts, account, kind, day, **fields)
 
-            Every account changed is rebuilt before any is saved, so a failure
-            while rebuilding (e.g. no prices) leaves no account half-changed.
-            """
-            s.commit_changes(build_changes())
-            show_snack(self.page, t.get("operations.added_transaction"))
-            self.app.refresh()
+        _record(self, later, build_changes)
 
-        run_in_background(self.page, t, save, loading=self.loading)
+    def _checked_cash_operation(self):
+        """Check the amount of a cash operation, charge or dividend; return its (kind, fields) for journal_service.record.
 
-    def _checked_cash_operation(self, account, day):
-        """Check the amount of a cash operation or dividend; return a function recording it in the journal.
-
-        The function returns journal_service.record's changes, as for every
-        operation (see submit). A dividend looks up its ticker's name on Yahoo.
+        A dividend's ticker is the one typed when submitting; its asset name
+        is added when it is recorded, since it is asked of Yahoo.
         """
         kind = Kind(self.kind)
         fields = {"amount": operations_service.parse_cash_amount(self.kind, self.amount.value)}
         if kind == Kind.CHARGE:
             fields["description"] = self.description.value or None
         if kind == Kind.DIVIDEND:
-            fields["ticker"] = self.ticker.value  # as submitted, whatever is typed while it is recorded
-
-        def record():
-            """Record the operation, asking Yahoo for a dividend's asset name first."""
-            if kind == Kind.DIVIDEND:
-                fields["asset_name"] = fetch_ticker_name(fields["ticker"])
-            return journal_service.record(self.state.accounts, account, kind, day, **fields)
-
-        return record
+            fields["ticker"] = self.ticker.value
+        return kind, fields
 
     def _checked_transfer(self, account, day):
-        """Check the recipient and amount of a transfer; return a function recording it in both accounts' journals.
+        """Check the recipient and amount of a transfer on `day`; return its (kind, fields) for journal_service.record.
 
-        The function returns journal_service.record's changes, for the account sending and the one receiving.
+        Recorded as a transfer out of `account`, which also records its other half in the recipient.
         """
         recipient = self._recipients.get(int(self.recipient.value)) if self.recipient.value else None
-        amount = operations_service.parse_transfer(account.df, recipient, day, self.amount.value)
-        return lambda: journal_service.record(self.state.accounts, account, Kind.TRANSFER_OUT, day,
-                                              amount=amount, counterpart=recipient.name)
+        amount = operations_service.parse_transfer(account, recipient, day, self.amount.value)
+        return Kind.TRANSFER_OUT, {"amount": amount, "counterpart": recipient.name}
 
-    def _checked_split(self, account, day):
-        """Check the ticker and ratio of a split; return a function recording it in the journal.
-
-        The function returns journal_service.record's changes, as for every operation (see submit).
-        """
+    def _checked_split(self):
+        """Check the ticker and ratio of a split; return its (kind, fields) for journal_service.record."""
         ticker = self.split_ticker.value
         if not ticker:
             raise ValidationError("operations.stock.ticker_error")
-        ratio = operations_service.parse_split_ratio(self.split_ratio.value)
-        return lambda: journal_service.record(self.state.accounts, account, Kind.SPLIT, day, ticker=ticker, ratio=ratio)
+        return Kind.SPLIT, {"ticker": ticker, "ratio": operations_service.parse_split_ratio(self.split_ratio.value)}
 
 
 class EtfStockForm:
@@ -467,6 +572,8 @@ class EtfStockForm:
         self.state = app.state
         self.product_type = product_type
         self.etf_subtype = None  # the ETF type picked (a SegmentedButton of product codes); ETF tab only
+        self._recording = False  # True while a trade is worked out: Add is ignored (see _record)
+        self._date_shown = None  # the date the fee section was last drawn for (_on_date_change)
 
     def build(self) -> ft.Control:
         """Create the form's controls (kept as attributes, e.g. self.quantity) and return its layout."""
@@ -492,8 +599,8 @@ class EtfStockForm:
             opacity=0.4 if no_account else 1.0,
         )
 
-        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"),
-                              min_date=lambda: _earliest_new_date(self.state))
+        self.date = DateField(self.page, t.get("components.pick_date"), t.get("components.date_format_hint"))
+        self.date.on_change = self._on_date_change
         date_row = ft.Container(
             content=self.date.control,
             col={"xs": 12, "md": 6},
@@ -798,6 +905,18 @@ class EtfStockForm:
         self._refresh_fee_section()
         self.page.update()
 
+    def _on_date_change(self):
+        """A date typed or picked: a sale's fee panel describes the sale on the new date.
+
+        Called at each key typed: only a new date, complete and different
+        from the last, changes anything, and only while the panel shows.
+        """
+        if self.date.value == self._date_shown:
+            return
+        self._date_shown = self.date.value
+        if self._sale_fee_panel.visible:
+            self._on_fee_inputs_change()
+
     def _pick_buy_fee(self, choice):
         """Remember the fee card tapped on a buy: add the fee to the carryforward now ("loss") or when selling ("pending")."""
         self._buy_fee_choice = choice
@@ -826,7 +945,8 @@ class EtfStockForm:
         self._fee_later_text.value = t.get("operations.stock.fee_not_added") if later else t.get("operations.stock.fee_later")
         mark_card_selected(self._fee_now_card, self._fee_now_text, now)
         mark_card_selected(self._fee_later_card, self._fee_later_text, later)
-        self._sale_fee_text.value = self._sale_fee_message(fee)
+        if self._sale_fee_panel.visible:  # it reads the ledger up to the sale's date: only when shown
+            self._sale_fee_text.value = self._sale_fee_message(fee)
 
     def _typed_rate(self):
         """The USD->EUR rate typed (None until it is a number), or 1 for a trade in EUR."""
@@ -844,14 +964,15 @@ class EtfStockForm:
         """What a sale in Tax Carryforward mode adds to it: its `fee` and, at a gain, the purchase fees pending.
 
         Uses sell_asset's rule: the pending fees are added only if the sale is
-        at a gain, i.e. its price in EUR is above the average buy price.
+        at a gain, i.e. its price in EUR is above the average buy price. Both
+        are the asset's on the sale's date, which can come before later buys.
         Example: 3 EUR pending, a 2 EUR fee and no price typed yet ->
         "2.00€ + 3.00€ will be added to the Tax Carryforward, if the sale is at a gain".
         """
         t = self.state.translator
         account = _selected_account(self.state)
         ticker = self._trade_ticker()
-        asset_rows = holding_rows(account.df, ticker) if account and ticker else None
+        asset_rows = holding_rows(_ledger_until(account, self.date.value), ticker) if account and ticker else None
         pending = pending_fees(asset_rows) if asset_rows is not None else 0.0
         if not pending:
             return t.get("operations.stock.fee_added", fee=fee)
@@ -886,14 +1007,17 @@ class EtfStockForm:
         self.page.update()
 
     def submit(self, e):
-        """Check the trade typed and record it in the background, or show what is wrong.
+        """Check the trade typed and record it in the background (see _record), or show what is wrong.
 
         Before recording, Yahoo is asked what kind of security the ticker is, so
         an ETF can't be bought from the Stock tab or the other way round.
+        Ignored while the last trade is still being worked out.
         """
         s = self.state
         t = s.translator
         account = _selected_account(s)
+        if self._recording:
+            return
         if account is None:
             show_snack(self.page, t.get("operations.select_account"), error=True)
             return
@@ -917,29 +1041,26 @@ class EtfStockForm:
                 ter=self.ter.value,
                 tax_bracket=self.tax_bracket.value,
                 fee_mode=fee_mode,
-                ledger_df=account.df,
             )
+            kind = Kind.BUY if trade.is_buy else Kind.SELL
+            later = journal_service.later_operations(s.accounts, account, kind, trade.date)
         except ValidationError as ex:
             show_snack(self.page, error_message(t, ex), error=True)
             return
         expected_type = "etf" if self.product_type == "ETF" else "equity"
 
-        def save():
-            """Check the ticker's kind with Yahoo, then record the trade, save the account and show the tab again."""
+        def build_changes():
+            """Check the ticker's kind with Yahoo, then work out the trade's changes; None, saying so, for the wrong kind."""
             results = search_tickers(trade.ticker, quotes_count=1)
             if (results and results[0]["symbol"].upper() == trade.ticker.upper()
                     and results[0]["quote_type"] != expected_type):
                 show_snack(self.page, t.get("operations.stock.ticker_wrong_type"), error=True)
-                return
-
-            changes = journal_service.record(
-                s.accounts, account, Kind.BUY if trade.is_buy else Kind.SELL, trade.date,
+                return None
+            return journal_service.record(
+                s.accounts, account, kind, trade.date,
                 ticker=trade.ticker, asset_name=fetch_ticker_name(trade.ticker), product=trade.product,
                 currency=trade.currency, conv_rate=trade.conv_rate, quantity=trade.quantity, price=trade.price,
                 fee=trade.fee, fee_mode=trade.fee_mode, tax_rate=trade.tax_rate, ter=trade.ter,
             )
-            s.commit_changes(changes)
-            show_snack(self.page, t.get("operations.added_transaction"))
-            self.app.refresh()
 
-        run_in_background(self.page, t, save, loading=self.loading)
+        _record(self, later, build_changes)
