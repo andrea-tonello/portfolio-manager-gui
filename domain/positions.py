@@ -3,12 +3,11 @@
 holdings() and held_tickers() only read the ledger, as do the split-check
 helpers first_trade_date() and unrecorded_splits(). priced_positions() also
 fetches closing prices (and the USD->EUR rate) from Yahoo Finance through
-services.market_data.
+services.market_data, or reads them from a PriceBook downloaded beforehand.
 """
 
 from datetime import date, datetime
 
-import numpy as np
 import pandas as pd
 
 from domain.account import Account
@@ -43,13 +42,15 @@ def holdings(df: pd.DataFrame, ref_date: DateLike | None = None,
     return total_assets, total_active_assets
 
 
-def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str | None = None) -> list[dict]:
+def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str | None = None,
+                     prices: market_data.PriceBook | None = None) -> list[dict]:
     """Return one dict per asset held on `ref_date`, valued at that day's closing price in EUR.
 
     Keys: ticker, name, quantity, pmc (average buy price), exchange_rate
     (USD->EUR, 1.0 for EUR assets), price, value (quantity x price) and
-    prev_close (the previous day's price). Fetches prices from Yahoo Finance.
-    Returns [] when nothing is held.
+    prev_close (the previous day's price). Downloads the prices of that day
+    from Yahoo Finance, unless `prices` already holds them (a rebuild values
+    many rows from one download). Returns [] when nothing is held.
 
     Example: 5 units of a stock closing at 100.3 EUR -> price 100.3, value 501.5.
     """
@@ -57,44 +58,26 @@ def priced_positions(df: pd.DataFrame, ref_date: DateLike, exclude_ticker: str |
     if total_active_assets.empty:
         return []
     ref_date = pd.Timestamp(ref_date)
+    if prices is None:
+        held = list(zip(total_active_assets["ticker"], total_active_assets["curr"]))
+        prices = market_data.PriceBook.download(held, start=ref_date, end=ref_date)
 
     positions = []
-    tickers = []
     for _, row in total_active_assets.iterrows():
+        ticker = row["ticker"]
+        # Any currency but EUR is converted, as PriceBook.download expects.
+        exchange_rate = 1.0 if row["curr"] == "EUR" else prices.usd_eur(ref_date)
+        price = prices.close(ticker, ref_date) * exchange_rate
         positions.append({
-            "ticker": row["ticker"],
+            "ticker": ticker,
             "quantity": row["qt_held"],
-            "exchange_rate": 1.0 if row["curr"] == "EUR" else market_data.fetch_exchange_rate(ref_date.strftime("%Y-%m-%d")),
-            "price": np.nan,
-            "value": np.nan,
-            "pmc": row["abp"]
+            "exchange_rate": exchange_rate,
+            "price": price,
+            "value": row["qt_held"] * price,
+            "pmc": row["abp"],
+            "prev_close": prices.previous_close(ticker, ref_date) * exchange_rate,
+            "name": prices.name(ticker),
         })
-        tickers.append(row["ticker"])
-
-    start_date = pd.to_datetime(ref_date) - pd.Timedelta(days=10)
-    end_date = pd.to_datetime(ref_date) + pd.Timedelta(days=1)
-
-    data, names = market_data.download_close(tickers, start=start_date, end=end_date)
-    # Adjusted close for prev_close only: keeps daily P&L continuous across a split day.
-    # Do NOT use for current price — adjusted close also bakes in dividends, which are
-    # recorded explicitly as Dividend rows and would double-count otherwise.
-    data_adj, _ = market_data.download_close(tickers, start=start_date, end=end_date, adjusted=True)
-    if data_adj.empty:
-        data_adj = data
-
-    for item in positions:
-        ticker = item["ticker"]
-        # Each ticker's own closes: Yahoo sometimes has no close for one ticker on a day,
-        # and leaving that day out for all of them would price the others on an older day.
-        closes = data.loc[data.index <= ref_date, ticker].dropna()
-        adj_closes = data_adj.loc[data_adj.index <= ref_date, ticker].dropna()
-        price = closes.iloc[-1] * item["exchange_rate"]
-        item["price"] = price
-        item["value"] = item["quantity"] * price
-        prev = adj_closes.iloc[-2] if len(adj_closes) >= 2 else closes.iloc[-1]
-        item["prev_close"] = prev * item["exchange_rate"]
-        item["name"] = names.get(ticker, ticker)
-
     return positions
 
 

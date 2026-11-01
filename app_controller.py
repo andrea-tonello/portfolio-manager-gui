@@ -8,6 +8,8 @@ package or looking up callbacks in page.data.
 import flet as ft
 
 from app_state import AppState
+from components.journal_migration import migrate_accounts, needs_migration
+from components.recalculation import offer_recalculation
 from components.theme import apply_theme
 from components.update_check import check_for_update
 from views import onboarding_view, shell
@@ -75,18 +77,54 @@ class AppController:
             self.show_broker_onboarding()
             return
 
-        self.state.ensure_defaults()
         self.state.load_all_accounts()
+        # Accounts recorded before the journal are moved to it first: they can't change without one.
+        if needs_migration(self.state):
+            migrate_accounts(self, then=self._show_home)
+        else:
+            self._show_home()
+
+    def _show_home(self) -> None:
+        """Show Home, the first screen once set up, and once per launch look for a newer release.
+
+        Then offer to recalculate the history if the user's accounts were
+        last recalculated with older rules (components.recalculation).
+        """
         self.show_tab(shell.HOME_TAB)
+        offer_recalculation(self)
         # Once per launch, on reaching Home: not during the setup, nor again on
         # later restarts (e.g. switching user).
         if not self.checked_for_update:
             self.checked_for_update = True
-            check_for_update(page, self.state.translator)
+            check_for_update(self.page, self.state.translator)
 
     def show_tab(self, index: int) -> None:
-        """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions)."""
+        """Show tab `index`, its position in shell.TABS (Home, Operations, Analysis, Transactions).
+
+        Leaving Operations gives up the edit of an operation, if one was under way.
+        """
+        if index != shell.OPERATIONS_TAB:
+            self.state.editing = None
         shell.show_tab(self, index)
+
+    def edit_operation(self, idx: int, op_id: str) -> None:
+        """Show Operations editing the operation `op_id` of account `idx`: its form, filled in with its values.
+
+        The account picked in Operations stays as it was, for when the edit is over.
+        """
+        self.state.editing = (idx, op_id)
+        self.show_tab(shell.OPERATIONS_TAB)
+
+    def stop_editing(self) -> None:
+        """Leave the edit of an operation, saved or given up, for Transactions, where it was picked.
+
+        If the user already left Operations meanwhile (e.g. while a slow save
+        ran), the edit is over already: the tab shown is only refreshed.
+        """
+        if self.state.editing is None:
+            self.refresh()
+        else:
+            self.show_tab(shell.TRANSACTIONS_TAB)
 
     def refresh(self) -> None:
         """Re-render the tab currently shown, e.g. after the user picks another account in it."""

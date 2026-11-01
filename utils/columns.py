@@ -16,6 +16,13 @@ COLUMNS = [
     "committed_cash",
 ]
 
+# The journal operation that built each row (see domain/journal.py): its id, and its
+# fingerprint as it was then, which changes when the operation is edited. Not in COLUMNS:
+# they are internal, so they aren't shown in Transactions or exported.
+OP_ID = "op_id"
+OP_HASH = "op_hash"
+INTERNAL_COLUMNS = [OP_ID, OP_HASH]
+
 # Maps internal English operation values → locale keys for export.
 OPERATION_LOCALE_KEYS = {
     "Deposit": "values.op_deposit",
@@ -69,8 +76,8 @@ def show_transfer_counterparts(df, translator):
     """Return a copy of `df` where each transfer's asset_name says which way the cash went, in the user's language.
 
     The ledger keeps the other account's bare name: it doesn't depend on the
-    language, and it identifies the account (removing a transfer finds its
-    other half by it). The direction is only added to show it.
+    language, and it identifies the account (the journal's transfers name it
+    as their counterpart). The direction is only added to show it.
     Example in Italian: "Directa" on a Transfer Out row -> "verso: Directa"; on a Transfer In row -> "da: Directa".
     """
     out = df.copy()
@@ -82,6 +89,18 @@ def show_transfer_counterparts(df, translator):
     return out
 
 
+def operation_title(row, translator):
+    """Name the operation of a ledger `row` in the user's language, with the asset or account it concerns.
+
+    Examples in English: "Buy ISP.MI", "Transfer Out to: BG Saxo", "Deposit".
+    """
+    operation = row["operation"]
+    key = TRANSFER_COUNTERPART_KEYS.get(operation)
+    subject = translator.get(key, account=row["asset_name"]) if key else row.get("ticker")
+    name = localized_value_maps(translator)["operation"].get(operation, operation)
+    return f"{name} {subject}" if isinstance(subject, str) and subject else name
+
+
 def _translate_values(df, translator):
     """Translate operation and product column values to locale strings."""
     for col, mapping in localized_value_maps(translator).items():
@@ -91,8 +110,12 @@ def _translate_values(df, translator):
 
 
 def rename_for_export(df, translator):
-    """Return a copy of *df* with columns and values translated for export."""
-    out = show_transfer_counterparts(df, translator)  # before the operations are translated: it reads them
+    """Return a copy of *df* with columns and values translated for export.
+
+    Only the columns of COLUMNS are kept: the internal op_id is left out.
+    """
+    out = df[[col for col in COLUMNS if col in df.columns]]
+    out = show_transfer_counterparts(out, translator)  # before the operations are translated: it reads them
     _translate_values(out, translator)
     mapping = export_headers(translator)
     return out.rename(columns=mapping)

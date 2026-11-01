@@ -6,6 +6,17 @@ APP_VERSION = "dev"
 GITHUB_URL = "https://github.com/andrea-tonello/portfolio-manager-gui"
 
 DATE_FORMAT = "%d-%m-%Y"
+# Each account's files in the user's resources folder: its journal, journal-<account>.json (the
+# operations as entered), and its ledger, report-<account>.csv (rebuilt from the journal).
+JOURNAL_PREFIX = "journal-"
+LEDGER_PREFIX = "report-"
+# A copy of an account's ledger as it was before the journal: before-journal-<account>.csv.
+BEFORE_JOURNAL_PREFIX = "before-journal-"
+# A copy of an account's ledger as it was before the last recalculation of its history:
+# before-recalculation-<account>.csv.
+BEFORE_RECALCULATION_PREFIX = "before-recalculation-"
+# The CSVs the user exports from Transactions: "Report <account>.csv" and "Report All Accounts.csv".
+# Ledgers were saved under this name too, before the journal.
 REPORT_PREFIX = "Report "
 # Language code -> name shown in the language pickers, in display order.
 LANGUAGES = {"en": "English", "it": "Italiano"}

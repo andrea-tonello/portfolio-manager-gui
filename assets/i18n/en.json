@@ -30,9 +30,10 @@
   },
 
   "misc_errors": {
+    "prices_unavailable": "Prices couldn't be downloaded (are you offline?): try again when connected.",
     "nodate": "Date is missing",
     "nodates": "No dates available in DataFrame prior to {dt}",
-    "date_sequential": "The date cannot be earlier than the last one recorded",
+    "date_too_early": "The date cannot be earlier than {date}",
     "date_future": "Cannot insert future dates",
     "date_start_end": "Start date must be before end date"
   },
@@ -96,8 +97,7 @@
       "available": "Available: {available}",
       "no_other_account": "You first need another account to transfer cash to",
       "no_recipient": "Select the recipient account",
-      "not_enough_cash": "Not enough cash available ({available})",
-      "date_recipient": "The date cannot be earlier than the last operation of {account}"
+      "not_enough_cash": "Not enough cash available ({available})"
     },
     "stock": {
       "title_etf": "ETFs",
@@ -287,14 +287,77 @@
     "transfer_undo_one": "It will be removed from {account} only: the other half of the transfer no longer exists.",
     "transfer_undo_confirm": "Remove",
     "transfer_removed": "Transfer removed",
-    "transfer_newer_ops": "{account} has operations after the transfer: remove them first",
     "empty": "No data",
     "filters": "Filters",
     "filter_columns": "Filter columns"
   },
 
 
+  "journal": {
+    "not_migrated": "{account} hasn't been updated to the new format yet, so it can't change. The app tries again each time it starts.",
+    "partner_unavailable": "{account} isn't available now, so the transfer can't be removed from both accounts. Restart the app and try again.",
+    "changed_meanwhile": "An account changed while this was being saved, so nothing was saved. Please try again.",
+    "short_of_cash": "This would leave {account} short of cash: {cash} on {date}.",
+    "busy": "Another change is being saved: try again in a moment.",
+    "row_outdated": "This transaction is no longer among the account's operations.",
+    "refused": {
+      "sell": "The sale of {ticker} on {date} would no longer be possible: {reason}",
+      "split": "The split of {ticker} on {date} would no longer be possible: {reason}",
+      "transfer_out": "The transfer to {account} on {date} would no longer be possible: {reason}"
+    },
+    "insert": {
+      "title": "Recalculate later operations?",
+      "one": "This operation comes before 1 later operation, which will be recalculated (taxes, Tax Carryforward and market values included).",
+      "many": "This operation comes before {count} later operations, which will be recalculated (taxes, Tax Carryforward and market values included).",
+      "confirm": "Record"
+    },
+    "edit": {
+      "action": "Edit",
+      "banner": "Editing: {what} of {date}",
+      "title": "Recalculate other operations?",
+      "one": "The change recalculates 1 other operation (taxes, Tax Carryforward and market values included).",
+      "many": "The change recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
+      "save": "Save changes",
+      "saved": "Changes saved"
+    },
+    "delete": {
+      "title": "Remove the transaction?",
+      "one": "Removing it recalculates 1 other operation (taxes, Tax Carryforward and market values included).",
+      "many": "Removing it recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
+      "confirm": "Remove"
+    },
+    "recalculate": {
+      "title": "Recalculate history?",
+      "explained": "Every operation of every account is recalculated with the app's current rules and today's market prices.\nThe operations themselves don't change; their taxes, Tax Carryforward, P&L and market values may.\nA copy of each account's current data is kept in the app's files (before-recalculation-<account>.csv).",
+      "confirm": "Recalculate",
+      "working": "Recalculating your history…",
+      "differences_title": "Values that change",
+      "differences_intro": "With the current rules these values change (market values aside, which are re-priced with today's data):",
+      "save": "Save",
+      "done": "History recalculated",
+      "refused": "{account} can't be recalculated: {reason}",
+      "offer_title": "Calculations updated",
+      "offer": "This version of the app calculates some values differently:",
+      "later": "Later"
+    },
+    "migration": {
+      "title": "Updating your accounts",
+      "working": "Your accounts are moving to a new format. This happens only once.",
+      "differences_title": "Some values were recalculated",
+      "differences_intro": "Recalculating every operation from the start gives these values, slightly different from the saved ones. From now on the recalculated values are used. A copy of each account's old data is kept in the app's files (before-journal-<account>.csv).",
+      "more": "…and {count} more",
+      "continue": "Continue",
+      "failed": "Your accounts couldn't be updated now (are you offline?). The app will try again the next time it starts.",
+      "row_failed": "The operation of {date} in {account} can't be converted to the new format: {reason}. Your accounts stay as they are; please report this problem."
+    }
+  },
+
+
   "settings": {
+    "recalculate": {
+      "title": "Recalculate history",
+      "descr": "Recalculate every operation of every account with the app's current rules and today's prices, e.g. after an update that changes how taxes are calculated."
+    },
     "new_acc": "Hello, {username}.\n\nPlease add a representative alias for each of your accounts",
     "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",
     "language": {
@@ -351,7 +414,8 @@
       "user_no_accounts": "User '{username}' has no accounts.",
       "missing_user_csv": "Missing CSV for account '{account}' (user '{username}').",
       "unreadable_header": "Cannot read the header of {file}.",
-      "missing_columns": "{file} is missing columns: {columns}"
+      "missing_columns": "{file} is missing columns: {columns}",
+      "invalid_journal": "Cannot read the operations of account '{account}' (user '{username}'): the backup may come from a newer version of the app."
     },
     "user": "User",
     "user_mgmt": {

@@ -1,19 +1,21 @@
 """Tests for the General tab of the Operations screen: cash operations, transfers and splits,
 plus the date picker shared by every Operations tab.
 
-The form hands the operation to operations_service with a sign convention:
-amounts are typed as positive numbers, and a withdrawal is passed on as a
-negative one. The service decides from it whether the row is a deposit or a
-withdrawal.
+The form records the operation through the journal (journal_service.record):
+amounts are typed, and passed on, as positive numbers, and the operation's
+kind (deposit or withdrawal, for example) gives the row its sign.
 """
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
-from conftest import snack_texts
-from test_ledger_snapshots import _replay, deposit
+from conftest import set_operations, snack_texts
+from test_ledger_snapshots import NAMES, deposit
 
-from services import operations_service
+import views.operations_view
+from domain.journal import Kind
+from domain.ledger import LEDGER_START_DATE
+from services import journal_service
 from views.operations_view import OperationsView
 
 
@@ -22,21 +24,19 @@ def general_form(monkeypatch, app, page, state):
     """The General tab for the test account, dated after its last operation, with operations recorded instead of saved.
 
     Returns (form, submit, calls): the GeneralForm, a function that presses
-    "Add transaction", and the (kind, args, kwargs) of each operation that
-    reached operations_service. Background work runs straight away.
+    "Add transaction", and the (kind, day, fields) of each operation that
+    reached journal_service.record. Background work runs straight away, and
+    a dividend's asset name comes without asking Yahoo.
     """
     calls = []
 
-    def recorder(kind):
-        """Return a stand-in for one operations_service function that remembers its arguments."""
-        def record(*args, **kwargs):
-            """Remember the call and leave the account unchanged."""
-            calls.append((kind, args, kwargs))
-            return args[0]
-        return record
+    def record(accounts, account, kind, day, **fields):
+        """Stand-in for journal_service.record: remember the operation and change no account."""
+        calls.append((kind, day, fields))
+        return {}
 
-    monkeypatch.setattr(operations_service, "execute_cash_operation", recorder("cash"))
-    monkeypatch.setattr(operations_service, "execute_split", recorder("split"))
+    monkeypatch.setattr(journal_service, "record", record)
+    monkeypatch.setattr(views.operations_view, "fetch_ticker_name", lambda ticker: NAMES[ticker])
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
 
     state.ops_acc_idx = 1
@@ -55,32 +55,31 @@ def _choose(form, kind):
     buttons.on_change(None)
 
 
-@pytest.mark.parametrize("kind, service_kind, amount, extra", [
-    ("deposit", "deposit_withdrawal", 100.0, {}),
-    ("withdrawal", "deposit_withdrawal", -100.0, {}),
-    ("dividend", "dividend", 100.0, {"ticker": "AAA.MI"}),
-    ("charge", "charge", 100.0, {"description": "Stamp duty"}),
-])
-def test_cash_operation_reaches_the_service(general_form, kind, service_kind, amount, extra):
-    """100 typed in the form reaches the service as the right kind, negative only for a withdrawal.
+@pytest.mark.parametrize("kind, typed, fields", [
+    ("deposit", {}, {"amount": 100.0}),
+    ("withdrawal", {}, {"amount": 100.0}),
+    ("dividend", {"ticker": "AAA.MI"}, {"amount": 100.0, "ticker": "AAA.MI", "asset_name": "Alpha SpA"}),
+    ("charge", {"description": "Stamp duty"}, {"amount": 100.0, "description": "Stamp duty"}),
+    ("charge", {"description": ""}, {"amount": 100.0, "description": None}),
+], ids=["deposit", "withdrawal", "dividend", "charge", "charge-without-description"])
+def test_cash_operation_is_recorded_with_its_kind(general_form, kind, typed, fields):
+    """100 typed in the form is recorded as an operation of the kind chosen, the amount always positive.
 
-    A dividend also passes its ticker, a charge its description.
+    A dividend also passes its ticker and the asset's name, a charge its description (None when left blank).
     """
     form, submit, calls = general_form
     _choose(form, kind)
     form.amount.value = "100"
-    for name, value in extra.items():
+    for name, value in typed.items():
         getattr(form, name).value = value
 
     submit()
 
-    [(called, args, kwargs)] = calls
-    assert (called, args[2], args[5]) == ("cash", service_kind, amount)
-    assert kwargs == {"ticker": extra.get("ticker"), "description": extra.get("description")}
+    assert calls == [(Kind(kind), date(2025, 1, 10), fields)]
 
 
-def test_split_reaches_the_service_with_the_ratio_typed(general_form):
-    """A 2:1 split of BBB.MI is passed on as ticker "BBB.MI" and ratio 2.0."""
+def test_split_is_recorded_with_the_ratio_typed(general_form):
+    """A 2:1 split of BBB.MI is recorded with ticker "BBB.MI" and ratio 2.0."""
     form, submit, calls = general_form
     _choose(form, "split")
     form.split_ticker.value = "BBB.MI"
@@ -88,24 +87,24 @@ def test_split_reaches_the_service_with_the_ratio_typed(general_form):
 
     submit()
 
-    [(called, args, _)] = calls
-    assert (called, args[4], args[5]) == ("split", "BBB.MI", 2.0)
+    assert calls == [(Kind.SPLIT, date(2025, 1, 10), {"ticker": "BBB.MI", "ratio": 2.0})]
 
 
 @pytest.mark.parametrize("changes, message", [
     ({"date": None}, "Date is missing"),
-    ({"date": date(2024, 9, 1)}, "The date cannot be earlier than the last one recorded"),
+    ({"date": date(1999, 12, 31)}, "The date cannot be earlier than 01-01-2000"),
     ({"kind": "deposit", "amount": "0"}, "The cash amount must be a number greater than 0"),
     ({"kind": "dividend", "amount": "0"}, "The dividend must be a number greater than 0"),
     ({"kind": "charge", "amount": "0"}, "The tax amount must be a number greater than 0"),
     ({"kind": "split", "split_ratio": "2"}, "Ticker is missing"),
     ({"kind": "split", "split_ticker": "BBB.MI", "split_ratio": ""}, "The ratio must be a positive number"),
-], ids=["no-date", "before-last-operation", "zero-deposit", "zero-dividend", "zero-charge",
+], ids=["no-date", "before-the-accounts-opening", "zero-deposit", "zero-dividend", "zero-charge",
         "split-without-ticker", "split-without-ratio"])
 def test_general_form_refuses_invalid_values(general_form, page, changes, message):
-    """Each invalid value shows its own message, and nothing reaches the service.
+    """Each invalid value shows its own message, and nothing is recorded.
 
-    The account's last operation is on 02-09-2024.
+    A date can come before the account's last operation (02-09-2024), but not
+    before 01-01-2000, the day every account opens on.
     """
     form, submit, calls = general_form
     form.amount.value = "100"
@@ -122,10 +121,10 @@ def test_general_form_refuses_invalid_values(general_form, page, changes, messag
 
 
 @pytest.mark.parametrize("tab", ["general", "etf", "stock"])
-def test_the_date_picker_starts_at_the_accounts_last_operation(app, page, state, tab):
-    """In every Operations tab, the picker offers no day before the selected account's last operation (02-09-2024).
+def test_the_date_picker_offers_every_day_since_the_accounts_opening(app, page, state, tab):
+    """In every Operations tab, the picker offers every day since 01-01-2000, before the account's last operation too.
 
-    A new operation can't be dated earlier: the picker used to offer every day since 2000.
+    An operation dated before others is recorded in its place, and those after it are recalculated.
     """
     state.ops_acc_idx = 1
     view = OperationsView(app)
@@ -133,7 +132,7 @@ def test_the_date_picker_starts_at_the_accounts_last_operation(app, page, state,
 
     getattr(view, tab).date.button.on_click(None)
 
-    assert page.dialogs[-1].first_date == datetime(2024, 9, 2)
+    assert page.dialogs[-1].first_date == LEDGER_START_DATE
 
 
 def test_a_transfer_needs_another_account(general_form, page):
@@ -147,13 +146,13 @@ def test_a_transfer_needs_another_account(general_form, page):
     assert (form.kind, form.cash_kind.selected, form.recipient_row.visible) == ("withdrawal", ["withdrawal"], False)
 
 
-def test_a_transfer_from_the_form_records_it_in_both_accounts(app, page, state, tmp_path, monkeypatch):
+def test_a_transfer_from_the_form_records_it_in_both_accounts(app, page, state, monkeypatch):
     """Transfer, a recipient and 500: the test account sends 500 to the second one, which receives it.
 
     The amount shows the cash available (8,723.12, the test account's) while Transfer is chosen.
     """
     second = state.add_broker("Second Broker")
-    state.commit(second, _replay([deposit(date(2024, 1, 2), 1_000)], tmp_path / "second").assign(account="Second Broker"))
+    set_operations(state, second, [deposit(date(2024, 1, 2), 1_000)])
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: fn(*args))
     state.ops_acc_idx = 1
     view = OperationsView(app)

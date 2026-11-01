@@ -30,9 +30,10 @@
   },
 
   "misc_errors": {
+    "prices_unavailable": "Impossibile scaricare i prezzi (sei offline?): riprova quando sei connesso.",
     "nodate": "Data mancante, inserire data",
     "nodates": "Nessuna data disponibile nel DataFrame precedente a {dt}",
-    "date_sequential": "La data non può essere precedente all'ultima registrata",
+    "date_too_early": "La data non può essere precedente al {date}",
     "date_future": "Impossibile inserire date future",
     "date_start_end": "La data di inizio deve essere precedente alla data di fine"
   },
@@ -96,8 +97,7 @@
       "available": "Disponibile: {available}",
       "no_other_account": "Non hai un altro conto su cui trasferire liquidità",
       "no_recipient": "Seleziona il conto di destinazione",
-      "not_enough_cash": "Liquidità disponibile insufficiente ({available})",
-      "date_recipient": "La data non può precedere l'ultima operazione di {account}"
+      "not_enough_cash": "Liquidità disponibile insufficiente ({available})"
     },
     "stock": {
       "title_etf": "ETF",
@@ -287,14 +287,77 @@
     "transfer_undo_one": "Verrà rimosso solo da {account}: l'altra metà del trasferimento non c'è più.",
     "transfer_undo_confirm": "Rimuovi",
     "transfer_removed": "Trasferimento rimosso",
-    "transfer_newer_ops": "{account} ha operazioni successive al trasferimento: rimuovile prima",
     "empty": "Nessun dato disponibile",
     "filters": "Filtri",
     "filter_columns": "Filtra colonne"
   },
 
 
+  "journal": {
+    "not_migrated": "{account} non è ancora stato aggiornato al nuovo formato, quindi non può essere modificato. L'app riprova a ogni avvio.",
+    "partner_unavailable": "{account} non è disponibile ora, quindi il trasferimento non può essere rimosso da entrambi i conti. Riavvia l'app e riprova.",
+    "changed_meanwhile": "Un conto è cambiato mentre veniva salvata l'operazione, quindi non è stato salvato nulla. Riprova.",
+    "short_of_cash": "Così {account} resterebbe senza liquidità sufficiente: {cash} il {date}.",
+    "busy": "Un'altra modifica è in corso di salvataggio: riprova tra un momento.",
+    "row_outdated": "Questa transazione non è più tra le operazioni del conto.",
+    "refused": {
+      "sell": "La vendita di {ticker} del {date} non sarebbe più possibile: {reason}",
+      "split": "Il frazionamento di {ticker} del {date} non sarebbe più possibile: {reason}",
+      "transfer_out": "Il trasferimento verso {account} del {date} non sarebbe più possibile: {reason}"
+    },
+    "insert": {
+      "title": "Ricalcolare le operazioni successive?",
+      "one": "Questa operazione precede 1 operazione successiva, che verrà ricalcolata (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "Questa operazione precede {count} operazioni successive, che verranno ricalcolate (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "confirm": "Registra"
+    },
+    "edit": {
+      "action": "Modifica",
+      "banner": "Modifica: {what} del {date}",
+      "title": "Ricalcolare le altre operazioni?",
+      "one": "La modifica ricalcola 1 altra operazione (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "La modifica ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "save": "Salva modifiche",
+      "saved": "Modifiche salvate"
+    },
+    "delete": {
+      "title": "Rimuovere la transazione?",
+      "one": "La rimozione ricalcola 1 altra operazione (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "La rimozione ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "confirm": "Rimuovi"
+    },
+    "recalculate": {
+      "title": "Ricalcolare lo storico?",
+      "explained": "Ogni operazione di ogni conto viene ricalcolata con calcoli aggiornati e i prezzi di mercato di oggi.\nLe operazioni restano le stesse; possono cambiare imposte, Zainetto Fiscale, P&L e valori di mercato.\nUna copia dei dati attuali di ogni conto viene conservata nei file dell'app (before-recalculation-<conto>.csv).",
+      "confirm": "Ricalcola",
+      "working": "Ricalcolo dello storico in corso…",
+      "differences_title": "Valori che cambiano",
+      "differences_intro": "Con le regole attuali cambiano questi valori (a parte i valori di mercato, rivalutati con i dati di oggi):",
+      "save": "Salva",
+      "done": "Storico ricalcolato",
+      "refused": "Impossibile ricalcolare {account}: {reason}",
+      "offer_title": "Calcoli aggiornati",
+      "offer": "Questa versione dell'app calcola alcuni valori in modo diverso:",
+      "later": "Più tardi"
+    },
+    "migration": {
+      "title": "Aggiornamento dei conti",
+      "working": "I tuoi conti passano a un nuovo formato. Succede una volta sola.",
+      "differences_title": "Alcuni valori sono stati ricalcolati",
+      "differences_intro": "Ricalcolando ogni operazione dall'inizio si ottengono questi valori, leggermente diversi da quelli salvati. D'ora in poi si usano i valori ricalcolati. Una copia dei vecchi dati di ogni conto resta nei file dell'app (before-journal-<conto>.csv).",
+      "more": "…e altri {count}",
+      "continue": "Continua",
+      "failed": "Non è stato possibile aggiornare i conti ora (sei offline?). L'app riproverà al prossimo avvio.",
+      "row_failed": "L'operazione del {date} in {account} non può essere convertita nel nuovo formato: {reason}. I conti restano come sono; per favore segnala il problema."
+    }
+  },
+
+
   "settings": {
+    "recalculate": {
+      "title": "Ricalcola lo storico",
+      "descr": "Ricalcola ogni operazione di ogni conto con le regole attuali dell'app e i prezzi di oggi, ad esempio dopo un aggiornamento che cambia il calcolo delle imposte."
+    },
     "new_acc": "Ciao, {username}.\n\nSi prega di aggiungere un alias per ciascuno dei propri conti",
     "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",
     "language": {
@@ -351,7 +414,8 @@
       "user_no_accounts": "L'utente '{username}' non ha conti.",
       "missing_user_csv": "CSV mancante per il conto '{account}' (utente '{username}').",
       "unreadable_header": "Impossibile leggere l'intestazione di {file}.",
-      "missing_columns": "In {file} mancano le colonne: {columns}"
+      "missing_columns": "In {file} mancano le colonne: {columns}",
+      "invalid_journal": "Impossibile leggere le operazioni del conto '{account}' (utente '{username}'): il backup potrebbe provenire da una versione più recente dell'app."
     },
     "user": "Utente",
     "user_mgmt": {

@@ -5,6 +5,7 @@ trade or a split.
 """
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import numpy as np
@@ -16,6 +17,9 @@ from domain.tax import DEFAULT_CAPITAL_GAINS_TAX_RATE, buy_asset, pending_fees, 
 from utils.date_utils import DateLike
 from utils.other_utils import round_half_up
 
+if TYPE_CHECKING:  # only named in annotations
+    from services.market_data import PriceBook
+
 
 def _append_row(df, row):
     new_row = pd.DataFrame({k: [v] for k, v in row.items()})
@@ -23,7 +27,7 @@ def _append_row(df, row):
 
 
 def newrow_cash(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str, cash: float, op_type: Op,
-                product: str, ticker: TextCell, name: TextCell) -> pd.DataFrame:
+                product: str, ticker: TextCell, name: TextCell, prices: "PriceBook | None" = None) -> pd.DataFrame:
 
     current_liq = float(df["cash_held"].iloc[-1]) + cash
 
@@ -32,7 +36,7 @@ def newrow_cash(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str
     else:
         historic_liq = float(df["committed_cash"].iloc[-1])
 
-    positions = priced_positions(df, ref_date)
+    positions = priced_positions(df, ref_date, prices=prices)
     asset_value = sum(pos["value"] for pos in positions)
 
     row = base_row()
@@ -60,13 +64,14 @@ def newrow_cash(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str
 def newrow_etf_stock(df: pd.DataFrame, date_str: str, ref_date: date, broker: str, currency: str, product: str,
                      ticker: str, quantity: int, price: float, conv_rate: float, ter: TextCell, fee: float, *,
                      is_buy: bool, asset_name: str, tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE,
-                     fee_mode: str = "abp") -> pd.DataFrame:
+                     fee_mode: str = "abp", prices: "PriceBook | None" = None) -> pd.DataFrame:
     """Record a buy or a sell of `quantity` units of `ticker` and return the account with the new row.
 
     `price` is the price of one unit in `currency`, always positive; `is_buy`
     says which side the trade is on. The row follows the CSV's sign convention,
     applied only here: money leaving the account is negative, so a buy stores a
-    negative price and negative amounts, a sell positive ones.
+    negative price and negative amounts, a sell positive ones. `prices`, when
+    given, values the assets held without asking Yahoo (see priced_positions).
 
     Example: buying 10 units at 100 EUR with a 2 EUR fee stores price -100,
     nominal_amount -1000 and effective_amount -1002; selling the 10 units at
@@ -79,9 +84,11 @@ def newrow_etf_stock(df: pd.DataFrame, date_str: str, ref_date: date, broker: st
     asset_rows = holding_rows(df, ticker)
 
     if is_buy:
-        results = buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, fee_mode=fee_mode)
+        results = buy_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker,
+                            fee_mode=fee_mode, prices=prices)
     else:
-        results = sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker, tax_rate=tax_rate, fee_mode=fee_mode)
+        results = sell_asset(df, asset_rows, quantity, price, conv_rate, fee, ref_date, product, ticker,
+                             tax_rate=tax_rate, fee_mode=fee_mode, prices=prices)
 
     # The CSV stores money leaving the account as negative: a buy's price and amounts.
     signed_price = -price if is_buy else price
@@ -127,13 +134,14 @@ def newrow_etf_stock(df: pd.DataFrame, date_str: str, ref_date: date, broker: st
 
 
 def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: str, ticker: str,
-                 ratio: float) -> pd.DataFrame:
+                 ratio: float, prices: "PriceBook | None" = None) -> pd.DataFrame:
     """Record a stock split as a unit-conversion row.
 
     A split is not a cash event: qt_held and abp are rescaled by the ratio, but
     total invested value (qt × abp) is preserved. No fees, no P&L, no tax; the
     pending purchase fees carry over unchanged. Like every other row, it values
-    each asset held at that day's closing price, the split one with its new quantity.
+    each asset held at that day's closing price, the split one with its new quantity
+    (from `prices` when given, see priced_positions).
 
     Example: 5 units at an abp of 105.20, split 2:1 on a day closing at 59.10,
     become 10 units at 52.60, counting 591 EUR in assets_value.
@@ -185,7 +193,7 @@ def newrow_split(df: pd.DataFrame, date_str: str, ref_date: DateLike, broker: st
 
     # Priced from the ledger with the row just added, so the split asset counts with its
     # new quantity. Yahoo's closes are already adjusted for splits, so they match it.
-    asset_value = sum(pos["value"] for pos in priced_positions(new_df, ref_date))
+    asset_value = sum(pos["value"] for pos in priced_positions(new_df, ref_date, prices=prices))
     new_df.loc[new_df.index[-1], ["assets_value", "nav"]] = [
         round_half_up(asset_value), round_half_up(asset_value + current_liq),
     ]

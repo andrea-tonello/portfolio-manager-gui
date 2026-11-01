@@ -21,10 +21,14 @@ def error_message(translator, ex: Exception) -> str:
 
     A ValidationError carries a locale key, translated here into the current
     language; any other error (network failure, bug) is shown with its own text.
+    A value that is itself a ValidationError, such as the reason inside a
+    journal's OperationRefused, is translated too and put in its place.
 
     Example: ValidationError("operations.stock.sell_noqt", quantity=5, last_remaining_qt=3)
     becomes "Quantity sold (5) exceeds available quantity (3)" in English.
     """
     if isinstance(ex, ValidationError):
-        return translator.get(ex.key, **ex.params)
+        params = {name: error_message(translator, value) if isinstance(value, ValidationError) else value
+                  for name, value in ex.params.items()}
+        return translator.get(ex.key, **params)
     return str(ex)

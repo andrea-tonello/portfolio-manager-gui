@@ -224,9 +224,16 @@ def _without(files, name):
     return {k: v for k, v in files.items() if k != name}
 
 
-def test_valid_backup_passes():
-    """A backup in the current format is accepted without raising."""
-    config_service.validate_backup(_zip(MULTI_USER))
+@pytest.mark.parametrize("ledger", ["report-Main.csv", "Report Main.csv"], ids=["current", "before-journal"])
+def test_valid_backup_passes(ledger):
+    """A backup in the current format is accepted without raising, its ledgers named as now or as before the journal.
+
+    A backup made before the journal names the ledger "Report <account>.csv";
+    it is renamed when the account is loaded.
+    """
+    files = {**_without(MULTI_USER, USER_CSV), f"users/Tester/resources/{ledger}": HEADER}
+
+    config_service.validate_backup(_zip(files))
 
 
 USER_CONFIG = "users/Tester/config.ini"
@@ -254,6 +261,9 @@ BROKEN_BACKUPS = {
                               "settings.backup.unreadable_header", {"file": USER_CSV}),
     "csv-columns-missing": (_zip({**MULTI_USER, USER_CSV: "date,account\n"}),
                             "settings.backup.missing_columns", {"file": USER_CSV, "columns": "operation, product"}),
+    # A journal this version can't read, e.g. from a newer one. A backup without journals is fine.
+    "journal-unreadable": (_zip({**MULTI_USER, "users/Tester/resources/journal-Main.json": '{"version": 2}'}),
+                           "settings.backup.invalid_journal", {"account": "Main", "username": "Tester"}),
 }
 
 

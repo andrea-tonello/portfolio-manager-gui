@@ -54,6 +54,9 @@ TABS = (
 
 # Where Home is in TABS: the app opens on it, and its app bar shows the user's name.
 HOME_TAB = [tab.view for tab in TABS].index(HomeView)
+# Where Operations and Transactions are: an operation picked in Transactions is edited in Operations.
+OPERATIONS_TAB = [tab.view for tab in TABS].index(OperationsView)
+TRANSACTIONS_TAB = [tab.view for tab in TABS].index(TransactionsView)
 
 
 def show_tab(app, selected_index: int = HOME_TAB):

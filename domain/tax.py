@@ -8,6 +8,7 @@ from the ledger.
 """
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -19,6 +20,9 @@ from domain.positions import priced_positions
 from utils.constants import DATE_FORMAT
 from utils.date_utils import DateLike
 from utils.other_utils import round_down, round_half_up
+
+if TYPE_CHECKING:  # only named in annotations: the tax rules don't need the Yahoo client loaded
+    from services.market_data import PriceBook
 
 # Rate applied to a sale's taxable gain (gain minus any carryforward used).
 # Money-market ETFs can be taxed at a different rate, typed by the user in the
@@ -53,7 +57,8 @@ def pending_fees(asset_rows: pd.DataFrame) -> float:
 
 
 def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: float, conv_rate: float,
-              fee: float, ref_date: date, product: str, ticker: str, fee_mode: str = "abp") -> dict:
+              fee: float, ref_date: date, product: str, ticker: str, fee_mode: str = "abp",
+              prices: "PriceBook | None" = None) -> dict:
     """Work out a buy's effect: the asset's new quantity and average buy price, the carryforward, cash and NAV.
 
     The average buy price (abp) is what each unit held cost on average; a later
@@ -71,6 +76,9 @@ def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: 
       aside in pending_fees rather than added to the carryforward now. It
       enters the carryforward with the next sale of the ETF at a gain (see
       sell_asset), so it expires later. Some brokers do this, e.g. Fineco.
+
+    `prices`, when given, values the other assets held without asking Yahoo
+    (see priced_positions).
 
     Example: holding 10 units at an abp of 100, buying 10 more at 110 with a
     2 EUR fee gives 20 units at an abp of 105.10 ((1000 + 1100 + 2) / 20) in
@@ -113,7 +121,7 @@ def buy_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: 
         pending += fee
 
     current_liq = float(df["cash_held"].iloc[-1]) - round_half_up(round_half_up(quantity * price) * conv_rate) - fee
-    positions = priced_positions(df, ref_date, exclude_ticker=ticker)
+    positions = priced_positions(df, ref_date, exclude_ticker=ticker, prices=prices)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price_eur)
 
     return {
@@ -197,7 +205,8 @@ def compute_carryforward(df: pd.DataFrame, ref_date: DateLike, as_of_index: int 
 
 def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price: float, conv_rate: float,
                fee: float, ref_date: date, product: str, ticker: str,
-               tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp") -> dict:
+               tax_rate: float = DEFAULT_CAPITAL_GAINS_TAX_RATE, fee_mode: str = "abp",
+               prices: "PriceBook | None" = None) -> dict:
     """Work out a sale's effect: its gain or loss, the tax, the carryforward, what is left held, cash and NAV.
 
     The gain is what the sale brings in (minus its fee, except in "loss" mode)
@@ -215,6 +224,8 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
       mode); a sale at a loss leaves them pending. Cash still goes down by the fee.
     - Selling every unit drops the pending purchase fees still left.
     Raises ValidationError when nothing, or less than `quantity`, is held.
+    `prices`, when given, values the other assets held without asking Yahoo
+    (see priced_positions).
 
     Example: selling 5 units with an abp of 100 at 130 with a 2 EUR fee brings
     in 648 against a cost of 500: a 148 EUR gain. A stock with 30 EUR in the
@@ -283,7 +294,7 @@ def sell_asset(df: pd.DataFrame, asset_rows: pd.DataFrame, quantity: int, price:
         pending = 0
 
     current_liq = float(df["cash_held"].iloc[-1]) + proceeds - fee - round_half_up(tax)
-    positions = priced_positions(df, ref_date, exclude_ticker=ticker)
+    positions = priced_positions(df, ref_date, exclude_ticker=ticker, prices=prices)
     asset_value = sum(pos["value"] for pos in positions) + (current_qt * price * conv_rate)
 
     return {

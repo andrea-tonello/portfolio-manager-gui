@@ -72,7 +72,7 @@ def test_a_missing_close_of_one_ticker_does_not_move_the_others(monkeypatch, eee
     """
     days = pd.to_datetime(["2024-01-08", "2024-01-09", "2024-01-10"])
     closes = pd.DataFrame({"AAA.MI": [100.0, 101.0, 102.0], "EEE.MI": eee_closes}, index=days)
-    monkeypatch.setattr(market_data, "download_close", lambda *args, **kwargs: (closes, {}))
+    monkeypatch.setattr(market_data, "download_closes", lambda *args, **kwargs: (closes, closes, {}))
 
     positions = priced_positions(LEDGER, date(2024, 1, 10))
 

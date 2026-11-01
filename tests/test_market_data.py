@@ -12,7 +12,7 @@ import pytest
 from domain.errors import TickerNotFound
 from services import market_data
 from services.market_data import (
-    download_close, download_prices_eur, fetch_quotes, fetch_sector_weights, fetch_splits, search_tickers,
+    PriceBook, download_close, download_prices_eur, fetch_quotes, fetch_sector_weights, fetch_splits, search_tickers,
 )
 
 # Shaped like Yahoo's search response, trimmed to the fields search_tickers reads.
@@ -229,6 +229,96 @@ def test_no_prices_gives_an_empty_dataframe(closes, tickers):
     assert isinstance(prices, pd.DataFrame) and prices.empty
     if not tickers:
         assert closes["_calls"] == []
+
+
+# ── PriceBook ────────────────────────────────────────────────────────
+# Thursday 4 to Tuesday 9 January 2024. AAA.MI splits 2:1 on Tuesday, so its
+# adjusted closes before it are halved; BBB.MI has no close on Friday.
+
+BOOK_DAYS = pd.to_datetime(["2024-01-04", "2024-01-05", "2024-01-08", "2024-01-09"])
+
+
+@pytest.fixture
+def book():
+    """A PriceBook holding the closes, adjusted closes and USD->EUR rates of BOOK_DAYS."""
+    closes = pd.DataFrame({"AAA.MI": [10, 11, 12, 6.2], "BBB.MI": [20, None, 21, 22]}, index=BOOK_DAYS)
+    adjusted = pd.DataFrame({"AAA.MI": [5, 5.5, 6, 6.2], "BBB.MI": [20, None, 21, 22]}, index=BOOK_DAYS)
+    rates = pd.Series([0.90, 0.91, 0.92, 0.93], index=BOOK_DAYS)
+    return PriceBook(closes, adjusted, {"AAA.MI": "Alpha SpA"}, rates)
+
+
+@pytest.mark.parametrize("day, aaa, bbb, rate", [
+    ("2024-01-05", 11, 20, 0.91),   # Friday: BBB.MI has no close, its own last is Thursday's
+    ("2024-01-07", 11, 20, 0.91),   # Sunday: Friday's
+    ("2024-01-08", 12, 21, 0.92),   # Monday: the day's own
+])
+def test_a_price_book_gives_each_days_last_close_and_rate(book, day, aaa, bbb, rate):
+    """Each lookup takes the last value on or before the day, each ticker its own: a row is valued at its day's prices."""
+    day = pd.Timestamp(day)
+
+    assert (book.close("AAA.MI", day), book.close("BBB.MI", day), book.usd_eur(day)) == (aaa, bbb, rate)
+
+
+def test_a_price_book_is_looked_up_at_a_time_of_day():
+    """Home values the positions "now", a time with microseconds: the lookup gives that day's close and rate.
+
+    download_close stamps Yahoo's days to the second, and pandas refused to
+    search those for such a time: Home showed no values at all.
+    """
+    seconds = BOOK_DAYS.as_unit("s")
+    book = PriceBook(pd.DataFrame({"AAA.MI": [10, 11, 12, 6.2]}, index=seconds), pd.DataFrame(), {},
+                     pd.Series([0.90, 0.91, 0.92, 0.93], index=seconds))
+    now = pd.Timestamp("2024-01-08 17:20:43.123456")
+
+    assert (book.close("AAA.MI", now), book.previous_close("AAA.MI", now), book.usd_eur(now)) == (12, 11, 0.92)
+
+
+def test_a_price_books_previous_close_is_adjusted_for_a_split(book):
+    """The close before a split day is the adjusted one, so the day's change isn't the split's.
+
+    AAA.MI closes at 12 on Monday and splits 2:1 on Tuesday, closing at 6.2:
+    Tuesday's previous close is 6 (+3.3%), not 12 (-48%). On its first day,
+    with no close before, it is the day's own close.
+    """
+    assert book.previous_close("AAA.MI", pd.Timestamp("2024-01-09")) == 6
+    assert book.previous_close("AAA.MI", pd.Timestamp("2024-01-04")) == 10
+
+
+@pytest.mark.parametrize("lookup", [
+    lambda book: book.close("AAA.MI", pd.Timestamp("2024-01-20")),   # 11 days after its last close
+    lambda book: book.close("AAA.MI", pd.Timestamp("2024-01-03")),   # before its first
+    lambda book: book.close("NOPE.MI", pd.Timestamp("2024-01-08")),  # never downloaded
+    lambda book: PriceBook(pd.DataFrame(), pd.DataFrame(), {}).usd_eur(pd.Timestamp("2024-01-08")),  # no rates
+], ids=["stale", "before", "unknown", "no-rates"])
+def test_a_price_book_without_a_recent_price_raises(book, lookup):
+    """With no price in the 10 days up to the day, a lookup raises instead of valuing a row at an old price.
+
+    E.g. a ticker no longer quoted, or a row outside the days the book was
+    downloaded for. Up to 10 days old is fine: AAA.MI on 19-01 is 6.2.
+    """
+    assert book.close("AAA.MI", pd.Timestamp("2024-01-19")) == 6.2
+    with pytest.raises(LookupError):
+        lookup(book)
+
+
+@pytest.mark.parametrize("ticker, day, price", [
+    ("AAA.MI", "2024-01-25", 6.2),   # Yahoo's last close (09-01) is later than the known price (05-01)
+    ("AAA.MI", "2024-02-20", 7.0),   # the known price of 15-02 is later than Yahoo's last close
+    ("ZZZ.MI", "2024-01-25", 21.0),  # a ticker Yahoo doesn't have: its known price
+], ids=["yahoo-later", "known-later", "known-only"])
+def test_a_rebuilds_price_book_falls_back_to_the_latest_price_known(ticker, day, price):
+    """Given known prices (a rebuild's), a close missing for over 10 days is the latest price known, Yahoo's or its own.
+
+    A row valued at an old price beats an account that can't be rebuilt
+    because Yahoo lacks a price (e.g. a delisted stock). Yahoo's closes are
+    those of BOOK_DAYS, the last 6.2 on 09-01.
+    """
+    closes = pd.DataFrame({"AAA.MI": [10, 11, 12, 6.2]}, index=BOOK_DAYS)
+    known = {"AAA.MI": pd.Series([5.5, 7.0], index=pd.to_datetime(["2024-01-05", "2024-02-15"])),
+             "ZZZ.MI": pd.Series([21.0], index=pd.to_datetime(["2024-01-03"]))}
+    book = PriceBook(closes, pd.DataFrame(), {}, known=known)
+
+    assert book.close(ticker, pd.Timestamp(day)) == price
 
 
 # ── When Yahoo can't answer ──────────────────────────────────────────

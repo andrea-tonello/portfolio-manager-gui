@@ -2,12 +2,17 @@ import configparser
 import io
 import os
 import shutil
+import threading
 import zipfile
 from dataclasses import dataclass, field
 
 from domain.errors import ValidationError
-from services.account_service import report_filename
+from services.account_service import export_filename, journal_filename, ledger_filename
+from services.journal_service import journal_from_json
 from utils.constants import DEFAULT_TX_FILTER
+
+# Held while a config.ini is read, changed and written back (_update_section).
+_config_lock = threading.Lock()
 
 
 def _load_config(config_folder: str):
@@ -37,17 +42,23 @@ def _update_section(config_folder: str, section: str, values: dict[str, str], re
     section ends up holding exactly `values`, so an entry removed from a list
     (a user, a broker) disappears from the file. Creates the file if missing.
 
+    Reading, changing and writing the file is one step for every thread
+    (_config_lock): two sections written at once, e.g. the rules version
+    from a background save while Home saves its P&L mode, would otherwise
+    each write back the file without the other's change.
+
     Example: _update_section(folder, "Theme", {"mode": "dark", "color": "teal"})
     writes "[Theme]", "mode = dark", "color = teal".
     """
-    path, config = _load_config(config_folder)
-    _ensure_section(config, section)
-    if replace:
-        for option in list(config[section].keys()):
-            config.remove_option(section, option)
-    for option, value in values.items():
-        config.set(section, option, value)
-    _save_config(path, config)
+    with _config_lock:
+        path, config = _load_config(config_folder)
+        _ensure_section(config, section)
+        if replace:
+            for option in list(config[section].keys()):
+                config.remove_option(section, option)
+        for option, value in values.items():
+            config.set(section, option, value)
+        _save_config(path, config)
 
 
 def save_language(config_folder: str, lang_code: str):
@@ -156,6 +167,26 @@ def save_tx_columns(config_folder: str, visible_cols: list[str]):
     _update_section(config_folder, "Transactions", {"visible_columns": ",".join(visible_cols)})
 
 
+def save_rules_version(config_folder: str, version: int):
+    """Note in the user's config.ini the rules version (domain/rules.py) their accounts were last recalculated with."""
+    _update_section(config_folder, "Journal", {"rules_version": str(version)})
+
+
+def load_rules_version(config_folder: str) -> int:
+    """Return the rules version the user's accounts were last recalculated with (see save_rules_version).
+
+    1, the version before this number existed, when none is noted (e.g. a
+    user from before it, or a backup made before it) or the value isn't a
+    whole number (e.g. "2.0" typed by hand): the start then offers the
+    recalculation, rather than failing.
+    """
+    _, config = _load_config(config_folder)
+    try:
+        return config.getint("Journal", "rules_version", fallback=1)
+    except ValueError:
+        return 1
+
+
 def load_tx_columns(config_folder: str) -> list[str] | None:
     _, config = _load_config(config_folder)
     raw = config.get("Transactions", "visible_columns", fallback=None)
@@ -243,8 +274,12 @@ def _check_backup_contents(zf):
     """Raise a ValidationError for the first problem found in the opened backup archive `zf`.
 
     A backup holds config.ini listing [Users] and, for each user,
-    users/<name>/config.ini (with the [Brokers] accounts) and
-    users/<name>/resources/Report <account>.csv.
+    users/<name>/config.ini (with the [Brokers] accounts) and each account's
+    ledger, users/<name>/resources/report-<account>.csv, and its journal,
+    journal-<account>.json. A backup made before the journal names the
+    ledger "Report <account>.csv" (renamed when the account is loaded) and
+    has no journals (the accounts are moved to the journal after the
+    import). A journal that is there must be one this version can read.
     """
     names = zf.namelist()
 
@@ -275,9 +310,16 @@ def _check_backup_contents(zf):
             raise ValidationError("settings.backup.user_no_accounts", username=username)
         for bkey in user_config.options("Brokers"):
             broker_name = user_config.get("Brokers", bkey)
-            expected = f"users/{username}/resources/{report_filename(broker_name)}"
-            if expected not in names:
+            ledgers = {f"users/{username}/resources/{filename(broker_name)}"
+                       for filename in (ledger_filename, export_filename)}
+            if not ledgers & set(names):
                 raise ValidationError("settings.backup.missing_user_csv", account=broker_name, username=username)
+            journal = f"users/{username}/resources/{journal_filename(broker_name)}"
+            if journal in names:
+                try:
+                    journal_from_json(zf.read(journal).decode("utf-8"))
+                except ValueError:  # UnicodeDecodeError included
+                    raise ValidationError("settings.backup.invalid_journal", account=broker_name, username=username)
         csv_names = [n for n in names
                      if n.startswith(f"users/{username}/resources/") and n.endswith(".csv")]
         _check_csv_headers(zf, csv_names)
