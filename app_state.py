@@ -8,7 +8,8 @@ import flet as ft
 from domain.account import Account
 from domain.errors import ValidationError
 from domain.journal import Operation
-from services import account_service, config_service
+from domain import rules
+from services import account_service, config_service, recalculation_service
 from services.journal_service import Changes
 from services.migration_service import Migration
 from utils.translator import Translator
@@ -160,14 +161,63 @@ class AppState:
         first. Checking and saving are one step, for every thread.
         """
         with self._commit_lock:
-            if built_from is not None and any(
-                    getattr(self.accounts.get(idx), "journal", None) is not built_from.get(idx) for idx in changes):
-                raise ValidationError("journal.changed_meanwhile")
+            self._refuse_if_changed(changes, built_from)
             account_service.save_accounts(self.config_res_folder,
                                           {self.accounts[idx].name: change for idx, change in changes.items()})
             for idx, (journal, ledger) in changes.items():
                 self.accounts[idx].journal, self.accounts[idx].df = journal, ledger
             self.home_cache = None
+
+    def _refuse_if_changed(self, changes: Changes, built_from: dict[int, list[Operation] | None] | None) -> None:
+        """Raise ValidationError("journal.changed_meanwhile") if an account in `changes` has another journal than in `built_from`.
+
+        Nothing is checked without `built_from` (see commit_changes).
+        """
+        if built_from is not None and any(
+                getattr(self.accounts.get(idx), "journal", None) is not built_from.get(idx) for idx in changes):
+            raise ValidationError("journal.changed_meanwhile")
+
+    def commit_recalculation(self, changes: Changes, built_from: dict[int, list[Operation] | None] | None = None) -> None:
+        """Save every account's recalculated ledger (recalculation_service.recalculate), keeping the ledgers whose values it changed.
+
+        All are saved together, as commit_changes does (refused if another
+        change was saved meanwhile). Then each account whose values changed
+        (market values aside, see recalculation_service.differences) gets the
+        ledger it had kept as before-recalculation-<name>.csv:
+        - only then, so a save that fails leaves an earlier copy as it was;
+        - only for changed values, so a recalculation changing nothing
+          doesn't replace a copy holding the values from before a rule change.
+        A copy that can't be written is logged: the recalculation is saved.
+        Finally the accounts count as computed with the current rules (note_rules_current).
+        """
+        with self._commit_lock:
+            self._refuse_if_changed(changes, built_from)
+            replaced = {idx: self.accounts[idx].df for idx in recalculation_service.differences(self.accounts, changes)}
+            self.commit_changes(changes)
+            for idx, ledger in replaced.items():
+                try:
+                    account_service.keep_before_recalculation(self.config_res_folder, self.accounts[idx].name, ledger)
+                except OSError:
+                    logger.exception("Could not keep the ledger the recalculation replaced in %s", self.accounts[idx].name)
+            self.note_rules_current()
+
+    def rules_version(self) -> int:
+        """The rules version (domain/rules.py) the current user's accounts were last computed with in full."""
+        return config_service.load_rules_version(self.user_config_folder)
+
+    def note_rules_current(self) -> bool:
+        """Note that the current user's accounts are all computed with the app's current rules (domain/rules.py).
+
+        For once every account was rebuilt from its first operation:
+        recalculated, migrated, or new. Not when a configured account
+        couldn't be loaded: it wasn't rebuilt, so its rows may hold an older
+        version's values, and the app goes on offering the recalculation.
+        Returns whether it was noted.
+        """
+        if not set(self.brokers.values()) <= {account.name for account in self.accounts.values()}:
+            return False
+        config_service.save_rules_version(self.user_config_folder, rules.RULES_VERSION)
+        return True
 
     def commit_migration(self, migrations: dict[int, Migration]) -> bool:
         """Save the journal and rebuilt ledger of each account moved to the journal (migration_service.migrate).
@@ -178,6 +228,10 @@ class AppState:
         ledger its migration was worked out from (e.g. an operation was
         recorded meanwhile): saving would lose that change, so the
         migration must be worked out again.
+
+        A migration rebuilds its accounts with the current rules: when it
+        covers every account, they count as computed with them
+        (note_rules_current), and no recalculation is offered after it.
         """
         with self._commit_lock:
             for idx, migration in migrations.items():
@@ -187,6 +241,8 @@ class AppState:
             for idx in migrations:
                 account_service.keep_before_journal(self.config_res_folder, self.accounts[idx].name)
             self.commit_changes({idx: (migration.journal, migration.ledger) for idx, migration in migrations.items()})
+            if set(migrations) == set(self.accounts):
+                self.note_rules_current()
             return True
 
     def add_broker(self, name: str) -> int:
@@ -234,9 +290,11 @@ class AppState:
         """Add a user called `name` (spaces trimmed), make them the active user, and return their number.
 
         Creates the user's folders and loads their (still empty) settings.
-        Raises ValidationError("settings.user_mgmt.duplicate") if the name is
-        already used, ignoring capitals, since each user has a folder named
-        after them. A blank name raises ValueError; screens check for it first.
+        Their accounts will be computed with the current rules from the start
+        (domain/rules.py), which is noted. Raises
+        ValidationError("settings.user_mgmt.duplicate") if the name is already
+        used, ignoring capitals, since each user has a folder named after
+        them. A blank name raises ValueError; screens check for it first.
         """
         name = name.strip()
         if not name:
@@ -248,6 +306,7 @@ class AppState:
         config_service.save_users(self.config_folder, self.users)
         os.makedirs(config_service.get_user_res_folder(self.config_folder, name), exist_ok=True)
         self.switch_user(idx)
+        self.note_rules_current()
         return idx
 
     def switch_user(self, idx: int) -> None:

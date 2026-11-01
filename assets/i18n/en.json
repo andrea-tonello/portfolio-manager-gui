@@ -326,6 +326,20 @@
       "many": "Removing it recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
       "confirm": "Remove"
     },
+    "recalculate": {
+      "title": "Recalculate history?",
+      "explained": "Every operation of every account is recalculated with the app's current rules and today's market prices.\nThe operations themselves don't change; their taxes, Tax Carryforward, P&L and market values may.\nA copy of each account's current data is kept in the app's files (before-recalculation-<account>.csv).",
+      "confirm": "Recalculate",
+      "working": "Recalculating your history…",
+      "differences_title": "Values that change",
+      "differences_intro": "With the current rules these values change (market values aside, which are re-priced with today's data):",
+      "save": "Save",
+      "done": "History recalculated",
+      "refused": "{account} can't be recalculated: {reason}",
+      "offer_title": "Calculations updated",
+      "offer": "This version of the app calculates some values differently:",
+      "later": "Later"
+    },
     "migration": {
       "title": "Updating your accounts",
       "working": "Your accounts are moving to a new format. This happens only once.",
@@ -340,6 +354,10 @@
 
 
   "settings": {
+    "recalculate": {
+      "title": "Recalculate history",
+      "descr": "Recalculate every operation of every account with the app's current rules and today's prices, e.g. after an update that changes how taxes are calculated."
+    },
     "new_acc": "Hello, {username}.\n\nPlease add a representative alias for each of your accounts",
     "new_acc_example": "\nFor example, \"Main Account\" or \"Trading Account 2\"",
     "language": {

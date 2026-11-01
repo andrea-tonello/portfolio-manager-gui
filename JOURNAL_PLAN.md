@@ -18,7 +18,7 @@ The phases are meant to be implemented one at a time, in order. Each one ends wi
 - [x] 6. Out-of-order insertion in Operations: **the feature**
 - [x] 7. Delete any operation in Transactions
 - [x] 8. Edit any operation
-- [ ] 9. Later: recalculate all history; import broker statements
+- [ ] 9. Later: recalculate all history (done); import broker statements
 
 ---
 
@@ -571,8 +571,64 @@ Tests where a question opens use the `immediately` fixture (`conftest.py`): the 
   - the X gave up an edit, and Operations then opened normally.
 
 ### Phase 9: later
-- **Recalculate history:** a Settings action that rebuilds every ledger from its journal after a rule change. It replaces "Re-record every transaction" in TODO.md.
+- **Recalculate history (done):** see below. It replaces "Re-record every transaction" in TODO.md.
 - **Broker statement import:** parse a statement into operations with `source` / `external_id`; skip the ones already in the journal; rebuild once.
+
+### Recalculate history (phase 9, done)
+**Why:** a ledger is only rebuilt from where its journal changes, and each row's fingerprint covers its operation's values, not the code computing it. So a change to the rules (a tax fix, the carryforward's expiry) never reaches rows already computed. Recalculating rebuilds every ledger from its first operation with the current rules.
+
+- **`services/recalculation_service.py`:**
+  - `recalculate(accounts) -> Changes` rebuilds every account with a journal (`rebuild(name, journal, prices=…)`), its journal unchanged;
+  - **one price download** for all accounts over their whole history (`_prices`), through `domain/journal.prices_for(operations, assets, start, end)`, which `rebuild` uses too. The trades' own prices are its known prices;
+  - offline, `PricesUnavailable`; an operation the current rules refuse raises `RecalculationError` ("Test Broker can't be recalculated: The sale of … would no longer be possible: …"), and nothing is saved;
+  - accounts not migrated yet are left out: their migration rebuilds them with the current rules anyway.
+  - `differences(accounts, changes)` lists, by account, the values that change, matching rows by `op_id` (`migration_service.row_differences`, shared with the migration). Valuations aren't compared: they are re-priced with today's data anyway (decision 7).
+- **`AppState.commit_recalculation(changes, built_from)`:**
+  - saves all accounts together, refused if another change was saved meanwhile (checked once, under the commit lock);
+  - **then keeps the ledger each account had** as `before-recalculation-<account>.csv` (`account_service.keep_before_recalculation`; `delete_account_files` deletes it too):
+    - the ledger in memory, the one actually replaced, not the file, which may be older;
+    - only after the save, so a failed save leaves an earlier copy as it was;
+    - only for accounts whose values changed, so a recalculation changing nothing doesn't replace a copy holding the values from before a rule change;
+    - a copy that can't be written is logged, the recalculation staying saved;
+  - notes the current rules (`note_rules_current`).
+- **`AppState.note_rules_current()`** is the one place noting that the user's accounts are computed with the current rules. It does nothing while a configured account couldn't be loaded: that account wasn't rebuilt. Four callers:
+  - a recalculation;
+  - a migration covering every account (`commit_migration`): it rebuilt them all, so no recalculation is offered right after it;
+  - a new user (`add_user`);
+  - the offer, for a user without operations.
+- Everything reads the version as `domain.rules.RULES_VERSION` (`from domain import rules`), so a test changes it in one place.
+- **`components/recalculation.py`**, through `change_accounts`:
+  - **Settings** has a "Recalculate history" section. Its button asks first, saying what the recalculation does ("…The operations themselves don't change; their taxes, Tax Carryforward, P&L and market values may…"). Then a dialog says it is under way (`components/dialogs.working_dialog`, shared with the migration), and the values that change are listed (`differences_text`, shared with the migration) before saving. With none, it saves at once: "History recalculated".
+  - `change_accounts` gained `question` as a function of the changes worked out, and `commit` (here `commit_recalculation`). `ask` gained a Markdown text and a `cancel_label`.
+
+**The rules version** (`domain/rules.py`):
+- **The constants:** `RULES_VERSION`, now 1, and `RULES_CHANGES = {version: locale key}`, each key a sentence saying what that version changed (under "rules" in the locales).
+- **When to bump it:** whenever a change to newrow, tax, positions or `apply` gives a row different values for the same operations, raise `RULES_VERSION` and describe the change. Changes moving only market values don't need it.
+- **Where it's noted:** each user's config.ini, `[Journal] rules_version` (`config_service.save_rules_version` / `load_rules_version`), meaning the version the user's accounts were last computed with in full. With none noted it is 1, the version before the number existed, so existing users and old backups get no offer now.
+  - A value that isn't a whole number (e.g. "2.0" typed by hand) reads as 1: the recalculation is offered, rather than the start failing.
+  - A new user (`AppState.add_user`) starts with the current version noted.
+  - A user without operations gets it noted at once, without asking.
+  - **Config writes share a lock** (`config_service._config_lock` in `_update_section`). Without it, the version written from a background save and a setting written from the screen (e.g. Home's P&L mode) could each write back the file without the other.
+- **At start** (`AppController._show_home` → `offer_recalculation`): when the noted version is older, a dialog over Home lists what changed since and offers to recalculate ("Calculations updated", with Later and Recalculate).
+  - Its texts are plain, keeping their line breaks; only the list of changes is Markdown.
+  - Later asks again at the next start.
+  - Accepted while another change is under way, it says so and is offered again, instead of being dropped until the next start.
+
+**Tests** (`test_recalculation.py`). A value "computed by older rules" is a stored one changed by hand, its fingerprint still matching:
+- every account is rebuilt with one price download, and only the changed tax is listed;
+- a refused operation names its account;
+- saving keeps the ledger it replaced, the one in memory, and notes the version, but not while an account couldn't be loaded;
+- the copy is only replaced by a saved recalculation that changed values, not by one changing nothing or failing;
+- Settings asks, shows the working dialog, lists the change and saves;
+- at start the offer lists what changed, Later keeps the old version, and Recalculate notes the new one and offers nothing more;
+- an offer accepted while another change saves comes back;
+- nothing is offered to a user without operations (unless an account couldn't be loaded), nor to a new user;
+- a version that isn't a whole number reads as 1;
+- a migration of every account notes the current rules (`test_migration.py`).
+
+**Checked in the app** (web, on a copy of `portfolio_backup_23-10-2026.zip`):
+- **From Settings:** the section, the question, the working dialog. Nothing changed, the ledgers being current, so it saved at once, wrote both `before-recalculation-*.csv`, and noted `rules_version = 1`.
+- **At start**, with the copy's noted version set to 0: the offer appeared over Home, and Recalculate noted version 1.
 
 ---
 

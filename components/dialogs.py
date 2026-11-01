@@ -21,6 +21,19 @@ def close_dialog(page: ft.Page, dialog: ft.AlertDialog) -> None:
     page.update()
 
 
+def working_dialog(text: str, title: str | None = None) -> ft.AlertDialog:
+    """Return a dialog saying that `text` is under way, with a spinner: it can't be dismissed, the work closes it.
+
+    E.g. while the accounts move to the journal, or the history is recalculated.
+    Show it with page.show_dialog, close it with close_dialog.
+    """
+    return ft.AlertDialog(
+        modal=True,
+        title=ft.Text(title) if title else None,
+        content=ft.Row([ft.ProgressRing(width=24, height=24), ft.Text(text, expand=True)], spacing=16, tight=True),
+    )
+
+
 def show_info_dialog(page: ft.Page, title, body, *, markdown=False, height=None, title_size=None, actions=None,
                      md_style_sheet=None):
     """Show a read-only dialog: a title, an explanation and an OK button that closes it.

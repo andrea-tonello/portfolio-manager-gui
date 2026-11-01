@@ -5,6 +5,7 @@ from components.backup_import import import_backup
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
 from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field
+from components.recalculation import recalculate_history
 from components.snack import error_message, show_snack
 from components.theme import PALETTE_COLORS, THEME_MODES, apply_theme
 from domain.errors import ValidationError
@@ -34,6 +35,8 @@ class SettingsView:
                 self._build_language_section(),
                 ft.Container(ft.Divider(), width=850),
                 self._build_backup_section(),
+                ft.Container(ft.Divider(), width=850),
+                self._build_recalculate_section(),
                 ft.Container(ft.Divider(), width=850),
                 self._build_reset_section(),
                 ft.Container(ft.Divider(), width=850),
@@ -274,6 +277,23 @@ class SettingsView:
     async def _on_import_backup(self, e):
         """Restore a backup chosen by the user (see components.backup_import)."""
         await import_backup(self.app, self.file_picker)
+
+    # ── Recalculate history ───────────────────────────────────────────
+
+    def _build_recalculate_section(self) -> ft.Control:
+        """The section recalculating every account's history with the app's current rules (components.recalculation)."""
+        t = self.state.translator
+        button = action_card_btn(ft.Icons.CALCULATE, t.get("journal.recalculate.confirm"),
+                                 lambda _: recalculate_history(self.app), expand=True)
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(t.get("settings.recalculate.title"), size=16, weight=ft.FontWeight.BOLD),
+                ft.Text(t.get("settings.recalculate.descr"), size=12),
+                ft.Row([button]),
+            ], spacing=10),
+            padding=20,
+            width=PAGE_WIDTH,
+        )
 
     # ── Reset ─────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@ import flet as ft
 
 from app_state import AppState
 from components.journal_migration import migrate_accounts, needs_migration
+from components.recalculation import offer_recalculation
 from components.theme import apply_theme
 from components.update_check import check_for_update
 from views import onboarding_view, shell
@@ -84,8 +85,13 @@ class AppController:
             self._show_home()
 
     def _show_home(self) -> None:
-        """Show Home, the first screen once set up, and once per launch look for a newer release."""
+        """Show Home, the first screen once set up, and once per launch look for a newer release.
+
+        Then offer to recalculate the history if the user's accounts were
+        last recalculated with older rules (components.recalculation).
+        """
         self.show_tab(shell.HOME_TAB)
+        offer_recalculation(self)
         # Once per launch, on reaching Home: not during the setup, nor again on
         # later restarts (e.g. switching user).
         if not self.checked_for_update:

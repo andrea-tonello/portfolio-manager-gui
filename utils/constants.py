@@ -12,6 +12,9 @@ JOURNAL_PREFIX = "journal-"
 LEDGER_PREFIX = "report-"
 # A copy of an account's ledger as it was before the journal: before-journal-<account>.csv.
 BEFORE_JOURNAL_PREFIX = "before-journal-"
+# A copy of an account's ledger as it was before the last recalculation of its history:
+# before-recalculation-<account>.csv.
+BEFORE_RECALCULATION_PREFIX = "before-recalculation-"
 # The CSVs the user exports from Transactions: "Report <account>.csv" and "Report All Accounts.csv".
 # Ledgers were saved under this name too, before the journal.
 REPORT_PREFIX = "Report "

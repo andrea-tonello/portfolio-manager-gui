@@ -331,6 +331,20 @@ def trade_prices(trades: list[tuple[str, date, float]]) -> dict[str, pd.Series]:
     return {ticker: pd.Series(prices, dtype=float).sort_index() for ticker, prices in by_ticker.items()}
 
 
+def prices_for(operations: list[Operation], assets: list[tuple[str, str]], start: date, end: date) -> PriceBook:
+    """Download once the prices that valuing rows from `start` to `end` holding `assets` needs: a rebuild's.
+
+    `assets` are (ticker, currency) pairs. The trade prices of `operations`
+    are the book's known prices: an asset Yahoo no longer has is valued at
+    the latest of them (see PriceBook.close). With no asset nothing is
+    downloaded. Used by rebuild, and by the recalculation of every account
+    at once. Example: prices_for(journal, [("AAA.MI", "EUR")], date(2024, 1, 2),
+    date(2024, 9, 2)) -> a book of AAA.MI's closes, AAA.MI's own trades known.
+    """
+    known = trade_prices([(op.ticker, op.date, op.price) for op in operations if op.kind in (Kind.BUY, Kind.SELL)])
+    return PriceBook.download(assets, start=start, end=end, known=known)
+
+
 def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | None = None,
             from_index: int = 0, prices: PriceBook | None = None) -> pd.DataFrame:
     """Return the ledger of the account `broker`, built from its journal `operations` in order of (date, seq).
@@ -359,9 +373,7 @@ def rebuild(broker: str, operations: list[Operation], ledger: pd.DataFrame | Non
     df = opening_ledger(broker) if ledger is None else ledger.iloc[:from_index + 1]
     to_build = sorted(operations, key=sort_key)[from_index:]
     if prices is None and to_build:
-        known = trade_prices([(op.ticker, op.date, op.price) for op in operations if op.kind in (Kind.BUY, Kind.SELL)])
-        prices = PriceBook.download(_assets_to_value(df, to_build), start=to_build[0].date, end=to_build[-1].date,
-                                    known=known)
+        prices = prices_for(operations, _assets_to_value(df, to_build), start=to_build[0].date, end=to_build[-1].date)
     for op in to_build:
         try:
             df = apply(df, op, broker, prices)

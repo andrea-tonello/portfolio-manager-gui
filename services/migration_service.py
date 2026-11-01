@@ -332,10 +332,9 @@ def _prices(accounts: list[Account]) -> PriceBook:
         days += list(pd.to_datetime(rows["date"], format=DATE_FORMAT))
         trades += [(ticker, datetime.strptime(day, DATE_FORMAT).date(), abs(float(price)))
                    for ticker, day, price in zip(traded["ticker"], traded["date"], traded["price"])]
-    known = trade_prices(trades)
-    if not assets:
-        return PriceBook(pd.DataFrame(), pd.DataFrame(), {}, known=known)
-    return PriceBook.download(list(assets), start=min(days), end=max(days), known=known)
+    if not days:  # no operation at all: no row to value
+        return PriceBook(pd.DataFrame(), pd.DataFrame(), {})
+    return PriceBook.download(list(assets), start=min(days), end=max(days), known=trade_prices(trades))
 
 
 def _with_fee_mode(account: Account, position: int, op: Operation, prices: PriceBook) -> Operation:
@@ -403,10 +402,22 @@ def _differences(before: pd.DataFrame, after: pd.DataFrame, journal: list[Operat
     differences = []
     for new_position in range(1, len(after)):
         new = after.iloc[new_position]
-        old = before.iloc[position_of[new[OP_ID]]]
-        for column in COLUMNS:
-            meant = column in _EMPTY_MEANT and pd.isna(old[column]) and _same(_EMPTY_MEANT[column], new[column])
-            if column not in _VALUATIONS and not meant and not _same(old[column], new[column]):
-                differences.append(Difference(old["date"], old["operation"], _text(old, "ticker") or "",
-                                              column, old[column], new[column]))
+        differences += row_differences(before.iloc[position_of[new[OP_ID]]], new)
+    return differences
+
+
+def row_differences(old: pd.Series, new: pd.Series) -> list[Difference]:
+    """Return the values of the rebuilt ledger row `new` that differ from those of the row `old` it replaces.
+
+    The valuations aren't compared: they depend on Yahoo's data of the day.
+    An empty cell of a column added later counts as the value it meant
+    (_EMPTY_MEANT). Example: a buy whose net amount went from -3901.25 to
+    -3901.26 -> [Difference("05-03-2025", "Buy", "ISP.MI", "effective_amount", -3901.25, -3901.26)].
+    """
+    differences = []
+    for column in COLUMNS:
+        meant = column in _EMPTY_MEANT and pd.isna(old[column]) and _same(_EMPTY_MEANT[column], new[column])
+        if column not in _VALUATIONS and not meant and not _same(old[column], new[column]):
+            differences.append(Difference(old["date"], old["operation"], _text(old, "ticker") or "",
+                                          column, old[column], new[column]))
     return differences

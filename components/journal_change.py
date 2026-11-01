@@ -11,7 +11,7 @@ from components.dialogs import close_dialog
 from components.snack import show_snack
 
 
-def change_accounts(app, work_out, *, question=None, saved_message, then=None, loading=None):
+def change_accounts(app, work_out, *, question=None, saved_message, then=None, loading=None, commit=None):
     """Work out a change of the accounts in the background with `work_out`, then save it, asking first with `question`.
 
     `work_out` returns journal_service's changes (record, delete or edit),
@@ -21,9 +21,12 @@ def change_accounts(app, work_out, *, question=None, saved_message, then=None, l
     operation's it makes impossible) is shown instead, in a red snack.
 
     `question` is (title, text, confirm label), e.g. naming the operations
-    that will be recalculated, or None to save at once; Cancel saves
-    nothing. Once saved, `saved_message` is shown and `then` runs
-    (app.refresh when not given). `loading` is the spinner to show meanwhile.
+    that will be recalculated; or a function of the changes worked out
+    returning one or None (e.g. listing the values they change); or None to
+    save at once. Cancel saves nothing. `commit(changes, built_from)` saves
+    them: AppState.commit_changes when not given. Once saved,
+    `saved_message` is shown and `then` runs (app.refresh when not given).
+    `loading` is the spinner to show meanwhile.
 
     One change at a time (AppState.changing), from the tap until it is
     saved, refused or cancelled: another one meanwhile isn't made, and the
@@ -56,7 +59,7 @@ def change_accounts(app, work_out, *, question=None, saved_message, then=None, l
 
     def save(changes, built_from):
         """Save the changes, say so, and go on with `then`."""
-        state.commit_changes(changes, built_from=built_from)
+        (commit or state.commit_changes)(changes, built_from)
         show_snack(page, saved_message)
         (then or app.refresh)()
 
@@ -66,22 +69,25 @@ def change_accounts(app, work_out, *, question=None, saved_message, then=None, l
         changes = work_out()
         if changes is None:
             return False
-        if question is None:
+        asked = question(changes) if callable(question) else question
+        if asked is None:
             save(changes, built_from)
             return False
-        ask(page, t, question, on_confirm=lambda: in_background(lambda: save(changes, built_from)), on_cancel=end)
+        ask(page, t, asked, on_confirm=lambda: in_background(lambda: save(changes, built_from)), on_cancel=end)
         return True
 
     in_background(work_out_and_save)
 
 
-def ask(page, translator, question, on_confirm, on_cancel):
+def ask(page, translator, question, on_confirm, on_cancel, cancel_label=None):
     """Show `question`, a (title, text, confirm label), with Cancel: `on_confirm` or `on_cancel` runs, once.
 
-    It may be called from a background thread: the dialog is opened on the
-    event loop (page.run_task), as Flet needs. Dismissing it without an
-    answer (e.g. Android's back button) cancels. It is closed by reference,
-    since another dialog may have opened above it.
+    The text is plain, or Markdown when it is given as ft.Markdown (e.g. a
+    list); a long one scrolls. `cancel_label` replaces "Cancel", e.g. with
+    "Later". It may be called from a background thread: the dialog is
+    opened on the event loop (page.run_task), as Flet needs. Dismissing it
+    without an answer (e.g. Android's back button) cancels. It is closed by
+    reference, since another dialog may have opened above it.
     """
     title, text, confirm_label = question
     answered = False
@@ -97,12 +103,14 @@ def ask(page, translator, question, on_confirm, on_cancel):
 
     dialog = ft.AlertDialog(
         title=ft.Text(title),
-        content=ft.Text(text),
+        content=ft.Container(text, width=450) if isinstance(text, ft.Control) else ft.Text(text),
         actions=[
-            ft.TextButton(translator.get("components.cancel"), on_click=lambda _: answer(on_cancel)),
+            ft.TextButton(cancel_label or translator.get("components.cancel"), on_click=lambda _: answer(on_cancel)),
             ft.TextButton(confirm_label, on_click=lambda _: answer(on_confirm)),
         ],
         on_dismiss=lambda _: answer(on_cancel),
+        # The dialog scrolls, not a Column inside it: in Flet 1.0 a scrolling Column stretches the dialog.
+        scrollable=True,
     )
 
     async def show():

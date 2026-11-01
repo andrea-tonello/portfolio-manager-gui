@@ -15,7 +15,7 @@ import logging
 
 import flet as ft
 
-from components.dialogs import close_dialog, show_info_dialog
+from components.dialogs import close_dialog, show_info_dialog, working_dialog
 from components.snack import error_message, show_snack
 from services import migration_service
 from utils.columns import export_headers, localized_value_maps
@@ -37,12 +37,7 @@ def migrate_accounts(app, then) -> None:
     `then` shows what comes next (Home), whether the migration succeeded or not.
     """
     state, page, t = app.state, app.page, app.state.translator
-    working = ft.AlertDialog(
-        modal=True,
-        title=ft.Text(t.get("journal.migration.title")),
-        content=ft.Row([ft.ProgressRing(width=24, height=24), ft.Text(t.get("journal.migration.working"), expand=True)],
-                       spacing=16, tight=True),
-    )
+    working = working_dialog(t.get("journal.migration.working"), title=t.get("journal.migration.title"))
     page.show_dialog(working)
 
     def worker():
@@ -94,24 +89,26 @@ def _save(app, migrations, then, again) -> None:
     then()
 
 
-def differences_text(state, migrations) -> str:
-    """Return, as Markdown, the values that differ in each migrated account, in the user's language.
+def differences_text(state, differences, intro_key="journal.migration.differences_intro") -> str:
+    """Return, as Markdown, the values that differ in each account, in the user's language, after the text `intro_key`.
 
+    `differences` are the Difference lists by account number: a migration's
+    (migration_service), or a recalculation's (recalculation_service).
     Example: "**Fineco**\n- 05-03-2025 · Buy ISP.MI · Eff. Value: -3901.25 → -3901.26".
     At most _SHOWN_DIFFERENCES per account, then how many more, as a line of its own.
     """
     t = state.translator
     headers, operations = export_headers(t), localized_value_maps(t)["operation"]
-    parts = [t.get("journal.migration.differences_intro")]
-    for idx, migration in migrations.items():
-        if not migration.differences:
+    parts = [t.get(intro_key)]
+    for idx, account_differences in differences.items():
+        if not account_differences:
             continue
         lines = [f"**{state.accounts[idx].name}**"]
-        for d in migration.differences[:_SHOWN_DIFFERENCES]:
+        for d in account_differences[:_SHOWN_DIFFERENCES]:
             what = " ".join(filter(None, [operations.get(d.operation, d.operation), d.ticker]))
             lines.append(f"- {d.date} · {what} · {headers[d.column]}: {_shown(d.before)} → {_shown(d.after)}")
         part = "\n".join(lines)
-        hidden = len(migration.differences) - _SHOWN_DIFFERENCES
+        hidden = len(account_differences) - _SHOWN_DIFFERENCES
         if hidden > 0:  # a paragraph of its own: right after the list, it would join its last line
             part += "\n\n" + t.get("journal.migration.more", count=hidden)
         parts.append(part)
@@ -131,7 +128,8 @@ def _show_differences(app, migrations, then, again) -> None:
     dialog = ft.AlertDialog(
         modal=True,
         title=ft.Text(t.get("journal.migration.differences_title")),
-        content=ft.Container(ft.Markdown(differences_text(app.state, migrations)), width=450),
+        content=ft.Container(ft.Markdown(differences_text(
+            app.state, {idx: migration.differences for idx, migration in migrations.items()})), width=450),
         scrollable=True,
     )
 

@@ -326,6 +326,20 @@
       "many": "La rimozione ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
       "confirm": "Rimuovi"
     },
+    "recalculate": {
+      "title": "Ricalcolare lo storico?",
+      "explained": "Ogni operazione di ogni conto viene ricalcolata con calcoli aggiornati e i prezzi di mercato di oggi.\nLe operazioni restano le stesse; possono cambiare imposte, Zainetto Fiscale, P&L e valori di mercato.\nUna copia dei dati attuali di ogni conto viene conservata nei file dell'app (before-recalculation-<conto>.csv).",
+      "confirm": "Ricalcola",
+      "working": "Ricalcolo dello storico in corso…",
+      "differences_title": "Valori che cambiano",
+      "differences_intro": "Con le regole attuali cambiano questi valori (a parte i valori di mercato, rivalutati con i dati di oggi):",
+      "save": "Salva",
+      "done": "Storico ricalcolato",
+      "refused": "Impossibile ricalcolare {account}: {reason}",
+      "offer_title": "Calcoli aggiornati",
+      "offer": "Questa versione dell'app calcola alcuni valori in modo diverso:",
+      "later": "Più tardi"
+    },
     "migration": {
       "title": "Aggiornamento dei conti",
       "working": "I tuoi conti passano a un nuovo formato. Succede una volta sola.",
@@ -340,6 +354,10 @@
 
 
   "settings": {
+    "recalculate": {
+      "title": "Ricalcola lo storico",
+      "descr": "Ricalcola ogni operazione di ogni conto con le regole attuali dell'app e i prezzi di oggi, ad esempio dopo un aggiornamento che cambia il calcolo delle imposte."
+    },
     "new_acc": "Ciao, {username}.\n\nSi prega di aggiungere un alias per ciascuno dei propri conti",
     "new_acc_example": "\nAd esempio, \"Fineco\" o \"Conto Intesa 1\"",
     "language": {

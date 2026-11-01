@@ -18,13 +18,14 @@ from test_ledger_snapshots import (BROKER, NAMES, SCENARIOS, STOCKS_EUR, _replay
                                    withdrawal)
 
 from components.journal_migration import differences_text, migrate_accounts
+from domain import rules
 from domain.account import Account
 from domain.journal import Operation, operation_to_dict
 from domain.ledger import Op, Product
 from domain.newrow import newrow_cash, newrow_split
 from domain.positions import unrecorded_splits
-from services import account_service, migration_service
-from services.migration_service import Difference, Migration, migrate
+from services import account_service, config_service, migration_service
+from services.migration_service import Difference, migrate
 
 
 def legacy_account(idx, name, ledger, folder):
@@ -269,12 +270,25 @@ def test_a_migration_isnt_saved_over_an_account_changed_meanwhile(legacy_state, 
     assert not os.path.exists(account_service.journal_path(state.config_res_folder, BROKER))
 
 
+def test_a_migration_of_every_account_notes_the_current_rules(legacy_state, monkeypatch):
+    """The migration rebuilds every row with the current rules: no recalculation is offered right after it.
+
+    E.g. a user from before the journal updating to an app whose rules
+    version is 2 would otherwise be asked to recalculate a history just rebuilt.
+    """
+    monkeypatch.setattr(rules, "RULES_VERSION", 2)
+    state = legacy_state()
+
+    assert state.commit_migration(migrated(state.accounts)) is True
+
+    assert config_service.load_rules_version(state.user_config_folder) == 2
+
+
 def test_more_differences_than_shown_are_counted_on_a_line_of_their_own(state):
     """Past the first 10 of an account's differences, "…and N more" is a paragraph of its own, not part of the 10th."""
     differences = [Difference("03-01-2024", "Buy", "AAA.MI", "fee", 1.0, 2.0)] * 12
-    migration = Migration(journal=[], ledger=None, differences=differences, source=None)
 
-    text = differences_text(state, {1: migration})
+    text = differences_text(state, {1: differences})
 
     assert text.endswith("→ 2.0\n\n…and 2 more")
 

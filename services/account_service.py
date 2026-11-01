@@ -28,7 +28,9 @@ from domain.journal import Operation, rebuild, rows_up_to_date
 from domain.ledger import opening_ledger
 from services.journal_service import journal_to_json, read_journal
 from utils.columns import COLUMNS, INTERNAL_COLUMNS
-from utils.constants import BEFORE_JOURNAL_PREFIX, JOURNAL_PREFIX, LEDGER_PREFIX, REPORT_PREFIX
+from utils.constants import (
+    BEFORE_JOURNAL_PREFIX, BEFORE_RECALCULATION_PREFIX, JOURNAL_PREFIX, LEDGER_PREFIX, REPORT_PREFIX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,29 @@ def keep_before_journal(folder: str, broker_name: str) -> None:
     copy = before_journal_path(folder, broker_name)
     with _save_lock:
         shutil.copyfile(ledger_path(folder, broker_name), copy + _TEMPORARY)
+        os.replace(copy + _TEMPORARY, copy)
+
+
+def before_recalculation_path(folder: str, broker_name: str) -> str:
+    """Return where an account's ledger from before its last recalculation is kept, e.g. <folder>/before-recalculation-Fineco.csv.
+
+    A copy kept for safety, as the before-journal one: the values a
+    recalculation of the history replaced (see keep_before_recalculation).
+    """
+    return os.path.join(folder, f"{BEFORE_RECALCULATION_PREFIX}{broker_name}.csv")
+
+
+def keep_before_recalculation(folder: str, broker_name: str, ledger: pd.DataFrame) -> None:
+    """Write `ledger`, the account's ledger a recalculation replaced, as its before-recalculation file.
+
+    The ledger in memory, not the file: that may be older (e.g. a ledger
+    rebuilt at load that couldn't be saved). It replaces the copy of an
+    earlier recalculation, through a temporary file, so a stop halfway
+    leaves no partial copy.
+    """
+    copy = before_recalculation_path(folder, broker_name)
+    with _save_lock:
+        _write_fully(copy + _TEMPORARY, ledger.to_csv(index=False))
         os.replace(copy + _TEMPORARY, copy)
 
 
@@ -291,9 +316,12 @@ def finish_interrupted_save(folder: str) -> None:
 
 
 def delete_account_files(broker_name: str, save_folder: str):
-    """Delete the files of the account `broker_name`: its ledger, its journal, and its ledger from before the journal."""
+    """Delete the files of the account `broker_name`: its ledger, its journal, and the copies of its earlier ledgers.
+
+    Those are the ledger from before the journal and the one from before its last recalculation.
+    """
     with _save_lock:
         for path in (ledger_path(save_folder, broker_name), journal_path(save_folder, broker_name),
-                     before_journal_path(save_folder, broker_name)):
+                     before_journal_path(save_folder, broker_name), before_recalculation_path(save_folder, broker_name)):
             if os.path.exists(path):
                 os.remove(path)
