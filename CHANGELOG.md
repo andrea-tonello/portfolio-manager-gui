@@ -1,3 +1,13 @@
+## [0.5.0] (2026-XX-XX)
+
+### Features
+
+- **Edit or Delete** any transaction you have previously added
+- Chronological insertion of new transactions is **not mandatory anymore**. Add any transaction wherever you want: the history will be recomputed automatically
+- *Settings → Recalculate history*: an option to recompute every saved transaction using the most current logic (to be used in case of, e.g., taxation changes in Italian laws)
+
+
+
 ## [0.4.7] (2026-10-27)
 
 ### Features

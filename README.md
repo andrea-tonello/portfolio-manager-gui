@@ -84,7 +84,7 @@ Realizzata con [Flet](https://flet.dev/), è pensata principalmente per uso mobi
 Quattro schermate principali:
 
 - **HOME**: Panoramica conto, posizioni aperte, watchlist
-- **OPERAZIONI**: Inserimento di nuove transazioni, supporto EUR/USD. Le transazioni vengono salvate automaticamente ad ogni inserimento.
+- **OPERAZIONI**: Inserimento di nuove transazioni, supporto EUR/USD. Le transazioni vengono salvate automaticamente all'aggiunta e possono essere modificate in seguito in ogni momento dalla schermata *Transazioni* 
     - *Liquidità* (depositi, prelievi, trasferimenti tra conti, dividendi, imposte)
     - *ETF Azionari, ETF Monetari* (acquisto/vendita) 
     - *Azioni* (acquisto/vendita)
@@ -95,7 +95,7 @@ Quattro schermate principali:
     - *Correlazione*: correlazione semplice tra asset in portafoglio e correlazione rolling tra due asset selezionati
     - *Drawdown*: calcolo e grafico del drawdown del portafoglio
     - *Value at Risk*: simulazione Monte Carlo su serie storiche con intervallo di confidenza e orizzonte temporale personalizzabili
-- **TRANSAZIONI**: storico delle transazioni filtrabile + esportazione in tabella CSV. È presente un tasto Info con informazioni riguardo le colonne del report CSV.
+- **TRANSAZIONI**: storico delle transazioni filtrabile + esportazione in tabella CSV. Cliccando su una qualsiasi transazione, **è possibile modificarla o eliminarla**. È presente un tasto Info con informazioni riguardo le colonne del report CSV.
 
 
 ## Backups
@@ -140,7 +140,6 @@ pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "p
 
 ## Note
 
-- L'inserimento delle transazioni è esclusivamente sequenziale (cronologico)
 - Il software è pensato per uso personale e didattico. Non costituisce consulenza finanziaria
 - La logica fiscale segue la normativa italiana vigente al 2026; si consiglia sempre la verifica con un consulente
 
@@ -185,7 +184,7 @@ Built with [Flet](https://flet.dev/), it is mainly designed for mobile use (Andr
 Four main tabs:
 
 - **HOME**: account overview, open positions, watchlist
-- **OPERATIONS**: entry of new transactions, EUR/USD support. Transactions are saved automatically as they are entered.
+- **OPERATIONS**: entry of new transactions, EUR/USD support. Transactions are saved automatically as they are entered and can be edited or deleted at any time from the *Transactions* tab
     - *Cash* (deposits, withdrawals, transfers between accounts, dividends, taxes/charges)
     - *Equity ETFs, Money Market ETFs* (buy/sell)
     - *Stocks* (buy/sell)
@@ -196,7 +195,7 @@ Four main tabs:
     - *Correlation*: simple correlation between held assets, and rolling correlation between two selected assets
     - *Drawdown*: calculation and chart of the portfolio's drawdown
     - *Value at Risk*: Monte Carlo simulation on historical data, with customizable confidence interval and time horizon
-- **TRANSACTIONS**: filterable transaction history + CSV export. There is an Info button describing the columns of the CSV report.
+- **TRANSACTIONS**: filterable transaction history + CSV export. Tapping on any saved transaction **lets you edit or delete it**. There is an Info button describing the columns of the CSV report.
 
 
 ## Backups
@@ -239,6 +238,5 @@ pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "p
 
 ## Notes
 
-- Transaction entry is exclusively sequential (chronological)
 - This software is intended for personal and educational use. It does not constitute financial advice
 - The fiscal logic follows Italian regulations in force as of 2026; always verify with a professional advisor

@@ -1,9 +1,19 @@
 
 ## BACKLOG
 
-- Update Flet version when both:
-    - FastAPI bug with --android/--web flags is fixed (already fixed in 1.0.5)
-    - Support for SVG icons is added (already implemented, not yet released)
+- Upgrade to Flet 1.1.0 when available:
+    - Fixed FastAPI bug with --android/--web flags is fixed (already fixed in 1.0.5)
+    - Support for SVG icons
+    - `text_input_action=ft.TextInputAction.NEXT` for TextField
+    - `RefreshIndicator` control for Home pull-to-refresh
+
+
+
+- centered transaction table (tablets)
+- "Undo action" button instead of Remove latest transaction
+- Select button with bulk delete
+
+
 
 - XEON ticker appears when Stocks ETFs is selected
 
@@ -16,10 +26,6 @@ One more question, because of the gain-only rule: what happens to the pending bu
   2. They stay pending until a later sale at a gain. If you sell the whole position at a loss, they're lost for good.
 I'd guess 1, but your Fineco statements would show which. 
 
-- [ANSWERED] Can app size be brought further down?
-    * No/Not worth it
-- [ANSWERED] Can Flet 1.0.3 avoid the focus_chain component (moving between keyboard inputs)?
-    * Currently, no. An issue was sent to the Flet team.
 
 
 ## AFTER REFACTOR IS COMPLETE:
@@ -31,7 +37,6 @@ I'd guess 1, but your Fineco statements would show which.
 ## BACKLOG-BIG
 
 - Region allocation
-- Non-chronological insertions
 - Bonds
 - Bonds ETFs
 - iOS UI
