@@ -18,6 +18,7 @@ import flet as ft
 from components.dialogs import close_dialog, show_info_dialog, working_dialog
 from components.snack import error_message, show_snack
 from services import migration_service
+from services.market_data import PricesUnavailable
 from utils.columns import export_headers, localized_value_maps
 
 logger = logging.getLogger(__name__)
@@ -44,11 +45,11 @@ def migrate_accounts(app, then) -> None:
         """Work out the journals off the screen's thread, then save them or first show what differs."""
         try:
             migrations, failures = migration_service.migrate(state.accounts)
-        except Exception:  # most likely offline: no prices
+        except Exception as ex:
             logger.exception("Could not move the accounts to the journal")
             close_dialog(page, working)
             then()
-            show_snack(page, t.get("journal.migration.failed"), error=True)
+            show_snack(page, _failure_message(t, ex), error=True)
             return
         close_dialog(page, working)
 
@@ -74,14 +75,27 @@ def migrate_accounts(app, then) -> None:
     page.run_thread(worker)
 
 
+def _failure_message(translator, ex: Exception) -> str:
+    """Return what to tell the user when the migration failed with `ex`: the likely cause only when it is the real one.
+
+    Without prices it asks whether they are offline. Anything else names its
+    reason, which is all there is to go on where the logs can't be read, as
+    in an app installed on a phone. Example: a full disk -> "Your accounts
+    couldn't be updated now: [Errno 28] No space left on device. ...".
+    """
+    if isinstance(ex, PricesUnavailable):
+        return translator.get("journal.migration.failed")
+    return translator.get("journal.migration.failed_reason", reason=error_message(translator, ex))
+
+
 def _save(app, migrations, then, again) -> None:
     """Save the migrated accounts, then call `then`; call `again` instead if an account changed meanwhile."""
     try:
         saved = app.state.commit_migration(migrations)
-    except OSError:
+    except OSError as ex:
         logger.exception("Could not save the accounts moved to the journal")
         then()
-        show_snack(app.page, app.state.translator.get("journal.migration.failed"), error=True)
+        show_snack(app.page, _failure_message(app.state.translator, ex), error=True)
         return
     if not saved:
         again()

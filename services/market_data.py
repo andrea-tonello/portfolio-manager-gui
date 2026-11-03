@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, date
+from zoneinfo import ZoneInfoNotFoundError
 
 import pandas as pd
 
@@ -144,7 +145,9 @@ def _download_charts(tickers: str | list[str], start, end, period) -> dict[str, 
 def _chart(ticker: str, start, end, period) -> tuple[str, pd.Series, pd.Series] | None:
     """Fetch `ticker`'s daily chart once: (its name, its closes, its adjusted closes) by day, or None without prices.
 
-    Its adjusted closes are its plain ones when Yahoo gives none.
+    Its adjusted closes are its plain ones when Yahoo gives none. Raises
+    ZoneInfoNotFoundError when the exchange's time zone isn't known: that is
+    a fault of the build, not a lack of prices.
     """
     try:
         chart = _fetch_chart(ticker, start=start, end=end, period=period)
@@ -168,6 +171,10 @@ def _chart(ticker: str, start, end, period) -> tuple[str, pd.Series, pd.Series] 
             return series[~series.index.duplicated(keep="last")]
 
         return name, by_day(closes), by_day(adjusted)
+    except ZoneInfoNotFoundError:
+        # A KeyError, but no fault of Yahoo's reply: without this line, a build missing its time zones
+        # would get no prices for any ticker, and the app would say it is offline.
+        raise
     except _NO_DATA_ERRORS as e:
         logger.warning("No prices for %s: %s", ticker, e)
         return None

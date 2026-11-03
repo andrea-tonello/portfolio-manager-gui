@@ -348,6 +348,7 @@
       "more": "…and {count} more",
       "continue": "Continue",
       "failed": "Your accounts couldn't be updated now (are you offline?). The app will try again the next time it starts.",
+      "failed_reason": "Your accounts couldn't be updated now: {reason}. The app will try again the next time it starts.",
       "row_failed": "The operation of {date} in {account} can't be converted to the new format: {reason}. Your accounts stay as they are; please report this problem."
     }
   },

@@ -125,7 +125,7 @@ Essendo l'app **local-only**, questo è l'unico modo per salvare e trasferire le
     - `uv`: esegui `uv sync`
     - `pip`:
 ```sh
-pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil>=2.8.2"
+pip install "flet==1.0.4" "flet-charts==1.0.4" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil==2.9.0.post0" "tzdata==2026.6"
 ```
 3. (Opzionale) Per testare l'applicazione: 
   - `uv`: `uv run flet run main.py`
@@ -225,7 +225,7 @@ Since the app is **local-only**, this is the only way to save and transfer your 
   - `uv`: run `uv sync`
   - `pip`:
 ```sh
-pip install "flet==1.0.3" "flet-charts==1.0.3" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil>=2.8.2"
+pip install "flet==1.0.4" "flet-charts==1.0.4" "numpy==2.4.6" "pandas==3.0.3" "python-dateutil==2.9.0.post0" "tzdata==2026.6"
 ```
 3. (Optional) To test the application:
   - `uv`: `uv run flet run main.py`

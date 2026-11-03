@@ -14,7 +14,11 @@ dependencies = [
     "flet-charts==1.0.4",
     "numpy==2.4.6",
     "pandas==3.0.3",
-    "python-dateutil>=2.8.2",
+    "python-dateutil==2.9.0.post0",
+    # The time zones pandas needs to tell each price's day (market_data._chart). Phones have no time
+    # zone database where Python looks, and pandas only requires tzdata on Windows. The tests can't
+    # catch its absence: `flet` brings it into the development environment (arrow, through flet-cli).
+    "tzdata==2026.6",
 ]
 
 # The app's identity. bundle_id (the Android package, macOS bundle id and Linux

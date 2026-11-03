@@ -8,6 +8,7 @@ ledger, even where a row kept a value only rounded.
 import os
 from datetime import date
 from pathlib import Path
+from zoneinfo import ZoneInfoNotFoundError
 
 import flet as ft
 import numpy as np
@@ -25,6 +26,7 @@ from domain.ledger import Op, Product
 from domain.newrow import newrow_cash, newrow_split
 from domain.positions import unrecorded_splits
 from services import account_service, config_service, migration_service
+from services.market_data import PricesUnavailable
 from services.migration_service import Difference, migrate
 
 
@@ -365,7 +367,7 @@ def test_a_migration_that_fails_saves_nothing_and_says_so(app, page, legacy_stat
 
     def offline(accounts):
         """Fail like a migration with no prices."""
-        raise LookupError("No close of AAA.MI in the 10 days up to 03-01-2024")
+        raise PricesUnavailable()
 
     monkeypatch.setattr(migration_service, "migrate", offline)
     _run_now(page)
@@ -375,3 +377,24 @@ def test_a_migration_that_fails_saves_nothing_and_says_so(app, page, legacy_stat
     assert _open(page) == [] and shown == ["Home"]
     assert snack_texts(page) == [state.translator.get("journal.migration.failed")]
     assert sorted(os.listdir(folder)) == before and state.get_account(1).journal is None
+
+
+def test_a_migration_failing_for_another_reason_says_why(app, page, legacy_state, monkeypatch):
+    """Any failure but missing prices names its reason, instead of asking whether the user is offline.
+
+    In an app installed on a phone the logs can't be read, so the message is
+    all there is to go on. A build without time zones asked "are you offline?" while online.
+    """
+    legacy_state()
+
+    def broken(accounts):
+        """Fail as a build without time zone data does."""
+        raise ZoneInfoNotFoundError("No time zone found with key Europe/Rome")
+
+    monkeypatch.setattr(migration_service, "migrate", broken)
+    _run_now(page)
+
+    migrate_accounts(app, then=lambda: None)
+
+    [message] = snack_texts(page)
+    assert "No time zone found with key Europe/Rome" in message and "offline" not in message

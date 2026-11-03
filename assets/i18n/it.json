@@ -348,6 +348,7 @@
       "more": "…e altri {count}",
       "continue": "Continua",
       "failed": "Non è stato possibile aggiornare i conti ora (sei offline?). L'app riproverà al prossimo avvio.",
+      "failed_reason": "Non è stato possibile aggiornare i conti ora: {reason}. L'app riproverà al prossimo avvio.",
       "row_failed": "L'operazione del {date} in {account} non può essere convertita nel nuovo formato: {reason}. I conti restano come sono; per favore segnala il problema."
     }
   },

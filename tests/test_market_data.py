@@ -5,6 +5,7 @@ import io
 import json
 import urllib.error
 import urllib.request
+from zoneinfo import ZoneInfoNotFoundError
 
 import pandas as pd
 import pytest
@@ -119,6 +120,26 @@ def test_each_price_gets_the_day_of_its_exchange_not_of_utc(monkeypatch):
     prices, _ = download_close("USDEUR=X")
 
     assert list(prices.index) == [pd.Timestamp("2024-08-02"), pd.Timestamp("2024-08-05")]
+
+
+def test_a_time_zone_that_cant_be_found_isnt_taken_for_missing_prices(monkeypatch):
+    """A chart whose exchange time zone can't be found raises, instead of counting as a ticker without prices.
+
+    Taken for missing prices, it left an app packaged without time zone data
+    with no prices for any ticker, saying it was offline while online.
+    """
+    def fake_fetch_chart(ticker, **kwargs):
+        """Return a chart stamped in a time zone that doesn't exist."""
+        return {
+            "meta": {"exchangeTimezoneName": "Nowhere/Invented"},
+            "timestamp": [int(pd.Timestamp("2024-08-02").timestamp())],
+            "indicators": {"quote": [{"close": [0.92]}]},
+        }
+
+    monkeypatch.setattr(market_data, "_fetch_chart", fake_fetch_chart)
+
+    with pytest.raises(ZoneInfoNotFoundError):
+        download_close("AAA.MI")
 
 
 def test_download_close_with_no_known_ticker_returns_an_empty_dataframe(yahoo_charts):

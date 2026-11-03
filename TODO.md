@@ -12,6 +12,7 @@
 - centered transaction table (tablets)
 - "Undo action" button instead of Remove latest transaction
 - Select button with bulk delete
+- Fix drawer still showing after a reset
 
 
 
