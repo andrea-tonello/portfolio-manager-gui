@@ -52,6 +52,7 @@ class AppController:
         page.on_view_pop = None
         page.appbar = None
         page.navigation_bar = None
+        self._put_away_drawer()
         # Close any open dialogs
         try:
             page.pop_dialog()
@@ -83,6 +84,22 @@ class AppController:
             migrate_accounts(self, then=self._show_home)
         else:
             self._show_home()
+
+    def _put_away_drawer(self) -> None:
+        """Close the side menu, and remove it unless the screen shown next has its own (Home does, the setup screens don't)."""
+        page = self.page
+        old_drawer = page.end_drawer
+        if old_drawer is None:
+            return
+
+        async def put_away():
+            """Close the drawer; once it is closed, remove it if nothing has replaced it meanwhile."""
+            await page.close_end_drawer()
+            if page.end_drawer is old_drawer:
+                page.end_drawer = None
+                page.update()
+
+        page.run_task(put_away)
 
     def _show_home(self) -> None:
         """Show Home, the first screen once set up, and once per launch look for a newer release.

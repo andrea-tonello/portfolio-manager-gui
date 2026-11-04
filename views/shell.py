@@ -110,7 +110,12 @@ def show_tab(app, selected_index: int = HOME_TAB):
         page.on_media_change = _on_keyboard_visibility
 
         def _on_resize(e):
-            """Keep the drawer's column as tall as the page, e.g. once the window reaches its size just after start."""
+            """Keep the drawer's column as tall as the page, e.g. once the window reaches its size just after start.
+
+            A setup screen, e.g. after a reset or while adding a user, has no drawer.
+            """
+            if page.end_drawer is None:
+                return
             page.end_drawer.controls[0].height = page.height - app.top_inset
             page.update()
         page.on_resize = _on_resize

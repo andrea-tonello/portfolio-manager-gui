@@ -3,6 +3,7 @@
 ### Fixes
 
 - Transactions table is now centered on large screens
+- The drawer is no longer accessible during app setup and after a reset
 
 ### Features
 

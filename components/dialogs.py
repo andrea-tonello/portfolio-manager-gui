@@ -162,9 +162,11 @@ def show_user_manager(app):
 
     def _on_add_user():
         page.pop_dialog()
-        # Take over full screen: hide appbar and navbar
+        # Take over full screen: hide appbar and navbar, and remove the drawer (closed by
+        # now), which a swipe from the screen's edge would still open. Home builds a new one.
         page.appbar = None
         page.navigation_bar = None
+        page.end_drawer = None
         app.nav_wrapper = None
         original_user_idx = state.active_user_idx
 

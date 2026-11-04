@@ -9,10 +9,8 @@
 
 
 
-- centered transaction table (tablets)
 - "Undo action" button instead of Remove latest transaction
 - Select button with bulk delete
-- Fix drawer still showing after a reset
 - Modernize UI/UX for theme and palette settings
 - Tasso USD/EUR
 - Wrong month inserted (15-18-2025) --> "Date is missing" snackbar error

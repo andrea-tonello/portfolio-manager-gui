@@ -17,6 +17,7 @@ from test_errors import FakeImportPicker
 from test_ledger_snapshots import _replay, deposit
 
 from app_controller import AppController
+from components.dialogs import show_user_manager
 from services import config_service
 from views import onboarding_view
 from utils.translator import Translator
@@ -168,6 +169,96 @@ def test_leaving_settings_returns_to_the_tab_it_was_opened_from(app, page):
     assert len(page.views) == 1
     assert page.navigation_bar.selected_index == 2
     assert page.end_drawer is not drawer, "the drawer is rebuilt, e.g. to show a new language"
+
+
+def _restart_with_the_drawer_open(page, app):
+    """Restart from Settings, opened over the drawer, as a reset does; return what is left to run, and a list of closes.
+
+    Background work is kept for the test to run after the restart, because on
+    a real page it can finish later than the rest of the restart. Each drawer
+    closed adds the number of views there are then to the list.
+    """
+    closes, tasks = [], []
+
+    async def close_end_drawer():
+        """Stand-in for closing the drawer, which Flet asks of the view on top."""
+        closes.append(len(page.views))
+
+    page.close_end_drawer = close_end_drawer
+    page.run_task = lambda fn, *args: tasks.append(fn)
+    app.show_settings()
+    app.restart()
+    return tasks, closes
+
+
+def test_a_reset_closes_the_drawer_and_leaves_the_setup_screens_without_one(tmp_path, page):
+    """The drawer stays open under Settings. A reset from there mustn't leave it over the language choice.
+
+    Left in place, even closed, a swipe from the screen's edge would still open
+    it, with the Settings of a user who no longer exists.
+    """
+    _write(tmp_path, ACCOUNTS)
+    app = AppController(page, base_path=str(tmp_path))
+    app.restart()
+    config_service.reset_application(app.state.config_folder)
+
+    tasks, closes = _restart_with_the_drawer_open(page, app)
+    assert _shown(page) == "language picker"
+    for task in tasks:
+        asyncio.run(task())
+
+    assert closes == [1], "closed on the first view, which holds it, not on Settings"
+    assert page.end_drawer is None
+    page.on_resize(None)  # e.g. turning a tablet on the setup screen, with no drawer to resize
+
+
+def test_changing_user_closes_the_drawer_and_keeps_the_new_one_of_home(tmp_path, page):
+    """A restart into Home, e.g. after switching user from the drawer, gives Home a new drawer, closed.
+
+    The old one is closed later than Home is shown, and that mustn't take away the new one.
+    """
+    _write(tmp_path, ACCOUNTS)
+    app = AppController(page, base_path=str(tmp_path))
+    app.restart()
+    old_drawer = page.end_drawer
+
+    tasks, closes = _restart_with_the_drawer_open(page, app)
+    new_drawer = page.end_drawer
+    for task in tasks:
+        asyncio.run(task())
+
+    assert closes == [1]
+    assert new_drawer is not old_drawer
+    assert page.end_drawer is new_drawer
+
+
+def test_adding_a_user_removes_the_drawer_until_home_is_back(tmp_path, page):
+    """The user-creation screen has no drawer, and giving up on it returns to Home with a new one.
+
+    Left in place, a swipe from the screen's edge would open it over that
+    screen, with Settings and the rest of the menu a step away.
+    """
+    _write(tmp_path, ACCOUNTS)
+    app = AppController(page, base_path=str(tmp_path))
+    app.restart()
+
+    async def close_end_drawer():
+        """Stand-in for closing the drawer, which the "+" button does first."""
+
+    page.close_end_drawer = close_end_drawer
+    page.run_task = lambda fn, *args: asyncio.run(fn(*args))
+    show_user_manager(app)
+
+    page.dialogs[-1].actions[0].on_click(None)  # "+": add a user
+
+    assert _shown(page) == "user creation"
+    assert page.end_drawer is None
+    page.on_resize(None)  # e.g. turning a tablet on this screen, with no drawer to resize
+
+    next(find_controls(page.controls[0], ft.IconButton)).on_click(None)  # close the screen
+
+    assert _shown(page) == "tab 0"
+    assert page.end_drawer is not None
 
 
 def test_the_drawer_rebuilt_after_settings_still_leaves_room_for_the_status_bar(page, state):
