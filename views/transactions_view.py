@@ -343,8 +343,7 @@ class TransactionsView:
                 if isinstance(op_id, str) and op_id else None
             rows.append(ft.DataRow(cells=cells, on_select_change=on_tap))
 
-        # Inside the horizontal scroll, the repaint boundary spares redrawing every cell at each frame of
-        # a scroll in either direction.
+        # Inside the horizontal scroll, the repaint boundary spares redrawing every cell at each frame of a scroll in either direction.
         return ft.Row([
             repaint_boundary(ft.DataTable(
                 columns=columns,
@@ -352,7 +351,7 @@ class TransactionsView:
                 horizontal_lines=ft.BorderSide(1, ft.Colors.GREY_300),
                 column_spacing=12,
             )),
-        ], scroll=ft.ScrollMode.ALWAYS,)
+        ], scroll=ft.ScrollMode.ALWAYS, alignment=ft.MainAxisAlignment.CENTER)
 
     # ── Export / Remove ───────────────────────────────────────────────
 

@@ -1,3 +1,27 @@
+## [0.5.1] (2026-XX-XX)
+
+### Fixes
+
+- Transactions table is now centered on large screens
+
+### Features
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## [0.5.0] (2026-11-04)
 
 ### Features
