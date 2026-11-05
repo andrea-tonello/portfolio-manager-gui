@@ -1,13 +1,14 @@
-"""Smoke tests: every screen of the app can be built without errors.
+"""Smoke tests: the tabs and the dialogs of the drawer and of Operations can be built without errors.
 
 They build the four tabs through the real navigation code (app bar, drawer,
-navigation bar included), the Settings page and every dialog, using a real
-account (the `state` fixture), a stand-in for Flet's Page (the `page`
-fixture) and the AppController on top of them (the `app` fixture), all in
-conftest.py. Nothing is drawn on screen: the point is to catch Flet API
-mistakes (a removed control, a renamed argument, a deprecated helper) as soon
-as a screen is built, e.g. after upgrading Flet. With the pyproject.toml
-warning filter, any Flet deprecation fails the test.
+navigation bar included) and those dialogs, using a real account (the `state`
+fixture), a stand-in for Flet's Page (the `page` fixture) and the
+AppController on top of them (the `app` fixture), all in conftest.py. Nothing
+is drawn on screen: the point is to catch Flet API mistakes (a removed control,
+a renamed argument, a deprecated helper) as soon as a screen is built, e.g.
+after upgrading Flet. With the pyproject.toml warning filter, any Flet
+deprecation fails the test. The Settings page and the first-launch screens are
+built, for the same catch, by test_app_controller.py and test_app_state.py.
 """
 
 import flet as ft
@@ -16,16 +17,18 @@ from conftest import find_controls
 
 from components.dialogs import show_contacts, show_privacy_policy, show_user_manager
 from utils.constants import LANGUAGES
-from views import onboarding_view
 from views.operations_view import OperationsView
 
 TABS = {0: "Home", 1: "Operations", 2: "Analysis", 3: "Transactions"}
+# Each tab for all accounts and for one, except Operations: it always works on one account.
+TAB_SELECTIONS = [(tab, selection) for tab in TABS for selection in ("overview", "1")
+                  if (TABS[tab], selection) != ("Operations", "overview")]
 
 
-@pytest.mark.parametrize("selection", ["overview", "1"])
-@pytest.mark.parametrize("tab", TABS, ids=TABS.values())
+@pytest.mark.parametrize("tab, selection", TAB_SELECTIONS,
+                         ids=[f"{TABS[tab]}-{selection}" for tab, selection in TAB_SELECTIONS])
 def test_tab_builds(tab, selection, app, page, state):
-    """Each tab builds, both for all accounts together and for a single account."""
+    """Each tab builds, both for all accounts together and for a single account (Operations: a single one)."""
     state.home_selection = state.tx_selection = selection
     state.ops_acc_idx = 1
     state.analysis_acc_idx = None if selection == "overview" else 1
@@ -37,22 +40,6 @@ def test_tab_builds(tab, selection, app, page, state):
     assert page.end_drawer is not None
 
 
-def test_switching_tabs_reuses_the_page(app, page):
-    """Moving between tabs after the first build (the path taken on every tap) also works."""
-    for tab in [0, 1, 2, 3, 0]:
-        app.show_tab(tab)
-    assert page.navigation_bar.selected_index == 0
-
-
-def test_settings_page_builds(app, page):
-    """The Settings page opens as a pushed view on top of the tabs."""
-    app.show_tab(0)
-
-    app.show_settings()
-
-    assert page.views[-1].route == "/settings"
-
-
 @pytest.mark.parametrize("show", [
     show_user_manager,
     lambda app: show_privacy_policy(app.page, app.state),
@@ -62,18 +49,6 @@ def test_drawer_dialogs_build(show, app, page):
     """The dialogs opened from the side drawer build."""
     show(app)
     assert len(page.dialogs) == 1
-
-
-@pytest.mark.parametrize("screen", [
-    onboarding_view.show_language_picker,
-    onboarding_view.show_user_creation,
-    onboarding_view.show_broker_onboarding,
-], ids=["language", "user", "accounts"])
-def test_first_launch_screens_build(screen, app, page):
-    """The first-launch screens (language, user name, accounts) build."""
-    screen(app)
-
-    assert page.controls, "the screen should put its content on the page"
 
 
 @pytest.mark.parametrize("language", LANGUAGES)

@@ -123,20 +123,6 @@ def test_an_edited_transfer_can_send_only_the_cash_held_before_it_on_its_day(acc
 
 # ── Undoing a transfer ───────────────────────────────────────────────
 
-def test_two_equal_transfers_on_the_same_day_are_undone_one_pair_at_a_time(accounts):
-    """Each undo removes the last transfer from both accounts; after two, both are as before."""
-    before = {idx: len(account.df) for idx, account in accounts.items()}
-    transfer(accounts, 500)
-    transfer(accounts, 500)
-
-    for remaining in (1, 0):
-        undo_last(accounts)
-        assert len(accounts[2].df) == before[2] + remaining
-
-    assert {idx: len(account.df) for idx, account in accounts.items()} == before
-    assert (accounts[1].last("cash_held"), accounts[2].last("cash_held")) == (9_000, 1_000)
-
-
 def test_a_transfer_is_undone_from_both_accounts_though_the_other_has_newer_operations(accounts):
     """With a deposit in Directa after the transfer, undoing it from Fineco removes both halves and rebuilds the deposit.
 

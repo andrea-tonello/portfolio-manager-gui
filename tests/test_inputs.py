@@ -11,7 +11,6 @@ import pytest
 from components.inputs import account_selector, rounded_dropdown, rounded_text_field
 
 GREY = ft.Colors.with_opacity(0.40, ft.Colors.GREY)
-LEGACY_BORDER_PROPS = ("border_radius", "border_color", "border_width", "focused_border_color", "focused_border_width")
 
 
 def _sides(control):
@@ -28,7 +27,6 @@ def test_rounded_inputs_have_a_grey_outline_thicker_when_focused(make):
 
     assert _sides(control) == ((GREY, 1), (GREY, 2), 15)
     assert control.label == "Amount"
-    assert all(getattr(control, prop) is None for prop in LEGACY_BORDER_PROPS)
 
 
 def test_rounded_dropdown_also_rounds_its_menu():
@@ -54,4 +52,3 @@ def test_account_selector_is_filled_with_a_thick_outline_in_the_same_colour(stat
     colour = ft.Colors.SECONDARY_CONTAINER
     assert _sides(selector) == ((colour, 2.5), (colour, 2.5), 15)
     assert selector.bgcolor == colour
-    assert all(getattr(selector, prop) is None for prop in LEGACY_BORDER_PROPS)

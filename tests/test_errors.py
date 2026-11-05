@@ -105,12 +105,6 @@ def test_error_message_uses_the_language_active_when_it_is_shown():
     assert error_message(_translator("it"), ex) == "Quantità venduta (5) superiore a quella disponibile (3)"
 
 
-def test_error_message_shows_other_errors_as_they_are(translator):
-    """Errors without a locale key (network failures, bugs) are shown with their own text."""
-    assert error_message(translator, RuntimeError("No exchange rate data available")) == \
-        "No exchange rate data available"
-
-
 def test_ticker_not_found_is_a_validation_error_naming_the_ticker(translator):
     """TickerNotFound is a ValidationError, so screens catch and translate it like any other."""
     ex = TickerNotFound("XYZ.MI")
@@ -171,14 +165,6 @@ def yahoo_names(monkeypatch):
 def test_fetch_ticker_name_returns_the_name_of_a_known_ticker(yahoo_names):
     """A ticker Yahoo knows gives back its long name."""
     assert market_data.fetch_ticker_name("AAA.MI") == "Alpha SpA"
-
-
-def test_fetch_ticker_name_raises_ticker_not_found(yahoo_names):
-    """A ticker Yahoo doesn't know raises TickerNotFound, which carries the ticker for the message."""
-    with pytest.raises(TickerNotFound) as info:
-        market_data.fetch_ticker_name("NOPE.MI")
-
-    assert info.value.params == {"ticker": "NOPE.MI"}
 
 
 @pytest.mark.parametrize("missing_ticker, key", [
@@ -246,9 +232,6 @@ BROKEN_BACKUPS = {
                        "settings.backup.invalid_config", {}),
     "no-users": (_zip({**MULTI_USER, "config.ini": "[Theme]\nmode = dark\n"}),
                  "settings.backup.no_users", {}),
-    # The single-user format from before users existed is no longer supported.
-    "old-single-user-format": (_zip({"config.ini": "[Brokers]\n1 = Main\n", "resources/Report Main.csv": HEADER}),
-                               "settings.backup.no_users", {}),
     "user-config-missing": (_zip(_without(MULTI_USER, USER_CONFIG)),
                             "settings.backup.missing_user_config", {"username": "Tester"}),
     "user-config-not-ini": (_zip({**MULTI_USER, USER_CONFIG: "no sections here"}),

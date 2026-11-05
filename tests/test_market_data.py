@@ -142,14 +142,6 @@ def test_a_time_zone_that_cant_be_found_isnt_taken_for_missing_prices(monkeypatc
         download_close("AAA.MI")
 
 
-def test_download_close_with_no_known_ticker_returns_an_empty_dataframe(yahoo_charts):
-    """If Yahoo knows none of the tickers, the result is an empty DataFrame and no names."""
-    prices, names = download_close(["NOPE.MI"])
-
-    assert isinstance(prices, pd.DataFrame) and prices.empty
-    assert names == {}
-
-
 # ── download_prices_eur ──────────────────────────────────────────────
 
 FX = "USDEUR=X"  # Yahoo's ticker for the USD->EUR exchange rate
@@ -360,11 +352,11 @@ def _yahoo_failing_with(monkeypatch, error):
     RuntimeError("There is no data for this ticker"),
 ], ids=["offline", "timeout", "bad-reply", "unknown-ticker"])
 def test_network_and_data_failures_mean_no_data(monkeypatch, error):
-    """When Yahoo can't be reached or has nothing usable, prices and splits are empty and the name is "not found"."""
+    """When Yahoo can't be reached or has nothing usable, prices, their names and splits are empty and the name is "not found"."""
     _yahoo_failing_with(monkeypatch, error)
 
-    prices, _ = download_close(["AAA.MI"])
-    assert prices.empty
+    prices, names = download_close(["AAA.MI"])
+    assert prices.empty and names == {}
     assert fetch_splits("AAA.MI", None, None) == []
     with pytest.raises(TickerNotFound):
         market_data.fetch_ticker_name("AAA.MI")

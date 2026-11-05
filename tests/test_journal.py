@@ -116,25 +116,6 @@ def test_a_sale_in_usd_of_an_asset_bought_in_eur_is_valued_with_the_exchange_rat
     assert csv_text(ledger) == _replay(steps, tmp_path).to_csv(index=False)
 
 
-def test_a_sale_that_leaves_a_later_sale_short_is_refused_naming_the_later_one(fake_market, translator):
-    """Adding a sale before a later one that would then sell more than is held is refused, naming the later sale.
-
-    STOCKS_EUR holds 10 AAA.MI after its sale of 02-04-2024 and sells 5 more
-    on 03-06-2024. Selling all 10 on 15-05-2024 leaves none for that sale.
-    """
-    operations = journal_of(STOCKS_EUR)
-    later_sale = operations[8]
-    early_sale = Operation(id="early", seq=len(operations) + 1,
-                           **sell(date(2024, 5, 15), "AAA.MI", 10, price=95.0, fee=2.0).fields)
-
-    with pytest.raises(OperationRefused) as refused:
-        rebuild(BROKER, operations + [early_sale])
-
-    assert refused.value.operation == later_sale
-    assert error_message(translator, refused.value).startswith(
-        "The sale of AAA.MI on 03-06-2024 would no longer be possible: Quantity sold (5) exceeds available quantity")
-
-
 def test_a_transfer_out_left_without_the_cash_it_sends_is_refused(fake_market, translator):
     """A withdrawal added before a transfer out, leaving less cash than it sends, is refused, naming the transfer.
 

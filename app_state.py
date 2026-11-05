@@ -265,7 +265,7 @@ class AppState:
             raise ValidationError("settings.account.duplicate", account=name)
         idx = max(self.brokers, default=0) + 1
         self.brokers[idx] = name
-        config_service.save_brokers(self.user_config_folder, self.brokers, reset=True)
+        config_service.save_brokers(self.user_config_folder, self.brokers)
         account_service.create_defaults(self.config_res_folder, name)
         self._load_account(idx)
         self.home_cache = None
@@ -279,7 +279,7 @@ class AppState:
         """
         account_service.delete_account_files(self.brokers[idx], self.config_res_folder)
         del self.brokers[idx]
-        config_service.save_brokers(self.user_config_folder, self.brokers, reset=True)
+        config_service.save_brokers(self.user_config_folder, self.brokers)
         self.accounts.pop(idx, None)
         self.home_cache = None
         if self.ops_acc_idx == idx:

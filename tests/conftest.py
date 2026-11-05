@@ -198,7 +198,7 @@ def state(tmp_path, fake_market):
     user_folder = config_service.get_user_folder(config, "Tester")
     resources = config_service.get_user_res_folder(config, "Tester")
     os.makedirs(resources)
-    config_service.save_brokers(user_folder, {1: "Test Broker"}, reset=True)
+    config_service.save_brokers(user_folder, {1: "Test Broker"})
     journal = journal_of(STOCKS_EUR)
     account_service.save_accounts(resources, {"Test Broker": (journal, rebuild("Test Broker", journal))})
 

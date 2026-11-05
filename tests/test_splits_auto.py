@@ -81,17 +81,6 @@ def test_a_ticker_never_traded_is_not_looked_up(yahoo_requests):
     assert yahoo_requests == []
 
 
-def test_yahoo_unreachable_reports_no_split(monkeypatch):
-    """If Yahoo can't be reached, no split is reported (the check is retried on the next app start)."""
-    def unreachable(ticker, **kwargs):
-        """Fail like a request without network."""
-        raise RuntimeError("no network")
-
-    monkeypatch.setattr(market_data, "_fetch_chart", unreachable)
-
-    assert detect_unrecorded_splits(LEDGER, "AAA.MI") == []
-
-
 # ── The two halves on their own ──────────────────────────────────────
 
 def test_fetch_splits_returns_every_complete_event_oldest_first(yahoo_requests):

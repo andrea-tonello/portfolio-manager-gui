@@ -72,8 +72,9 @@ def save_watchlist(config_folder: str, tickers: list[str]):
     _update_section(config_folder, "Watchlist", {"tickers": ",".join(tickers)})
 
 
-def save_brokers(config_folder: str, brokers: dict[int, str], reset: bool = False):
-    _update_section(config_folder, "Brokers", {str(idx): name for idx, name in brokers.items()}, replace=reset)
+def save_brokers(config_folder: str, brokers: dict[int, str]):
+    """Make `brokers` ({number: name}) the whole [Brokers] section: an account left out is gone, or it would come back on the next launch."""
+    _update_section(config_folder, "Brokers", {str(idx): name for idx, name in brokers.items()}, replace=True)
 
 
 def save_home_hidden(config_folder: str, hidden: bool):

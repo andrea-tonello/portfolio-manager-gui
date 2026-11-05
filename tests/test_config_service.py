@@ -29,8 +29,6 @@ SAVES = [
                  {"Theme": {"mode": "dark", "color": "teal"}}, id="theme"),
     pytest.param(lambda f: config_service.save_watchlist(f, ["AAA.MI", "BBB.MI"]),
                  {"Watchlist": {"tickers": "AAA.MI,BBB.MI"}}, id="watchlist"),
-    pytest.param(lambda f: config_service.save_brokers(f, {1: "Fineco", 2: "Directa"}),
-                 {"Brokers": {"1": "Fineco", "2": "Directa"}}, id="brokers"),
     pytest.param(lambda f: config_service.save_home_hidden(f, True),
                  {"Home": {"hidden": "true"}}, id="home-hidden"),
     pytest.param(lambda f: config_service.save_home_pnl_mode(f, 2),

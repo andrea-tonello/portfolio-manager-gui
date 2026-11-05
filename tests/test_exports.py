@@ -40,15 +40,14 @@ EXPORTS = {
 }
 
 
-@pytest.mark.parametrize("platform", [ft.PagePlatform.ANDROID, ft.PagePlatform.LINUX], ids=["android", "desktop"])
 @pytest.mark.parametrize("export", EXPORTS)
-def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, platform, app, page):
+def test_export_hands_bytes_to_flet_and_never_opens_the_returned_path(export, app, page):
     """Each export passes its bytes to save_file and shows the success message, without writing a file itself.
 
     The picker returns Android's "/document/753"; opening it as a file (the old
-    backup-export behaviour) fails with FileNotFoundError.
+    backup-export behaviour) fails with FileNotFoundError. The exports don't
+    depend on the platform: Flet handles those differences.
     """
-    page.platform = platform
     view_cls, run_export = EXPORTS[export]
     view = view_cls(app)
     view.build()
