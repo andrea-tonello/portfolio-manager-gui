@@ -1,5 +1,5 @@
 """Tests for the Transactions screen: the order it lists operations in, on screen and in the CSV export,
-and removing an operation: the last one, or that of a row tapped.
+which ones it lists (period, operations, products), and removing an operation: the last one, or that of a row tapped.
 
 Newest first, and operations of the same day from the last entered to the
 first, so running totals such as the cash held read in sequence.
@@ -7,19 +7,19 @@ first, so running totals such as the cash held read in sequence.
 
 import asyncio
 import io
-from datetime import date
+from datetime import date, timedelta
 
 import flet as ft
 import pandas as pd
 import pytest
 from conftest import find_controls, set_operations, snack_texts
 from test_exports import FakeFilePicker
-from test_ledger_snapshots import deposit
+from test_ledger_snapshots import buy, charge, deposit, dividend
 
 from domain.journal import Kind
 from services import config_service, journal_service
 from utils.columns import OP_ID, export_headers
-from views.transactions_view import TransactionsView
+from views.transactions_view import _DEFAULT_DISPLAY_COLS, TransactionsView
 
 # Three deposits on the same day, between two others.
 SAME_DAY = [
@@ -82,8 +82,8 @@ def test_remove_last_undoes_the_operation_entered_last_whatever_its_date(app, pa
     """A split found on Yahoo goes on its own past date; "remove last" then removes it, not the latest-dated operation.
 
     The test account's last operation is a withdrawal on 02-09-2024; the
-    split of 15-08-2024 is entered after it, so removing it asks first: the
-    withdrawal is recalculated.
+    split of 15-08-2024 is entered after it, so the question names the split
+    and says the withdrawal is recalculated.
     """
     state.commit_changes(journal_service.record(state.accounts, state.get_account(1), Kind.SPLIT, date(2024, 8, 15),
                                                 ticker="BBB.MI", ratio=2.0))
@@ -91,7 +91,9 @@ def test_remove_last_undoes_the_operation_entered_last_whatever_its_date(app, pa
     view.build()
 
     view._on_remove_row(None, 1)
-    assert page.dialogs[-1].content.value.startswith("Removing it recalculates 1 other operation")
+    named, recalculated = page.dialogs[-1].content.value.split("\n\n")
+    assert named == "Split BBB.MI · 15-08-2024 · Test Broker"
+    assert recalculated.startswith("Removing it recalculates 1 other operation")
     page.dialogs[-1].actions[1].on_click(None)  # Remove
 
     ledger = state.get_account(1).df
@@ -101,12 +103,133 @@ def test_remove_last_undoes_the_operation_entered_last_whatever_its_date(app, pa
 
 @pytest.fixture
 def every_row(app, state, immediately):
-    """The Transactions screen listing all of the test account's operations (50 at most), its work run straight away."""
-    config_service.save_tx_filter(state.user_config_folder, "count", 50)
+    """The Transactions screen listing all of the test account's operations, its work run straight away."""
     state.tx_selection = "1"
     view = TransactionsView(app)
     view.build()
     return view
+
+
+def test_remove_last_always_asks_first_even_when_the_filters_hide_the_operation(app, page, state, immediately):
+    """Remove deletes the operation entered last, which the filters can hide: it always names it and waits for an answer.
+
+    Here nothing depends on the withdrawal, so nothing else would have made it ask.
+    """
+    state.tx_hidden_operations = {"Withdrawal"}
+    state.tx_selection = "1"
+    view = TransactionsView(app)
+    view.build()
+    assert "Withdrawal" not in view._tx_filtered_df["operation"].tolist()
+    operations = len(state.get_account(1).journal)
+
+    view._on_remove_row(None, 1)
+    assert page.dialogs[-1].content.value == "Withdrawal · 02-09-2024 · Test Broker"
+    page.dialogs[-1].actions[0].on_click(None)  # Cancel
+    assert len(state.get_account(1).journal) == operations
+
+    view._on_remove_row(None, 1)
+    page.dialogs[-1].actions[1].on_click(None)  # Remove
+    assert len(state.get_account(1).journal) == operations - 1
+
+
+def _built_again(app):
+    """Return the Transactions screen built again, as on coming back to its tab or after changing account."""
+    view = TransactionsView(app)
+    view.build()
+    return view
+
+
+def _answer_popup(page, unticked):
+    """Untick the checkboxes labelled as in `unticked` in the popup open on `page`, and press Apply."""
+    popup = page.dialogs[-1]
+    for box in find_controls(popup.content, ft.Checkbox):
+        if box.label in unticked:
+            box.value = False
+    popup.actions[1].on_click(None)
+
+
+def test_the_table_starts_on_max_listing_every_operation(every_row, state):
+    """With no choice made, MAX is selected: from the first operation to today, every row listed."""
+    assert every_row.periods.period == "max"
+    assert (every_row.dates.start.value, every_row.dates.end.value) == (date(2024, 1, 2), date.today())
+    assert len(every_row._tx_filtered_df) == len(state.get_account(1).transactions)
+
+
+def test_a_period_picked_lists_only_its_rows_at_once(app, state):
+    """Picking 1M lists the operations of the last month straight away, and stays picked when the tab is built again."""
+    today = date.today()
+    set_operations(state, 1, [deposit(today - timedelta(days=100), 1000), deposit(today - timedelta(days=5), 200)])
+    state.tx_selection = "1"
+    view = _built_again(app)
+    assert len(view._tx_filtered_df) == 2
+
+    view.periods.buttons.selected = ["1m"]
+    view.periods.buttons.on_change(None)
+
+    assert view._tx_filtered_df["cash_held"].tolist() == [1200.0]
+    assert _built_again(app).periods.period == "1m"
+
+
+def test_dates_set_by_hand_include_both_ends_and_stay_when_the_tab_is_built_again(view, app):
+    """Dates set by hand list the rows of both days and leave no period selected, also on coming back to the tab."""
+    view.dates._set(date(2024, 1, 3), date(2024, 1, 4))
+
+    assert view.periods.period is None
+    assert view._tx_filtered_df["cash_held"].tolist() == CASH_HELD_NEWEST_FIRST[:4]
+    again = _built_again(app)
+    assert again.periods.period is None
+    assert (again.dates.start.value, again.dates.end.value) == (date(2024, 1, 3), date(2024, 1, 4))
+    assert again._tx_filtered_df["cash_held"].tolist() == CASH_HELD_NEWEST_FIRST[:4]
+
+
+def test_operations_unticked_are_hidden_until_ticked_again(every_row, app, page):
+    """Unticking Buy in the Operations popup hides the buys; the popup and the rebuilt tab remember, until it is ticked again."""
+    every_row._on_open_operations(None)
+    assert [box.label for box in find_controls(page.dialogs[-1].content, ft.Checkbox)] == [
+        "Deposit", "Withdrawal", "Transfer out", "Transfer in", "Buy", "Sell", "Dividend", "Tax", "Split"]
+    _answer_popup(page, {"Buy"})
+    assert "Buy" not in every_row._tx_filtered_df["operation"].tolist()
+
+    again = _built_again(app)
+    assert "Buy" not in again._tx_filtered_df["operation"].tolist()
+    again._on_open_operations(None)
+    boxes = {box.label: box for box in find_controls(page.dialogs[-1].content, ft.Checkbox)}
+    assert boxes["Buy"].value is False
+    boxes["Buy"].value = True
+    page.dialogs[-1].actions[1].on_click(None)
+    assert "Buy" in again._tx_filtered_df["operation"].tolist()
+
+
+def test_other_in_the_products_popup_stands_for_dividends_taxes_and_charges(app, page, state):
+    """Only the real products have a checkbox of their own; dividends, taxes and the user's own descriptions come under Other."""
+    set_operations(state, 1, [
+        deposit(date(2024, 1, 2), 1000),
+        buy(date(2024, 1, 3), "AAA.MI", 1, price=100.0, fee=0.0),
+        dividend(date(2024, 1, 4), "AAA.MI", 5.0),
+        charge(date(2024, 1, 5), 2.0, "Stamp duty"),
+    ])
+    state.tx_selection = "1"
+    view = _built_again(app)
+
+    view._on_open_products(None)
+    assert [box.label for box in find_controls(page.dialogs[-1].content, ft.Checkbox)] == [
+        "Cash", "Stocks", "Stocks ETF", "Money Market ETF", "Bonds ETF", "Other"]
+    _answer_popup(page, {"Other"})
+
+    assert view._tx_filtered_df["operation"].tolist() == ["Buy", "Deposit"]
+
+
+def test_columns_ticked_are_saved_and_none_ticked_means_the_usual_ones(every_row, page, state):
+    """The Columns popup saves the columns ticked for the next time; unticking them all shows the usual columns."""
+    every_row._on_open_columns(None)
+    _answer_popup(page, {"Date"})
+    assert "date" not in config_service.load_tx_columns(state.user_config_folder)
+    assert "date" not in every_row._visible_cols
+
+    every_row._on_open_columns(None)
+    popup = page.dialogs[-1]
+    _answer_popup(page, {box.label for box in find_controls(popup.content, ft.Checkbox)})
+    assert every_row._visible_cols == _DEFAULT_DISPLAY_COLS
 
 
 def tap_row(view, *texts):
@@ -187,6 +310,7 @@ def test_no_other_change_starts_while_one_waits_for_its_answer(every_row, page, 
 
     page.dialogs[-1].actions[0].on_click(None)  # Cancel
     every_row._on_remove_row(None, 1)
+    page.dialogs[-1].actions[1].on_click(None)  # Remove
     assert len(state.get_account(1).journal) == operations - 1
 
 
@@ -222,7 +346,7 @@ def test_removing_a_transfer_asks_first_then_removes_it_from_both_accounts(app, 
 
     view._on_remove_row(None, 1)
     dialog = page.dialogs[-1]
-    assert dialog.content.value == "It will be removed from both Test Broker and Second Broker."
+    assert dialog.content.value.endswith("It will be removed from both Test Broker and Second Broker.")
     dialog.actions[0].on_click(None)  # Cancel
     assert (len(state.get_account(1).df), len(state.get_account(second).df)) == rows
 

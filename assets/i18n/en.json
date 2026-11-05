@@ -273,10 +273,15 @@
 
 
   "transactions": {
-    "filter_by": "Filter by",
-    "filter_by_count": "Transactions",
-    "filter_by_days": "Days                      ",
-    "export_csv": "Export CSV",
+    "start_dt": "From",
+    "end_dt": "To",
+    "columns": "Columns",
+    "operations": "Operations",
+    "products": "Products",
+    "other": "Other",
+    "remove": "Remove",
+    "select": "Select",
+    "export": "Export",
     "export_success": "File exported successfully",
     "no_data": "No data available, cannot export",
     "remove_row": "Remove latest transaction",
@@ -287,9 +292,7 @@
     "transfer_undo_one": "It will be removed from {account} only: the other half of the transfer no longer exists.",
     "transfer_undo_confirm": "Remove",
     "transfer_removed": "Transfer removed",
-    "empty": "No data",
-    "filters": "Filters",
-    "filter_columns": "Filter columns"
+    "empty": "No data"
   },
 
 

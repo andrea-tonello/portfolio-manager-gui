@@ -16,7 +16,6 @@
 - Wrong month inserted (15-18-2025) --> "Date is missing" snackbar error
 - Haptic feedback to charts?
 - "Move" operations across the same day?
-- flet's DataTable2
 
 
 

@@ -14,7 +14,7 @@ from test_transactions_view import tap_row
 
 import views.operations_view
 from domain.journal import Kind
-from services import config_service, journal_service
+from services import journal_service
 from views import shell
 from views.operations_view import OperationsView
 from views.transactions_view import TransactionsView
@@ -131,7 +131,6 @@ def test_an_edited_dividend_changes_the_rows_after_it(app, page, state, open_edi
     It keeps its id and order of entry, the question names the operations
     recalculated, and once saved Transactions is shown again.
     """
-    config_service.save_tx_filter(state.user_config_folder, "count", 50)
     state.tx_selection = "1"
     transactions = TransactionsView(app)
     transactions.build()

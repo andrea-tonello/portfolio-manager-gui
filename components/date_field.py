@@ -245,11 +245,15 @@ class PeriodShortcuts:
     empty when None) to today. The dates can still be typed or picked by hand,
     which unselects the button: it no longer describes them. `control` is
     the row to place above the two fields.
+
+    `on_change`, when set, is called with no arguments after the user picks a
+    period or sets the dates by hand; `restore` and `set_first_day` don't call it.
     """
 
     def __init__(self, translator, start: DateField, end: DateField, first_day: date | None):
         """Build the buttons, fill the dates with MAX, and listen for dates set by hand."""
         self.start, self.end, self.first_day = start, end, first_day
+        self.on_change = None
         self.buttons = ft.SegmentedButton(
             show_selected_icon=False,
             selected=["max"],
@@ -270,6 +274,24 @@ class PeriodShortcuts:
         today = date.today()
         self.start.value, self.end.value = period_start(period, today, self.first_day), today
 
+    @property
+    def period(self) -> str | None:
+        """The period selected, e.g. "3m"; None once the dates were set by hand."""
+        return self.buttons.selected[0] if self.buttons.selected else None
+
+    def restore(self, period: str | None, dates: tuple[date, date] | None):
+        """Show what was chosen earlier: `period`, or when it is None the (start, end) `dates` set by hand.
+
+        For a screen built again, e.g. on coming back to its tab. A period is
+        filled anew, so it ends today and starts no earlier than `first_day`.
+        """
+        if period is None:
+            self.start.value, self.end.value = dates
+        else:
+            self._fill(period)
+        self.buttons.selected = [] if period is None else [period]
+        self.buttons.allow_empty_selection = period is None
+
     def set_first_day(self, first_day: date | None):
         """Make MAX start on `first_day`, as the earliest start of every period; the dates follow if one is selected.
 
@@ -284,6 +306,8 @@ class PeriodShortcuts:
         self._fill(period)
         self.buttons.allow_empty_selection = False
         self.start.page.update()
+        if self.on_change:
+            self.on_change()
 
     def _on_dates_set_by_hand(self):
         """A date was typed or picked: no period is selected any more (tapping one fills the dates again)."""
@@ -291,6 +315,15 @@ class PeriodShortcuts:
             self.buttons.selected = []
             self.buttons.allow_empty_selection = True
             self.start.page.update()
+        if self.on_change:
+            self.on_change()
+
+
+def periods_and_dates(periods: PeriodShortcuts, dates: DateRange) -> ft.ResponsiveRow:
+    """The period shortcuts and the date range: side by side on large screens (md and up), one above the other on phones."""
+    periods.control.col = dates.control.col = {"xs": 12, "md": 6}
+    return ft.ResponsiveRow([periods.control, dates.control], vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=50, run_spacing=20)
 
 
 def _resolve(bound):

@@ -58,6 +58,11 @@ class AppState:
         self.analysis_acc_idx: int | None = None  # None = all accounts
         self.analysis_tab_index: int = 0  # last selected Analysis tab (0 = first tab)
         self.tx_selection: str = "overview"  # "overview" or str(broker_idx)
+        # What Transactions lists, kept until the app closes, as the tab is rebuilt each time it is shown.
+        self.tx_period: str | None = "max"  # the period picked (components.date_field.PERIODS); None: dates set by hand
+        self.tx_dates: tuple | None = None  # (start, end) set by hand, when no period is picked
+        self.tx_hidden_operations: set[str] = set()  # the operations unticked, e.g. {"Buy"}
+        self.tx_hidden_products: set[str] = set()  # the products unticked (see transactions_view._NAMED_PRODUCTS)
 
         # Watchlist
         self.watchlist: list[str] = []

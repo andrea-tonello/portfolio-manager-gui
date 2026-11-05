@@ -37,8 +37,6 @@ SAVES = [
                  {"Home": {"pnl_mode": "2"}}, id="home-pnl-mode"),
     pytest.param(lambda f: config_service.save_split_ignores(f, {"BBB.MI|*", "AAA.MI|2024-07-01"}),
                  {"SplitIgnores": {"entries": "AAA.MI|2024-07-01,BBB.MI|*"}}, id="split-ignores"),
-    pytest.param(lambda f: config_service.save_tx_filter(f, "days", 30),
-                 {"Transactions": {"filter_mode": "days", "filter_value": "30"}}, id="tx-filter"),
     pytest.param(lambda f: config_service.save_tx_columns(f, ["date", "pl"]),
                  {"Transactions": {"visible_columns": "date,pl"}}, id="tx-columns"),
     pytest.param(lambda f: config_service.save_users(f, {1: "Ann", 2: "Bob"}),

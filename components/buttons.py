@@ -11,7 +11,7 @@ def action_card_btn(icon, label, on_click, *, horizontal=False, padding=20, heig
     so icon and label stay centred together, and wraps when the card is too
     narrow for it on one line.
 
-    Settings uses it for "Export backup" and "Import backup", Transactions for "Filters".
+    Settings uses it for "Export backup" and "Import backup".
     `label` is a string, or an ft.Text for a label that changes later (e.g. the
     fee choices in Operations). Any other keyword goes to the card itself, to say
     how it fits in its row, e.g. expand=True to share the row's width, or

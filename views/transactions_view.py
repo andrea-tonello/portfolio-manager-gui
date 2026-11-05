@@ -1,22 +1,22 @@
 import flet as ft
 import pandas as pd
-from datetime import datetime, timedelta
 
-from components.buttons import action_card_btn
+from components.date_field import DateRange, PeriodShortcuts, periods_and_dates
 from components.dialogs import close_dialog
 from components.file_export import get_file_picker, save_bytes
-from components.inputs import account_selector, rounded_text_field
+from components.inputs import account_selector
 from components.journal_change import change_accounts, recalculated_text
 from components.repaint_boundary import repaint_boundary
 from components.snack import error_message, show_snack
 from domain.errors import ValidationError
 from domain.journal import Kind
+from domain.ledger import Product
 from services import account_service, config_service, journal_service
 from utils.columns import (
-    COLUMNS, OP_ID, export_headers, localized_value_maps, operation_title, rename_for_export,
-    show_transfer_counterparts,
+    COLUMNS, OP_ID, OPERATION_LOCALE_KEYS, PRODUCT_LOCALE_KEYS, export_headers, localized_value_maps, operation_title,
+    rename_for_export, show_transfer_counterparts,
 )
-from utils.constants import DEFAULT_TX_FILTER
+from utils.constants import DATE_FORMAT
 
 _DEFAULT_DISPLAY_COLS = [
     "date", "account", "operation", "product", "ticker", "qt_exch",
@@ -25,11 +25,41 @@ _DEFAULT_DISPLAY_COLS = [
 
 _ALL_COLS = COLUMNS
 _PAGE_SIZE = 20
+# The controls above the table are no wider than this, centred: on a large screen they would spread too far apart.
+_CONTROLS_WIDTH = 700
+# The products named in the Products popup. Every other value of the column (a dividend, a tax, the
+# user's own description of a charge such as "Stamp duty") comes under the popup's "Other".
+_NAMED_PRODUCTS = (Product.CASH, Product.STOCK, Product.ETF_STOCK, Product.ETF_MM, Product.ETF_BOND)
+_OTHER_PRODUCT = "other"
 
 
 def _parsed_dates(df):
     """The `date` column of `df` as timestamps (dates stored as DD-MM-YYYY); NaT where unreadable."""
     return pd.to_datetime(df["date"], dayfirst=True, errors="coerce")
+
+
+def _first_day(df):
+    """The day of the earliest operation in `df`, where the MAX period starts; None when there is none."""
+    first = None if df is None else _parsed_dates(df).min()
+    return None if pd.isna(first) else first.date()
+
+
+def _shown_rows(df, start, end, hidden_operations, hidden_products):
+    """Return the rows of `df` from `start` to `end` included, without the operations and products hidden.
+
+    `hidden_products` holds values of _NAMED_PRODUCTS, or _OTHER_PRODUCT for
+    all the others. Example: with {"Buy"} and {"other"} hidden, a sale of a
+    stock is listed, but not a buy of it, a dividend or a tax.
+    """
+    products = df["product"].where(df["product"].isin(_NAMED_PRODUCTS), _OTHER_PRODUCT)
+    return df[_parsed_dates(df).between(pd.Timestamp(start), pd.Timestamp(end))
+              & ~df["operation"].isin(hidden_operations)
+              & ~products.isin(hidden_products)]
+
+
+def _row_button(button, label, **options):
+    """Return a `button` (e.g. ft.Button) labelled `label`, for a row of buttons that together fill the row's width."""
+    return button(label, expand=len(label) + 6, style=ft.ButtonStyle(padding=ft.Padding.zero()), **options)
 
 
 def _newest_first(df):
@@ -105,28 +135,62 @@ class TransactionsView:
     def _build_transactions_section(self, df, acc_idx=None) -> ft.Control:
         self._tx_df = df
         self._acc_idx = acc_idx
-        saved_mode, saved_value = config_service.load_tx_filter(self.state.user_config_folder)
-        self._tx_filter_mode = saved_mode
-        self._tx_filter_value = saved_value
         self._visible_cols = (config_service.load_tx_columns(self.state.user_config_folder)
                               or list(_DEFAULT_DISPLAY_COLS))
 
+        controls = ft.Container(
+            ft.Column([self._build_period_row(df), self._build_filters_and_actions_row(acc_idx)], spacing=20),
+            width=_CONTROLS_WIDTH,
+            padding=ft.Padding.only(left=5, right=5, top=5),
+        )
         self.tx_table_container = ft.Container(padding=ft.Padding.only(top=10))
         self._update_tx_table()
 
         return ft.Column([
-            self._build_button_row(acc_idx),
+            controls,
             self.tx_table_container,
         ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    def _build_button_row(self, acc_idx) -> ft.Control:
-        t = self.state.translator
+    def _build_period_row(self, df) -> ft.Control:
+        """The period shortcuts, then the dates as text, the button changing them and ">>", a placeholder doing nothing yet.
 
-        filters_btn = action_card_btn(ft.Icons.FILTER_LIST, t.get("transactions.filters"), self._on_open_filters,
-                                  padding=15, height=90, col={"xs": 4, "md": 4})
+        Two rows on a phone, one on a larger screen. The table follows a period
+        or dates as soon as they are chosen (_on_period_change).
+        """
+        s = self.state
+        t = s.translator
+        first_day = _first_day(df)
+        self.dates = DateRange(self.page, t, t.get("transactions.start_dt"), t.get("transactions.end_dt"))
+        self.dates.start.min_date = first_day  # the picker: nothing to list before the first operation
+        self.dates.control.controls.append(ft.FilledIconButton(icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT))
+        self.periods = PeriodShortcuts(t, self.dates.start, self.dates.end, first_day)
+        self.periods.restore(s.tx_period, s.tx_dates)
+        self.periods.on_change = self._on_period_change
+        return periods_and_dates(self.periods, self.dates)
+
+    def _on_period_change(self):
+        """A period was picked or dates set by hand: keep them for when the tab is shown again, and list their rows."""
+        self.state.tx_period = self.periods.period
+        self.state.tx_dates = (self.dates.start.value, self.dates.end.value)
+        self._update_tx_table()
+        self.page.update()
+
+    def _build_filters_and_actions_row(self, acc_idx) -> ft.Control:
+        """The filter buttons opening their popups, then the actions: two rows on a phone, one split by a line on a larger screen.
+
+        The row counts 25 columns on a larger screen: 12 for each group, and 1 for the line.
+        "Select..." is a placeholder for a bulk delete, doing nothing yet.
+        """
+        t = self.state.translator
+        filters = ft.Row([
+            _row_button(ft.Button, t.get("transactions.columns"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_columns),
+            _row_button(ft.Button, t.get("transactions.operations"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_operations),
+            _row_button(ft.Button, t.get("transactions.products"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_products),
+        ], spacing=8, col={"xs": 25, "md": 12})
 
         if acc_idx is not None:
             async def on_export(e):
+                """Save the CSV of the account selected."""
                 await self._on_export(e, acc_idx)
             export_click = on_export
             remove_click = lambda e, i=acc_idx: self._on_remove_row(e, i)
@@ -134,113 +198,87 @@ class TransactionsView:
             export_click = self._on_export_overview
             remove_click = None
 
-        export_btn = ft.FilledButton(
-            t.get("transactions.export_csv"),
-            icon=ft.Icons.SAVE,
-            on_click=export_click,
-            height=40,
-            width=600,
-            expand=True,
-        )
-        remove_btn = ft.OutlinedButton(
-            t.get("transactions.remove_row"),
-            icon=ft.Icons.UNDO,
-            on_click=remove_click,
-            disabled=(acc_idx is None),
-            height=40,
-            width=600,
-            expand=True,
-        )
+        actions = ft.Row([
+            _row_button(
+                ft.OutlinedButton,
+                t.get("transactions.remove"),
+                icon=ft.Icons.UNDO,
+                on_click=remove_click,
+                disabled=(acc_idx is None),
+                tooltip=t.get("transactions.remove_row"),
+            ),
+            _row_button(ft.OutlinedButton, t.get("transactions.select"), icon=ft.Icons.DELETE),
+            _row_button(ft.FilledButton, t.get("transactions.export"), icon=ft.Icons.SAVE, on_click=export_click),
+        ], spacing=8, col={"xs": 25, "md": 12})
 
-        right_col = ft.Column([export_btn, remove_btn], spacing=8, expand=True, col={"xs": 8, "md": 8},)
+        line = ft.Container(ft.VerticalDivider(width=1), height=44, col={"xs": 0, "md": 1})
 
-        return ft.Container(
-            ft.ResponsiveRow([filters_btn, right_col], spacing=20, width=400, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            padding=ft.Padding.only(left=20, right=20, top=30),
-        )
+        return ft.ResponsiveRow([filters, line, actions], columns={"xs": 25, "md": 25}, spacing=0, run_spacing=20,
+                                vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # ── Filters Dialog ────────────────────────────────────────────────
+    # ── Popups of the filter buttons ──────────────────────────────────
 
-    def _on_open_filters(self, e):
+    def _open_checklist(self, title_key, options, ticked, on_apply):
+        """Open a popup with one checkbox per option, those in `ticked` ticked; Apply passes on the choice and lists the rows.
+
+        `options` is {value: label}, and `on_apply` receives the set of values ticked.
+        """
         t = self.state.translator
-        col_labels = export_headers(t)
+        boxes = {value: ft.Checkbox(label=label, value=value in ticked) for value, label in options.items()}
 
-        # Row filter controls
-        dlg_radio = ft.RadioGroup(
-            value=self._tx_filter_mode,
-            content=ft.Column([
-                ft.Radio(value="count", label=t.get("transactions.filter_by_count")),
-                ft.Radio(value="days", label=t.get("transactions.filter_by_days")),
-            ], spacing=0),
-        )
-        dlg_filter_field = rounded_text_field(
-            value=str(self._tx_filter_value),
-            keyboard_type=ft.KeyboardType.NUMBER,
-            input_filter=ft.NumbersOnlyInputFilter(),
-            width=100,
-        )
-
-        def on_radio_change(ev):
-            dlg_filter_field.value = str(DEFAULT_TX_FILTER[dlg_radio.value])
-            self.page.update()
-        dlg_radio.on_change = on_radio_change
-
-        # Column visibility checkboxes (one per column in COLUMNS)
-        checkboxes = {}
-        for col in _ALL_COLS:
-            label = col_labels.get(col, col)
-            cb = ft.Checkbox(label=label, value=(col in self._visible_cols))
-            checkboxes[col] = cb
-
-        def on_cancel(ev):
+        def apply(_):
+            """Close the popup, pass on what is ticked, and show the table that follows from it."""
             self.page.pop_dialog()
-
-        def on_apply(ev):
-            # Save row filter
-            mode = dlg_radio.value
-            try:
-                val = int(dlg_filter_field.value)
-                if val <= 0:
-                    raise ValueError
-            except (ValueError, TypeError):
-                val = DEFAULT_TX_FILTER[mode]
-            self._tx_filter_mode = mode
-            self._tx_filter_value = val
-            config_service.save_tx_filter(self.state.user_config_folder, mode, val)
-
-            # Save column visibility
-            visible = [col for col, cb in checkboxes.items() if cb.value]
-            if not visible:
-                visible = list(_DEFAULT_DISPLAY_COLS)
-            config_service.save_tx_columns(self.state.user_config_folder, visible)
-            self._visible_cols = visible
-
-            self.page.pop_dialog()
+            on_apply({value for value, box in boxes.items() if box.value})
             self._update_tx_table()
             self.page.update()
 
-        dlg = ft.AlertDialog(
-            title=ft.Text(t.get("transactions.filters")),
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Text(t.get("transactions.filter_by"), size=14, weight=ft.FontWeight.BOLD),
-                    ft.Row([
-                        dlg_radio,
-                        dlg_filter_field,
-                    ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                    ft.Divider(),
-                    ft.Text(t.get("transactions.filter_columns"), size=14, weight=ft.FontWeight.BOLD),
-                    ft.Column([checkboxes[col] for col in _ALL_COLS], spacing=0),
-                ], scroll=ft.ScrollMode.AUTO, spacing=10),
-                height=400,
-                width=400,
-            ),
+        self.page.show_dialog(ft.AlertDialog(
+            title=ft.Text(t.get(title_key)),
+            content=ft.Column(list(boxes.values()), tight=True, spacing=0, width=400),
             actions=[
-                ft.TextButton(t.get("components.cancel"), on_click=on_cancel),
-                ft.FilledButton(t.get("components.apply"), on_click=on_apply),
+                ft.TextButton(t.get("components.cancel"), on_click=lambda _: self.page.pop_dialog()),
+                ft.FilledButton(t.get("components.apply"), on_click=apply),
             ],
-        )
-        self.page.show_dialog(dlg)
+            # The dialog scrolls, not a Column inside it: in Flet 1.0 a scrolling Column stretches the dialog.
+            scrollable=True,
+        ))
+
+    def _on_open_columns(self, e):
+        """Let the user pick the columns the table shows, saved for the next time; with none ticked, the usual ones."""
+        t = self.state.translator
+        labels = export_headers(t)
+
+        def apply(ticked):
+            """Show and save the columns ticked, in their usual order."""
+            self._visible_cols = [col for col in _ALL_COLS if col in ticked] or list(_DEFAULT_DISPLAY_COLS)
+            config_service.save_tx_columns(self.state.user_config_folder, self._visible_cols)
+
+        self._open_checklist("transactions.columns", {col: labels.get(col, col) for col in _ALL_COLS},
+                             self._visible_cols, apply)
+
+    def _on_open_operations(self, e):
+        """Let the user pick the kinds of operation the table lists, kept until the app closes."""
+        t = self.state.translator
+        options = {operation: t.get(key).strip() for operation, key in OPERATION_LOCALE_KEYS.items()}
+
+        def apply(ticked):
+            """Hide the operations not ticked."""
+            self.state.tx_hidden_operations = set(options) - ticked
+
+        self._open_checklist("transactions.operations", options, set(options) - self.state.tx_hidden_operations, apply)
+
+    def _on_open_products(self, e):
+        """Let the user pick the products the table lists, kept until the app closes; "Other" stands for all the unnamed ones."""
+        t = self.state.translator
+        options = {product: t.get(PRODUCT_LOCALE_KEYS[product]).strip() for product in _NAMED_PRODUCTS}
+        options[_OTHER_PRODUCT] = t.get("transactions.other")
+
+        def apply(ticked):
+            """Hide the products not ticked."""
+            self.state.tx_hidden_products = set(options) - ticked
+
+        self._open_checklist("transactions.products", options, set(options) - self.state.tx_hidden_products, apply)
 
     # ── Table update ──────────────────────────────────────────────────
 
@@ -254,15 +292,8 @@ class TransactionsView:
             ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
             return
 
-        df_sorted = _newest_first(df)
-
-        if self._tx_filter_mode == "days":
-            cutoff = pd.Timestamp(datetime.now() - timedelta(days=self._tx_filter_value))
-            df_sorted = df_sorted[_parsed_dates(df_sorted) >= cutoff]
-        else:
-            df_sorted = df_sorted.head(self._tx_filter_value)
-
-        self._tx_filtered_df = df_sorted
+        self._tx_filtered_df = _shown_rows(_newest_first(df), self.dates.start.value, self.dates.end.value,
+                                           self.state.tx_hidden_operations, self.state.tx_hidden_products)
 
         if reset_page:
             self._tx_page = 0
@@ -382,10 +413,11 @@ class TransactionsView:
         await save_bytes(self.page, self.file_picker, file_name, csv_bytes, "csv", t.get("transactions.export_success"))
 
     def _on_remove_row(self, e, idx):
-        """Remove the operation recorded last in account `idx` (see _remove).
+        """Remove the operation recorded last in account `idx`, asking first and naming it (see _remove).
 
         That is the one entered last, whatever its date: a split found on
-        Yahoo goes on its own past date, and is still the one undone.
+        Yahoo goes on its own past date, and is still the one undone. The
+        filters may hide it from the table, hence the question.
         """
         s = self.state
         t = s.translator
@@ -398,7 +430,7 @@ class TransactionsView:
         except ValidationError as ex:  # an account not moved to the journal yet
             show_snack(self.page, error_message(t, ex), error=True)
             return
-        self._remove(account, op)
+        self._remove(account, op, named=True)
 
     def _on_row_tap(self, account_name, op_id):
         """Offer what can be done with the operation of a row tapped: edit it (in Operations) or remove it (_remove).
@@ -452,12 +484,23 @@ class TransactionsView:
         )
         self.page.show_dialog(dialog)
 
-    def _remove(self, account, op):
+    def _describe(self, account, op) -> str:
+        """Name `op` for a question, e.g. "Buy VGLA.DE · 20-10-2026 · Fineco".
+
+        Without its row (a ledger left out of step by a rebuild that failed
+        offline, see _on_row_tap) only its date and account are named.
+        """
+        rows = account.df[account.df[OP_ID] == op.id]
+        title = [operation_title(rows.iloc[0], self.state.translator)] if not rows.empty else []
+        return " · ".join([*title, op.date.strftime(DATE_FORMAT), account.name])
+
+    def _remove(self, account, op, named=False):
         """Delete `op` from `account` (journal_service.delete) in the background; a transfer from both its accounts.
 
         The operations after it are rebuilt. When it is a transfer, or others
         come after it, the user is asked first: which accounts it is removed
-        from, and how many operations will be recalculated. The question
+        from, and how many operations will be recalculated. With `named`, the
+        user is always asked first, and told which operation it is. The question
         comes once the change is worked out (change_accounts), so a removal
         that would make a later operation impossible (e.g. a sale of shares
         whose buy it is) or leave it short of cash (a buy paid with the
@@ -482,8 +525,11 @@ class TransactionsView:
         if later:
             texts.append(recalculated_text(t, later, "journal.delete"))
         question = None
-        if texts:
+        if texts or named:
             title = t.get("transactions.transfer_undo_title" if is_transfer else "journal.delete.title")
-            question = (title, " ".join(texts), t.get("journal.delete.confirm"))
+            text = " ".join(texts)
+            if named:
+                text = f"{self._describe(account, op)}\n\n{text}".strip()
+            question = (title, text, t.get("journal.delete.confirm"))
         change_accounts(self.app, lambda: journal_service.delete(s.accounts, account, op.id), question=question,
                         saved_message=t.get("transactions.transfer_removed" if is_transfer else "transactions.row_removed"))

@@ -23,7 +23,7 @@ from components.charts import (
     chart_summary,
     chart_var_mc,
 )
-from components.date_field import DateRange, PeriodShortcuts
+from components.date_field import DateRange, PeriodShortcuts, periods_and_dates
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
@@ -52,13 +52,6 @@ def _accounts_to_analyse(state):
         return [state.accounts[idx] for idx in sorted(state.accounts)]
     account = state.get_account(state.analysis_acc_idx)
     return [account] if account is not None else []
-
-
-def _periods_and_dates(periods, dates):
-    """The period shortcuts and the date range: side by side on large screens (md and up), one above the other on phones."""
-    periods.control.col = dates.control.col = {"xs": 12, "md": 6}
-    return ft.ResponsiveRow([periods.control, dates.control], vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            spacing=50, run_spacing=20)
 
 
 class AnalysisTool:
@@ -398,7 +391,7 @@ class SummaryTool(AnalysisTool):
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_operation)
-        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates)]
+        return [ft.Container(height=5), periods_and_dates(self.periods, self.dates)]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""
@@ -525,7 +518,7 @@ class CorrelationTool(AnalysisTool):
             (self.window, self.rolling_fields),
         ])
 
-        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates), self.action_cards,
+        return [ft.Container(height=5), periods_and_dates(self.periods, self.dates), self.action_cards,
                 self.rolling_fields]
 
     def text_fields(self):
@@ -610,7 +603,7 @@ class DrawdownTool(AnalysisTool):
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
-        return [ft.Container(height=5), _periods_and_dates(self.periods, self.dates)]
+        return [ft.Container(height=5), periods_and_dates(self.periods, self.dates)]
 
     def read_inputs(self):
         """(start, end), if both are given, not in the future, and start comes first."""

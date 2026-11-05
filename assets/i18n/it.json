@@ -273,13 +273,18 @@
 
 
   "transactions": {
-    "filter_by": "Filtra per",
-    "filter_by_count": "Transazioni  ",
-    "filter_by_days": "Giorni                    ",
-    "export_csv": "Esporta CSV",
+    "start_dt": "Dal",
+    "end_dt": "Al",
+    "columns": "Colonne",
+    "operations": "Operazioni",
+    "products": "Prodotti",
+    "other": "Altro",
+    "remove": "Rimuovi",
+    "select": "Seleziona",
+    "export": "Esporta",
     "export_success": "File esportato con successo",
     "no_data": "Nessun dato disponibile, impossibile esportare",
-    "remove_row": "Rimuovi ultima transaz.",
+    "remove_row": "Rimuovi l'ultima transazione",
     "row_removed": "Transazione rimossa",
     "no_rows": "Nessuna transazione da rimuovere",
     "transfer_undo_title": "Rimuovere il trasferimento?",
@@ -287,9 +292,7 @@
     "transfer_undo_one": "Verrà rimosso solo da {account}: l'altra metà del trasferimento non c'è più.",
     "transfer_undo_confirm": "Rimuovi",
     "transfer_removed": "Trasferimento rimosso",
-    "empty": "Nessun dato disponibile",
-    "filters": "Filtri",
-    "filter_columns": "Filtra colonne"
+    "empty": "Nessun dato disponibile"
   },
 
 

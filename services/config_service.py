@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from domain.errors import ValidationError
 from services.account_service import export_filename, journal_filename, ledger_filename
 from services.journal_service import journal_from_json
-from utils.constants import DEFAULT_TX_FILTER
 
 # Held while a config.ini is read, changed and written back (_update_section).
 _config_lock = threading.Lock()
@@ -141,26 +140,6 @@ def load_user_settings(user_folder: str) -> UserSettings:
     except ValueError:
         pass
     return settings
-
-
-def save_tx_filter(config_folder: str, mode: str, value: int):
-    _update_section(config_folder, "Transactions", {"filter_mode": mode, "filter_value": str(value)})
-
-
-def load_tx_filter(config_folder: str) -> tuple[str, int]:
-    _, config = _load_config(config_folder)
-    if not config.has_section("Transactions"):
-        return "count", DEFAULT_TX_FILTER["count"]
-    mode = config.get("Transactions", "filter_mode", fallback="count")
-    if mode not in DEFAULT_TX_FILTER:
-        mode = "count"
-    try:
-        value = int(config.get("Transactions", "filter_value", fallback=str(DEFAULT_TX_FILTER[mode])))
-        if value <= 0:
-            raise ValueError
-    except (ValueError, TypeError):
-        value = DEFAULT_TX_FILTER[mode]
-    return mode, value
 
 
 def save_tx_columns(config_folder: str, visible_cols: list[str]):

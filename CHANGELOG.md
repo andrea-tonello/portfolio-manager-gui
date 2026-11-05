@@ -7,6 +7,7 @@
 
 ### Features
 
+- More comprehensive actions and filters in *Transactions*
 
 
 
