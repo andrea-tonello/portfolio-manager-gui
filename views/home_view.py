@@ -4,7 +4,6 @@ import flet as ft
 import pandas as pd
 from datetime import datetime
 
-from components.buttons import squircle_add_btn
 from components.inputs import account_selector
 from components.journal_change import change_accounts
 from components.snack import show_snack
@@ -187,7 +186,7 @@ class HomeView:
         )
         add_row = ft.Container(ft.Row([
             self._watchlist_ticker_search.control,
-            squircle_add_btn(self._on_watchlist_add)
+            ft.FilledIconButton(icon=ft.Icons.ADD, on_click=self._on_watchlist_add),
         ], vertical_alignment=ft.CrossAxisAlignment.START))
 
         self._watchlist_items_container = ft.ReorderableListView(
@@ -628,11 +627,6 @@ class HomeView:
         self._visibility_btn = ft.IconButton(
             icon=ft.Icons.VISIBILITY_OFF if hidden else ft.Icons.VISIBILITY,
             icon_size=28, on_click=self._toggle_visibility,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.GREY),
-                shape=ft.CircleBorder(),
-            ),
-            
         )
         self._refresh_loading = ft.ProgressRing(visible=False, width=16, height=16)
 

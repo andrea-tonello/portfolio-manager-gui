@@ -1,7 +1,5 @@
 import flet as ft
 
-from components.inputs import RADIUS
-
 
 def action_card_btn(icon, label, on_click, *, horizontal=False, padding=20, height=None, **card_kwargs) -> ft.Card:
     """Return a raised, tappable card with a large icon above a short label, or to its left with `horizontal`.
@@ -51,16 +49,6 @@ def mark_card_selected(card, label, selected):
     label.weight = ft.FontWeight.BOLD if selected else None
 
 
-def squircle_add_btn(on_click):
-    return ft.FilledButton(
-        content=ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=26),
-        height=46,
-        width=46,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=RADIUS), padding=0),
-        on_click=on_click,
-    )
-
-
 # How Material greys out a disabled filled button. A pill given its own colours
 # needs them spelled out: a colour set on a button otherwise shows in every state.
 _DISABLED_BGCOLOR = ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE)
@@ -68,13 +56,16 @@ _DISABLED_COLOR = ft.Colors.with_opacity(0.38, ft.Colors.ON_SURFACE)
 
 
 def pill_style(bgcolor=None, color=None) -> ft.ButtonStyle:
-    """Return the style of a pill button: its padding, and `bgcolor` and `color` if given (see pill_btn).
+    """Return the style of a pill button: its shape, its padding, and `bgcolor` and `color` if given (see pill_btn).
 
-    Assign it to a pill's `style` to change its colours once it is on screen.
-    Example: add_btn.style = pill_style(bgcolor=ft.Colors.RED) turns the pill
-    red; pill_style() gives it back the theme's colours.
+    The shape is set here because the theme gives every other button rounded
+    corners (components.theme). Assign it to a pill's `style` to change its
+    colours once it is on screen. Example: add_btn.style =
+    pill_style(bgcolor=ft.Colors.RED) turns the pill red; pill_style() gives it
+    back the theme's colours.
     """
     return ft.ButtonStyle(
+        shape=ft.StadiumBorder(),
         padding=ft.Padding.symmetric(horizontal=32, vertical=18),
         bgcolor=bgcolor and {ft.ControlState.DISABLED: _DISABLED_BGCOLOR, ft.ControlState.DEFAULT: bgcolor},
         color=color and {ft.ControlState.DISABLED: _DISABLED_COLOR, ft.ControlState.DEFAULT: color},

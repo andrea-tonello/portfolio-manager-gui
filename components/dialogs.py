@@ -209,8 +209,8 @@ def show_user_manager(app):
             border_radius=15,
         ),
         actions=[
-            ft.FilledButton(content=ft.Icon(ft.Icons.ADD, size=26), 
-                            style=ft.ButtonStyle(shape=ft.CircleBorder(), padding=20), 
+            ft.FilledIconButton(icon=ft.Icon(ft.Icons.ADD, size=32), 
+                            style=ft.ButtonStyle(padding=16, shape=ft.RoundedRectangleBorder(radius=16)),
                             on_click=lambda _: page.run_task(_drawer_tap, _on_add_user)),
         ],
         actions_alignment=ft.MainAxisAlignment.CENTER,

@@ -146,12 +146,12 @@ class DateRange:
         self.page = page
         self.t = translator
         self._labels = (translator.get("components.date_from"), translator.get("components.date_to"))
-        self.text = ft.Text(size=14, expand=True)
+        self.text = ft.Text(size=14)
         self.start = _RangeDate(page, self._redraw)
         self.end = _RangeDate(page, self._redraw)
-        self.button = ft.FilledTonalIconButton(icon=ft.Icons.DATE_RANGE, on_click=self._open_dialog)
+        self.button = ft.FilledTonalIconButton(icon=ft.Icons.DATE_RANGE, on_click=self._open_dialog,)
         # A narrow gap, as the row also fits the two dates on one line on a 360 px phone, next to two icon buttons in Analysis.
-        self.control = ft.Row([self.text, self.button], spacing=6)
+        self.control = ft.Row([self.button, self.text], spacing=6, alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
         self._redraw()
 
     def _redraw(self):
@@ -161,8 +161,8 @@ class DateRange:
         (e.g. with a large system font) breaks between the two dates.
         """
         spans = []
-        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("   ", "")):
-            spans.append(ft.TextSpan(f"{label}: "))
+        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("   ", "  ")):
+            spans.append(ft.TextSpan(f"  {label}: "))
             spans.append(ft.TextSpan(day.strftime(DATE_FORMAT) if day else "—",
                                      style=ft.TextStyle(weight=ft.FontWeight.BOLD)))
             spans.append(ft.TextSpan(gap))

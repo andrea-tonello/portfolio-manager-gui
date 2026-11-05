@@ -6,7 +6,7 @@ account screens are also reused when adding a user from the user manager.
 
 import flet as ft
 
-from components.buttons import action_card_btn, pill_btn, squircle_add_btn
+from components.buttons import action_card_btn, pill_btn
 from components.backup_import import import_backup
 from components.file_export import get_file_picker
 from components.inputs import NAME_INPUT_FILTER, rounded_dropdown, rounded_text_field
@@ -253,7 +253,7 @@ def show_broker_onboarding(app, on_complete=None, on_cancel=None):
     # Greyed out until at least one account is in the list.
     confirm_btn = pill_btn(t.get("components.confirm"), on_done, icon=ft.Icons.CHECK, disabled=True)
 
-    add_button = squircle_add_btn(on_click=on_add)
+    add_button = ft.FilledIconButton(icon=ft.Icons.ADD, on_click=on_add)
 
     close_btn = ft.IconButton(
         icon=ft.Icons.CLOSE,

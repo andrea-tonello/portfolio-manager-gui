@@ -1,6 +1,6 @@
 import flet as ft
 
-from components.buttons import action_card_btn, squircle_add_btn
+from components.buttons import action_card_btn
 from components.backup_import import import_backup
 from components.dialogs import build_github_repo, show_contacts, show_privacy_policy
 from components.file_export import get_file_picker, save_bytes
@@ -82,7 +82,7 @@ class SettingsView:
                 *broker_tiles,
                 ft.Row([
                     self.new_broker_field,
-                    squircle_add_btn(on_click=self._on_add_broker)
+                    ft.FilledIconButton(icon=ft.Icons.ADD, on_click=self._on_add_broker),
                 ]),
             ], spacing=10),
             padding=20,

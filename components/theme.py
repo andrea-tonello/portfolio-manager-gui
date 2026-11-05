@@ -35,6 +35,29 @@ PAGE_TRANSITIONS = ft.PageTransitionsTheme(
 )
 
 
+# How round the corners of every button are. Inputs use a larger radius, but on a computer buttons
+# are only 32 px tall, where 15 would look like a pill. Pills set their own shape (components.buttons).
+BUTTON_RADIUS = 10
+
+
+def _page_theme(color):
+    """The theme of a page, light or dark, whose colours derive from `color`: its transitions and its buttons' shape.
+
+    A button that sets a style without a shape (e.g. its padding) still takes this shape.
+    """
+    buttons = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=BUTTON_RADIUS))
+    return ft.Theme(
+        color_scheme_seed=color,
+        page_transitions=PAGE_TRANSITIONS,
+        button_theme=ft.ButtonTheme(style=buttons),
+        filled_button_theme=ft.FilledButtonTheme(style=buttons),  # also FilledTonalButton
+        outlined_button_theme=ft.OutlinedButtonTheme(style=buttons),
+        text_button_theme=ft.TextButtonTheme(style=buttons),
+        icon_button_theme=ft.IconButtonTheme(style=buttons),
+        segmented_button_theme=ft.SegmentedButtonTheme(style=buttons),
+    )
+
+
 def apply_theme(page, mode, palette):
     """Give `page` the light/dark `mode` and the colour `palette` (keys of the dicts above).
 
@@ -44,5 +67,5 @@ def apply_theme(page, mode, palette):
     """
     page.theme_mode = THEME_MODES.get(mode, ft.ThemeMode.SYSTEM)
     color = PALETTE_COLORS.get(palette, ft.Colors.BLUE)
-    page.theme = ft.Theme(color_scheme_seed=color, page_transitions=PAGE_TRANSITIONS)
-    page.dark_theme = ft.Theme(color_scheme_seed=color, page_transitions=PAGE_TRANSITIONS)
+    page.theme = _page_theme(color)
+    page.dark_theme = _page_theme(color)

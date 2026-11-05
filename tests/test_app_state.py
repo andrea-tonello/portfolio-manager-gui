@@ -220,7 +220,8 @@ def test_first_launch_saves_the_accounts_and_refuses_a_duplicate(app, state, pag
     onboarding_view.show_broker_onboarding(app, on_complete=lambda: None)
     screen = page.controls[0]
     field = next(find_controls(screen, ft.TextField))
-    add, confirm = find_controls(screen, ft.FilledButton)  # the "+" next to the field, then Confirm
+    add = next(find_controls(screen, ft.FilledIconButton))  # the "+" next to the field
+    confirm = next(find_controls(screen, ft.FilledButton))
 
     for name in ["Fineco", "fineco", "Directa"]:
         field.value = name
@@ -256,7 +257,8 @@ def test_setup_buttons_stay_greyed_out_until_there_is_something_to_confirm(app, 
 
     onboarding_view.show_broker_onboarding(app, on_complete=lambda: None)
     screen = page.controls[0]
-    add, confirm = find_controls(screen, ft.FilledButton)
+    add = next(find_controls(screen, ft.FilledIconButton))
+    confirm = next(find_controls(screen, ft.FilledButton))
     assert confirm.disabled
     next(find_controls(screen, ft.TextField)).value = "Fineco"
     add.on_click(None)
