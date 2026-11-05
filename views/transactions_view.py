@@ -62,6 +62,16 @@ def _row_button(button, label, **options):
     return button(label, expand=len(label) + 6, style=ft.ButtonStyle(padding=ft.Padding.zero()), **options)
 
 
+def _show_filter_state(button, filtering):
+    """Show on a filter button whether its choice hides something: a check and a filled tonal button's colours, or its plain look."""
+    button.icon = ft.Icons.CHECK if filtering else ft.Icons.FILTER_LIST
+    button.style = ft.ButtonStyle(
+        padding=ft.Padding.zero(),
+        bgcolor=ft.Colors.SECONDARY_CONTAINER if filtering else None,
+        color=ft.Colors.ON_SECONDARY_CONTAINER if filtering else None,
+    )
+
+
 def _newest_first(df):
     """Return `df` sorted newest first; operations of the same day go from the last entered to the first.
 
@@ -182,11 +192,12 @@ class TransactionsView:
         "Select..." is a placeholder for a bulk delete, doing nothing yet.
         """
         t = self.state.translator
-        filters = ft.Row([
-            _row_button(ft.Button, t.get("transactions.columns"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_columns),
-            _row_button(ft.Button, t.get("transactions.operations"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_operations),
-            _row_button(ft.Button, t.get("transactions.products"), icon=ft.Icons.FILTER_LIST, on_click=self._on_open_products),
-        ], spacing=8, col={"xs": 25, "md": 12})
+        self.columns_button = _row_button(ft.OutlinedButton, t.get("transactions.columns"), on_click=self._on_open_columns)
+        self.operations_button = _row_button(ft.OutlinedButton, t.get("transactions.operations"), on_click=self._on_open_operations)
+        self.products_button = _row_button(ft.OutlinedButton, t.get("transactions.products"), on_click=self._on_open_products)
+        self._update_filter_buttons()
+        filters = ft.Row([self.columns_button, self.operations_button, self.products_button],
+                         spacing=8, col={"xs": 25, "md": 12})
 
         if acc_idx is not None:
             async def on_export(e):
@@ -200,14 +211,14 @@ class TransactionsView:
 
         actions = ft.Row([
             _row_button(
-                ft.OutlinedButton,
+                ft.Button,
                 t.get("transactions.remove"),
                 icon=ft.Icons.UNDO,
                 on_click=remove_click,
                 disabled=(acc_idx is None),
                 tooltip=t.get("transactions.remove_row"),
             ),
-            _row_button(ft.OutlinedButton, t.get("transactions.select"), icon=ft.Icons.DELETE),
+            _row_button(ft.Button, t.get("transactions.select"), icon=ft.Icons.DELETE),
             _row_button(ft.FilledButton, t.get("transactions.export"), icon=ft.Icons.SAVE, on_click=export_click),
         ], spacing=8, col={"xs": 25, "md": 12})
 
@@ -215,6 +226,17 @@ class TransactionsView:
 
         return ft.ResponsiveRow([filters, line, actions], columns={"xs": 25, "md": 25}, spacing=0, run_spacing=20,
                                 vertical_alignment=ft.CrossAxisAlignment.CENTER)
+
+    def _update_filter_buttons(self):
+        """Mark each filter button that hides something: a column left out, or an operation or product unticked.
+
+        Showing every column is what counts as no filter on columns. A new user's
+        usual columns leave some out, so Columns starts marked, which also
+        shows them from the start that the table can be filtered.
+        """
+        _show_filter_state(self.columns_button, not set(_ALL_COLS) <= set(self._visible_cols))
+        _show_filter_state(self.operations_button, bool(self.state.tx_hidden_operations))
+        _show_filter_state(self.products_button, bool(self.state.tx_hidden_products))
 
     # ── Popups of the filter buttons ──────────────────────────────────
 
@@ -227,9 +249,10 @@ class TransactionsView:
         boxes = {value: ft.Checkbox(label=label, value=value in ticked) for value, label in options.items()}
 
         def apply(_):
-            """Close the popup, pass on what is ticked, and show the table that follows from it."""
+            """Close the popup, pass on what is ticked, and show the buttons and the table that follow from it."""
             self.page.pop_dialog()
             on_apply({value for value, box in boxes.items() if box.value})
+            self._update_filter_buttons()
             self._update_tx_table()
             self.page.update()
 

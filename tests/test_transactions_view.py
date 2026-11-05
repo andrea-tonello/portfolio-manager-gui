@@ -239,6 +239,58 @@ def tap_row(view, *texts):
     row.on_select_change(None)
 
 
+PLAIN = (ft.Icons.FILTER_LIST, None, None)
+MARKED = (ft.Icons.CHECK, ft.Colors.SECONDARY_CONTAINER, ft.Colors.ON_SECONDARY_CONTAINER)
+
+
+def _look(button):
+    """How a filter button looks: its icon, then its background and text colours (None: the theme's)."""
+    return button.icon, button.style.bgcolor, button.style.color
+
+
+def _tick_everything(page):
+    """Tick every checkbox of the popup open on `page`, and press Apply."""
+    popup = page.dialogs[-1]
+    for box in find_controls(popup.content, ft.Checkbox):
+        box.value = True
+    popup.actions[1].on_click(None)
+
+
+@pytest.mark.parametrize("open_popup, label, button", [
+    ("_on_open_operations", "Buy", "operations_button"),
+    ("_on_open_products", "Other", "products_button"),
+], ids=["operations", "products"])
+def test_a_filter_button_is_marked_while_something_is_unticked(every_row, app, page, open_popup, label, button):
+    """A filter hiding rows must show, or the shorter table is a puzzle: marked once something is unticked, plain again once all is ticked.
+
+    It stays marked when the tab is built again, as the filter does.
+    """
+    assert _look(getattr(every_row, button)) == PLAIN
+    getattr(every_row, open_popup)(None)
+    _answer_popup(page, {label})
+    assert _look(getattr(every_row, button)) == MARKED
+
+    again = _built_again(app)
+    assert _look(getattr(again, button)) == MARKED
+    getattr(again, open_popup)(None)
+    _tick_everything(page)
+    assert _look(getattr(again, button)) == PLAIN
+
+
+def test_columns_is_marked_from_the_start_and_plain_only_with_every_column_shown(every_row, app, page):
+    """A new user's usual columns leave some out, so Columns starts marked; with every column ticked, it is plain.
+
+    The columns are saved, so it stays plain when the tab is built again.
+    """
+    assert _look(every_row.columns_button) == MARKED
+
+    every_row._on_open_columns(None)
+    _tick_everything(page)
+
+    assert _look(every_row.columns_button) == PLAIN
+    assert _look(_built_again(app).columns_button) == PLAIN
+
+
 def test_a_row_tapped_can_be_removed_and_the_rows_after_it_are_rebuilt(every_row, page, state):
     """Tapping the dividend of 15-04-2024 offers to edit or remove it; removed, the 6 operations after it lose its 12.5.
 
