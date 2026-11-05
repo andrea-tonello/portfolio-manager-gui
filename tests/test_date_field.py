@@ -141,18 +141,18 @@ def _save_range(dates, page, start, end):
 
 
 def _text(dates):
-    """The range's text as it reads on screen."""
-    return "".join(span.text for span in dates.text.spans)
+    """The range's text as it reads on screen, the unbreakable space after each label shown as a plain one."""
+    return "".join(span.text for span in dates.text.spans).replace(" ", " ")
 
 
 def test_the_range_reads_as_text_with_a_dash_for_a_date_not_set(page, translator):
-    """Each label is followed by its date as DD-MM-YYYY, or by "—" until the date is set; the end goes below the start."""
-    dates = DateRange(page, translator, "Dal", "Al")
-    assert _text(dates) == "Dal: —\nAl: —"
+    """Each label is followed by its date as DD-MM-YYYY, or by "—" until the date is set; the end follows on the same line."""
+    dates = DateRange(page, translator)
+    assert _text(dates) == "From: —   To: —"
 
     dates.start.value, dates.end.value = date(2025, 3, 4), date(2026, 10, 26)
 
-    assert _text(dates) == "Dal: 04-03-2025\nAl: 26-10-2026"
+    assert _text(dates) == "From: 04-03-2025   To: 26-10-2026"
 
 
 def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator):
@@ -161,7 +161,7 @@ def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator)
     It counts as dates set by hand: the period shortcut, which no longer
     describes them, is unselected.
     """
-    dates = DateRange(page, translator, "Start", "End")
+    dates = DateRange(page, translator)
     periods = PeriodShortcuts(translator, dates.start, dates.end, first_day=date(2025, 3, 4))
     dialog, (start_box, _), (end_box, _) = _range_dialog(dates, page)
     assert (start_box.value, end_box.value) == ("04-03-2025", date.today().strftime("%d-%m-%Y"))
@@ -172,13 +172,13 @@ def test_the_dialog_types_dates_as_everywhere_and_ok_sets_them(page, translator)
     _ok(dialog)
 
     assert (dates.start.value, dates.end.value) == (date(2025, 6, 2), date(2025, 9, 1))
-    assert _text(dates) == "Start: 02-06-2025\nEnd: 01-09-2025"
+    assert _text(dates) == "From: 02-06-2025   To: 01-09-2025"
     assert periods.buttons.selected == [] and dialog not in page.dialogs
 
 
 def test_ok_with_the_start_after_the_end_says_so_and_changes_nothing(page, translator):
     """The dialog stays open with the message, and the range keeps its dates."""
-    dates = DateRange(page, translator, "Start", "End")
+    dates = DateRange(page, translator)
     dates.start.value, dates.end.value = date(2025, 6, 2), date(2025, 9, 1)
     dialog, (start_box, _), _ = _range_dialog(dates, page)
 
@@ -193,7 +193,7 @@ def test_ok_with_the_start_after_the_end_says_so_and_changes_nothing(page, trans
 def test_each_calendar_in_the_dialog_keeps_the_start_before_the_end(page, translator):
     """The start's calendar runs from its limit (here 04-03-2025) to the day before the end; the end's from the day
     after the start to today."""
-    dates = DateRange(page, translator, "Start", "End")
+    dates = DateRange(page, translator)
     dates.start.min_date = date(2025, 3, 4)
     dates.start.value, dates.end.value = date(2025, 6, 2), date(2025, 9, 1)
     _, (_, start_calendar), (_, end_calendar) = _range_dialog(dates, page)
@@ -234,7 +234,7 @@ def test_a_period_shortcut_fills_the_dates_and_a_range_picked_by_hand_unselects_
     Picking a range unselects 3M and keeps the dates picked: the button no
     longer describes them. Tapping 3M again fills them with it again.
     """
-    dates = DateRange(page, translator, "From", "To")
+    dates = DateRange(page, translator)
     start, end = dates.start, dates.end
     periods = PeriodShortcuts(translator, start, end, first_day=date(2025, 3, 4))
     today = date.today()

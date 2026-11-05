@@ -133,31 +133,36 @@ class _RangeDate:
 class DateRange:
     """A start and an end date shown as text, with one button opening a dialog to change both.
 
-    The text reads e.g. "Dal: 04-03-2025", and "Al: 26-10-2026" on the line
-    below ("—" for a date not set). `start` and `end` hold the dates (see _RangeDate); `control` is
+    The text reads e.g. "From: 04-03-2025   To: 26-10-2026" ("—" for a date
+    not set). `start` and `end` hold the dates (see _RangeDate); `control` is
     the row to place in a layout. The dialog has the two dates as DateFields,
     so they are typed as anywhere else in the app (digits only, dashes added),
     or picked from each one's calendar. Its OK sets both and calls their
     `on_change`.
     """
 
-    def __init__(self, page: ft.Page, translator, start_label: str, end_label: str):
+    def __init__(self, page: ft.Page, translator):
         """Build the text and the button; both dates start unset."""
         self.page = page
         self.t = translator
-        self._labels = (start_label, end_label)
+        self._labels = (translator.get("components.date_from"), translator.get("components.date_to"))
         self.text = ft.Text(size=14, expand=True)
         self.start = _RangeDate(page, self._redraw)
         self.end = _RangeDate(page, self._redraw)
         self.button = ft.FilledTonalIconButton(icon=ft.Icons.DATE_RANGE, on_click=self._open_dialog)
-        self.control = ft.Row([self.text, self.button])
+        # A narrow gap, as the row also fits the two dates on one line on a 360 px phone, next to two icon buttons in Analysis.
+        self.control = ft.Row([self.text, self.button], spacing=6)
         self._redraw()
 
     def _redraw(self):
-        """Write each label with its date in bold, or "—" while it is not set: the start, then the end below it."""
+        """Write each label with its date in bold, or "—" while it is not set: the start, then the end on the same line.
+
+        A label and its date never break apart, so a line too narrow for both
+        (e.g. with a large system font) breaks between the two dates.
+        """
         spans = []
-        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("\n", "")):
-            spans.append(ft.TextSpan(f"{label}: "))
+        for label, day, gap in zip(self._labels, (self.start.value, self.end.value), ("   ", "")):
+            spans.append(ft.TextSpan(f"{label}: "))
             spans.append(ft.TextSpan(day.strftime(DATE_FORMAT) if day else "—",
                                      style=ft.TextStyle(weight=ft.FontWeight.BOLD)))
             spans.append(ft.TextSpan(gap))

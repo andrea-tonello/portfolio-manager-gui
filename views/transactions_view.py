@@ -170,7 +170,7 @@ class TransactionsView:
         s = self.state
         t = s.translator
         first_day = _first_day(df)
-        self.dates = DateRange(self.page, t, t.get("transactions.start_dt"), t.get("transactions.end_dt"))
+        self.dates = DateRange(self.page, t)
         self.dates.start.min_date = first_day  # the picker: nothing to list before the first operation
         self.dates.control.controls.append(ft.FilledIconButton(icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT))
         self.periods = PeriodShortcuts(t, self.dates.start, self.dates.end, first_day)

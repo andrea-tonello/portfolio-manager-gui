@@ -386,7 +386,7 @@ class SummaryTool(AnalysisTool):
         Calculate is the icon button after the dates' calendar button.
         """
         t = self.t
-        self.dates = DateRange(self.page, t, t.get("analysis.summary.start_dt").strip(), t.get("analysis.summary.end_dt").strip())
+        self.dates = DateRange(self.page, t)
         self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: nothing to show before the first operation
@@ -487,7 +487,7 @@ class CorrelationTool(AnalysisTool):
         """
         t = self.t
         self.kind = "simple"
-        self.dates = DateRange(self.page, t, t.get("analysis.corr.start_dt").strip(), t.get("analysis.corr.end_dt").strip())
+        self.dates = DateRange(self.page, t)
         self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
         self.periods = PeriodShortcuts(t, self.start, self.end, self.first_day)
@@ -598,7 +598,7 @@ class DrawdownTool(AnalysisTool):
         Calculate is the icon button after the dates' calendar button.
         """
         t = self.t
-        self.dates = DateRange(self.page, t, t.get("analysis.drawdown.start_dt").strip(), t.get("analysis.drawdown.end_dt").strip())
+        self.dates = DateRange(self.page, t)
         self.dates.control.controls.append(self.calculate_button)
         self.start, self.end = self.dates.start, self.dates.end
         self.start.min_date = self.first_operation  # the picker: no drawdown before the first operation
