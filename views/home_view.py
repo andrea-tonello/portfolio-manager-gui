@@ -6,6 +6,7 @@ from datetime import datetime
 
 from components.inputs import account_selector
 from components.journal_change import change_accounts
+from components.section_tabs import section_tabs
 from components.snack import show_snack
 from components.ticker_search import TickerSearchField
 from domain.journal import Kind
@@ -58,7 +59,6 @@ class HomeView:
         self._snapshot = None  # the values shown (a Snapshot); None until the first fetch ends
         self._pnl_mode = self.state.home_pnl_mode  # index in PNL_MODES, saved per user
         self._pos_display_mode = 0  # 0 = value, 1 = total %, 2 = daily %
-        self._active_section_tab = 0  # 0 = open positions, 1 = watchlist
         self._watchlist_fetched = False
 
     def build(self) -> ft.Control:
@@ -110,62 +110,28 @@ class HomeView:
     # ── Section Tab Switcher ─────────────────────────────────────────
 
     def _build_section_tabs(self) -> ft.Control:
+        """The switch between the open positions and the watchlist: two tabs filling the row, the selected one filled and bold."""
         t = self.state.translator
-
-        self._tab_positions_text = ft.Text(
-            t.get("home.open_positions"), size=14,
-            weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER,
-        )
-        self._tab_watchlist_text = ft.Text(
-            t.get("home.watchlist"), size=14,
-            text_align=ft.TextAlign.CENTER,
-        )
-
-        self._tab_positions = ft.Container(
-            content=self._tab_positions_text,
-            bgcolor=ft.Colors.SECONDARY_CONTAINER,
-            border_radius=12,
-            padding=ft.Padding.symmetric(horizontal=20, vertical=10),
-            on_click=lambda _: self._switch_section_tab(0),
-            ink=True,
-            expand=True,
-            alignment=ft.alignment.Alignment.CENTER,
-        )
-        self._tab_watchlist = ft.Container(
-            content=self._tab_watchlist_text,
-            bgcolor=None,
-            border_radius=12,
-            padding=ft.Padding.symmetric(horizontal=20, vertical=10),
-            on_click=lambda _: self._switch_section_tab(1),
-            ink=True,
-            expand=True,
-            alignment=ft.alignment.Alignment.CENTER,
-        )
-
+        tabs = section_tabs([(t.get("home.open_positions"), None), (t.get("home.watchlist"), None)],
+                            self._on_section_tap)
         return ft.Container(
-            ft.Row([self._tab_positions, self._tab_watchlist], spacing=8),
+            tabs,
             width=WIDTH_POSITIONS,
             padding=ft.Padding.only(top=10, right=5, left=5, bottom=15),
         )
 
-    def _switch_section_tab(self, tab_idx):
-        if tab_idx == self._active_section_tab:
+    def _on_section_tap(self, index):
+        """Show the section tapped (0: the open positions, 1: the watchlist), unless it is shown already.
+
+        The watchlist's prices are fetched the first time it shows.
+        """
+        is_pos = index == 0
+        if self._positions_section.visible == is_pos:
             return
         self.state.haptic(self.page)
-        self._active_section_tab = tab_idx
-        is_pos = (tab_idx == 0)
-
-        # Update tab styling
-        self._tab_positions.bgcolor = ft.Colors.SECONDARY_CONTAINER if is_pos else None
-        self._tab_positions_text.weight = ft.FontWeight.BOLD if is_pos else None
-        self._tab_watchlist.bgcolor = ft.Colors.SECONDARY_CONTAINER if not is_pos else None
-        self._tab_watchlist_text.weight = ft.FontWeight.BOLD if not is_pos else None
-
-        # Toggle section visibility
         self._positions_section.visible = is_pos
         self._watchlist_section.visible = not is_pos
 
-        # Lazy-load watchlist prices on first switch
         if not is_pos and self.state.watchlist and not self._watchlist_fetched:
             self._watchlist_fetched = True
             self._fetch_watchlist_prices()

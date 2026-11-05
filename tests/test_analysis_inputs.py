@@ -1,6 +1,6 @@
 """Tests for the inputs of the Analysis tools: their default dates, the checks on dates, tickers,
 windows and the VaR settings, the tabs that calculate as soon as they are shown (Allocation, which
-has no Calculate button, recalculates by itself too), and the Statistics tool's two cards (chart
+has no Calculate button, recalculates by itself too), and the Statistics tool's two tabs (chart
 and figures) sharing what they calculate.
 
 A refused input shows its message, and the calculation doesn't start.
@@ -21,6 +21,11 @@ from views.analysis_view import AllocationTool, AnalysisView, CorrelationTool, D
 TOMORROW = date.today() + timedelta(days=1)
 ROLLING = {"kind": "rolling", "start": date(2024, 1, 2), "end": date(2024, 6, 3),
            "asset1": "AAA.MI", "asset2": "BBB.MI"}
+
+
+def _tap_tab(tabs, index):
+    """Tap the tab at `index` (from 0) of a row of section tabs, as the user does."""
+    tabs.content.on_click(SimpleNamespace(data=index))
 
 
 @pytest.mark.parametrize("tool, inputs, message", [
@@ -50,7 +55,7 @@ def test_analysis_refuses_invalid_inputs(app, page, tool, inputs, message):
     page.run_thread = lambda fn, *args: started.append(fn)
     for field, value in inputs.items():
         if field == "kind":
-            tab.tool.pick_action(value)  # as its card does, before calculating
+            tab.tool.pick_action(value)  # as its tab does, before calculating
         else:
             getattr(tab.tool, field).value = value
 
@@ -161,10 +166,10 @@ def test_rolling_correlation_shows_its_fields_and_waits_for_its_tickers(app, pag
     view.build()
     [tab] = [tab for tab in view.tabs if isinstance(tab.tool, CorrelationTool)]
     started.pop()()  # Simple, calculated as the screen opened on it
-    simple_card, rolling_card = find_controls(tab.tool.action_cards, ft.Card)
+    simple, rolling = 0, 1  # the tabs
     assert tab.result.controls and not tab.tool.rolling_fields.visible
 
-    rolling_card.content.on_click(None)
+    _tap_tab(tab.tool.action_tabs, rolling)
     assert (tab.result.controls, tab.tool.rolling_fields.visible, tab.tool.start.value) == ([], True, date(2000, 1, 1))
     assert started == [] and snack_texts(page) == []
 
@@ -173,7 +178,7 @@ def test_rolling_correlation_shows_its_fields_and_waits_for_its_tickers(app, pag
     assert len(started) == 1
     started.pop()()
 
-    simple_card.content.on_click(None)
+    _tap_tab(tab.tool.action_tabs, simple)
     assert (tab.tool.rolling_fields.visible, tab.tool.start.value) == (False, date(2024, 1, 2))
 
 
@@ -208,14 +213,13 @@ def test_allocation_recalculates_when_another_split_is_picked(app, page, state, 
 
 
 def test_statistics_chart_and_figures_download_the_price_history_once(app, page, state, monkeypatch):
-    """Each Performance card shows only its own result, and the slow price history is downloaded once for both.
+    """Each Performance tab shows only its own result, and the slow price history is downloaded once for both.
 
     The figures shown after the chart reuse its history, and match those
     calculated from scratch. Going back to the chart downloads nothing; another
-    day does, through the Calculate icon button, which shows the card last
-    picked again. Only the card whose result is shown is outlined. The cards
-    are greyed out while a result is coming, so another one can't be started
-    and then be replaced by the first, arriving late.
+    day does, through the Calculate icon button, which shows the tab selected
+    again. The tabs ignore taps while a result is coming, so another one can't
+    be started and then be replaced by the first, arriving late.
     """
     started = []
     monkeypatch.setattr(page, "run_thread", lambda fn, *args: started.append(fn))
@@ -225,44 +229,47 @@ def test_statistics_chart_and_figures_download_the_price_history_once(app, page,
                         lambda *args: downloads.append(args) or real_history(*args))
 
     def statistics_tab():
-        """A freshly built Analysis screen's Statistics tab, from the first operation to 31-12-2024, and its two cards."""
+        """A freshly built Analysis screen's Statistics tab, from the first operation to 31-12-2024."""
         view = AnalysisView(app)
         view.build()
         [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
         tab.tool.end.value = date(2024, 12, 31)
-        return tab, *find_controls(tab.content, ft.Card)
+        return tab
 
-    def press(tab, card, button=None):
-        """Tap `card` (or `button`), check the cards are greyed out until the result arrives; return what is shown."""
-        [cards] = [row for row in find_controls(tab.content, ft.Row) if card in row.controls]
-        (button or card.content).on_click(None)
-        assert cards.disabled
+    def press(tab, index=None, button=None):
+        """Tap the tab at `index` (or `button`), check the tabs ignore taps until the result arrives; return what is shown."""
+        tabs = tab.tool.action_tabs
+        if button:
+            button.on_click(None)
+        else:
+            _tap_tab(tabs, index)
+        assert tabs.disabled
         started.pop()()
-        assert not cards.disabled
-        assert [other.content.border is not None for other in cards.controls] == [other is card for other in cards.controls]
+        assert not tabs.disabled
         return {"chart": any(find_controls(tab.result, fch.LineChart)),
                 "texts": [text.value for text in find_controls(tab.result, ft.Text)],
                 "export": tab.export_row.visible}
 
-    tab, chart_card, figures_card = statistics_tab()
-    chart = press(tab, chart_card)
+    chart_tab, figures_tab = 0, 1
+    tab = statistics_tab()
+    chart = press(tab, chart_tab)
     assert chart["chart"] and chart["export"] and len(downloads) == 1
     assert not any("NAV (on" in text for text in chart["texts"])
 
-    figures = press(tab, figures_card)
+    figures = press(tab, figures_tab)
     assert not figures["chart"] and not figures["export"]
     assert any("NAV (on" in text for text in figures["texts"])
     assert len(downloads) == 1  # the chart's history was reused
 
-    assert press(tab, chart_card) == chart
+    assert press(tab, chart_tab) == chart
     assert len(downloads) == 1
 
     tab.tool.end.value = date(2024, 11, 29)
-    assert press(tab, chart_card, button=tab.tool.calculate_button)["chart"]  # the chart, for the new day
+    assert press(tab, button=tab.tool.calculate_button)["chart"]  # the chart, for the new day
     assert len(downloads) == 2
 
-    tab, _, figures_card = statistics_tab()
-    assert press(tab, figures_card)["texts"] == figures["texts"]  # calculated from scratch, same figures
+    tab = statistics_tab()
+    assert press(tab, figures_tab)["texts"] == figures["texts"]  # calculated from scratch, same figures
     assert len(downloads) == 3
 
 
@@ -284,8 +291,7 @@ def test_statistics_show_the_figures_of_the_accounts_picked_only(app, page, stat
         view.build()
         [tab] = [tab for tab in view.tabs if isinstance(tab.tool, SummaryTool)]
         tab.tool.end.value = date(2024, 12, 31)
-        _, figures_card = find_controls(tab.content, ft.Card)
-        figures_card.content.on_click(None)
+        _tap_tab(tab.tool.action_tabs, 1)  # Statistics
         return [text.value for text in find_controls(tab.result, ft.Text)]
 
     def nav(figures):

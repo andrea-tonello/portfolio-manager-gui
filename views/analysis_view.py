@@ -13,7 +13,7 @@ import flet as ft
 import pandas as pd
 
 from components.background import run_in_background
-from components.buttons import action_card_btn, mark_card_selected, pill_btn
+from components.buttons import pill_btn
 from components.charts import (
     chart_allocation,
     chart_correlation_heatmap,
@@ -27,6 +27,7 @@ from components.date_field import DateRange, PeriodShortcuts, periods_and_dates
 from components.file_export import get_file_picker, save_bytes
 from components.focus_chain import chain_focus, scrolling_form
 from components.inputs import DECIMAL_INPUT_FILTER, account_selector, rounded_dropdown, rounded_text_field
+from components.section_tabs import section_tabs
 from components.snack import error_message, show_snack
 from components.ticker_search import TickerSearchField
 from domain.errors import ValidationError
@@ -62,19 +63,20 @@ class AnalysisTool:
     and render() and export() on what compute() returned. A tool with
     `auto_calculate` has no Calculate button: it calculates when shown and
     whenever one of its inputs changes. A tool with `calculate_when_shown`
-    keeps its button (or cards), but also calculates when shown, with the
+    keeps its button (or tabs), but also calculates when shown, with the
     inputs it starts with, so the tab doesn't open empty. A tool with
     `inline_calculate` has, instead of the Calculate pill at the bottom of the
     tab, a small icon button (`calculate_button`, set before build_inputs())
     that it places among its own inputs. A tool with
-    `actions` has one card per action below its inputs (or where it places
-    `action_cards`, set before build_inputs(), among them), and compute(),
-    render() and export() get (action, inputs), `action` saying which one.
-    Pressing a card calculates its action, instead of a Calculate button,
-    after pick_action() has prepared the inputs for it; picking another card
-    first removes the result shown. With `inline_calculate` too, the icon
-    button calculates again the action last picked (the first one to start
-    with), e.g. for another period. Calculating when shown uses that action too.
+    `actions` has a row of tabs below its inputs, one per action (or where it
+    places `action_tabs`, set before build_inputs(), among them), and
+    compute(), render() and export() get (action, inputs), `action` saying
+    which one. Tapping a tab, the selected one included, calculates its
+    action, instead of a Calculate button, after pick_action() has prepared
+    the inputs for it; picking another tab first removes the result shown.
+    With `inline_calculate` too, the icon button calculates again the action
+    selected (the first one to start with), e.g. for another period.
+    Calculating when shown uses that action too.
     """
 
     title_key = ""      # translation key of the tool's tab label
@@ -84,8 +86,8 @@ class AnalysisTool:
     calculate_when_shown = False  # True: also calculates by itself when shown, with its first inputs (see above)
     inline_calculate = False  # True: its Calculate is an icon button among its inputs, not the pill (see above)
     calculate_button = None   # that icon button, for a tool with inline_calculate
-    actions = ()  # (action, icon, label key) of each card replacing the Calculate button (see above)
-    action_cards = None  # the row of those cards, for a tool that places it among its inputs
+    actions = ()  # (action, icon, label key) of each tab replacing the Calculate button (see above)
+    action_tabs = None  # the row of those tabs, for a tool that places it among its inputs
 
     def __init__(self, page, translator, first_day=None, account_name=None, first_operation=None):
         """Keep the page (date pickers and ticker search need it), the translator, and what is analysed.
@@ -116,7 +118,7 @@ class AnalysisTool:
         return []
 
     def pick_action(self, action) -> bool:
-        """A card was pressed: prepare the inputs for `action` (e.g. show the fields it needs) before it is calculated.
+        """A tab was tapped: prepare the inputs for `action` (e.g. show the fields it needs) before it is calculated.
 
         Return True when those inputs may not be filled in yet: if they can't
         be calculated, nothing is said (the user is about to fill them in).
@@ -141,7 +143,7 @@ class AnalysisTool:
 
 
 class AnalysisTab:
-    """The frame shared by every Analysis tool: inputs, Calculate button (or the tool's action cards, its own
+    """The frame shared by every Analysis tool: inputs, Calculate button (or the tool's action tabs, its own
     icon button among its inputs, or nothing if it calculates by itself), spinner, result and CSV export."""
 
     def __init__(self, page, state, tool, save_csv):
@@ -151,8 +153,7 @@ class AnalysisTab:
         self.tool = tool
         self._save_csv = save_csv
         self._export = None  # (file name, CSV bytes) of the result shown, when it can be exported
-        self._cards = {}  # action -> (its card, the card's label), for a tool with action cards
-        self._action = tool.actions[0][0] if tool.actions else None  # the card last picked, for a tool with cards
+        self._action = tool.actions[0][0] if tool.actions else None  # the tab selected, for a tool with action tabs
 
     def build(self) -> ft.Control:
         """Create the tab's controls around the tool's inputs and return its layout."""
@@ -161,7 +162,7 @@ class AnalysisTab:
             self.tool.calculate_button = ft.FilledIconButton(
                 icon=ft.Icons.KEYBOARD_DOUBLE_ARROW_RIGHT, tooltip=t.get("components.calculate"), on_click=self.submit)
         if self.tool.actions:
-            self.tool.action_cards = self._action_cards()
+            self.tool.action_tabs = self._action_tabs()
         self.inputs = self.tool.build_inputs(self._on_input_change)
         self.loading = ft.ProgressRing(visible=False, width=30, height=30)
         self.result = ft.Column([], spacing=12)
@@ -178,13 +179,13 @@ class AnalysisTab:
         ], spacing=12)
 
         if self.tool.auto_calculate or self.tool.actions or self.tool.inline_calculate:
-            # No Calculate pill: the spinner turns where the result will appear, below the cards if any.
-            # The cards go below the inputs, unless the tool placed them among its inputs itself.
-            placed = any(control is self.tool.action_cards for control in self.inputs)
-            cards = [self.tool.action_cards] if self.tool.actions and not placed else []
-            self._locked_while_calculating = [*self.inputs, *cards]
+            # No Calculate pill: the spinner turns where the result will appear, below the tabs if any.
+            # The tabs go below the inputs, unless the tool placed them among its inputs itself.
+            placed = any(control is self.tool.action_tabs for control in self.inputs)
+            tabs = [self.tool.action_tabs] if self.tool.actions and not placed else []
+            self._locked_while_calculating = [*self.inputs, *tabs]
             col.controls[len(self.inputs):len(self.inputs)] = [
-                *cards, ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER)]
+                *tabs, ft.Row([self.loading], alignment=ft.MainAxisAlignment.CENTER)]
             self.content = scrolling_form(col, self.tool.text_fields(), prefix=self.tool.scroll_prefix, padding=10)
         else:
             self._locked_while_calculating = []
@@ -194,40 +195,31 @@ class AnalysisTab:
                                           button=calculate_btn, loading=self.loading)
         return self.content
 
-    def _action_cards(self) -> ft.Row:
-        """The row of the tool's action cards, side by side and equally wide; each calculates its own action."""
+    def _action_tabs(self) -> ft.Tabs:
+        """The row of the tool's action tabs, equally wide, each with its icon; a tap calculates the tab's action."""
         t = self.state.translator
-        for action, icon, label_key in self.tool.actions:
-            label = ft.Text(t.get(label_key), text_align=ft.TextAlign.CENTER)
-            card = action_card_btn(icon, label, lambda _, action=action: self._pick(action),
-                                   horizontal=True, padding=0, height=50, expand=True)
-            self._cards[action] = (card, label)
-        return ft.Row([card for card, _ in self._cards.values()], spacing=12)
+        actions = [action for action, _, _ in self.tool.actions]
+        return section_tabs([(t.get(label_key), icon) for _, icon, label_key in self.tool.actions],
+                            lambda index: self._pick(actions[index]))
 
     def _pick(self, action):
-        """A card was pressed: calculate its action, once the tool has prepared its inputs for it.
+        """A tab was tapped: calculate its action, once the tool has prepared its inputs for it.
 
-        Another card's result is removed first: it doesn't describe this one.
-        The card is outlined even when its inputs aren't filled in yet, as the
-        one the icon button will calculate.
+        Another tab's result is removed first: it doesn't describe this one.
+        The tab stays selected even when its inputs aren't filled in yet, as
+        the one the icon button will calculate.
         """
         if action != self._action:
             self._show([], None)
         quiet = self.tool.pick_action(action)
-        self._select_card(action)
         self.submit(action=action, quiet=quiet)
         self.page.update()
-
-    def _select_card(self, chosen):
-        """Outline the card of the `chosen` action, whose result is shown or coming; None leaves every card plain."""
-        for action, (card, label) in self._cards.items():
-            mark_card_selected(card, label, action == chosen)
 
     def submit(self, e=None, action=None, quiet=False):
         """Check the inputs, then calculate and show the result in the background.
 
-        `action` is the action card pressed, for a tool with cards (see
-        AnalysisTool); without one, the card last picked.
+        `action` is the action tab tapped, for a tool with tabs (see
+        AnalysisTool); without one, the tab selected.
         `quiet` is for calculations the user didn't ask for (the tab was just
         shown): inputs that can't be calculated yet, e.g. a start left empty
         in a short history, are skipped without an error message.
@@ -260,13 +252,12 @@ class AnalysisTab:
                 self._lock_inputs(False)
             self._show(self.tool.render(result, inputs), self.tool.export(result, inputs))
 
-        self._select_card(action)
         self._lock_inputs(True)
         run_in_background(self.page, t, calculate, loading=self.loading)
 
     def open(self):
         """Run when the tab is shown: a tool that calculates by itself, or when shown, starts, unless its result is
-        shown or coming. With cards, it calculates the card last picked (the first one to start with)."""
+        shown or coming. With tabs, it calculates the tab selected (the first one to start with)."""
         if ((self.tool.auto_calculate or self.tool.calculate_when_shown) and not self.result.controls
                 and not self.loading.visible and _accounts_to_analyse(self.state)):
             self.submit(None, quiet=True)
@@ -278,18 +269,18 @@ class AnalysisTab:
             self.submit(None)
 
     def _lock_inputs(self, locked):
-        """Grey out the inputs (and action cards) of a tool without a Calculate pill while it calculates.
+        """Grey out the inputs (and action tabs, which then ignore taps) of a tool without a Calculate pill while it
+        calculates.
 
-        Each change, card pressed or icon button among the inputs starts a calculation: a second one
+        Each change, tab tapped or icon button among the inputs starts a calculation: a second one
         started while the first runs could finish first, and the older result would then replace it.
         """
         for control in self._locked_while_calculating:
             control.disabled = locked
 
     def clear(self):
-        """Empty the result area, hide the export button and leave the action cards plain."""
+        """Empty the result area and hide the export button; the action tab stays selected, as the one to calculate."""
         self._show([], None)
-        self._select_card(None)
 
     def _show(self, controls, export):
         """Put the result's controls in the result area, and offer `export` (file name, CSV bytes) if given."""
@@ -366,7 +357,7 @@ class SummaryTool(AnalysisTool):
     glossary = "statistics"
     scroll_prefix = "sum"
     calculate_when_shown = True  # the chart over the whole history (MAX)
-    inline_calculate = True  # the icon button calculates the card last picked again, e.g. for a new period
+    inline_calculate = True  # the icon button calculates the tab selected again, e.g. for a new period
     actions = (
         ("chart", ft.Icons.AREA_CHART, "analysis.summary.show_chart"),
         ("figures", ft.Icons.FORMAT_LIST_BULLETED, "analysis.summary.show_figures"),
@@ -518,7 +509,7 @@ class CorrelationTool(AnalysisTool):
             (self.window, self.rolling_fields),
         ])
 
-        return [ft.Container(height=5), periods_and_dates(self.periods, self.dates), self.action_cards,
+        return [ft.Container(height=5), periods_and_dates(self.periods, self.dates), self.action_tabs,
                 self.rolling_fields]
 
     def text_fields(self):

@@ -9,6 +9,7 @@
 
 - More comprehensive actions and filters in *Transactions*
 - Button styling: unified Flet's default buttons' styling under a squared rectangle shape
+- Button styling: unified *Home*'s Positions/Watchlist, and *Analysis*' Chart/Statistics, Simple/Rolling buttons into a single new component
 
 
 
