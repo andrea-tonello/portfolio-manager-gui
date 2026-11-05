@@ -8,6 +8,7 @@
 ### Features
 
 - More comprehensive actions and filters in *Transactions*
+- Button styling: unified Flet's default buttons' styling under a squared rectangle shape
 
 
 

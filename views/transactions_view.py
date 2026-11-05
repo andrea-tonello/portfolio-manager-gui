@@ -31,6 +31,23 @@ _CONTROLS_WIDTH = 700
 # user's own description of a charge such as "Stamp duty") comes under the popup's "Other".
 _NAMED_PRODUCTS = (Product.CASH, Product.STOCK, Product.ETF_STOCK, Product.ETF_MM, Product.ETF_BOND)
 _OTHER_PRODUCT = "other"
+# How the Columns popup groups the columns: the locale key of each group's heading (under
+# "transactions"), then its columns. Every column of COLUMNS is in one group, or it can't be picked.
+_COLUMN_GROUPS = (
+    ("group_operation", ("date", "account", "operation", "product", "ticker", "asset_name", "ter")),
+    ("group_amounts", ("curr", "conv_rate", "qt_exch", "price", "price_eur", "nominal_amount", "fee",
+                       "effective_amount")),
+    ("group_position", ("qt_held", "abp", "residual_amount", "released_amount")),
+    ("group_gains", ("gross_gain", "generated_loss", "expiry", "carryforward", "pending_fees", "taxable_gain",
+                     "tax_bracket", "tax", "pl")),
+    ("group_after", ("cash_held", "assets_value", "nav", "committed_cash")),
+)
+# The same for the Operations popup, with the operations of OPERATION_LOCALE_KEYS.
+_OPERATION_GROUPS = (
+    ("group_cash", ("Deposit", "Withdrawal", "Transfer Out", "Transfer In")),
+    ("group_trading", ("Buy", "Sell")),
+    ("other", ("Dividend", "Tax", "Split")),
+)
 
 
 def _parsed_dates(df):
@@ -63,8 +80,11 @@ def _row_button(button, label, **options):
 
 
 def _show_filter_state(button, filtering):
-    """Show on a filter button whether its choice hides something: a check and a filled tonal button's colours, or its plain look."""
-    button.icon = ft.Icons.CHECK if filtering else ft.Icons.FILTER_LIST
+    """Show on a filter button whether its choice hides something: a dot on its icon and a filled tonal button's colours, or its plain look.
+
+    The dot (a badge) is Material's usual sign that a filter is on.
+    """
+    button.icon = ft.Icon(ft.Icons.FILTER_LIST, badge=ft.Badge(small_size=8, bgcolor=ft.Colors.PRIMARY) if filtering else None)
     button.style = ft.ButtonStyle(
         padding=ft.Padding.zero(),
         bgcolor=ft.Colors.SECONDARY_CONTAINER if filtering else None,
@@ -239,56 +259,81 @@ class TransactionsView:
 
     # ── Popups of the filter buttons ──────────────────────────────────
 
-    def _open_checklist(self, title_key, options, ticked, on_apply):
-        """Open a popup with one checkbox per option, those in `ticked` ticked; Apply passes on the choice and lists the rows.
+    def _open_chips(self, title_key, groups, ticked, on_apply, presets=()):
+        """Open a popup with one chip per option, under its group's heading; Apply passes on the choice and lists the rows.
 
-        `options` is {value: label}, and `on_apply` receives the set of values ticked.
+        A chip is selected (a check and a tinted fill) when its value is in `ticked`, and a tap selects or unselects it. 
+        `groups` is a list of (heading, {value: label}), the heading None for a group without one.
+        `on_apply` receives the set of values selected. Buttons above the chips select every option at once ("Select all"), or
+        exactly those of a preset: `presets` is a list of (label, icon, values), e.g. the usual columns.
         """
         t = self.state.translator
-        boxes = {value: ft.Checkbox(label=label, value=value in ticked) for value, label in options.items()}
+        chips = {}
+        sections = []
+        for heading, options in groups:
+            for value, label in options.items():
+                # A chip can be tapped only with an on_select; Flet keeps its `selected` up to date, read on Apply.
+                chips[value] = ft.Chip(label=label, selected=value in ticked, on_select=lambda _: None)
+            row = ft.Row([chips[value] for value in options], wrap=True, spacing=8, run_spacing=8)
+            title = [ft.Text(heading, size=13, weight=ft.FontWeight.BOLD)] if heading else []
+            sections.append(ft.Column([*title, row], spacing=6, tight=True))
+
+        def select(values):
+            """Select the chips of `values`, and unselect the others."""
+            for value, chip in chips.items():
+                chip.selected = value in values
+            self.page.update()
 
         def apply(_):
-            """Close the popup, pass on what is ticked, and show the buttons and the table that follow from it."""
+            """Close the popup, pass on what is selected, and show the buttons and the table that follow from it."""
             self.page.pop_dialog()
-            on_apply({value for value, box in boxes.items() if box.value})
+            on_apply({value for value, chip in chips.items() if chip.selected})
             self._update_filter_buttons()
             self._update_tx_table()
             self.page.update()
 
+        quick = [(t.get("transactions.select_all"), ft.Icons.DONE_ALL, set(chips)), *presets]
+        buttons = ft.Row([ft.TextButton(label, icon=icon, on_click=lambda _, values=values: select(values))
+                          for label, icon, values in quick], wrap=True, spacing=8)
         self.page.show_dialog(ft.AlertDialog(
-            title=ft.Text(t.get(title_key)),
-            content=ft.Column(list(boxes.values()), tight=True, spacing=0, width=400),
+            title=ft.Text(t.get("transactions.filter_by") + " " + t.get(title_key)),
+            content=ft.Column([buttons, *sections], tight=True, spacing=16, width=500),
             actions=[
                 ft.TextButton(t.get("components.cancel"), on_click=lambda _: self.page.pop_dialog()),
                 ft.FilledButton(t.get("components.apply"), on_click=apply),
             ],
             # The dialog scrolls, not a Column inside it: in Flet 1.0 a scrolling Column stretches the dialog.
             scrollable=True,
+            # Closer to a phone's sides than a dialog's usual 40, so more chips fit on each line.
+            inset_padding=ft.Padding.symmetric(horizontal=16, vertical=24),
         ))
 
     def _on_open_columns(self, e):
-        """Let the user pick the columns the table shows, saved for the next time; with none ticked, the usual ones."""
+        """Let the user pick the columns the table shows, saved for the next time; Default, or none selected, gives the usual ones."""
         t = self.state.translator
         labels = export_headers(t)
+        groups = [(t.get(f"transactions.{key}"), {col: labels.get(col, col) for col in cols}) for key, cols in _COLUMN_GROUPS]
 
         def apply(ticked):
-            """Show and save the columns ticked, in their usual order."""
+            """Show and save the columns selected, in their usual order."""
             self._visible_cols = [col for col in _ALL_COLS if col in ticked] or list(_DEFAULT_DISPLAY_COLS)
             config_service.save_tx_columns(self.state.user_config_folder, self._visible_cols)
 
-        self._open_checklist("transactions.columns", {col: labels.get(col, col) for col in _ALL_COLS},
-                             self._visible_cols, apply)
+        default = (t.get("transactions.default_columns"), ft.Icons.RESTART_ALT, set(_DEFAULT_DISPLAY_COLS))
+        self._open_chips("transactions.columns", groups, self._visible_cols, apply, presets=[default])
 
     def _on_open_operations(self, e):
         """Let the user pick the kinds of operation the table lists, kept until the app closes."""
         t = self.state.translator
-        options = {operation: t.get(key).strip() for operation, key in OPERATION_LOCALE_KEYS.items()}
+        groups = [(t.get(f"transactions.{key}"), {op: t.get(OPERATION_LOCALE_KEYS[op]).strip() for op in operations})
+                  for key, operations in _OPERATION_GROUPS]
+        every = set(OPERATION_LOCALE_KEYS)
 
         def apply(ticked):
-            """Hide the operations not ticked."""
-            self.state.tx_hidden_operations = set(options) - ticked
+            """Hide the operations not selected."""
+            self.state.tx_hidden_operations = every - ticked
 
-        self._open_checklist("transactions.operations", options, set(options) - self.state.tx_hidden_operations, apply)
+        self._open_chips("transactions.operations", groups, every - self.state.tx_hidden_operations, apply)
 
     def _on_open_products(self, e):
         """Let the user pick the products the table lists, kept until the app closes; "Other" stands for all the unnamed ones."""
@@ -297,10 +342,10 @@ class TransactionsView:
         options[_OTHER_PRODUCT] = t.get("transactions.other")
 
         def apply(ticked):
-            """Hide the products not ticked."""
+            """Hide the products not selected."""
             self.state.tx_hidden_products = set(options) - ticked
 
-        self._open_checklist("transactions.products", options, set(options) - self.state.tx_hidden_products, apply)
+        self._open_chips("transactions.products", [(None, options)], set(options) - self.state.tx_hidden_products, apply)
 
     # ── Table update ──────────────────────────────────────────────────
 

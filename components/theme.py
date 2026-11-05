@@ -41,9 +41,12 @@ BUTTON_RADIUS = 10
 
 
 def _page_theme(color):
-    """The theme of a page, light or dark, whose colours derive from `color`: its transitions and its buttons' shape.
+    """The theme of a page, light or dark, whose colours derive from `color`: its transitions, its buttons' shape and its chips' border.
 
     A button that sets a style without a shape (e.g. its padding) still takes this shape.
+    A chip has an outline, selected or not, like an OutlinedButton: a selected
+    chip's pale fill alone is almost the colour of a dialog, where the chips are
+    (the Transactions filters). They then look like the filter buttons, plain or marked.
     """
     buttons = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=BUTTON_RADIUS))
     return ft.Theme(
@@ -55,6 +58,7 @@ def _page_theme(color):
         text_button_theme=ft.TextButtonTheme(style=buttons),
         icon_button_theme=ft.IconButtonTheme(style=buttons),
         segmented_button_theme=ft.SegmentedButtonTheme(style=buttons),
+        chip_theme=ft.ChipTheme(border_side=ft.BorderSide(1, ft.Colors.OUTLINE)),
     )
 
 

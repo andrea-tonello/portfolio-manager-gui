@@ -269,10 +269,20 @@
 
 
   "transactions": {
+    "filter_by": "Filter by",
     "columns": "Columns",
     "operations": "Operations",
     "products": "Products",
     "other": "Other",
+    "select_all": "Select all",
+    "default_columns": "Default",
+    "group_operation": "Operation",
+    "group_amounts": "Prices and amounts",
+    "group_position": "Position",
+    "group_gains": "Gains and tax",
+    "group_after": "Account after the operation",
+    "group_cash": "Cash",
+    "group_trading": "Trading",
     "remove": "Remove",
     "select": "Select",
     "export": "Export",

@@ -139,13 +139,22 @@ def _built_again(app):
     return view
 
 
+def _chips(page):
+    """The chips of the popup open on `page`, by label, in screen order."""
+    return {chip.label: chip for chip in find_controls(page.dialogs[-1].content, ft.Chip)}
+
+
+def _tap(page, label):
+    """Tap the button labelled `label` above the chips of the popup open on `page`, e.g. "Select all"."""
+    next(b for b in find_controls(page.dialogs[-1].content, ft.TextButton) if b.content == label).on_click(None)
+
+
 def _answer_popup(page, unticked):
-    """Untick the checkboxes labelled as in `unticked` in the popup open on `page`, and press Apply."""
-    popup = page.dialogs[-1]
-    for box in find_controls(popup.content, ft.Checkbox):
-        if box.label in unticked:
-            box.value = False
-    popup.actions[1].on_click(None)
+    """Unselect the chips labelled as in `unticked` in the popup open on `page`, and press Apply."""
+    for label, chip in _chips(page).items():
+        if label in unticked:
+            chip.selected = False
+    page.dialogs[-1].actions[1].on_click(None)
 
 
 def test_the_table_starts_on_max_listing_every_operation(every_row, state):
@@ -185,7 +194,7 @@ def test_dates_set_by_hand_include_both_ends_and_stay_when_the_tab_is_built_agai
 def test_operations_unticked_are_hidden_until_ticked_again(every_row, app, page):
     """Unticking Buy in the Operations popup hides the buys; the popup and the rebuilt tab remember, until it is ticked again."""
     every_row._on_open_operations(None)
-    assert [box.label for box in find_controls(page.dialogs[-1].content, ft.Checkbox)] == [
+    assert list(_chips(page)) == [
         "Deposit", "Withdrawal", "Transfer out", "Transfer in", "Buy", "Sell", "Dividend", "Tax", "Split"]
     _answer_popup(page, {"Buy"})
     assert "Buy" not in every_row._tx_filtered_df["operation"].tolist()
@@ -193,15 +202,15 @@ def test_operations_unticked_are_hidden_until_ticked_again(every_row, app, page)
     again = _built_again(app)
     assert "Buy" not in again._tx_filtered_df["operation"].tolist()
     again._on_open_operations(None)
-    boxes = {box.label: box for box in find_controls(page.dialogs[-1].content, ft.Checkbox)}
-    assert boxes["Buy"].value is False
-    boxes["Buy"].value = True
+    chips = _chips(page)
+    assert chips["Buy"].selected is False
+    chips["Buy"].selected = True
     page.dialogs[-1].actions[1].on_click(None)
     assert "Buy" in again._tx_filtered_df["operation"].tolist()
 
 
 def test_other_in_the_products_popup_stands_for_dividends_taxes_and_charges(app, page, state):
-    """Only the real products have a checkbox of their own; dividends, taxes and the user's own descriptions come under Other."""
+    """Only the real products have a chip of their own; dividends, taxes and the user's own descriptions come under Other."""
     set_operations(state, 1, [
         deposit(date(2024, 1, 2), 1000),
         buy(date(2024, 1, 3), "AAA.MI", 1, price=100.0, fee=0.0),
@@ -212,23 +221,31 @@ def test_other_in_the_products_popup_stands_for_dividends_taxes_and_charges(app,
     view = _built_again(app)
 
     view._on_open_products(None)
-    assert [box.label for box in find_controls(page.dialogs[-1].content, ft.Checkbox)] == [
-        "Cash", "Stocks", "Stocks ETF", "Money Market ETF", "Bonds ETF", "Other"]
+    assert list(_chips(page)) == ["Cash", "Stocks", "Stocks ETF", "Money Market ETF", "Bonds ETF", "Other"]
     _answer_popup(page, {"Other"})
 
     assert view._tx_filtered_df["operation"].tolist() == ["Buy", "Deposit"]
 
 
-def test_columns_ticked_are_saved_and_none_ticked_means_the_usual_ones(every_row, page, state):
-    """The Columns popup saves the columns ticked for the next time; unticking them all shows the usual columns."""
+def test_columns_selected_are_saved_and_default_or_none_selected_means_the_usual_ones(every_row, page, state):
+    """The Columns popup saves the columns selected for the next time; unselecting them all, or Default, shows the usual ones.
+
+    Every column has a chip, once: a column left out of the groups couldn't be picked.
+    """
     every_row._on_open_columns(None)
+    assert sorted(_chips(page)) == sorted(export_headers(state.translator).values())
     _answer_popup(page, {"Date"})
     assert "date" not in config_service.load_tx_columns(state.user_config_folder)
     assert "date" not in every_row._visible_cols
 
     every_row._on_open_columns(None)
-    popup = page.dialogs[-1]
-    _answer_popup(page, {box.label for box in find_controls(popup.content, ft.Checkbox)})
+    _answer_popup(page, set(_chips(page)))
+    assert every_row._visible_cols == _DEFAULT_DISPLAY_COLS
+
+    every_row._on_open_columns(None)
+    _tap(page, "Select all")
+    _tap(page, "Default")
+    page.dialogs[-1].actions[1].on_click(None)
     assert every_row._visible_cols == _DEFAULT_DISPLAY_COLS
 
 
@@ -239,21 +256,19 @@ def tap_row(view, *texts):
     row.on_select_change(None)
 
 
-PLAIN = (ft.Icons.FILTER_LIST, None, None)
-MARKED = (ft.Icons.CHECK, ft.Colors.SECONDARY_CONTAINER, ft.Colors.ON_SECONDARY_CONTAINER)
+PLAIN = (False, None, None)
+MARKED = (True, ft.Colors.SECONDARY_CONTAINER, ft.Colors.ON_SECONDARY_CONTAINER)
 
 
 def _look(button):
-    """How a filter button looks: its icon, then its background and text colours (None: the theme's)."""
-    return button.icon, button.style.bgcolor, button.style.color
+    """How a filter button looks: whether its icon has a dot, then its background and text colours (None: the theme's)."""
+    return button.icon.badge is not None, button.style.bgcolor, button.style.color
 
 
 def _tick_everything(page):
-    """Tick every checkbox of the popup open on `page`, and press Apply."""
-    popup = page.dialogs[-1]
-    for box in find_controls(popup.content, ft.Checkbox):
-        box.value = True
-    popup.actions[1].on_click(None)
+    """Tap "Select all" in the popup open on `page`, and press Apply."""
+    _tap(page, "Select all")
+    page.dialogs[-1].actions[1].on_click(None)
 
 
 @pytest.mark.parametrize("open_popup, label, button", [

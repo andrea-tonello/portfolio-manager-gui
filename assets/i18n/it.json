@@ -269,10 +269,20 @@
 
 
   "transactions": {
+    "filter_by": "Filtra per",
     "columns": "Colonne",
     "operations": "Operazioni",
     "products": "Prodotti",
     "other": "Altro",
+    "select_all": "Seleziona tutto",
+    "default_columns": "Predefinite",
+    "group_operation": "Operazione",
+    "group_amounts": "Prezzi e importi",
+    "group_position": "Posizione",
+    "group_gains": "Plusvalenze e imposte",
+    "group_after": "Conto dopo l'operazione",
+    "group_cash": "Liquidità",
+    "group_trading": "Compravendita",
     "remove": "Rimuovi",
     "select": "Seleziona",
     "export": "Esporta",
