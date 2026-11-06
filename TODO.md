@@ -8,7 +8,6 @@
     - `RefreshIndicator` control for Home pull-to-refresh
 
 
-- Select button with bulk delete
 
 - "Undo action" button instead of Remove latest transaction
 - Modernize UI/UX for theme and palette settings

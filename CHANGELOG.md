@@ -1,4 +1,4 @@
-## [0.5.1] (2026-XX-XX)
+## [0.5.1] (2026-11-06)
 
 ### Fixes
 
@@ -8,21 +8,9 @@
 ### Features
 
 - More comprehensive actions and filters in *Transactions*
+- Bulk delete saved transactions
 - Button styling: unified Flet's default buttons' styling under a squared rectangle shape
 - Button styling: unified *Home*'s Positions/Watchlist, and *Analysis*' Chart/Statistics, Simple/Rolling buttons into a single new component
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
