@@ -74,9 +74,28 @@ def _shown_rows(df, start, end, hidden_operations, hidden_products):
               & ~products.isin(hidden_products)]
 
 
+def _row_keys(df):
+    """The (account name, operation id) of each row of `df`, in order, which Select ticks; None for a row without an id.
+
+    Without one (a ledger left out of step with its journal), a row can't be
+    tapped or ticked. Example: a deposit in Fineco and a row without an id ->
+    [("Fineco", "6f1c2a…"), None].
+    """
+    if OP_ID not in df.columns:
+        return [None] * len(df)
+    return [(name, op_id) if isinstance(op_id, str) and op_id else None
+            for name, op_id in zip(df["account"], df[OP_ID])]
+
+
 def _row_button(button, label, **options):
     """Return a `button` (e.g. ft.Button) labelled `label`, for a row of buttons that together fill the row's width."""
     return button(label, expand=len(label) + 6, style=ft.ButtonStyle(padding=ft.Padding.zero()), **options)
+
+
+def _relabel(button, label):
+    """Give a button from _row_button the label `label`, and the share of the row's width that goes with it."""
+    button.content = label
+    button.expand = len(label) + 6
 
 
 def _show_filter_state(button, filtering):
@@ -165,6 +184,9 @@ class TransactionsView:
     def _build_transactions_section(self, df, acc_idx=None) -> ft.Control:
         self._tx_df = df
         self._acc_idx = acc_idx
+        self._selecting = False  # True once Select is tapped: the rows have checkboxes, ticked ones get deleted
+        self._picked = set()     # the rows ticked, on any page, as (account name, operation id)
+        self._table_rows = []    # the rows of the page shown, each with its (account name, operation id) as data
         self._visible_cols = (config_service.load_tx_columns(self.state.user_config_folder)
                               or list(_DEFAULT_DISPLAY_COLS))
 
@@ -208,7 +230,7 @@ class TransactionsView:
         """The filter buttons opening their popups, then the actions: two rows on a phone, one split by a line on a larger screen.
 
         The row counts 25 columns on a larger screen: 12 for each group, and 1 for the line.
-        "Select..." is a placeholder for a bulk delete, doing nothing yet.
+        Select lets the user tick rows and delete them all at once (_on_select_button).
         """
         t = self.state.translator
         self.columns_button = _row_button(ft.OutlinedButton, t.get("transactions.columns"), on_click=self._on_open_columns)
@@ -223,21 +245,16 @@ class TransactionsView:
                 """Save the CSV of the account selected."""
                 await self._on_export(e, acc_idx)
             export_click = on_export
-            remove_click = lambda e, i=acc_idx: self._on_remove_row(e, i)
         else:
             export_click = self._on_export_overview
-            remove_click = None
 
+        self.remove_button = _row_button(ft.Button, t.get("transactions.remove"), on_click=self._on_remove_button)
+        self.select_button = _row_button(ft.Button, t.get("transactions.select"), icon=ft.Icons.DELETE,
+                                         on_click=self._on_select_button)
+        self._show_action_buttons()
         actions = ft.Row([
-            _row_button(
-                ft.Button,
-                t.get("transactions.remove"),
-                icon=ft.Icons.UNDO,
-                on_click=remove_click,
-                disabled=(acc_idx is None),
-                tooltip=t.get("transactions.remove_row"),
-            ),
-            _row_button(ft.Button, t.get("transactions.select"), icon=ft.Icons.DELETE),
+            self.remove_button,
+            self.select_button,
             _row_button(ft.FilledButton, t.get("transactions.export"), icon=ft.Icons.SAVE, on_click=export_click),
         ], spacing=8, col={"xs": 25, "md": 12})
 
@@ -361,6 +378,9 @@ class TransactionsView:
 
         self._tx_filtered_df = _shown_rows(_newest_first(df), self.dates.start.value, self.dates.end.value,
                                            self.state.tx_hidden_operations, self.state.tx_hidden_products)
+        if self._picked:  # rows a new period or filter hides are unticked: only rows the table lists get deleted
+            self._picked &= set(_row_keys(self._tx_filtered_df))
+            self._show_action_buttons()
 
         if reset_page:
             self._tx_page = 0
@@ -414,6 +434,7 @@ class TransactionsView:
 
     def _build_transactions_table(self, df) -> ft.Control:
         t = self.state.translator
+        self._table_rows = []
         if df is None or df.empty:
             return ft.Text(t.get("transactions.empty"), size=16)
         df = show_transfer_counterparts(df, t)  # "verso: Directa" rather than the bare name stored
@@ -425,7 +446,7 @@ class TransactionsView:
 
         columns = [ft.DataColumn(ft.Text(col_labels.get(col, col), size=11, weight=ft.FontWeight.BOLD)) for col in available_cols]
         rows = []
-        for _, row in df.iterrows():
+        for (_, row), key in zip(df.iterrows(), _row_keys(df)):
             cells = []
             for col in available_cols:
                 val = row.get(col, "")
@@ -435,11 +456,10 @@ class TransactionsView:
                     val = str(val)
                     val = value_maps.get(col, {}).get(val, val)
                 cells.append(ft.DataCell(ft.Text(val, size=10)))
-            # A tap on a row offers to edit or remove its operation, named by the row's op_id.
-            op_id = row.get(OP_ID)
-            on_tap = (lambda e, name=row["account"], op_id=op_id: self._on_row_tap(name, op_id)) \
-                if isinstance(op_id, str) and op_id else None
-            rows.append(ft.DataRow(cells=cells, on_select_change=on_tap))
+            # A tap on a row offers to edit or remove its operation, or ticks it while selecting (_on_row_select).
+            on_tap = (lambda e, key=key: self._on_row_select(key)) if key else None
+            rows.append(ft.DataRow(cells=cells, selected=key in self._picked, on_select_change=on_tap, data=key))
+        self._table_rows = rows
 
         # Inside the horizontal scroll, the repaint boundary spares redrawing every cell at each frame of a scroll in either direction.
         return ft.Row([
@@ -448,8 +468,136 @@ class TransactionsView:
                 rows=rows,
                 horizontal_lines=ft.BorderSide(1, ft.Colors.GREY_300),
                 column_spacing=12,
+                show_checkbox_column=self._selecting,  # on the left of the rows, and one above them for the whole page
+                on_select_all=self._on_select_page,
             )),
         ], scroll=ft.ScrollMode.ALWAYS, alignment=ft.MainAxisAlignment.CENTER)
+
+    # ── Select: ticking rows to delete them at once ──────────────────
+
+    def _on_select_button(self, e):
+        """Select shows a checkbox on each row; tapped again, as Delete, it deletes the rows ticked (asking first).
+
+        With no row ticked, it goes back to Select instead. Meanwhile Remove
+        (the last operation) becomes Cancel, which goes back to Select
+        whatever is ticked: one way to delete at a time, and a way out.
+        """
+        if self._selecting and self._picked:
+            self._delete_picked()
+        else:
+            self._set_selecting(not self._selecting)
+
+    def _on_remove_button(self, e):
+        """Remove the account's last operation (_on_remove_row); while ticking rows, as Cancel, go back to Select instead."""
+        if self._selecting:
+            self._set_selecting(False)
+        elif self._acc_idx is not None:
+            self._on_remove_row(e, self._acc_idx)
+
+    def _set_selecting(self, selecting):
+        """Show the rows' checkboxes and the buttons for ticking rows, or hide them; either way, no row is ticked."""
+        self._selecting = selecting
+        self._picked = set()
+        self._show_action_buttons()
+        if self._tx_df is not None and not self._tx_df.empty:
+            self._render_page()
+        self.page.update()
+
+    def _show_action_buttons(self):
+        """Give Remove and Select their look: "Remove" and "Select"; while ticking rows, "Cancel" and a red "Delete".
+
+        Delete is followed by the number of rows ticked, once there are some,
+        e.g. "Delete (3)". Each button's share of the row follows its label.
+        Remove needs one account: it is greyed out in the list of every account.
+        """
+        t = self.state.translator
+        remove, select = self.remove_button, self.select_button
+        count = len(self._picked)
+        if self._selecting:
+            _relabel(remove, t.get("components.cancel"))
+            remove.icon, remove.tooltip, remove.disabled = ft.Icons.CLOSE, None, False
+            _relabel(select, t.get("transactions.bulk.delete_count", count=count) if count
+                     else t.get("transactions.bulk.delete"))
+        else:
+            _relabel(remove, t.get("transactions.remove"))
+            remove.icon, remove.tooltip = ft.Icons.UNDO, t.get("transactions.remove_row")
+            remove.disabled = self._acc_idx is None
+            _relabel(select, t.get("transactions.select"))
+        red = ft.Colors.ERROR if self._selecting else None
+        select.style = ft.ButtonStyle(padding=ft.Padding.zero(), color=red, icon_color=red)
+
+    def _on_row_select(self, key):
+        """A row was tapped: while selecting, tick it or untick it; otherwise offer to edit or remove its operation.
+
+        `key` is the row's (account name, operation id).
+        """
+        if not self._selecting:
+            self._on_row_tap(*key)
+            return
+        self._picked ^= {key}
+        self._show_picked()
+
+    def _on_select_page(self, e):
+        """The checkbox above the rows was tapped: tick every row of the page that can be, or untick them all."""
+        keys = {row.data for row in self._table_rows if row.data}
+        if str(e.data).lower() == "true":
+            self._picked |= keys
+        else:
+            self._picked -= keys
+        self._show_picked()
+
+    def _show_picked(self):
+        """Show which rows of the page are ticked, and how many are on the Delete button."""
+        for row in self._table_rows:
+            row.selected = row.data in self._picked
+        self._show_action_buttons()
+        self.page.update()
+
+    def _delete_picked(self):
+        """Delete the operations of the rows ticked, on every page, all at once (journal_service.delete_many), once the user agrees.
+
+        The question lists every row ticked, in the table's order (it
+        scrolls when they are many), so none is deleted unseen. It says that
+        transfers go from both their accounts, or from their own only when the
+        other account no longer exists, and how many other operations are
+        recalculated. A deletion that would make a later operation impossible
+        (e.g. a sale whose buy goes, unless it is ticked too) or leave one
+        short of cash is refused instead, saying which (change_accounts).
+        Cancel keeps the rows ticked. Once deleted, the tab is shown again, with Select.
+        """
+        s = self.state
+        t = s.translator
+        df = self._tx_filtered_df
+        ticked = df[[key in self._picked for key in _row_keys(df)]]
+        accounts = {account.name: account for account in s.accounts.values()}
+        try:
+            if not set(ticked["account"]) <= set(accounts):  # an account no longer loaded: the list is out of date
+                raise ValueError("a ticked row's account is gone")
+            picks = [(accounts[name], op_id) for name, op_id in zip(ticked["account"], ticked[OP_ID])]
+            picked = journal_service.picked_operations(s.accounts, picks, unavailable=self._unloaded_accounts())
+            later = journal_service.later_operations_deleting_many(s.accounts, picked)
+        except ValidationError as ex:  # an account not moved to the journal, or a transfer's other one not loaded
+            show_snack(self.page, error_message(t, ex), error=True)
+            return
+        except ValueError:  # an operation no longer in its journal: the list is shown again
+            show_snack(self.page, t.get("journal.row_outdated"), error=True)
+            self.app.refresh()
+            return
+
+        count = len(picked)
+        named = [ft.Text(f"• {operation_title(row, t)} · {row['date']} · {row['account']}") for _, row in ticked.iterrows()]
+        notes = []
+        if any(half for _, _, half in picked):
+            notes.append(t.get("transactions.bulk.transfers"))
+        if any(op.transfer_id and half is None for _, op, half in picked):
+            notes.append(t.get("transactions.bulk.transfers_one_side"))
+        if later:
+            notes.append(recalculated_text(t, later, "transactions.bulk"))
+        text = ft.Column([ft.Column(named, spacing=2, tight=True), *map(ft.Text, notes)], spacing=12, tight=True)
+        title = t.get("transactions.bulk.title_one" if count == 1 else "transactions.bulk.title_many", count=count)
+        saved = t.get("transactions.bulk.deleted_one" if count == 1 else "transactions.bulk.deleted_many", count=count)
+        change_accounts(self.app, lambda: journal_service.delete_many(s.accounts, picked),
+                        question=(title, text, t.get("transactions.bulk.delete")), saved_message=saved)
 
     # ── Export / Remove ───────────────────────────────────────────────
 
@@ -562,7 +710,7 @@ class TransactionsView:
         return " · ".join([*title, op.date.strftime(DATE_FORMAT), account.name])
 
     def _remove(self, account, op, named=False):
-        """Delete `op` from `account` (journal_service.delete) in the background; a transfer from both its accounts.
+        """Delete `op` from `account` (journal_service.delete_many) in the background; a transfer from both its accounts.
 
         The operations after it are rebuilt. When it is a transfer, or others
         come after it, the user is asked first: which accounts it is removed
@@ -576,13 +724,13 @@ class TransactionsView:
         s = self.state
         t = s.translator
         try:
-            half = journal_service.transfer_half(s.accounts, account, op.id)
-            if op.transfer_id and half is None and op.counterpart in self._unloaded_accounts():
-                raise ValidationError("journal.partner_unavailable", account=op.counterpart)
-            later = journal_service.later_operations_deleting(s.accounts, account, op.id)
-        except ValidationError as ex:  # an account not moved to the journal, or not loaded
+            picked = journal_service.picked_operations(s.accounts, [(account, op.id)],
+                                                       unavailable=self._unloaded_accounts())
+            later = journal_service.later_operations_deleting_many(s.accounts, picked)
+        except ValidationError as ex:  # an account not moved to the journal, or a transfer's other one not loaded
             show_snack(self.page, error_message(t, ex), error=True)
             return
+        half = picked[0][2]
 
         is_transfer = op.transfer_id is not None
         texts = []
@@ -598,5 +746,5 @@ class TransactionsView:
             if named:
                 text = f"{self._describe(account, op)}\n\n{text}".strip()
             question = (title, text, t.get("journal.delete.confirm"))
-        change_accounts(self.app, lambda: journal_service.delete(s.accounts, account, op.id), question=question,
+        change_accounts(self.app, lambda: journal_service.delete_many(s.accounts, picked), question=question,
                         saved_message=t.get("transactions.transfer_removed" if is_transfer else "transactions.row_removed"))

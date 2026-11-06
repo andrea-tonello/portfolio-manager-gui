@@ -296,7 +296,19 @@
     "transfer_undo_one": "It will be removed from {account} only: the other half of the transfer no longer exists.",
     "transfer_undo_confirm": "Remove",
     "transfer_removed": "Transfer removed",
-    "empty": "No data"
+    "empty": "No data",
+    "bulk": {
+      "delete": "Delete",
+      "delete_count": "Delete ({count})",
+      "title_one": "Delete 1 transaction?",
+      "title_many": "Delete {count} transactions?",
+      "transfers": "Transfers are deleted from both their accounts.",
+      "transfers_one_side": "A transfer whose other account no longer exists is deleted from its own account only.",
+      "one": "This deletion recalculates 1 other operation (taxes, Tax Carryforward and market values included).",
+      "many": "This deletion recalculates {count} other operations (taxes, Tax Carryforward and market values included).",
+      "deleted_one": "1 transaction deleted",
+      "deleted_many": "{count} transactions deleted"
+    }
   },
 
 

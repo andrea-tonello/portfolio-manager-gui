@@ -421,3 +421,93 @@ def test_removing_a_transfer_asks_first_then_removes_it_from_both_accounts(app, 
     page.dialogs[-1].actions[1].on_click(None)  # Remove
 
     assert (len(state.get_account(1).df), len(state.get_account(second).df)) == (rows[0] - 1, rows[1] - 1)
+
+
+# ── Select: ticking rows to delete them at once ──────────────────────
+
+def _table(view):
+    """The table of transactions on screen."""
+    [table] = find_controls(view.tx_table_container, ft.DataTable)
+    return table
+
+
+def _texts(control):
+    """The texts inside `control`, in screen order, e.g. the lines of a question."""
+    return [text.value for text in find_controls(control, ft.Text)]
+
+
+def test_select_ticks_rows_instead_of_opening_them_and_delete_removes_them_all_at_once(every_row, page, state):
+    """Select shows the checkboxes; a row tapped is ticked, not opened; Delete names the rows ticked and asks first.
+
+    Tapped with nothing ticked, Delete goes back to Select. Remove (the last
+    operation) becomes Cancel meanwhile, which goes back to Select whatever
+    is ticked. Cancel in the question keeps the rows ticked; confirmed, both
+    operations go, in one change.
+    """
+    view = every_row
+    view.select_button.on_click(None)
+    assert (_table(view).show_checkbox_column, view.select_button.content, view.remove_button.content) == (
+        True, "Delete", "Cancel")
+    view.select_button.on_click(None)  # nothing ticked: back to Select
+    assert (_table(view).show_checkbox_column, view.select_button.content) == (False, "Select")
+
+    view.select_button.on_click(None)
+    tap_row(view, "15-04-2024", "Dividend")
+    view.remove_button.on_click(None)  # Cancel, with a row ticked
+    assert (_table(view).show_checkbox_column, view.select_button.content, view.remove_button.content) == (
+        False, "Select", "Remove")
+
+    view.select_button.on_click(None)
+    tap_row(view, "15-04-2024", "Dividend")
+    tap_row(view, "02-09-2024", "Withdrawal")
+    assert not page.dialogs and view.select_button.content == "Delete (2)"
+    assert sum(row.selected for row in _table(view).rows) == 2
+
+    view.select_button.on_click(None)
+    question = page.dialogs[-1]
+    assert question.title.value == "Delete 2 transactions?"
+    assert _texts(question.content) == [
+        "• Withdrawal · 02-09-2024 · Test Broker",
+        "• Dividend AAA.MI · 15-04-2024 · Test Broker",
+        "This deletion recalculates 5 other operations (taxes, Tax Carryforward and market values included).",
+    ]
+    question.actions[0].on_click(None)  # Cancel
+    assert view.select_button.content == "Delete (2)"
+
+    view.select_button.on_click(None)
+    page.dialogs[-1].actions[1].on_click(None)  # Delete
+    assert not {Kind.DIVIDEND, Kind.WITHDRAWAL} & {op.kind for op in state.get_account(1).journal}
+    assert snack_texts(page) == ["2 transactions deleted"]
+
+
+def test_a_row_ticked_then_hidden_by_a_filter_is_not_deleted(every_row, page, state):
+    """Hiding the withdrawals unticks the one ticked: only rows the table lists are deleted, never one a filter hides."""
+    view = every_row
+    view.select_button.on_click(None)
+    tap_row(view, "15-04-2024", "Dividend")
+    tap_row(view, "02-09-2024", "Withdrawal")
+
+    view._on_open_operations(None)
+    _answer_popup(page, {"Withdrawal"})
+    assert view.select_button.content == "Delete (1)"
+
+    view.select_button.on_click(None)
+    page.dialogs[-1].actions[1].on_click(None)  # Delete
+    kinds = {op.kind for op in state.get_account(1).journal}
+    assert Kind.DIVIDEND not in kinds and Kind.WITHDRAWAL in kinds
+
+
+def test_deleting_a_transfer_whose_other_account_is_gone_says_it_goes_from_one_account(app, page, state, immediately):
+    """Second Broker, which received the transfer, was deleted since: the question says so, as Remove's does."""
+    state.remove_broker(_transfer_to_second_broker(state))
+    state.tx_selection = "1"
+    view = _built_again(app)
+    view.select_button.on_click(None)
+
+    tap_row(view, "10-01-2025", "Transfer out")
+    view.select_button.on_click(None)
+
+    assert "A transfer whose other account no longer exists is deleted from its own account only." in _texts(
+        page.dialogs[-1].content)
+    page.dialogs[-1].actions[1].on_click(None)  # Delete
+    assert Kind.TRANSFER_OUT not in {op.kind for op in state.get_account(1).journal}

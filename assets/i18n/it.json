@@ -296,7 +296,19 @@
     "transfer_undo_one": "Verrà rimosso solo da {account}: l'altra metà del trasferimento non c'è più.",
     "transfer_undo_confirm": "Rimuovi",
     "transfer_removed": "Trasferimento rimosso",
-    "empty": "Nessun dato disponibile"
+    "empty": "Nessun dato disponibile",
+    "bulk": {
+      "delete": "Elimina",
+      "delete_count": "Elimina ({count})",
+      "title_one": "Eliminare 1 transazione?",
+      "title_many": "Eliminare {count} transazioni?",
+      "transfers": "I trasferimenti vengono eliminati da entrambi i conti.",
+      "transfers_one_side": "Un trasferimento il cui altro conto non esiste più viene eliminato solo dal proprio conto.",
+      "one": "L'eliminazione ricalcola 1 altra operazione (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "many": "L'eliminazione ricalcola {count} altre operazioni (imposte, Zainetto Fiscale e valori di mercato compresi).",
+      "deleted_one": "1 transazione eliminata",
+      "deleted_many": "{count} transazioni eliminate"
+    }
   },
 
 

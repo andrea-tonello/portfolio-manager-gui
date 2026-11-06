@@ -28,6 +28,10 @@ JOURNAL_VERSION = 1
 # What record, delete and edit return: {account number: (its new journal, its rebuilt ledger)}.
 Changes = dict[int, tuple[list[Operation], pd.DataFrame]]
 
+# An operation to delete, as picked_operations returns it: (its account, the operation, and for a transfer
+# (the other account, its half), else None).
+Picked = tuple[Account, Operation, tuple[Account, Operation] | None]
+
 # Fields an edit can't change: what identifies the operation, and which accounts a transfer joins.
 _FIXED_FIELDS = {"id", "seq", "kind", "counterpart", "transfer_id"}
 
@@ -117,13 +121,66 @@ def delete(accounts: dict[int, Account], account: Account, op_id: str) -> Change
     ValidationError("journal.short_of_cash") when one is left short of
     cash, e.g. a buy paid with the deposit deleted.
     """
-    deleted = find_operation(account, op_id)
-    journals = {account.idx: [op for op in _journal_of(account) if op.id != op_id]}
-    half = _other_half(accounts, account, deleted)
-    if half is not None:
-        other, other_op = half
-        journals[other.idx] = [op for op in _journal_of(other) if op.id != other_op.id]
+    return delete_many(accounts, picked_operations(accounts, [(account, op_id)]))
+
+
+def picked_operations(accounts: dict[int, Account], picks: list[tuple[Account, str]],
+                      unavailable: frozenset[str] = frozenset()) -> list[Picked]:
+    """Look up the operations to delete, given as (account, op_id): each with its account and its transfer's other half.
+
+    Each comes back as (account, operation, half): half is (the other
+    account, its half) for a transfer whose other account is still there,
+    else None. delete_many and later_operations_deleting_many take this
+    list, so each operation is looked up once. The account is the one
+    `accounts` holds, which the deletion rebuilds.
+
+    Raises ValueError for an operation no longer in its journal, and
+    ValidationError for an account not migrated yet, or for a transfer whose
+    other account is named in `unavailable` (it exists but couldn't be
+    loaded): deleting one half alone would leave the other for good.
+
+    Example: Fineco's transfer out of 300 to Directa ->
+    [(fineco, the transfer out, (directa, its transfer in))]; a deposit -> [(fineco, the deposit, None)].
+    """
+    picked = []
+    for account, op_id in picks:
+        account = accounts[account.idx]
+        op = find_operation(account, op_id)
+        picked.append((account, op, _other_half(accounts, account, op, unavailable)))
+    return picked
+
+
+def delete_many(accounts: dict[int, Account], picked: list[Picked]) -> Changes:
+    """Return the changes made by deleting several operations at once, looked up with picked_operations.
+
+    As delete does for one: a transfer goes from both its accounts (picking
+    both halves deletes it once), and it raises the same errors. Each
+    account changed is rebuilt once. A later operation that the deletions
+    would make impossible is refused unless it is deleted too.
+
+    Example: in STOCKS_EUR, deleting the buy of 10 AAA.MI on 01-02-2024
+    alone is refused, as the sale of 03-06-2024 needs those shares;
+    deleting both, with the sale of 01-08-2024 and the split before it, works.
+    """
+    journals = {}
+    for idx, taken_out in _taken_out(picked).items():
+        ids = {op.id for op in taken_out}
+        journals[idx] = [op for op in _journal_of(accounts[idx]) if op.id not in ids]
     return _rebuilt(accounts, journals, keep_cash=True)
+
+
+def _taken_out(picked: list[Picked]) -> dict[int, list[Operation]]:
+    """Return the operations deleting `picked` takes out, by account number: those picked, and their transfers' other halves.
+
+    Example: Fineco (account 1) deleting its deposit and its transfer out to
+    Directa (account 2) -> {1: [the deposit, the transfer out], 2: [the transfer in]}.
+    Both halves of a transfer picked come out once each.
+    """
+    taken_out = {}  # account number -> {operation id: operation}
+    for account, op, half in picked:
+        for each, each_op in [(account, op), *([half] if half else [])]:
+            taken_out.setdefault(each.idx, {})[each_op.id] = each_op
+    return {idx: list(ops.values()) for idx, ops in taken_out.items()}
 
 
 def edit(accounts: dict[int, Account], account: Account, op_id: str, **new_fields) -> Changes:
@@ -250,15 +307,21 @@ def later_operations(accounts: dict[int, Account], account: Account, kind: Kind,
     return sum(_count_after(_journal_of(each), (day, _next_seq(each))) for each in changed if each is not None)
 
 
-def later_operations_deleting(accounts: dict[int, Account], account: Account, op_id: str) -> int:
-    """Return how many operations deleting `op_id` from `account` recalculates: those after it.
+def later_operations_deleting_many(accounts: dict[int, Account], picked: list[Picked]) -> int:
+    """Return how many operations deleting `picked` (see picked_operations) recalculates.
 
-    For a transfer, in both accounts. Example: deleting the second of three
-    deposits on 02-01, 03-01 and 05-01 recalculates 1. Raises
-    ValidationError as delete does, before deleting anything.
+    In each account changed, those after its earliest operation deleted,
+    other than those deleted; for a transfer, in both accounts. Example:
+    deleting the first and the third of four deposits on 02-01, 03-01, 05-01
+    and 07-01 recalculates 2 (03-01 and 07-01). It only counts: whether the
+    deletion is allowed (a later sale still possible, no cash left short) is
+    for delete_many to say.
     """
-    return sum(_count_after(_journal_of(each), sort_key(op), besides=op.id)
-               for each, op in _with_other_half(accounts, account, find_operation(account, op_id)))
+    total = 0
+    for idx, taken_out in _taken_out(picked).items():
+        first = min(sort_key(op) for op in taken_out)
+        total += _count_after(_journal_of(accounts[idx]), first, besides={op.id for op in taken_out})
+    return total
 
 
 def later_operations_editing(accounts: dict[int, Account], account: Account, op_id: str, **new_fields) -> int:
@@ -270,13 +333,13 @@ def later_operations_editing(accounts: dict[int, Account], account: Account, op_
     01-01 recalculates the other 2. Raises ValidationError as edit does.
     """
     day = new_fields.get("date")
-    return sum(_count_after(_journal_of(each), min(sort_key(op), (day or op.date, op.seq)), besides=op.id)
+    return sum(_count_after(_journal_of(each), min(sort_key(op), (day or op.date, op.seq)), besides={op.id})
                for each, op in _with_other_half(accounts, account, find_operation(account, op_id)))
 
 
-def _count_after(journal: list[Operation], place: tuple[date, int], besides: str | None = None) -> int:
-    """Return how many operations of `journal`, other than `besides`, come after `place`, a (date, order of entry)."""
-    return sum(sort_key(op) > place and op.id != besides for op in journal)
+def _count_after(journal: list[Operation], place: tuple[date, int], besides: set[str] = frozenset()) -> int:
+    """Return how many operations of `journal`, other than those whose ids are in `besides`, come after `place`, a (date, order of entry)."""
+    return sum(sort_key(op) > place and op.id not in besides for op in journal)
 
 
 def transfer_half(accounts: dict[int, Account], account: Account, op_id: str) -> tuple[Account, Operation] | None:
@@ -338,14 +401,16 @@ def _account_named(accounts: dict[int, Account], name: str, besides: Account) ->
     return found
 
 
-def _other_half(accounts: dict[int, Account], account: Account, op: Operation) -> tuple[Account, Operation] | None:
+def _other_half(accounts: dict[int, Account], account: Account, op: Operation,
+                unavailable: frozenset[str] = frozenset()) -> tuple[Account, Operation] | None:
     """Return (the other account, its half) of the transfer `op` of `account`, or None.
 
     None when `op` isn't a transfer, or the other account was deleted.
     The half is found by the transfer_id both share. Raises
     ValidationError("journal.partner_unavailable") when the other account is
-    there but not migrated yet: changing one half alone would leave the
-    other for good.
+    there but not migrated yet, or not in `accounts` because it couldn't be
+    loaded (its name in `unavailable`): changing one half alone would leave
+    the other for good.
     """
     if op.transfer_id is None:
         return None
@@ -357,4 +422,6 @@ def _other_half(accounts: dict[int, Account], account: Account, op: Operation) -
             half = next((o for o in other.journal if o.transfer_id == op.transfer_id), None)
             if half is not None:
                 return other, half
+    if op.counterpart in unavailable:
+        raise ValidationError("journal.partner_unavailable", account=op.counterpart)
     return None

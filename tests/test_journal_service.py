@@ -282,3 +282,56 @@ def test_editing_a_transfer_changes_both_halves(transfer):
     assert [(op.id, op.seq, op.amount, op.date) for op in edited] == [
         (sent.id, sent.seq, 200.0, date(2024, 1, 5)), (received.id, received.seq, 200.0, date(2024, 1, 5))]
     assert (transfer[1].last("cash_held"), transfer[2].last("cash_held")) == (800, 300)
+
+
+def test_several_operations_are_deleted_at_once_and_a_buy_goes_only_with_the_sales_it_paid_for(fake_market):
+    """Deleting the buy of 10 AAA.MI on 01-02-2024 alone is refused: the sale of 03-06-2024 needs those shares.
+
+    Deleted with that sale, the split and the sale of 01-08-2024 after it,
+    the account is rebuilt once, as if they had never been recorded. The 6
+    operations after the buy that stay are recalculated, and nothing else.
+    """
+    accounts = {1: account_of(1, BROKER, STOCKS_EUR)}
+    journal = accounts[1].journal
+    buy_feb, sale_jun, split_jul, sale_aug = journal[2], journal[8], journal[9], journal[10]
+
+    with pytest.raises(OperationRefused) as refused:
+        journal_service.delete_many(accounts, journal_service.picked_operations(accounts, [(accounts[1], buy_feb.id)]))
+    assert refused.value.operation == sale_jun
+
+    picked = journal_service.picked_operations(
+        accounts, [(accounts[1], op.id) for op in (sale_aug, buy_feb, split_jul, sale_jun)])
+    assert journal_service.later_operations_deleting_many(accounts, picked) == 6
+    applied(accounts, journal_service.delete_many(accounts, picked))
+
+    kept = [op for op in journal if op not in (buy_feb, sale_jun, split_jul, sale_aug)]
+    assert accounts[1].journal == kept
+    assert csv_text(accounts[1].df) == csv_text(rebuild(BROKER, kept))
+
+
+def test_a_transfer_picked_by_both_halves_is_deleted_once(transfer):
+    """In the list of every account, both rows of a transfer can be ticked: it goes from both accounts, as for one half."""
+    sent, received = transfer[1].journal[-1], transfer[2].journal[-1]
+
+    picked = journal_service.picked_operations(transfer, [(transfer[1], sent.id), (transfer[2], received.id)])
+    applied(transfer, journal_service.delete_many(transfer, picked))
+
+    assert [op.kind for op in transfer[1].journal + transfer[2].journal] == ["deposit", "deposit"]
+    assert (transfer[1].last("cash_held"), transfer[2].last("cash_held")) == (1000, 100)
+
+
+def test_a_transfer_whose_other_account_couldnt_be_loaded_isnt_deleted_by_half(transfer):
+    """Directa exists but couldn't be loaded (not in the accounts, its name among the unavailable): refused, naming it.
+
+    Deleted from Fineco alone, its half in Directa would stay for good. With
+    Directa really gone (deleted, so not unavailable), Fineco's half alone goes.
+    """
+    sent = transfer[1].journal[-1]
+    fineco_only = {1: transfer[1]}
+
+    with pytest.raises(ValidationError) as refused:
+        journal_service.picked_operations(fineco_only, [(transfer[1], sent.id)], unavailable=frozenset({"Directa"}))
+    assert (refused.value.key, refused.value.params) == ("journal.partner_unavailable", {"account": "Directa"})
+
+    [(_, _, half)] = journal_service.picked_operations(fineco_only, [(transfer[1], sent.id)])
+    assert half is None
